@@ -1,16 +1,15 @@
 {
-  "name": "weather-phrase-bot",
+  "name": "weather-english-bot",
   "version": "1.0.0",
-  "description": "Telegram бот с погодой и фразами дня",
   "main": "api/bot.js",
   "scripts": {
-    "start": "node api/bot.js"
+    "start": "node api/bot.js",
+    "dev": "node api/bot.js"
   },
   "dependencies": {
-    "grammy": "^1.20.3",
-    "node-fetch": "^2.6.9"
+    "grammy": "^1.22.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18.0.0"
   }
 }
