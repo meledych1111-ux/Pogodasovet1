@@ -1,494 +1,206 @@
 import { Bot, Keyboard } from 'grammy';
 
-// ===================== КОНФИГУРАЦИЯ =====================
 const BOT_TOKEN = process.env.BOT_TOKEN;
-
 if (!BOT_TOKEN) {
-    console.error('❌ FATAL: BOT_TOKEN не найден');
+  throw new Error('BOT_TOKEN не установлен');
 }
 
-// Создаем экземпляр бота
 const bot = new Bot(BOT_TOKEN);
 
+// ===================== ИНИЦИАЛИЗАЦИЯ БОТА =====================
+let botInitialized = false;
+
+async function initBot() {
+  if (botInitialized) return;
+  try {
+    await bot.init();
+    console.log(`✅ Бот инициализирован: @${bot.botInfo.username}`);
+    botInitialized = true;
+  } catch (e) {
+    console.error('❌ Ошибка инициализации:', e);
+    throw e;
+  }
+}
+
 // ===================== API ПОГОДЫ =====================
-async function getWeatherData(cityName) {
-    console.log(`[Weather] Запрос: "${cityName}"`);
-    try {
-        // Геокодинг
-        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
-        const geoRes = await fetch(geoUrl);
-        const geoData = await geoRes.json();
-
-        if (!geoData.results || geoData.results.length === 0) {
-            throw new Error('Город не найден');
-        }
-
-        const { latitude, longitude, name } = geoData.results[0];
-        console.log(`[Weather] Найден: ${name}`);
-
-        // Погода
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation,weather_code&wind_speed_unit=ms&timezone=auto`;
-        const weatherRes = await fetch(weatherUrl);
-        const weatherJson = await weatherRes.json();
-
-        if (!weatherJson.current) {
-            throw new Error('Нет данных о погоде');
-        }
-
-        const c = weatherJson.current;
-        return {
-            city: name,
-            temp: Math.round(c.temperature_2m),
-            feels_like: Math.round(c.apparent_temperature),
-            humidity: c.relative_humidity_2m,
-            wind: c.wind_speed_10m.toFixed(1),
-            precipitation: c.precipitation,
-            description: getWeatherDescription(c.weather_code)
-        };
-
-    } catch (error) {
-        console.error(`[Weather] Ошибка:`, error.message);
-        return {
-            city: cityName,
-            temp: 18,
-            feels_like: 17,
-            humidity: 65,
-            wind: '3.5',
-            precipitation: 0,
-            description: 'Облачно ☁️',
-            isFallback: true
-        };
-    }
-}
-
-function getWeatherDescription(code) {
-    const weatherMap = {
-        0: 'Ясно ☀️', 1: 'Преимущественно ясно 🌤️',
-        2: 'Переменная облачность ⛅', 3: 'Пасмурно ☁️',
-        45: 'Туман 🌫️', 48: 'Изморозь 🌫️',
-        51: 'Легкая морось 🌧️', 53: 'Умеренная морось 🌧️',
-        55: 'Сильная морось 🌧️', 56: 'Ледяная морось 🌧️',
-        57: 'Сильная ледяная морось 🌧️', 61: 'Небольшой дождь 🌧️',
-        63: 'Умеренный дождь 🌧️', 65: 'Сильный дождь 🌧️',
-        71: 'Небольшой снег ❄️', 73: 'Умеренный снег ❄️',
-        75: 'Сильный снег ❄️', 80: 'Небольшой ливень 🌧️',
-        81: 'Умеренный ливень 🌧️', 82: 'Сильный ливень 🌧️',
-        95: 'Гроза ⛈️'
+async function getWeather(cityName) {
+  try {
+    const geo = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`
+    );
+    const geoData = await geo.json();
+    
+    if (!geoData.results?.[0]) throw new Error('Город не найден');
+    
+    const { latitude, longitude, name } = geoData.results[0];
+    
+    const weather = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&wind_speed_unit=ms&timezone=auto`
+    );
+    const w = await weather.json();
+    
+    const c = w.current;
+    return {
+      city: name,
+      temp: Math.round(c.temperature_2m),
+      feels: Math.round(c.apparent_temperature),
+      humidity: c.relative_humidity_2m,
+      wind: c.wind_speed_10m.toFixed(1),
+      desc: getDesc(c.weather_code)
     };
-    return weatherMap[code] || `Код: ${code}`;
+  } catch (e) {
+    console.error('Ошибка погоды:', e);
+    return null;
+  }
 }
 
-function getWardrobeAdvice(weather) {
-    const advice = [];
-    const { temp, description, wind } = weather;
-
-    // По температуре
-    if (temp >= 25) {
-        advice.push('• 🩳 Очень тепло: футболка, шорты, панама');
-        advice.push('• 👟 Легкая обувь: сандалии или кеды');
-    } else if (temp >= 18) {
-        advice.push('• 👕 Тепло: футболка, джинсы или брюки');
-        advice.push('• 🧥 Легкая куртка или ветровка на вечер');
-    } else if (temp >= 10) {
-        advice.push('• 🧥 Прохладно: лонгслив, свитер, ветровка');
-        advice.push('• 👖 Обязательно штаны');
-    } else if (temp >= 0) {
-        advice.push('• 🧣 Холодно: термобелье, свитер, зимняя куртка');
-        advice.push('• 🧤 Шапка, шарф и перчатки');
-    } else {
-        advice.push('• 🥶 Мороз: термобелье, пуховик, теплые штаны');
-        advice.push('• 🧣 Шапка, шарф, варежки, теплая обувь');
-    }
-
-    // По осадкам
-    if (description.includes('🌧️') || description.includes('⛈️') || weather.precipitation > 2) {
-        advice.push('• ☔ Дождь: куртка/дождевик, зонт');
-    }
-    if (description.includes('❄️') || description.includes('снег')) {
-        advice.push('• ❄️ Снег: непромокаемая обувь, варежки');
-    }
-    if (parseFloat(wind) > 7) {
-        advice.push('• 💨 Ветер: ветровка с капюшоном');
-    }
-    if (description.includes('☀️')) {
-        advice.push('• 🕶️ Солнце: очки и крем SPF');
-    }
-
-    advice.push('\n🎒 Совет: одевайтесь слоями');
-    return advice.join('\n');
+function getDesc(code) {
+  const map = {
+    0: 'Ясно ☀️', 1: 'Ясно 🌤️', 2: 'Облачно ⛅', 3: 'Пасмурно ☁️',
+    51: 'Морось 🌧️', 61: 'Дождь 🌧️', 63: 'Дождь 🌧️', 65: 'Ливень 🌧️',
+    71: 'Снег ❄️', 73: 'Снег ❄️', 75: 'Снег ❄️', 95: 'Гроза ⛈️'
+  };
+  return map[code] || 'Погода';
 }
-
-// ===================== БАЗА ФРАЗ =====================
-const dailyPhrases = [
-    {
-        english: "Where is the nearest metro station?",
-        russian: "Где ближайшая станция метро?",
-        explanation: "Спрашиваем дорогу к метро",
-        category: "Путешествия",
-        level: "Начальный"
-    },
-    {
-        english: "It's raining cats and dogs",
-        russian: "Льёт как из ведра",
-        explanation: "Очень сильный дождь. Классическая идиома.",
-        category: "Погода",
-        level: "Средний"
-    },
-    {
-        english: "Break the ice",
-        russian: "Растопить лёд",
-        explanation: "Начать разговор в незнакомой обстановке.",
-        category: "Общение",
-        level: "Средний"
-    },
-    {
-        english: "I'm feeling under the weather",
-        russian: "Я неважно себя чувствую",
-        explanation: "Быть немного больным или не в настроении.",
-        category: "Здоровье",
-        level: "Средний"
-    },
-    {
-        english: "Could you please repeat that?",
-        russian: "Не могли бы вы повторить?",
-        explanation: "Вежливая просьба повторить сказанное.",
-        category: "Общение",
-        level: "Начальный"
-    },
-    {
-        english: "The ball is in your court",
-        russian: "Мяч на твоей стороне",
-        explanation: "Теперь твоя очередь действовать.",
-        category: "Деловое общение",
-        level: "Средний"
-    },
-    {
-        english: "Piece of cake",
-        russian: "Проще простого",
-        explanation: "Очень легкая задача.",
-        category: "Повседневное",
-        level: "Начальный"
-    },
-    {
-        english: "Once in a blue moon",
-        russian: "Очень редко",
-        explanation: "Что-то происходит крайне редко.",
-        category: "Время",
-        level: "Средний"
-    },
-    {
-        english: "Bite the bullet",
-        russian: "Стиснуть зубы",
-        explanation: "Принять трудное решение.",
-        category: "Принятие решений",
-        level: "Средний"
-    },
-    {
-        english: "Costs an arm and a leg",
-        russian: "Стоит целое состояние",
-        explanation: "Очень дорого.",
-        category: "Деньги",
-        level: "Средний"
-    }
-];
 
 // ===================== КЛАВИАТУРЫ =====================
-const mainMenu = new Keyboard()
-    .text('🌤️ ПОГОДА').row()
-    .text('👕 ЧТО НАДЕТЬ?').text('💬 ФРАЗА ДНЯ').row()
-    .text('🏙️ СМЕНИТЬ ГОРОД').text('ℹ️ ПОМОЩЬ')
-    .resized()
-    .oneTime();
+const cityKb = new Keyboard()
+  .text('Москва').text('СПб').row()
+  .text('Сочи').text('Казань').row()
+  .text('🔙 Назад')
+  .resized();
 
-const cityMenu = new Keyboard()
-    .text('📍 Москва').text('📍 Санкт-Петербург').row()
-    .text('📍 Симферополь').text('📍 Сочи').row()
-    .text('📍 Екатеринбург').text('📍 Казань').row()
-    .text('📍 Новосибирск').text('📍 Краснодар').row()
-    .text('✏️ Другой город').row()
-    .text('🔙 Назад')
-    .resized()
-    .oneTime();
+const mainKb = new Keyboard()
+  .text('🌤 Погода').text('👕 Одежда').row()
+  .text('💬 Фраза').text('🏙 Город')
+  .resized();
 
-const backMenu = new Keyboard()
-    .text('🔙 Назад')
-    .resized()
-    .oneTime();
-
-// ===================== ОБРАБОТКА КОМАНД =====================
-bot.command('start', async (ctx) => {
-    const userId = ctx.from.id;
-    const userName = ctx.from.first_name || 'Друг';
-    
-    console.log(`[Bot] /start от ${userId} (${userName})`);
-    
-    await ctx.reply(
-        `Привет, ${userName}! 👋\n\nЯ помогу узнать погоду, подскажу что надеть и научу английскому!\n\nВыбери город:`,
-        { reply_markup: cityMenu }
-    );
+// ===================== КОМАНДЫ =====================
+bot.command('start', (ctx) => {
+  ctx.reply(
+    `Привет! 👋\nВыбери город для прогноза:`,
+    { reply_markup: cityKb }
+  );
 });
 
-// Выбор города из списка
-bot.hears(/^📍 /, async (ctx) => {
-    const city = ctx.message.text.replace('📍 ', '');
-    const userId = ctx.from.id;
-    
-    console.log(`[Bot] ${userId} выбрал: ${city}`);
-    
-    // Сохраняем город в сессии
-    ctx.session = ctx.session || {};
-    ctx.session.city = city;
-    
-    await ctx.reply(
-        `✅ Город *${city}* сохранён!\nВыбери действие:`,
-        { parse_mode: 'Markdown', reply_markup: mainMenu }
-    );
+bot.hears(['Москва', 'СПб', 'Сочи', 'Казань'], async (ctx) => {
+  const cityMap = { 'Москва': 'Москва', 'СПб': 'Санкт-Петербург', 'Сочи': 'Сочи', 'Казань': 'Казань' };
+  const city = cityMap[ctx.msg.text];
+  
+  ctx.session ??= {};
+  ctx.session.city = city;
+  
+  await ctx.reply(`✅ Выбран город: *${city}*\n\nВыбери действие:`, {
+    parse_mode: 'Markdown',
+    reply_markup: mainKb
+  });
 });
 
-// Ввод другого города
-bot.hears('✏️ Другой город', async (ctx) => {
-    ctx.session = ctx.session || {};
-    ctx.session.awaitingCity = true;
-    
-    await ctx.reply(
-        '📝 Напиши название города:\n(например: Воронеж, Лондон)',
-        { reply_markup: backMenu }
-    );
+bot.hears('🔙 Назад', (ctx) => {
+  ctx.session ??= {};
+  ctx.session.city = null;
+  ctx.reply('Выбери город:', { reply_markup: cityKb });
 });
 
-// Кнопка "Назад"
-bot.hears('🔙 Назад', async (ctx) => {
-    ctx.session = ctx.session || {};
-    ctx.session.awaitingCity = false;
-    
-    if (!ctx.session.city) {
-        await ctx.reply('Выбери город:', { reply_markup: cityMenu });
-    } else {
-        await ctx.reply('🏠 В меню:', { reply_markup: mainMenu });
-    }
+bot.hears('🌤 Погода', async (ctx) => {
+  ctx.session ??= {};
+  const city = ctx.session.city;
+  
+  if (!city) return ctx.reply('Сначала выбери город!', { reply_markup: cityKb });
+  
+  await ctx.reply(`Загружаю погоду для ${city}...`);
+  
+  const w = await getWeather(city);
+  if (!w) return ctx.reply('❌ Не удалось получить погоду', { reply_markup: mainKb });
+  
+  ctx.reply(
+    `🌤 *${w.city}*\n\n` +
+    `🌡 ${w.temp}°C (ощущается как ${w.feels}°C)\n` +
+    `💨 Ветер: ${w.wind} м/с\n` +
+    `💧 Влажность: ${w.humidity}%\n` +
+    `📝 ${w.desc}`,
+    { parse_mode: 'Markdown', reply_markup: mainKb }
+  );
 });
 
-// Обработка текста (ввод города)
-bot.on('message:text', async (ctx) => {
-    const text = ctx.message.text;
-    const userId = ctx.from.id;
-    
-    // Игнорируем команды
-    if (text.startsWith('/')) return;
-    
-    ctx.session = ctx.session || {};
-    
-    // Если ждём ввод города
-    if (ctx.session.awaitingCity) {
-        ctx.session.city = text;
-        ctx.session.awaitingCity = false;
-        
-        console.log(`[Bot] ${userId} ввёл город: ${text}`);
-        
-        await ctx.reply(
-            `✅ Город *${text}* сохранён!`,
-            { parse_mode: 'Markdown', reply_markup: mainMenu }
-        );
-        return;
-    }
-    
-    // Если город не выбран
-    if (!ctx.session.city) {
-        await ctx.reply('Сначала выбери город!', { reply_markup: cityMenu });
-        return;
-    }
-    
-    // Обработка кнопок меню
-    switch (text) {
-        case '🌤️ ПОГОДА':
-            return await handleWeather(ctx);
-        case '👕 ЧТО НАДЕТЬ?':
-            return await handleClothes(ctx);
-        case '💬 ФРАЗА ДНЯ':
-            return await handlePhrase(ctx);
-        case '🏙️ СМЕНИТЬ ГОРОД':
-            ctx.session.city = null;
-            await ctx.reply('Выбери новый город:', { reply_markup: cityMenu });
-            return;
-        case 'ℹ️ ПОМОЩЬ':
-            return await handleHelp(ctx);
-        default:
-            await ctx.reply('❓ Используй кнопки меню', { reply_markup: mainMenu });
-    }
+bot.hears('👕 Одежда', async (ctx) => {
+  ctx.session ??= {};
+  const city = ctx.session.city;
+  
+  if (!city) return ctx.reply('Сначала выбери город!', { reply_markup: cityKb });
+  
+  const w = await getWeather(city);
+  if (!w) return ctx.reply('❌ Не удалось получить погоду', { reply_markup: mainKb });
+  
+  let advice = '';
+  if (w.temp >= 25) advice = '🩳 Футболка + шорты + панама';
+  else if (w.temp >= 18) advice = '👕 Футболка + джинсы, лёгкая куртка';
+  else if (w.temp >= 10) advice = '🧥 Свитер + ветровка, штаны';
+  else if (w.temp >= 0) advice = '🧣 Термобельё + куртка, шапка/шарф';
+  else advice = '🥶 Пуховик + шапка/шарф/варежки';
+  
+  if (w.desc.includes('🌧️')) advice += '\n☔ Возьми зонт!';
+  if (w.desc.includes('❄️')) advice += '\n❄️ Обувь непромокаемая!';
+  
+  ctx.reply(
+    `👕 *${city}*\n\nСовет: ${advice}`,
+    { parse_mode: 'Markdown', reply_markup: mainKb }
+  );
 });
 
-// ===================== ФУНКЦИИ ОБРАБОТКИ =====================
-async function handleWeather(ctx) {
-    const userId = ctx.from.id;
-    const city = ctx.session?.city;
-    
-    if (!city) {
-        await ctx.reply('Сначала выбери город!', { reply_markup: cityMenu });
-        return;
-    }
-    
-    console.log(`[Bot] ${userId} запросил погоду для: ${city}`);
-    
-    try {
-        await ctx.reply(`🔍 Запрашиваю погоду для *${city}*...`, { parse_mode: 'Markdown' });
-        
-        const weather = await getWeatherData(city);
-        
-        const message = `
-🌤️ *Погода в ${weather.city}*
-${weather.isFallback ? '_(тестовые данные)_\n' : ''}
+bot.hears('💬 Фраза', (ctx) => {
+  const phrases = [
+    'Break the ice — Растопить лёд (начать разговор)',
+    'Piece of cake — Проще простого',
+    'Under the weather — Неважно себя чувствовать',
+    'Costs an arm and a leg — Очень дорого',
+    'Once in a blue moon — Очень редко'
+  ];
+  const phrase = phrases[new Date().getDate() % phrases.length];
+  
+  ctx.reply(
+    `💬 *Фраза дня*\n\n🇬🇧 ${phrase}`,
+    { parse_mode: 'Markdown', reply_markup: mainKb }
+  );
+});
 
-🌡️ Температура: *${weather.temp}°C*
-🤔 Ощущается: *${weather.feels_like}°C*
-💨 Ветер: *${weather.wind} м/с*
-💧 Влажность: *${weather.humidity}%*
-📝 Состояние: *${weather.description}*
-🌧️ Осадки: *${weather.precipitation} мм*
-        `.trim();
-        
-        await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenu });
-        
-    } catch (err) {
-        console.error(`[Bot] Ошибка погоды:`, err);
-        await ctx.reply('❌ Ошибка получения погоды', { reply_markup: mainMenu });
-    }
-}
+bot.hears('🏙 Город', (ctx) => {
+  ctx.session ??= {};
+  ctx.session.city = null;
+  ctx.reply('Выбери новый город:', { reply_markup: cityKb });
+});
 
-async function handleClothes(ctx) {
-    const userId = ctx.from.id;
-    const city = ctx.session?.city;
-    
-    if (!city) {
-        await ctx.reply('Сначала выбери город!', { reply_markup: cityMenu });
-        return;
-    }
-    
-    console.log(`[Bot] ${userId} запросил одежду для: ${city}`);
-    
-    try {
-        await ctx.reply(`👔 Анализирую погоду в *${city}*...`, { parse_mode: 'Markdown' });
-        
-        const weather = await getWeatherData(city);
-        const advice = getWardrobeAdvice(weather);
-        
-        const message = `
-👕 *Совет по одежде для ${weather.city}*
-
-${advice}
-        `.trim();
-        
-        await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenu });
-        
-    } catch (err) {
-        console.error(`[Bot] Ошибка совета:`, err);
-        await ctx.reply('❌ Ошибка получения совета', { reply_markup: mainMenu });
-    }
-}
-
-async function handlePhrase(ctx) {
-    const userId = ctx.from.id;
-    console.log(`[Bot] ${userId} запросил фразу дня`);
-    
-    // Выбираем фразу по дню месяца
-    const day = new Date().getDate();
-    const phrase = dailyPhrases[day % dailyPhrases.length];
-    
-    const message = `
-💬 *Фраза дня*
-
-🇬🇧 *${phrase.english}*
-🇷🇺 *${phrase.russian}*
-
-📖 *Объяснение:* ${phrase.explanation}
-
-🏷️ Категория: ${phrase.category}
-📊 Уровень: ${phrase.level}
-    `.trim();
-    
-    await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenu });
-}
-
-async function handleHelp(ctx) {
-    const helpText = `
-🆘 *Помощь*
-
-🌤️ *ПОГОДА* — текущая погода в выбранном городе
-
-👕 *ЧТО НАДЕТЬ?* — советы по одежде на основе погоды
-
-💬 *ФРАЗА ДНЯ* — полезная английская фраза или идиома
-
-🏙️ *СМЕНИТЬ ГОРОД* — изменить город для прогноза
-
-ℹ️ *ПОМОЩЬ* — это сообщение
-
----
-*Данные о погоде: Open-Meteo*
-    `.trim();
-    
-    await ctx.reply(helpText, { parse_mode: 'Markdown', reply_markup: mainMenu });
-}
-
-// ===================== WEBHOOK ДЛЯ VERCEL =====================
+// ===================== WEBHOOK =====================
 export default async function handler(req, res) {
-    console.log(`[Vercel] ${req.method} запрос`);
-    
-    // Обработка GET (проверка работоспособности)
-    if (req.method === 'GET') {
-        return res.status(200).json({
-            status: 'OK',
-            message: 'Telegram bot webhook',
-            timestamp: new Date().toISOString()
-        });
+  // Инициализируем бота при первом запросе
+  if (!botInitialized) {
+    try {
+      await initBot();
+    } catch (e) {
+      console.error('Не удалось инициализировать бота:', e);
+      return res.status(500).json({ error: 'Bot initialization failed' });
     }
-    
-    // Обработка POST (вебхук от Telegram)
-    if (req.method === 'POST') {
-        try {
-            const update = req.body;
-            console.log(`[Vercel] Update ID: ${update.update_id}`);
-            
-            // Обработка сессии (простое решение для Vercel)
-            if (!update.message?.chat?.id) {
-                await bot.handleUpdate(update);
-                return res.status(200).json({ ok: true });
-            }
-            
-            const chatId = update.message.chat.id;
-            
-            // Создаём сессию для обработки
-            const ctx = {
-                update,
-                message: update.message,
-                from: update.message.from,
-                chat: update.message.chat,
-                session: {},
-                reply: async (text, options) => {
-                    await bot.api.sendMessage(chatId, text, options);
-                },
-                api: bot.api
-            };
-            
-            // Получаем сессию из сообщения (если есть)
-            if (update.message.text && update.message.text.includes('session:')) {
-                try {
-                    const sessionStr = update.message.text.split('session:')[1];
-                    ctx.session = JSON.parse(sessionStr);
-                } catch (e) {
-                    ctx.session = {};
-                }
-            }
-            
-            // Обрабатываем через бота
-            await bot.handleUpdate(update, ctx);
-            
-            return res.status(200).json({ ok: true });
-            
-        } catch (error) {
-            console.error('[Vercel] Ошибка:', error);
-            return res.status(200).json({ ok: false });
-        }
+  }
+
+  // GET — проверка работоспособности
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      ok: true, 
+      message: 'Bot is running',
+      bot: bot.botInfo?.username || 'unknown'
+    });
+  }
+  
+  // POST — обработка вебхука
+  if (req.method === 'POST') {
+    try {
+      await bot.handleUpdate(req.body);
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error('Ошибка обработки:', e);
+      return res.status(200).json({ ok: false });
     }
-    
-    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+  
+  return res.status(405).end();
 }
