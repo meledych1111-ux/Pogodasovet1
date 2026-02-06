@@ -94,6 +94,7 @@ function getWardrobeAdvice(weatherData) {
 }
 
 // ===================== КОЛЛЕКЦИЯ ФРАЗ (50+ для начала) =====================
+// ПРОБЛЕМА 1: У вас два одинаковых массива dailyPhrases - удалите дубликат
 const dailyPhrases = [
   {
     id: 1,
@@ -134,52 +135,49 @@ const dailyPhrases = [
     explanation: "В любой плохой ситуации есть что-то хорошее",
     category: "optimism",
     difficulty: "intermediate"
-  }
+  },
   // Добавьте ещё фраз при необходимости
-];
-// ===================== КОЛЛЕКЦИЯ ФРАЗ (50+ для начала) =====================
-const dailyPhrases = [
   {
-    id: 1,
-    english: "Where is the nearest metro station?",
-    russian: "Где ближайшая станция метро?",
-    explanation: "Спрашиваем дорогу к метро",
-    category: "travel",
-    difficulty: "beginner"
-  },
-  {
-    id: 2,
-    english: "How much is a ticket to the museum?",
-    russian: "Сколько стоит билет в музей?",
-    explanation: "Спрашиваем цену билета",
-    category: "travel",
-    difficulty: "beginner"
-  },
-  {
-    id: 3,
-    english: "It's raining cats and dogs",
-    russian: "Льёт как из ведра",
-    explanation: "Идиома для описания сильного дождя",
-    category: "weather",
+    id: 6,
+    english: "I'm feeling under the weather",
+    russian: "Я неважно себя чувствую",
+    explanation: "Чувствовать себя плохо, болеть",
+    category: "health",
     difficulty: "intermediate"
   },
   {
-    id: 4,
-    english: "Break the ice",
-    russian: "Растопить лёд/начать общение",
-    explanation: "Начать разговор в неловкой ситуации",
+    id: 7,
+    english: "Once in a blue moon",
+    russian: "Раз в сто лет / Очень редко",
+    explanation: "Происходит крайне редко",
+    category: "time",
+    difficulty: "intermediate"
+  },
+  {
+    id: 8,
+    english: "Could you please repeat that?",
+    russian: "Не могли бы вы повторить?",
+    explanation: "Вежливая просьба повторить сказанное",
     category: "communication",
-    difficulty: "intermediate"
+    difficulty: "beginner"
   },
   {
-    id: 5,
-    english: "Every cloud has a silver lining",
-    russian: "Нет худа без добра",
-    explanation: "В любой плохой ситуации есть что-то хорошее",
-    category: "optimism",
+    id: 9,
+    english: "Where can I find a good restaurant?",
+    russian: "Где можно найти хороший ресторан?",
+    explanation: "Спрашиваем рекомендации по ресторанам",
+    category: "food",
+    difficulty: "beginner"
+  },
+  {
+    id: 10,
+    english: "It's a piece of cake",
+    russian: "Это проще простого",
+    explanation: "Очень легко сделать",
+    category: "idioms",
     difficulty: "intermediate"
   }
-  // Добавьте ещё фраз при необходимости
+  // Добавьте больше фраз для разнообразия
 ];
 
 // ===================== КЛАВИАТУРЫ =====================
@@ -230,13 +228,13 @@ bot.hears('🚀 НАЧАТЬ', async (ctx) => {
 bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
   await ctx.reply('Напишите название вашего города:');
   const userId = ctx.from.id;
-  userStorage.set(userId, { awaitingCity: true });
+  userStorage.set(userId, { ...userStorage.get(userId), awaitingCity: true });
 });
 
 bot.hears(/^📍\s/, async (ctx) => {
   const userId = ctx.from.id;
   const city = ctx.message.text.replace('📍 ', '');
-  userStorage.set(userId, { city });
+  userStorage.set(userId, { ...userStorage.get(userId), city, awaitingCity: false });
   await ctx.reply(
     `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
     { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
@@ -248,12 +246,26 @@ bot.on('message:text', async (ctx) => {
   const text = ctx.message.text;
   const userData = userStorage.get(userId);
   
-  if (userData?.awaitingCity && text && !text.startsWith('/') && text !== '🚀 НАЧАТЬ') {
+  // Проверка на команды, которые уже обрабатываются другими обработчиками
+  if (['🚀 НАЧАТЬ', '🌤️ ПОГОДА', '👕 ЧТО НАДЕТЬ?', '💬 ФРАЗА ДНЯ', 
+       '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text)) {
+    return;
+  }
+  
+  // Проверка на города из списка
+  if (text.match(/^📍\s/)) {
+    return;
+  }
+  
+  if (userData?.awaitingCity && text && !text.startsWith('/')) {
     userStorage.set(userId, { city: text, awaitingCity: false });
     await ctx.reply(
       `✅ *Город "${text}" сохранён!*`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
+  } else if (!userData?.city && !text.startsWith('/')) {
+    // Если нет города и это не команда, предлагаем выбрать город
+    await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
   }
 });
 
@@ -347,6 +359,12 @@ bot.hears('🔙 НАЗАД', (ctx) => {
   ctx.reply('Возвращаю в главное меню:', { reply_markup: mainMenuKeyboard });
 });
 
+// ПРОБЛЕМА 2: Для Vercel вам нужно также запустить бота стандартным способом
+// Добавьте эту строку для локальной разработки
+if (process.env.NODE_ENV !== 'production') {
+  bot.start();
+}
+
 // ===================== ЗАПУСК ДЛЯ VERCEL =====================
 export default async function handler(req, res) {
   try {
@@ -354,8 +372,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'Bot is running' });
     }
     if (req.method === 'POST') {
-      await bot.init();
-      await bot.handleUpdate(req.body);
+      // ПРОБЛЕМА 3: Неправильная обработка webhook
+      const update = req.body;
+      await bot.handleUpdate(update);
       return res.status(200).json({ ok: true });
     }
     return res.status(405).json({ error: 'Method not allowed' });
