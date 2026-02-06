@@ -93,8 +93,7 @@ function getWardrobeAdvice(weatherData) {
   return advice.join('\n');
 }
 
-// ===================== КОЛЛЕКЦИЯ ФРАЗ (50+ для начала) =====================
-// ПРОБЛЕМА 1: У вас два одинаковых массива dailyPhrases - удалите дубликат
+// ===================== КОЛЛЕКЦИЯ ФРАЗ =====================
 const dailyPhrases = [
   {
     id: 1,
@@ -136,7 +135,6 @@ const dailyPhrases = [
     category: "optimism",
     difficulty: "intermediate"
   },
-  // Добавьте ещё фраз при необходимости
   {
     id: 6,
     english: "I'm feeling under the weather",
@@ -176,8 +174,47 @@ const dailyPhrases = [
     explanation: "Очень легко сделать",
     category: "idioms",
     difficulty: "intermediate"
+  },
+  {
+    id: 11,
+    english: "I need to practice my English",
+    russian: "Мне нужно попрактиковаться в английском",
+    explanation: "Выражение желания улучшить языковые навыки",
+    category: "learning",
+    difficulty: "beginner"
+  },
+  {
+    id: 12,
+    english: "Let's agree to disagree",
+    russian: "Давайте останемся при своём мнении",
+    explanation: "Прекратить спор, не приходя к согласию",
+    category: "communication",
+    difficulty: "advanced"
+  },
+  {
+    id: 13,
+    english: "The ball is in your court",
+    russian: "Теперь твой ход",
+    explanation: "Теперь ваша очередь принимать решение",
+    category: "business",
+    difficulty: "intermediate"
+  },
+  {
+    id: 14,
+    english: "What's the weather like today?",
+    russian: "Какая сегодня погода?",
+    explanation: "Стандартный вопрос о погоде",
+    category: "weather",
+    difficulty: "beginner"
+  },
+  {
+    id: 15,
+    english: "Actions speak louder than words",
+    russian: "Дела говорят громче слов",
+    explanation: "Важны поступки, а не слова",
+    category: "wisdom",
+    difficulty: "intermediate"
   }
-  // Добавьте больше фраз для разнообразия
 ];
 
 // ===================== КЛАВИАТУРЫ =====================
@@ -228,13 +265,15 @@ bot.hears('🚀 НАЧАТЬ', async (ctx) => {
 bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
   await ctx.reply('Напишите название вашего города:');
   const userId = ctx.from.id;
-  userStorage.set(userId, { ...userStorage.get(userId), awaitingCity: true });
+  const currentData = userStorage.get(userId) || {};
+  userStorage.set(userId, { ...currentData, awaitingCity: true });
 });
 
 bot.hears(/^📍\s/, async (ctx) => {
   const userId = ctx.from.id;
   const city = ctx.message.text.replace('📍 ', '');
-  userStorage.set(userId, { ...userStorage.get(userId), city, awaitingCity: false });
+  const currentData = userStorage.get(userId) || {};
+  userStorage.set(userId, { ...currentData, city, awaitingCity: false });
   await ctx.reply(
     `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
     { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
@@ -244,36 +283,38 @@ bot.hears(/^📍\s/, async (ctx) => {
 bot.on('message:text', async (ctx) => {
   const userId = ctx.from.id;
   const text = ctx.message.text;
-  const userData = userStorage.get(userId);
+  const userData = userStorage.get(userId) || {};
   
   // Проверка на команды, которые уже обрабатываются другими обработчиками
-  if (['🚀 НАЧАТЬ', '🌤️ ПОГОДА', '👕 ЧТО НАДЕТЬ?', '💬 ФРАЗА ДНЯ', 
-       '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text)) {
+  const predefinedCommands = [
+    '🚀 НАЧАТЬ', '🌤️ ПОГОДА', '👕 ЧТО НАДЕТЬ?', '💬 ФРАЗА ДНЯ',
+    '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'
+  ];
+  
+  if (predefinedCommands.includes(text) || text.match(/^📍\s/) || text.startsWith('/')) {
     return;
   }
   
-  // Проверка на города из списка
-  if (text.match(/^📍\s/)) {
-    return;
-  }
-  
-  if (userData?.awaitingCity && text && !text.startsWith('/')) {
-    userStorage.set(userId, { city: text, awaitingCity: false });
+  if (userData.awaitingCity) {
+    userStorage.set(userId, { ...userData, city: text, awaitingCity: false });
     await ctx.reply(
       `✅ *Город "${text}" сохранён!*`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
-  } else if (!userData?.city && !text.startsWith('/')) {
+  } else if (!userData.city) {
     // Если нет города и это не команда, предлагаем выбрать город
     await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
+  } else {
+    // Если есть город и это не команда, показываем главное меню
+    await ctx.reply('Выберите действие из меню:', { reply_markup: mainMenuKeyboard });
   }
 });
 
 bot.hears('🌤️ ПОГОДА', async (ctx) => {
   const userId = ctx.from.id;
-  const userData = userStorage.get(userId);
+  const userData = userStorage.get(userId) || {};
   
-  if (!userData?.city) {
+  if (!userData.city) {
     await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
     return;
   }
@@ -299,9 +340,9 @@ bot.hears('🌤️ ПОГОДА', async (ctx) => {
 
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   const userId = ctx.from.id;
-  const userData = userStorage.get(userId);
+  const userData = userStorage.get(userId) || {};
   
-  if (!userData?.city) {
+  if (!userData.city) {
     await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
     return;
   }
@@ -333,12 +374,18 @@ bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
     return;
   }
   
-  const phrase = dailyPhrases[new Date().getDate() % dailyPhrases.length];
+  // Используем день месяца для выбора фразы (циклически)
+  const dayOfMonth = new Date().getDate();
+  const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
+  const phrase = dailyPhrases[phraseIndex];
+  
   await ctx.reply(
     `💬 *Фраза дня*\n\n` +
-    `🇬🇧 ${phrase.english}\n\n` +
-    `🇷🇺 ${phrase.russian}\n\n` +
-    `📚 ${phrase.explanation}`,
+    `🇬🇧 *${phrase.english}*\n\n` +
+    `🇷🇺 *${phrase.russian}*\n\n` +
+    `📚 ${phrase.explanation}\n\n` +
+    `📊 Уровень: ${phrase.difficulty}\n` +
+    `🏷️ Категория: ${phrase.category}`,
     { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
   );
 });
@@ -350,7 +397,12 @@ bot.hears('🏙️ СМЕНИТЬ ГОРОД', (ctx) => {
 bot.hears('ℹ️ ПОМОЩЬ', (ctx) => {
   ctx.reply(
     `*Помощь по боту*\n\n` +
-    `• Выберите город\n• Получите погоду и совет по одежде\n• Учите новую фразу каждый день\n\nВсе управление через кнопки.`,
+    `• *🌤️ ПОГОДА* - текущая погода в вашем городе\n` +
+    `• *👕 ЧТО НАДЕТЬ?* - рекомендации по одежде\n` +
+    `• *💬 ФРАЗА ДНЯ* - новая английская фраза каждый день\n` +
+    `• *🏙️ СМЕНИТЬ ГОРОД* - изменить город для прогноза\n` +
+    `• *ℹ️ ПОМОЩЬ* - это сообщение\n\n` +
+    `Все управление через кнопки меню.`,
     { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
   );
 });
@@ -359,27 +411,34 @@ bot.hears('🔙 НАЗАД', (ctx) => {
   ctx.reply('Возвращаю в главное меню:', { reply_markup: mainMenuKeyboard });
 });
 
-// ПРОБЛЕМА 2: Для Vercel вам нужно также запустить бота стандартным способом
-// Добавьте эту строку для локальной разработки
+// ===================== ЗАПУСК БОТА =====================
+// Для локальной разработки
 if (process.env.NODE_ENV !== 'production') {
+  console.log('🤖 Бот запускается в режиме разработки...');
   bot.start();
+  console.log('✅ Бот запущен!');
 }
 
-// ===================== ЗАПУСК ДЛЯ VERCEL =====================
+// ===================== HANDLER ДЛЯ VERCEL =====================
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
-      return res.status(200).json({ message: 'Bot is running' });
+      return res.status(200).json({ 
+        message: 'Weather & English Phrases Bot is running',
+        status: 'active',
+        phrasesCount: dailyPhrases.length
+      });
     }
+    
     if (req.method === 'POST') {
-      // ПРОБЛЕМА 3: Неправильная обработка webhook
       const update = req.body;
       await bot.handleUpdate(update);
       return res.status(200).json({ ok: true });
     }
+    
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('❌ Ошибка в handler:', error);
     return res.status(200).json({ ok: false, error: error.message });
   }
 }
