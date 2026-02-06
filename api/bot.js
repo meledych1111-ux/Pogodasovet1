@@ -1,7 +1,7 @@
 import { Bot, Keyboard } from 'grammy';
-import { dailyPhrases } from './utils/phrases.js';
-import { getWeatherData } from './utils/weather.js';
-import { getWardrobeAdvice } from './utils/wardrobe.js';
+import { dailyPhrases } from 'utils/phrases.js';
+import { getWeatherData } from 'utils/weather.js';
+import { getWardrobeAdvice } from 'utils/wardrobe.js';
 
 const bot = new Bot(process.env.BOT_TOKEN || '');
 const userStorage = new Map();
