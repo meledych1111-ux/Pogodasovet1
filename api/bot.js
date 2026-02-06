@@ -1,214 +1,75 @@
-import { Bot, Keyboard } from 'grammy';
-import { getWeatherData } from '../utils/weather.js';
-import { getWardrobeAdvice } from '../utils/wardrobe.js';
-import { dailyPhrases } from '../utils/phrases.js';
+import fetch from 'node-fetch';
 
-const bot = new Bot(process.env.BOT_TOKEN);
-const userStorage = new Map(); // Простое хранилище пользователей
+export async function getWeatherData(cityName) {
+  try {
+    // 1. Геокодирование: находим координаты города
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+    const geoResponse = await fetch(geoUrl);
+    const geoData = await geoResponse.json();
 
-// ====================== КЛАВИАТУРЫ ======================
-// 🚀 СТАРТОВАЯ КНОПКА (отдельная, не перекрывает остальные) [citation:8]
-const startKeyboard = new Keyboard()
-  .text('🚀 НАЧАТЬ')
-  .resized() // Делает кнопку компактной
-  .oneTime(); // Скрывается после нажатия
+    if (!geoData.results || geoData.results.length === 0) {
+      throw new Error(`Город "${cityName}" не найден.`);
+    }
 
-// 🏠 ГЛАВНОЕ МЕНЮ
-const mainMenuKeyboard = new Keyboard()
-  .text('🌤️ ПОГОДА')
-  .row()
-  .text('👕 ЧТО НАДЕТЬ?')
-  .text('💬 ФРАЗА ДНЯ')
-  .row()
-  .text('🏙️ СМЕНИТЬ ГОРОД')
-  .text('ℹ️ ПОМОЩЬ')
-  .resized()
-  .oneTime();
+    const { latitude, longitude, name } = geoData.results[0];
 
-// 🏙️ ВЫБОР ГОРОДА (включая крымские) [citation:3]
-const cityKeyboard = new Keyboard()
-  .text('📍 Симферополь').text('📍 Севастополь').row()
-  .text('📍 Ялта').text('📍 Алушта').row()
-  .text('📍 Москва').text('📍 Санкт-Петербург').row()
-  .text('✏️ ДРУГОЙ ГОРОД')
-  .row()
-  .text('🔙 НАЗАД')
-  .resized()
-  .oneTime();
+    // 2. Запрос погоды по координатам [citation:2][citation:5]
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation,weather_code&wind_speed_unit=ms&timezone=auto`;
+    const weatherResponse = await fetch(weatherUrl);
+    const weatherData = await weatherResponse.json();
 
-// ====================== ОБРАБОТЧИКИ КОМАНД ======================
-// 1. КОМАНДА /START И КНОПКА "НАЧАТЬ" [citation:3][citation:8]
-bot.command('start', handleStart);
-bot.hears('🚀 НАЧАТЬ', handleStart);
+    if (!weatherData.current) {
+      throw new Error('Нет данных о текущей погоде.');
+    }
 
-async function handleStart(ctx) {
-  const userId = ctx.from.id;
-  userStorage.delete(userId); // Сбрасываем старые данные
+    const current = weatherData.current;
 
-  await ctx.reply(
-    `👋 *Привет, ${ctx.from.first_name}!*\n\n` +
-    `Я твой погодный помощник и гид по английскому! Вот что я умею:\n\n` +
-    `🌤️ *Погода* — точный прогноз с данными Open-Meteo\n` +
-    `👕 *Гардероб* — подробный совет, что надеть\n` +
-    `💬 *Фраза дня* — полезное выражение на английском с переводом\n\n` +
-    `Всё управление — через кнопки. Это просто и удобно! [citation:3]\n\n` +
-    `👇 *Нажми кнопку НАЧАТЬ, чтобы продолжить:*`,
-    { parse_mode: 'Markdown', reply_markup: startKeyboard }
-  );
+    // Преобразуем числовой код погоды в понятное описание [citation:5]
+    const weatherDescription = getWeatherDescription(current.weather_code);
+
+    return {
+      temp: Math.round(current.temperature_2m),
+      feels_like: Math.round(current.apparent_temperature),
+      humidity: current.relative_humidity_2m,
+      wind: current.wind_speed_10m.toFixed(1),
+      precipitation: current.precipitation,
+      description: weatherDescription,
+      city: name
+    };
+
+  } catch (error) {
+    console.error('Ошибка в модуле погоды:', error.message);
+    // Возвращаем понятные данные по умолчанию в случае ошибки
+    return {
+      temp: 15,
+      feels_like: 14,
+      humidity: 65,
+      wind: '3.2',
+      precipitation: 0,
+      description: 'Облачно',
+      city: cityName,
+      isFallback: true // Флаг, что это данные по умолчанию
+    };
+  }
 }
 
-// 2. ВЫБОР ГОРОДА
-bot.hears('✏️ ДРУГОЙ ГОРОД', (ctx) => {
-  ctx.reply('Напиши название своего города:');
-});
-
-bot.hears(/^📍\s/, async (ctx) => {
-  const userId = ctx.from.id;
-  const city = ctx.message.text.replace('📍 ', '');
-  userStorage.set(userId, { city });
-  
-  await ctx.reply(
-    `✅ *Отлично!*\nСохранил твой город: *${city}*\n\n` +
-    `Теперь можешь узнать погоду или получить совет по одежде. Выбери действие в меню ниже:`,
-    { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-  );
-});
-
-// Обработка ручного ввода города
-bot.on('message:text', async (ctx) => {
-  const userId = ctx.from.id;
-  const text = ctx.message.text;
-  // Если это не команда и не кнопка, и пользователь еще не выбрал город
-  if (!text.startsWith('/') && !text.startsWith('📍') && text !== '🚀 НАЧАТЬ') {
-    userStorage.set(userId, { city: text });
-    await ctx.reply(
-      `✅ *Город "${text}" сохранён!*\nИспользуй меню для запроса погоды.`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-  }
-});
-
-// 3. ГЛАВНОЕ МЕНЮ [citation:8]
-bot.hears('🌤️ ПОГОДА', async (ctx) => {
-  const userId = ctx.from.id;
-  const userData = userStorage.get(userId);
-  
-  if (!userData?.city) {
-    await ctx.reply(
-      'Сначала выбери город, чтобы я мог показать погоду.',
-      { reply_markup: cityKeyboard }
-    );
-    return;
-  }
-  
-  await ctx.reply(`⏳ *Запрашиваю погоду для ${userData.city}...*`, { parse_mode: 'Markdown' });
-  
-  try {
-    const weather = await getWeatherData(userData.city);
-    const icon = weather.isFallback ? '⚠️' : '🌤️';
-    
-    await ctx.reply(
-      `${icon} *Погода в ${weather.city}*\n\n` +
-      `🌡️ Температура: *${weather.temp}°C*\n` +
-      `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
-      `💨 Ветер: ${weather.wind} м/с\n` +
-      `💧 Влажность: ${weather.humidity}%\n` +
-      `🌧️ Осадки: ${weather.precipitation} мм\n` +
-      `📝 ${weather.description}\n\n` +
-      `${weather.isFallback ? '_Используются базовые данные. Сервис может быть временно недоступен._' : '_Данные от Open-Meteo_'}`, 
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-  } catch (error) {
-    await ctx.reply(
-      '❌ Не удалось получить погоду. Попробуй выбрать другой город или проверь название.',
-      { reply_markup: mainMenuKeyboard }
-    );
-  }
-});
-
-bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
-  const userId = ctx.from.id;
-  const userData = userStorage.get(userId);
-  
-  if (!userData?.city) {
-    await ctx.reply(
-      'Сначала выбери город, чтобы я мог дать совет.',
-      { reply_markup: cityKeyboard }
-    );
-    return;
-  }
-  
-  await ctx.reply(`👗 *Подбираю гардероб для ${userData.city}...*`, { parse_mode: 'Markdown' });
-  
-  try {
-    const weather = await getWeatherData(userData.city);
-    const advice = getWardrobeAdvice(weather);
-    
-    await ctx.reply(
-      `*Совет по одежде на сегодня:*\n\n${advice}\n\n` +
-      `_Основано на данных: ${weather.temp}°C, ${weather.description}_`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-  } catch (error) {
-    await ctx.reply(
-      '❌ Не могу подобрать совет. Проверь выбор города или попробуй позже.',
-      { reply_markup: mainMenuKeyboard }
-    );
-  }
-});
-
-bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
-  const phrase = dailyPhrases[new Date().getDate() % dailyPhrases.length];
-  await ctx.reply(
-    `💬 *Фраза дня*\n\n` +
-    `🇬🇧 *${phrase.english}*\n\n` +
-    `🇷🇺 *${phrase.russian}*\n\n` +
-    `📚 *${phrase.explanation}*\n\n` +
-    `#${phrase.category}`,
-    { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-  );
-});
-
-bot.hears('🏙️ СМЕНИТЬ ГОРОД', (ctx) => {
-  ctx.reply(
-    'Выбери город из списка или напиши свой:',
-    { reply_markup: cityKeyboard }
-  );
-});
-
-bot.hears('ℹ️ ПОМОЩЬ', (ctx) => {
-  ctx.reply(
-    `*Помощь по боту*\n\n` +
-    `• Используй кнопки для навигации\n` +
-    `• Сначала выбери город, потом запрашивай погоду\n` +
-    `• Для ручного ввода города нажми "✏️ ДРУГОЙ ГОРОД"\n` +
-    `• Команда /start перезапускает бота\n\n` +
-    `_Все данные о погоде предоставляются сервисом Open-Meteo_`,
-    { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-  );
-});
-
-bot.hears('🔙 НАЗАД', (ctx) => {
-  ctx.reply(
-    'Возвращаю в главное меню. Выбери действие:',
-    { reply_markup: mainMenuKeyboard }
-  );
-});
-
-// ====================== ЗАПУСК ДЛЯ VERCEL ======================
-export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    return res.status(200).json({ message: 'Bot is running' });
-  }
-  if (req.method === 'POST') {
-    try {
-      await bot.init();
-      await bot.handleUpdate(req.body);
-      return res.status(200).json({ ok: true });
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(200).json({ ok: false, error: error.message });
-    }
-  }
-  return res.status(405).json({ error: 'Method not allowed' });
+function getWeatherDescription(code) {
+  // Преобразует код погоды от Open-Meteo в текст
+  const weatherMap = {
+    0: 'Ясно ☀️', 1: 'В основном ясно 🌤️',
+    2: 'Переменная облачность ⛅', 3: 'Пасмурно ☁️',
+    45: 'Туман 🌫️', 48: 'Изморозь 🌫️',
+    51: 'Лежащая морось 🌧️', 53: 'Умеренная морось 🌧️',
+    55: 'Сильная морось 🌧️', 56: 'Ледяная морось',
+    57: 'Сильная ледяная морось', 61: 'Небольшой дождь 🌧️',
+    63: 'Умеренный дождь 🌧️', 65: 'Сильный дождь 🌧️',
+    66: 'Ледяной дождь', 67: 'Сильный ледяной дождь',
+    71: 'Небольшой снегопад ❄️', 73: 'Умеренный снегопад ❄️',
+    75: 'Сильный снегопад ❄️', 77: 'Снежные зерна',
+    80: 'Небольшие ливни 🌦️', 81: 'Умеренные ливни 🌦️',
+    82: 'Сильные ливни 🌦️', 85: 'Небольшие снежные ливни',
+    86: 'Сильные снежные ливни', 95: 'Гроза ⛈️',
+    96: 'Гроза с небольшим градом', 99: 'Гроза с сильным градом'
+  };
+  return weatherMap[code] || 'Данные обновляются';
 }
