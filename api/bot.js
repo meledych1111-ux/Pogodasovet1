@@ -5,9 +5,6 @@ if (!BOT_TOKEN) {
   throw new Error('BOT_TOKEN не установлен');
 }
 
-// ===================== СОЗДАЕМ ЕДИНСТВЕННЫЙ ЭКЗЕМПЛЯР БОТА =====================
-const bot = new Bot(BOT_TOKEN);
-
 // ===================== API ПОГОДЫ =====================
 async function getWeatherData(cityName) {
   console.log(`[Weather] Запрос для: "${cityName}"`);
@@ -210,10 +207,13 @@ const backMenu = new Keyboard()
   .resized()
   .oneTime();
 
-// ===================== ХРАНИЛИЩЕ СЕССИЙ =====================
+// ===================== Создаем бота и регистрируем обработчики сразу =====================
+const bot = new Bot(BOT_TOKEN);
+
+// Хранилище сессий в памяти
 const sessions = new Map();
 
-// ===================== РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ =====================
+// Добавляем middleware для сессий
 bot.use(async (ctx, next) => {
   const userId = ctx.from?.id;
   if (userId) {
@@ -228,6 +228,7 @@ bot.use(async (ctx, next) => {
   await next();
 });
 
+// Регистрируем обработчики
 bot.command('start', async (ctx) => {
   const userId = ctx.from.id;
   const userName = ctx.from.first_name || 'Друг';
@@ -277,49 +278,7 @@ bot.hears('🔙 Назад в меню', async (ctx) => {
   }
 });
 
-bot.on('message:text', async (ctx) => {
-  const text = ctx.message.text;
-  const userId = ctx.from.id;
-  
-  if (text.startsWith('/')) return;
-  
-  if (ctx.session.awaitingCityInput) {
-    ctx.session.city = text;
-    ctx.session.awaitingCityInput = false;
-    
-    console.log(`[Bot] ${userId} ввёл город: ${text}`);
-    
-    await ctx.reply(
-      `✅ Принято! Буду использовать город *${text}*.\n\nТеперь выбери действие:`,
-      { parse_mode: 'Markdown', reply_markup: mainMenu }
-    );
-    return;
-  }
-  
-  if (!ctx.session.city) {
-    await ctx.reply('⚠️ Сначала выбери город!', { reply_markup: cityMenu });
-    return;
-  }
-  
-  switch (text) {
-    case '🌤️ ПОГОДА СЕЙЧАС':
-      return handleWeather(ctx);
-    case '👕 ЧТО НАДЕТЬ?':
-      return handleClothes(ctx);
-    case '💬 ФРАЗА ДНЯ':
-      return handlePhrase(ctx);
-    case '🏙️ СМЕНИТЬ ГОРОД':
-      ctx.session.city = null;
-      await ctx.reply('Выбери новый город:', { reply_markup: cityMenu });
-      return;
-    case 'ℹ️ ПОМОЩЬ':
-      return handleHelp(ctx);
-    default:
-      await ctx.reply('❓ Используй кнопки меню', { reply_markup: mainMenu });
-  }
-});
-
-// ===================== ФУНКЦИИ ОБРАБОТКИ =====================
+// Функции обработки для повторного использования
 async function handleWeather(ctx) {
   const userId = ctx.from.id;
   const city = ctx.session?.city;
@@ -439,6 +398,54 @@ async function handleHelp(ctx) {
   await ctx.reply(helpText, { parse_mode: 'Markdown', reply_markup: mainMenu });
 }
 
+// Основной обработчик сообщений
+bot.on('message:text', async (ctx) => {
+  const text = ctx.message.text;
+  const userId = ctx.from.id;
+  
+  if (text.startsWith('/')) return;
+  
+  if (ctx.session.awaitingCityInput) {
+    ctx.session.city = text;
+    ctx.session.awaitingCityInput = false;
+    
+    console.log(`[Bot] ${userId} ввёл город: ${text}`);
+    
+    await ctx.reply(
+      `✅ Принято! Буду использовать город *${text}*.\n\nТеперь выбери действие:`,
+      { parse_mode: 'Markdown', reply_markup: mainMenu }
+    );
+    return;
+  }
+  
+  if (!ctx.session.city) {
+    await ctx.reply('⚠️ Сначала выбери город!', { reply_markup: cityMenu });
+    return;
+  }
+  
+  switch (text) {
+    case '🌤️ ПОГОДА СЕЙЧАС':
+      return handleWeather(ctx);
+    case '👕 ЧТО НАДЕТЬ?':
+      return handleClothes(ctx);
+    case '💬 ФРАЗА ДНЯ':
+      return handlePhrase(ctx);
+    case '🏙️ СМЕНИТЬ ГОРОД':
+      ctx.session.city = null;
+      await ctx.reply('Выбери новый город:', { reply_markup: cityMenu });
+      return;
+    case 'ℹ️ ПОМОЩЬ':
+      return handleHelp(ctx);
+    default:
+      await ctx.reply('❓ Используй кнопки меню', { reply_markup: mainMenu });
+  }
+});
+
+// Обработка ошибок
+bot.catch((err) => {
+  console.error('Ошибка в боте:', err);
+});
+
 // ===================== WEBHOOK =====================
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -451,11 +458,12 @@ export default async function handler(req, res) {
   
   if (req.method === 'POST') {
     try {
+      console.log('Получен запрос от Telegram');
       await bot.handleUpdate(req.body);
       return res.status(200).json({ ok: true });
-    } catch (e) {
-      console.error('Ошибка обработки:', e);
-      return res.status(200).json({ ok: false });
+    } catch (error) {
+      console.error('Ошибка обработки запроса:', error);
+      return res.status(200).json({ ok: false, error: error.message });
     }
   }
   
