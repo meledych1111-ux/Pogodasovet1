@@ -647,8 +647,3 @@ export default async function handler(req, res) {
   }
 }
 
-// Для локального тестирования
-if (process.env.NODE_ENV !== 'production') {
-  bot.start();
-  console.log('🤖 Бот запущен локально...');
-}
