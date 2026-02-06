@@ -1,0 +1,16 @@
+{
+  "name": "weather-phrase-bot",
+  "version": "1.0.0",
+  "description": "Telegram бот с погодой и фразами дня",
+  "main": "api/bot.js",
+  "scripts": {
+    "start": "node api/bot.js"
+  },
+  "dependencies": {
+    "grammy": "^1.20.3",
+    "node-fetch": "^2.6.9"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
