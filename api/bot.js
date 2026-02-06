@@ -1,4 +1,4 @@
-import { Bot, Keyboard } from 'grammy';
+import { Bot, Keyboard, session, MemorySessionStorage } from 'grammy';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
@@ -135,7 +135,7 @@ const dailyPhrases = [
   },
   {
     english: "I'm feeling under the weather",
-    russian: "Я неважно себя чувствую (досл. 'Чувствую себя под погодой')",
+    russian: "Я неважно себя чувствую (досл. 'Чувствовать себя под погодой')",
     explanation: "Быть немного больным или не в настроении.",
     category: "Здоровье",
     level: "Средний"
@@ -207,36 +207,21 @@ const backMenu = new Keyboard()
   .resized()
   .oneTime();
 
-// ===================== Создаем бота и регистрируем обработчики сразу =====================
+// ===================== СОЗДАЕМ И НАСТРАИВАЕМ БОТА =====================
 const bot = new Bot(BOT_TOKEN);
 
-// Хранилище сессий в памяти
-const sessions = new Map();
+// Используем встроенную систему сессий Grammy
+bot.use(session({
+  initial: () => ({
+    city: null,
+    awaitingCityInput: false
+  }),
+  storage: new MemorySessionStorage(),
+}));
 
-// Добавляем middleware для сессий
-bot.use(async (ctx, next) => {
-  const userId = ctx.from?.id;
-  if (userId) {
-    if (!sessions.has(userId)) {
-      sessions.set(userId, {
-        city: null,
-        awaitingCityInput: false
-      });
-    }
-    ctx.session = sessions.get(userId);
-  }
-  await next();
-});
-
-// Регистрируем обработчики
+// ===================== ОБРАБОТЧИКИ =====================
 bot.command('start', async (ctx) => {
-  const userId = ctx.from.id;
   const userName = ctx.from.first_name || 'Друг';
-  
-  console.log(`[Bot] /start от ${userId} (${userName})`);
-  
-  ctx.session.city = null;
-  ctx.session.awaitingCityInput = false;
   
   await ctx.reply(
     `Привет, ${userName}! 👋\nЯ помогу узнать погоду и подскажу, что надеть. А заодно выучу с тобой полезную английскую фразу.\n\n*Для начала выбери город:*`,
@@ -246,12 +231,9 @@ bot.command('start', async (ctx) => {
 
 bot.hears(/^📍 /, async (ctx) => {
   const city = ctx.message.text.replace('📍 ', '');
-  const userId = ctx.from.id;
   
   ctx.session.city = city;
   ctx.session.awaitingCityInput = false;
-  
-  console.log(`[Bot] ${userId} выбрал город: ${city}`);
   
   await ctx.reply(
     `✅ Отлично! Город *${city}* сохранён.\nТеперь ты можешь узнать погоду или получить совет по одежде.`,
@@ -278,21 +260,60 @@ bot.hears('🔙 Назад в меню', async (ctx) => {
   }
 });
 
-// Функции обработки для повторного использования
-async function handleWeather(ctx) {
-  const userId = ctx.from.id;
-  const city = ctx.session?.city;
+bot.on('message:text', async (ctx) => {
+  const text = ctx.message.text;
   
-  if (!city) {
+  // Пропускаем команды
+  if (text.startsWith('/')) return;
+  
+  // Обработка ввода города
+  if (ctx.session.awaitingCityInput) {
+    ctx.session.city = text;
+    ctx.session.awaitingCityInput = false;
+    
+    await ctx.reply(
+      `✅ Принято! Буду использовать город *${text}*.\n\nТеперь выбери действие:`,
+      { parse_mode: 'Markdown', reply_markup: mainMenu }
+    );
+    return;
+  }
+  
+  // Проверка выбранного города
+  if (!ctx.session.city) {
     await ctx.reply('⚠️ Сначала выбери город!', { reply_markup: cityMenu });
     return;
   }
   
-  console.log(`[Bot] ${userId} запросил погоду для: ${city}`);
+  // Обработка кнопок главного меню
+  switch (text) {
+    case '🌤️ ПОГОДА СЕЙЧАС':
+      await handleWeather(ctx);
+      break;
+    case '👕 ЧТО НАДЕТЬ?':
+      await handleClothes(ctx);
+      break;
+    case '💬 ФРАЗА ДНЯ':
+      await handlePhrase(ctx);
+      break;
+    case '🏙️ СМЕНИТЬ ГОРОД':
+      ctx.session.city = null;
+      await ctx.reply('Выбери новый город:', { reply_markup: cityMenu });
+      break;
+    case 'ℹ️ ПОМОЩЬ':
+      await handleHelp(ctx);
+      break;
+    default:
+      await ctx.reply('❓ Используй кнопки меню', { reply_markup: mainMenu });
+  }
+});
+
+// ===================== ФУНКЦИИ ОБРАБОТКИ =====================
+async function handleWeather(ctx) {
+  const city = ctx.session.city;
+  
+  await ctx.reply(`🔍 Запрашиваю погоду для *${city}*...`, { parse_mode: 'Markdown' });
   
   try {
-    await ctx.reply(`🔍 Запрашиваю погоду для *${city}*...`, { parse_mode: 'Markdown' });
-    
     const weather = await getWeatherData(city);
     
     const message = `
@@ -310,25 +331,17 @@ ${weather.isFallback ? '_(используются тестовые данные
     await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenu });
     
   } catch (err) {
-    console.error(`[Bot] Ошибка погоды:`, err);
+    console.error('Ошибка получения погоды:', err);
     await ctx.reply('❌ Ошибка получения погоды', { reply_markup: mainMenu });
   }
 }
 
 async function handleClothes(ctx) {
-  const userId = ctx.from.id;
-  const city = ctx.session?.city;
+  const city = ctx.session.city;
   
-  if (!city) {
-    await ctx.reply('⚠️ Сначала выбери город!', { reply_markup: cityMenu });
-    return;
-  }
-  
-  console.log(`[Bot] ${userId} запросил одежду для: ${city}`);
+  await ctx.reply(`👔 Анализирую погоду в *${city}*...`, { parse_mode: 'Markdown' });
   
   try {
-    await ctx.reply(`👔 Анализирую погоду в *${city}*...`, { parse_mode: 'Markdown' });
-    
     const weather = await getWeatherData(city);
     const advice = getWardrobeAdvice(weather);
     
@@ -342,15 +355,12 @@ ${advice}
     await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenu });
     
   } catch (err) {
-    console.error(`[Bot] Ошибка совета:`, err);
+    console.error('Ошибка получения совета:', err);
     await ctx.reply('❌ Ошибка получения совета', { reply_markup: mainMenu });
   }
 }
 
 async function handlePhrase(ctx) {
-  const userId = ctx.from.id;
-  console.log(`[Bot] ${userId} запросил фразу дня`);
-  
   const dayOfMonth = new Date().getDate();
   const phraseIndex = dayOfMonth % dailyPhrases.length;
   const phrase = dailyPhrases[phraseIndex];
@@ -398,64 +408,23 @@ async function handleHelp(ctx) {
   await ctx.reply(helpText, { parse_mode: 'Markdown', reply_markup: mainMenu });
 }
 
-// Основной обработчик сообщений
-bot.on('message:text', async (ctx) => {
-  const text = ctx.message.text;
-  const userId = ctx.from.id;
-  
-  if (text.startsWith('/')) return;
-  
-  if (ctx.session.awaitingCityInput) {
-    ctx.session.city = text;
-    ctx.session.awaitingCityInput = false;
-    
-    console.log(`[Bot] ${userId} ввёл город: ${text}`);
-    
-    await ctx.reply(
-      `✅ Принято! Буду использовать город *${text}*.\n\nТеперь выбери действие:`,
-      { parse_mode: 'Markdown', reply_markup: mainMenu }
-    );
-    return;
-  }
-  
-  if (!ctx.session.city) {
-    await ctx.reply('⚠️ Сначала выбери город!', { reply_markup: cityMenu });
-    return;
-  }
-  
-  switch (text) {
-    case '🌤️ ПОГОДА СЕЙЧАС':
-      return handleWeather(ctx);
-    case '👕 ЧТО НАДЕТЬ?':
-      return handleClothes(ctx);
-    case '💬 ФРАЗА ДНЯ':
-      return handlePhrase(ctx);
-    case '🏙️ СМЕНИТЬ ГОРОД':
-      ctx.session.city = null;
-      await ctx.reply('Выбери новый город:', { reply_markup: cityMenu });
-      return;
-    case 'ℹ️ ПОМОЩЬ':
-      return handleHelp(ctx);
-    default:
-      await ctx.reply('❓ Используй кнопки меню', { reply_markup: mainMenu });
-  }
-});
-
-// Обработка ошибок
+// ===================== ОБРАБОТКА ОШИБОК =====================
 bot.catch((err) => {
   console.error('Ошибка в боте:', err);
 });
 
-// ===================== WEBHOOK =====================
+// ===================== WEBHOOK ДЛЯ VERCEL =====================
 export default async function handler(req, res) {
+  // Для GET запросов - проверка работоспособности
   if (req.method === 'GET') {
     return res.status(200).json({ 
       ok: true, 
       message: 'Bot is running',
-      bot: bot.botInfo?.username || 'unknown'
+      bot: (await bot.api.getMe()).username || 'unknown'
     });
   }
   
+  // Для POST запросов - обработка обновлений от Telegram
   if (req.method === 'POST') {
     try {
       console.log('Получен запрос от Telegram');
@@ -467,5 +436,6 @@ export default async function handler(req, res) {
     }
   }
   
+  // Метод не поддерживается
   return res.status(405).end();
 }
