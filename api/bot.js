@@ -1091,7 +1091,7 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
                        `🔺 Максимум: *${forecast.temp_max}°C*\n` +
                        `🔻 Минимум: *${forecast.temp_min}°C*\n` +
                        `📝 ${forecast.description}\n` +
-                       `🌧️ Осадки: *${forecast.precipitation} мм*\n\n` +
+                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +  // ← УБРАЛ " мм" и звездочки
                        `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
         
         await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
@@ -1103,10 +1103,26 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
 });
 
 function getTomorrowAdvice(forecast) {
-    const precip = parseFloat(forecast.precipitation) || 0;
-    if (precip > 5) return "Запланируйте дела в помещении!";
-    if (forecast.temp_max - forecast.temp_min > 10) return "Одевайтесь слоями!";
-    if (forecast.temp_max > 25) return "Отличный день для пикника!";
+    // Используем precipitation_type и precipitation_value
+    if (forecast.precipitation_type !== 'без осадков' && forecast.precipitation_value > 5) {
+        return "Сильные осадки! Возьмите зонт и непромокаемую одежду!";
+    }
+    if (forecast.precipitation_type !== 'без осадков' && forecast.precipitation_value > 1) {
+        return "Возможны осадки, лучше взять зонт.";
+    }
+    if (forecast.precipitation_type !== 'без осадков') {
+        return "Ожидаются осадки, оденьтесь соответствующе.";
+    }
+    if (forecast.temp_max - forecast.temp_min > 10) {
+        return "Большой перепад температур, одевайтесь слоями!";
+    }
+    if (forecast.temp_max > 25) {
+        return "Жарко! Отличный день для отдыха на природе.";
+    }
+    if (forecast.temp_min < 0) {
+        return "Холодно! Тепло оденьтесь.";
+    }
+    
     return "Хорошего дня!";
 }
 
