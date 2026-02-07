@@ -2,154 +2,268 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Тетрис | Погодный бот</title>
-    <link rel="stylesheet" href="style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            background: linear-gradient(135deg, #8A2BE2 0%, #DA70D6 100%);
+            font-family: 'Arial', sans-serif;
             color: white;
-            min-height: 100vh;
-            padding: 20px;
+        }
+        
+        body {
             display: flex;
             flex-direction: column;
             align-items: center;
+            padding: 10px;
+            padding-bottom: env(safe-area-inset-bottom);
         }
+        
         .container {
-            max-width: 500px;
             width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
+        
         header {
             text-align: center;
-            margin-bottom: 20px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 20px;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 5px;
         }
+        
         h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
+            font-size: 22px;
+            margin-bottom: 5px;
+            color: #FFD700;
         }
+        
         .subtitle {
-            opacity: 0.8;
-            margin-bottom: 15px;
+            font-size: 12px;
+            opacity: 0.9;
         }
+        
         .stats {
             display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-top: 15px;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 10px;
         }
+        
         .stat-box {
+            flex: 1;
             text-align: center;
-            background: rgba(255, 255, 255, 0.15);
-            padding: 15px;
-            border-radius: 15px;
-            min-width: 120px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 5px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
         }
+        
         .stat-value {
-            font-size: 32px;
+            font-size: 24px;
             font-weight: bold;
             display: block;
+            color: #FFD700;
         }
+        
         .stat-label {
-            font-size: 14px;
+            font-size: 11px;
             opacity: 0.8;
         }
+        
         .game-area {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 20px;
+            width: 100%;
+            gap: 10px;
         }
-        @media (min-width: 768px) {
-            .game-area {
-                flex-direction: row;
-                justify-content: center;
-                align-items: flex-start;
-            }
-        }
-        .game-board {
-            background: rgba(0, 0, 0, 0.4);
+        
+        .game-board-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1/1;
+            max-height: 60vh;
+            background: rgba(0, 0, 0, 0.3);
             border-radius: 15px;
-            padding: 5px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            overflow: hidden;
         }
-        #tetris {
-            border-radius: 10px;
+        
+        canvas {
             display: block;
+            width: 100% !important;
+            height: 100% !important;
+            border-radius: 10px;
+            background: #111;
+            touch-action: none;
         }
+        
         .controls {
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            max-width: 300px;
-        }
-        .buttons {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
         }
-        .btn {
-            background: rgba(255, 255, 255, 0.2);
+        
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+            height: 180px;
+        }
+        
+        .dpad-btn {
+            background: rgba(255, 255, 255, 0.15);
             border: none;
             color: white;
-            padding: 15px;
-            border-radius: 12px;
-            font-size: 18px;
+            border-radius: 15px;
+            font-size: 24px;
             cursor: pointer;
-            transition: all 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.1s;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            -webkit-tap-highlight-color: transparent;
         }
-        .btn:hover {
+        
+        .dpad-btn:active {
             background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
+            transform: scale(0.95);
         }
-        .btn:active {
-            transform: translateY(1px);
+        
+        #rotate {
+            grid-column: 2;
+            grid-row: 1;
+            background: rgba(255, 215, 0, 0.2);
+            border-color: rgba(255, 215, 0, 0.3);
         }
-        .btn-large {
-            grid-column: span 3;
-            background: rgba(255, 255, 255, 0.25);
+        
+        #left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+        
+        #right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+        
+        #down {
+            grid-column: 2;
+            grid-row: 2;
+        }
+        
+        #drop {
+            grid-column: 2;
+            grid-row: 3;
+            background: rgba(255, 69, 0, 0.2);
+            border-color: rgba(255, 69, 0, 0.3);
             font-size: 20px;
-            padding: 18px;
         }
-        .instructions {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 14px;
             border-radius: 15px;
-            margin-top: 20px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.1s;
+            border: 2px solid rgba(255, 255, 255, 0.1);
         }
-        .instructions h3 {
-            margin-bottom: 10px;
+        
+        .action-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0.98);
         }
-        .instructions ul {
-            padding-left: 20px;
-            opacity: 0.9;
+        
+        #start {
+            background: rgba(50, 205, 50, 0.3);
+            border-color: rgba(50, 205, 50, 0.4);
         }
-        .instructions li {
-            margin-bottom: 8px;
+        
+        #pause {
+            background: rgba(255, 165, 0, 0.3);
+            border-color: rgba(255, 165, 0, 0.4);
         }
-        footer {
-            margin-top: 30px;
+        
+        .touch-info {
             text-align: center;
+            font-size: 11px;
             opacity: 0.7;
-            font-size: 14px;
+            padding: 5px;
+            margin-top: 5px;
+        }
+        
+        footer {
+            text-align: center;
+            font-size: 10px;
+            opacity: 0.6;
+            padding: 10px;
+            margin-top: auto;
+        }
+        
+        /* Адаптив для маленьких экранов */
+        @media (max-height: 700px) {
+            .dpad {
+                height: 150px;
+            }
+            
+            .stat-box {
+                padding: 8px 4px;
+            }
+            
+            .stat-value {
+                font-size: 20px;
+            }
+        }
+        
+        /* Предотвращение zoom на iOS */
+        @supports (-webkit-touch-callout: none) {
+            input, textarea {
+                font-size: 16px !important;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🎮 Тетрис в Погодном боте</h1>
-            <p class="subtitle">Сыграйте в классическую игру прямо в Telegram!</p>
+            <h1>🎮 Тетрис K-Drama</h1>
+            <p class="subtitle">Классика в корейском стиле</p>
             
             <div class="stats">
                 <div class="stat-box">
@@ -168,35 +282,38 @@
         </header>
 
         <div class="game-area">
-            <div>
-                <canvas id="tetris" width="400" height="500"></canvas>
+            <div class="game-board-container">
+                <canvas id="tetris"></canvas>
+            </div>
             
             <div class="controls">
-                <div class="buttons">
-                    <button class="btn" id="left">←</button>
-                    <button class="btn" id="rotate">↻</button>
-                    <button class="btn" id="right">→</button>
-                    <button class="btn" id="down">↓</button>
-                    <button class="btn" id="drop">↓</button>
-                    <button class="btn" id="pause">⏸️</button>
-                    <button class="btn-large" id="start">▶️ Старт</button>
+                <div class="dpad">
+                    <button class="dpad-btn" id="left">←</button>
+                    <button class="dpad-btn" id="rotate">↻</button>
+                    <button class="dpad-btn" id="right">→</button>
+                    <button class="dpad-btn" id="down">↓</button>
+                    <button class="dpad-btn" id="drop">💥</button>
                 </div>
                 
-                <div class="instructions">
-                    <h3>Как играть:</h3>
-                    <ul>
-                        <li><strong>← →</strong> — движение влево/вправо</li>
-                        <li><strong>↻</strong> — поворот фигуры</li>
-                        <li><strong>↓</strong> — ускорить падение</li>
-                        <li><strong>Пробел</strong> — мгновенное падение</li>
-                        <li><strong>P</strong> — пауза</li>
-                    </ul>
+                <div class="action-buttons">
+                    <button class="action-btn" id="start">
+                        <span>▶️</span>
+                        <span>СТАРТ</span>
+                    </button>
+                    <button class="action-btn" id="pause">
+                        <span>⏸️</span>
+                        <span>ПАУЗА</span>
+                    </button>
+                </div>
+                
+                <div class="touch-info">
+                    💡 Можно также использовать свайпы и кнопки на клавиатуре
                 </div>
             </div>
         </div>
 
         <footer>
-            <p>Игра работает в Telegram Mini App • Счёт можно отправить в чат с ботом</p>
+            <p>🎮 Тетрис в Telegram • Играйте где угодно!</p>
         </footer>
     </div>
 
