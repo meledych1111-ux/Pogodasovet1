@@ -29,42 +29,47 @@ initializeBot();
 
 const userStorage = new Map();
 
-// ===================== ФУНКЦИИ ПОГОДЫ (КАК БЫЛО) =====================
+// ===================== ФУНКЦИИ ПОГОДЫ =====================
 async function getWeatherData(cityName) {
     console.log(`🌤️ Запрашиваю погоду для: "${cityName}"`);
     
     try {
-        // 1. ГЕОКОДИНГ
         const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+        console.log(`📍 Geo URL: ${geoUrl}`);
+        
         const geoResponse = await fetch(geoUrl);
         const geoData = await geoResponse.json();
         
+        console.log('📍 Geo ответ:', JSON.stringify(geoData).slice(0, 200));
+        
         if (!geoData.results || geoData.results.length === 0) {
+            console.error('📍 Город не найден');
             throw new Error('Город не найден');
         }
         
         const { latitude, longitude, name } = geoData.results[0];
+        console.log(`📍 Координаты: ${latitude}, ${longitude} (${name})`);
         
-        // 2. ПОГОДА
         const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation,weather_code&wind_speed_unit=ms&timezone=auto`;
+        console.log(`🌤️ Weather URL: ${weatherUrl}`);
+        
         const weatherResponse = await fetch(weatherUrl);
         const weatherData = await weatherResponse.json();
         
+        console.log('🌤️ Weather ответ:', JSON.stringify(weatherData.current).slice(0, 200));
+        
         if (!weatherData.current) {
+            console.error('🌤️ Нет данных о погоде');
             throw new Error('Нет данных о погоде');
         }
         
         const current = weatherData.current;
-        
-        // ОСАДКИ КАК ЧИСЛО
-        const precipitationValue = current.precipitation || 0;
-        
         return {
             temp: Math.round(current.temperature_2m),
             feels_like: Math.round(current.apparent_temperature),
             humidity: current.relative_humidity_2m,
             wind: current.wind_speed_10m.toFixed(1),
-            precipitation: precipitationValue, // ЧИСЛО
+            precipitation: `${current.precipitation} мм`,
             description: getWeatherDescription(current.weather_code),
             city: name
         };
@@ -76,22 +81,22 @@ async function getWeatherData(cityName) {
             feels_like: 19,
             humidity: 65,
             wind: '3.0',
-            precipitation: 0,
+            precipitation: '0 мм',
             description: 'Ясно ☀️',
             city: cityName
         };
     }
 }
 
-// НОВАЯ ФУНКЦИЯ: ПРОГНОЗ НА ЗАВТРА
 async function getTomorrowWeather(cityName) {
     console.log(`📅 Запрашиваю прогноз на завтра для: "${cityName}"`);
     
     try {
-        // 1. ГЕОКОДИНГ
         const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
         const geoResponse = await fetch(geoUrl);
         const geoData = await geoResponse.json();
+        
+        console.log('📍 Geo ответ для прогноза:', JSON.stringify(geoData).slice(0, 200));
         
         if (!geoData.results || geoData.results.length === 0) {
             throw new Error('Город не найден');
@@ -99,370 +104,1074 @@ async function getTomorrowWeather(cityName) {
         
         const { latitude, longitude, name } = geoData.results[0];
         
-        // 2. ПРОГНОЗ НА 2 ДНЯ
         const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=2`;
+        console.log(`📅 Forecast URL: ${forecastUrl}`);
+        
         const forecastResponse = await fetch(forecastUrl);
         const forecastData = await forecastResponse.json();
         
+        console.log('📅 Forecast ответ:', JSON.stringify(forecastData.daily).slice(0, 300));
+        
         if (!forecastData.daily || forecastData.daily.time.length < 2) {
+            console.error('📅 Нет данных прогноза');
             throw new Error('Нет данных прогноза');
         }
         
-        // Данные на завтра (индекс 1)
-        const precipitationValue = forecastData.daily.precipitation_sum?.[1] || 0;
+        // ПРОВЕРКА: есть ли данные для завтра
+        const tomorrowCode = forecastData.daily.weather_code?.[1];
+        console.log('📅 Код погоды на завтра:', tomorrowCode);
         
         return {
             city: name,
             temp_max: Math.round(forecastData.daily.temperature_2m_max[1]),
             temp_min: Math.round(forecastData.daily.temperature_2m_min[1]),
-            precipitation: precipitationValue, // ЧИСЛО
-            description: getWeatherDescription(forecastData.daily.weather_code[1])
+            precipitation: forecastData.daily.precipitation_sum?.[1]?.toFixed(1) || '0.0',
+            description: getWeatherDescription(tomorrowCode),
+            rawCode: tomorrowCode
         };
         
     } catch (error) {
         console.error('❌ Ошибка прогноза:', error.message);
+        console.error('❌ Stack:', error.stack);
         return {
             city: cityName,
             temp_max: 24,
             temp_min: 18,
-            precipitation: 0.5,
-            description: 'Переменная облачность ⛅'
+            precipitation: '0.5',
+            description: 'Переменная облачность ⛅',
+            isFallback: true
         };
     }
 }
 
 function getWeatherDescription(code) {
+    console.log('📝 Получен код для описания:', code, typeof code);
+    
+    // Если код undefined или null, возвращаем стандартное описание
+    if (code === undefined || code === null) {
+        return 'Погодные данные';
+    }
+    
     const weatherMap = {
-        0: 'Ясно ☀️', 1: 'В основном ясно 🌤️', 2: 'Переменная облачность ⛅',
-        3: 'Пасмурно ☁️', 45: 'Туман 🌫️', 48: 'Изморозь 🌫️',
-        51: 'Легкая морось 🌧️', 53: 'Морось 🌧️', 61: 'Небольшой дождь 🌧️',
-        63: 'Дождь 🌧️', 65: 'Сильный дождь 🌧️', 71: 'Небольшой снег ❄️',
-        73: 'Снег ❄️', 75: 'Сильный снег ❄️'
+        0: 'Ясно ☀️', 
+        1: 'В основном ясно 🌤️', 
+        2: 'Переменная облачность ⛅',
+        3: 'Пасмурно ☁️', 
+        45: 'Туман 🌫️', 
+        48: 'Изморозь 🌫️',
+        51: 'Легкая морось 🌧️', 
+        53: 'Морось 🌧️', 
+        61: 'Небольшой дождь 🌧️',
+        63: 'Дождь 🌧️', 
+        65: 'Сильный дождь 🌧️', 
+        71: 'Небольшой снег ❄️',
+        73: 'Снег ❄️', 
+        75: 'Сильный снег ❄️',
+        80: 'Небольшой ливень 🌧️',
+        81: 'Умеренный ливень 🌧️',
+        82: 'Сильный ливень 🌧️',
+        85: 'Небольшой снегопад ❄️',
+        86: 'Сильный снегопад ❄️',
+        95: 'Гроза ⛈️',
+        96: 'Гроза с небольшим градом ⛈️',
+        99: 'Гроза с сильным градом ⛈️'
     };
-    return weatherMap[code] || 'Погодные данные';
+    
+    return weatherMap[code] || `Код погоды: ${code}`;
 }
 
-// ===================== РАСШИРЕННЫЕ СОВЕТЫ ПО ОДЕЖДЕ (КАК БЫЛО) =====================
+// ===================== РАСШИРЕННЫЕ СОВЕТЫ ПО ОДЕЖДЕ =====================
 function getWardrobeAdvice(weatherData) {
     const { temp, description, wind, precipitation } = weatherData;
     let advice = [];
 
     // Основные рекомендации по температуре
     if (temp >= 25) {
-        advice.push('• 👕 Базовый слой: майка, футболка из хлопка или льна');
-        advice.push('• 👖 Верх: шорты, легкие брюки или юбка');
+        advice.push('• 👕 *Базовый слой:* майка, футболка из хлопка или льна');
+        advice.push('• 👖 *Верх:* шорты, легкие брюки из льна, юбка');
     } else if (temp >= 18) {
-        advice.push('• 👕 Базовый слой: футболка или тонкая рубашка');
-        advice.push('• 🧥 Верх: джинсы, брюки, легкая куртка на вечер');
+        advice.push('• 👕 *Базовый слой:* футболка или тонкая рубашка');
+        advice.push('• 🧥 *Верх:* джинсы, брюки, легкая куртка на вечер');
     } else if (temp >= 10) {
-        advice.push('• 👕 Базовый слой: лонгслив или тонкое термобелье');
-        advice.push('• 🧥 Верх: свитер, толстовка, ветровка');
+        advice.push('• 👕 *Базовый слой:* лонгслив, тонкое термобелье');
+        advice.push('• 🧥 *Верх:* свитер, толстовка, ветровка');
     } else if (temp >= 0) {
-        advice.push('• 👕 Базовый слой: теплое термобелье или флис');
-        advice.push('• 🧥 Верх: утепленный свитер, зимняя куртка, теплые брюки');
+        advice.push('• 👕 *Базовый слой:* теплое термобелье или флис');
+        advice.push('• 🧥 *Верх:* утепленный свитер, зимняя куртка');
     } else {
-        advice.push('• 👕 Базовый слой: плотное термобелье, флис');
-        advice.push('• 🧥 Верх: пуховик, утепленные штаны');
+        advice.push('• 👕 *Базовый слой:* плотное термобелье, флис');
+        advice.push('• 🧥 *Верх:* пуховик, утепленные штаны');
     }
 
     // Дополнительные рекомендации
-    if (description.toLowerCase().includes('дождь') || precipitation > 0) {
-        advice.push('• ☔ Защита от влаги: дождевик, зонт, непромокаемая обувь');
+    if (description.toLowerCase().includes('дождь') || description.includes('🌧️')) {
+        advice.push('• ☔ *При дожде:* дождевик, зонт, непромокаемая обувь');
     }
-    if (description.toLowerCase().includes('снег')) {
-        advice.push('• ❄️ Для снега: непромокаемая обувь, варежки');
+    if (description.toLowerCase().includes('снег') || description.includes('❄️')) {
+        advice.push('• ❄️ *При снеге:* непромокаемая обувь, варежки');
     }
     if (parseFloat(wind) > 7) {
-        advice.push('• 💨 От ветра: ветровка с мембраной, шарф');
+        advice.push('• 💨 *При ветре:* ветровка с капюшоном, шарф');
     }
-    if (description.toLowerCase().includes('ясно') || description.includes('☀️')) {
-        advice.push('• 🕶️ От солнца: солнцезащитные очки, головной убор');
+    if (description.includes('☀️') || description.includes('ясно')) {
+        advice.push('• 🕶️ *При солнце:* солнцезащитные очки, головной убор');
     }
 
-    if (temp < 15) advice.push('• 🧣 Аксессуары: шапка, шарф, перчатки');
-    if (temp > 20 && description.includes('ясно')) advice.push('• 🧴 Солнцезащитный крем SPF 30+.');
+    // Общие советы
+    if (temp < 15) {
+        advice.push('• 🧣 *Аксессуары:* шапка, шарф, перчатки');
+    }
+    if (temp > 20 && description.includes('☀️')) {
+        advice.push('• 🧴 *Защита:* солнцезащитный крем SPF 30+');
+    }
 
-    advice.push('\n👟 *Обувь*: выбирайте по погоде');
-    advice.push('🎒 *С собой*: сумка для снятых слоев одежды');
+    advice.push('\n👟 *Обувь:* выбирайте по погоде');
+    advice.push('🎒 *С собой:* сумка для снятых слоев одежды');
 
     return advice.join('\n');
 }
 
-// ===================== 150 ФРАЗ (сокращенный вариант) =====================
+// ===================== ФРАЗЫ (сокращенный набор) =====================
 const dailyPhrases = [
+ // ===================== ПУТЕШЕСТВИЯ И ТРАНСПОРТ (30 фраз) =====================
     {
-        id: 1,
-        english: "Where is the nearest metro station?",
-        russian: "Где ближайшая станция метро?",
-        explanation: "Спрашиваем дорогу к метро",
-        category: "travel",
-        difficulty: "beginner"
+        english: "Where is the nearest bus stop?",
+        russian: "Где ближайшая автобусная остановка?",
+        explanation: "Спрашиваем про общественный транспорт",
+        category: "Путешествия",
+        level: "Начальный"
     },
     {
-        id: 2,
-        english: "How much is a ticket to the museum?",
-        russian: "Сколько стоит билет в музей?",
-        explanation: "Спрашиваем цену билета",
-        category: "travel",
-        difficulty: "beginner"
+        english: "How much is a ticket to the airport?",
+        russian: "Сколько стоит билет до аэропорта?",
+        explanation: "Узнаем цену проезда",
+        category: "Путешествия",
+        level: "Начальный"
     },
     {
-        id: 3,
+        english: "Is this seat taken?",
+        russian: "Это место занято?",
+        explanation: "Вежливый вопрос в транспорте",
+        category: "Путешествия", 
+        level: "Начальный"
+    },
+    {
+        english: "Could you tell me the way to the railway station?",
+        russian: "Не подскажете дорогу до вокзала?",
+        explanation: "Просим указать направление",
+        category: "Путешествия",
+        level: "Средний"
+    },
+    {
+        english: "I'd like to rent a car for three days",
+        russian: "Я хотел бы арендовать машину на три дня",
+        explanation: "Фраза для аренды автомобиля",
+        category: "Путешествия",
+        level: "Средний"
+    },
+    {
+        english: "Does this train go to the city center?",
+        russian: "Этот поезд идет в центр города?",
+        explanation: "Уточнение маршрута",
+        category: "Путешествия",
+        level: "Начальный"
+    },
+    {
+        english: "Where can I buy a metro card?",
+        russian: "Где я могу купить карту метро?",
+        explanation: "Вопрос о проездных",
+        category: "Путешествия",
+        level: "Начальный"
+    },
+    {
+        english: "What time does the last bus leave?",
+        russian: "Во сколько уходит последний автобус?",
+        explanation: "Уточнение расписания",
+        category: "Путешествия",
+        level: "Начальный"
+    },
+    {
+        english: "I need a taxi, please",
+        russian: "Мне нужно такси, пожалуйста",
+        explanation: "Простая просьба вызвать такси",
+        category: "Путешествия",
+        level: "Начальный"
+    },
+    {
+        english: "Is there a direct flight to London?",
+        russian: "Есть прямой рейс в Лондон?",
+        explanation: "Вопрос о авиаперелетах",
+        category: "Путешествия",
+        level: "Средний"
+    },
+
+    // ===================== ЕДА И РЕСТОРАНЫ (25 фраз) =====================
+    {
+        english: "Could I see the menu, please?",
+        russian: "Можно меню, пожалуйста?",
+        explanation: "Просим меню в ресторане",
+        category: "Еда",
+        level: "Начальный"
+    },
+    {
+        english: "I'm allergic to nuts",
+        russian: "У меня аллергия на орехи",
+        explanation: "Важная информация об аллергии",
+        category: "Еда",
+        level: "Начальный"
+    },
+    {
+        english: "Is this dish spicy?",
+        russian: "Это блюдо острое?",
+        explanation: "Уточнение о специях",
+        category: "Еда",
+        level: "Начальный"
+    },
+    {
+        english: "Could we have the bill, please?",
+        russian: "Можем мы получить счет, пожалуйста?",
+        explanation: "Просим счет в ресторане",
+        category: "Еда",
+        level: "Начальный"
+    },
+    {
+        english: "I'd like to make a reservation for two",
+        russian: "Я хотел бы зарезервировать столик на двоих",
+        explanation: "Бронирование столика",
+        category: "Еда",
+        level: "Средний"
+    },
+    {
+        english: "This is delicious!",
+        russian: "Это очень вкусно!",
+        explanation: "Комплимент повару",
+        category: "Еда",
+        level: "Начальный"
+    },
+    {
+        english: "Could I have some water, please?",
+        russian: "Можно мне воды, пожалуйста?",
+        explanation: "Простая просьба",
+        category: "Еда",
+        level: "Начальный"
+    },
+    {
+        english: "Is service included?",
+        russian: "Обслуживание включено?",
+        explanation: "Вопрос о чаевых",
+        category: "Еда",
+        level: "Средний"
+    },
+    {
+        english: "I'll have the same",
+        russian: "Я возьму то же самое",
+        explanation: "Заказ в ресторане",
+        category: "Еда",
+        level: "Начальный"
+    },
+    {
+        english: "Could you recommend something?",
+        russian: "Не могли бы вы что-нибудь порекомендовать?",
+        explanation: "Просим рекомендацию",
+        category: "Еда",
+        level: "Средний"
+    },
+
+    // ===================== ПОКУПКИ И ШОППИНГ (20 фраз) =====================
+    {
+        english: "How much does this cost?",
+        russian: "Сколько это стоит?",
+        explanation: "Самый частый вопрос в магазине",
+        category: "Шоппинг",
+        level: "Начальный"
+    },
+    {
+        english: "Do you have this in a larger size?",
+        russian: "Есть ли это в большем размере?",
+        explanation: "Примерка одежды",
+        category: "Шоппинг",
+        level: "Начальный"
+    },
+    {
+        english: "Where are the fitting rooms?",
+        russian: "Где примерочные?",
+        explanation: "Ищем где примерить",
+        category: "Шоппинг",
+        level: "Начальный"
+    },
+    {
+        english: "I'm just looking, thank you",
+        russian: "Я просто смотрю, спасибо",
+        explanation: "Отказ от помощи продавца",
+        category: "Шоппинг",
+        level: "Начальный"
+    },
+    {
+        english: "Can I pay by credit card?",
+        russian: "Могу я оплатить кредитной картой?",
+        explanation: "Вопрос о способе оплаты",
+        category: "Шоппинг",
+        level: "Начальный"
+    },
+    {
+        english: "Is there a warranty?",
+        russian: "Есть гарантия?",
+        explanation: "Важный вопрос при покупке",
+        category: "Шоппинг",
+        level: "Средний"
+    },
+    {
+        english: "Could I have a receipt, please?",
+        russian: "Можно чек, пожалуйста?",
+        explanation: "Просим чек",
+        category: "Шоппинг",
+        level: "Начальный"
+    },
+    {
+        english: "Do you offer discounts?",
+        russian: "У вас есть скидки?",
+        explanation: "Вопрос о скидках",
+        category: "Шоппинг",
+        level: "Средний"
+    },
+    {
+        english: "I'd like to return this item",
+        russian: "Я хотел бы вернуть этот товар",
+        explanation: "Возврат покупки",
+        category: "Шоппинг",
+        level: "Средний"
+    },
+    {
+        english: "Where is the cash desk?",
+        russian: "Где касса?",
+        explanation: "Ищем где оплатить",
+        category: "Шоппинг",
+        level: "Начальный"
+    },
+
+    // ===================== ЗДОРОВЬЕ И МЕДИЦИНА (15 фраз) =====================
+    {
+        english: "I need to see a doctor",
+        russian: "Мне нужно к врачу",
+        explanation: "Экстренная ситуация",
+        category: "Здоровье",
+        level: "Начальный"
+    },
+    {
+        english: "Where is the nearest pharmacy?",
+        russian: "Где ближайшая аптека?",
+        explanation: "Ищем лекарства",
+        category: "Здоровье",
+        level: "Начальный"
+    },
+    {
+        english: "I have a headache",
+        russian: "У меня болит голова",
+        explanation: "Описание симптомов",
+        category: "Здоровье",
+        level: "Начальный"
+    },
+    {
+        english: "I feel sick",
+        russian: "Мне плохо",
+        explanation: "Общее недомогание",
+        category: "Здоровье",
+        level: "Начальный"
+    },
+    {
+        english: "Do I need a prescription?",
+        russian: "Мне нужен рецепт?",
+        explanation: "Вопрос в аптеке",
+        category: "Здоровье",
+        level: "Средний"
+    },
+    {
+        english: "I've cut my finger",
+        russian: "Я порезал палец",
+        explanation: "Описание травмы",
+        category: "Здоровье",
+        level: "Начальный"
+    },
+    {
+        english: "Call an ambulance, please",
+        russian: "Вызовите скорую, пожалуйста",
+        explanation: "Экстренный вызов",
+        category: "Здоровье",
+        level: "Начальный"
+    },
+    {
+        english: "I have a temperature",
+        russian: "У меня температура",
+        explanation: "Сообщаем о температуре",
+        category: "Здоровье",
+        level: "Начальный"
+    },
+    {
+        english: "How should I take this medicine?",
+        russian: "Как мне принимать это лекарство?",
+        explanation: "Вопрос о дозировке",
+        category: "Здоровье",
+        level: "Средний"
+    },
+    {
+        english: "I'm diabetic",
+        russian: "У меня диабет",
+        explanation: "Важная медицинская информация",
+        category: "Здоровье",
+        level: "Средний"
+    },
+
+    // ===================== РАБОЧИЕ И ДЕЛОВЫЕ СИТУАЦИИ (15 фраз) =====================
+    {
+        english: "Could I speak to the manager?",
+        russian: "Могу я поговорить с менеджером?",
+        explanation: "Просьба в бизнес-ситуации",
+        category: "Бизнес",
+        level: "Средний"
+    },
+    {
+        english: "Let's schedule a meeting",
+        russian: "Давайте назначим встречу",
+        explanation: "Деловая фраза",
+        category: "Бизнес",
+        level: "Средний"
+    },
+    {
+        english: "Could you send me an email with details?",
+        russian: "Не могли бы вы отправить мне детали по email?",
+        explanation: "Профессиональная просьба",
+        category: "Бизнес",
+        level: "Средний"
+    },
+    {
+        english: "I'll get back to you on that",
+        russian: "Я вернусь к вам по этому вопросу",
+        explanation: "Деловой ответ",
+        category: "Бизнес",
+        level: "Средний"
+    },
+    {
+        english: "What's your deadline?",
+        russian: "Каков ваш дедлайн?",
+        explanation: "Вопрос о сроках",
+        category: "Бизнес",
+        level: "Средний"
+    },
+    {
+        english: "Let me think it over",
+        russian: "Дайте мне подумать",
+        explanation: "Взятие паузы в переговорах",
+        category: "Бизнес",
+        level: "Средний"
+    },
+    {
+        english: "That's a reasonable offer",
+        russian: "Это разумное предложение",
+        explanation: "Положительный ответ",
+        category: "Бизнес",
+        level: "Средний"
+    },
+    {
+        english: "I need it by Friday",
+        russian: "Мне нужно это к пятнице",
+        explanation: "Указание сроков",
+        category: "Бизнес",
+        level: "Начальный"
+    },
+    {
+        english: "Could you clarify that point?",
+        russian: "Не могли бы вы уточнить этот момент?",
+        explanation: "Просьба о разъяснении",
+        category: "Бизнес",
+        level: "Средний"
+    },
+    {
+        english: "Let's touch base next week",
+        russian: "Давайте свяжемся на следующей неделе",
+        explanation: "Деловая идиома",
+        category: "Бизнес",
+        level: "Продвинутый"
+    },
+
+    // ===================== СОЦИАЛЬНОЕ ОБЩЕНИЕ (25 фраз) =====================
+    {
+        english: "Nice to meet you!",
+        russian: "Приятно познакомиться!",
+        explanation: "Стандартное приветствие при знакомстве",
+        category: "Общение",
+        level: "Начальный"
+    },
+    {
+        english: "What do you do for a living?",
+        russian: "Чем вы занимаетесь?",
+        explanation: "Вопрос о профессии",
+        category: "Общение",
+        level: "Начальный"
+    },
+    {
+        english: "How was your day?",
+        russian: "Как прошел твой день?",
+        explanation: "Дружеский вопрос",
+        category: "Общение",
+        level: "Начальный"
+    },
+    {
+        english: "Could you give me a hand?",
+        russian: "Не мог бы ты мне помочь?",
+        explanation: "Просьба о помощи",
+        category: "Общение",
+        level: "Начальный"
+    },
+    {
+        english: "I'm really sorry about that",
+        russian: "Мне очень жаль",
+        explanation: "Извинение",
+        category: "Общение",
+        level: "Начальный"
+    },
+    {
+        english: "What are your plans for the weekend?",
+        russian: "Какие у тебя планы на выходные?",
+        explanation: "Социальный вопрос",
+        category: "Общение",
+        level: "Начальный"
+    },
+    {
+        english: "Let's keep in touch",
+        russian: "Давайте оставаться на связи",
+        explanation: "Прощание с намерением общаться",
+        category: "Общение",
+        level: "Средний"
+    },
+    {
+        english: "I couldn't agree more",
+        russian: "Не могу не согласиться",
+        explanation: "Полное согласие",
+        category: "Общение",
+        level: "Средний"
+    },
+    {
+        english: "That's beside the point",
+        russian: "Это не относится к делу",
+        explanation: "Возражение в дискуссии",
+        category: "Общение",
+        level: "Средний"
+    },
+    {
+        english: "Let's agree to disagree",
+        russian: "Давайте останемся при своем мнении",
+        explanation: "Цивилизованное окончание спора",
+        category: "Общение",
+        level: "Продвинутый"
+    },
+
+    // ===================== АНГЛИЙСКИЕ ИДИОМЫ И ВЫРАЖЕНИЯ (20 фраз) =====================
+    {
         english: "It's raining cats and dogs",
         russian: "Льёт как из ведра",
-        explanation: "Идиома для описания сильного дождя",
-        category: "weather",
-        difficulty: "intermediate"
+        explanation: "Сильный дождь",
+        category: "Идиомы",
+        level: "Средний"
     },
     {
-        id: 4,
         english: "Break the ice",
-        russian: "Растопить лёд/начать общение",
-        explanation: "Начать разговор в неловкой ситуации",
-        category: "communication",
-        difficulty: "intermediate"
+        russian: "Растопить лёд",
+        explanation: "Начать общение в неловкой ситуации",
+        category: "Идиомы",
+        level: "Средний"
     },
     {
-        id: 5,
-        english: "Every cloud has a silver lining",
-        russian: "Нет худа без добра",
-        explanation: "В любой плохой ситуации есть что-то хорошее",
-        category: "optimism",
-        difficulty: "intermediate"
+        english: "Bite the bullet",
+        russian: "Стиснуть зубы",
+        explanation: "Решиться на что-то неприятное",
+        category: "Идиомы",
+        level: "Средний"
     },
     {
-        id: 6,
-        english: "I need a cup of coffee",
-        russian: "Мне нужна чашка кофе",
-        explanation: "Простая бытовая фраза",
-        category: "daily",
-        difficulty: "beginner"
+        english: "Once in a blue moon",
+        russian: "Раз в сто лет",
+        explanation: "Очень редко",
+        category: "Идиомы",
+        level: "Средний"
+    },
+    {
+        english: "The ball is in your court",
+        russian: "Теперь твой ход",
+        explanation: "Теперь ваша очередь решать",
+        category: "Идиомы",
+        level: "Средний"
+    },
+    {
+        english: "Spill the beans",
+        russian: "Выложить всё",
+        explanation: "Раскрыть секрет",
+        category: "Идиомы",
+        level: "Средний"
+    },
+    {
+        english: "Costs an arm and a leg",
+        russian: "Стоит целое состояние",
+        explanation: "Очень дорого",
+        category: "Идиомы",
+        level: "Средний"
+    },
+    {
+        english: "Hit the nail on the head",
+        russian: "Попасть в самую точку",
+        explanation: "Точно угадать",
+        category: "Идиомы",
+        level: "Средний"
+    },
+    {
+        english: "Let the cat out of the bag",
+        russian: "Выпустить кота из мешка",
+        explanation: "Выдать секрет",
+        category: "Идиомы",
+        level: "Средний"
+    },
+    {
+        english: "A piece of cake",
+        russian: "Проще простого",
+        explanation: "Очень легко",
+        category: "Идиомы",
+        level: "Начальный"
+    },
+
+    // ===================== ЭКСТРЕННЫЕ СИТУАЦИИ (10 фраз) =====================
+    {
+        english: "Help!",
+        russian: "Помогите!",
+        explanation: "Критическая ситуация",
+        category: "Экстренно",
+        level: "Начальный"
+    },
+    {
+        english: "Call the police!",
+        russian: "Вызовите полицию!",
+        explanation: "Экстренный вызов",
+        category: "Экстренно",
+        level: "Начальный"
+    },
+    {
+        english: "I'm lost",
+        russian: "Я заблудился",
+        explanation: "Ситуация потерявшегося",
+        category: "Экстренно",
+        level: "Начальный"
+    },
+    {
+        english: "My wallet was stolen",
+        russian: "У меня украли кошелек",
+        explanation: "Сообщение о краже",
+        category: "Экстренно",
+        level: "Средний"
+    },
+    {
+        english: "There's been an accident",
+        russian: "Произошел несчастный случай",
+        explanation: "Сообщение о аварии",
+        category: "Экстренно",
+        level: "Средний"
+    },
+    {
+        english: "I need a translator",
+        russian: "Мне нужен переводчик",
+        explanation: "Просьба в сложной ситуации",
+        category: "Экстренно",
+        level: "Начальный"
+    },
+    {
+        english: "Where is the embassy?",
+        russian: "Где посольство?",
+        explanation: "Важный вопрос за границей",
+        category: "Экстренно",
+        level: "Средний"
+    },
+    {
+        english: "I've lost my passport",
+        russian: "Я потерял паспорт",
+        explanation: "Серьезная проблема",
+        category: "Экстренно",
+        level: "Средний"
+    },
+    {
+        english: "Is it safe here?",
+        russian: "Здесь безопасно?",
+        explanation: "Вопрос о безопасности",
+        category: "Экстренно",
+        level: "Начальный"
+    },
+    {
+        english: "I need to contact my family",
+        russian: "Мне нужно связаться с семьей",
+        explanation: "Важная просьба",
+        category: "Экстренно",
+        level: "Средний"
+    },
+
+    // ===================== ПОГОДА И ПРИРОДА (10 фраз) =====================
+    {
+        english: "What's the weather like today?",
+        russian: "Какая сегодня погода?",
+        explanation: "Стандартный вопрос о погоде",
+        category: "Погода",
+        level: "Начальный"
+    },
+    {
+        english: "It's freezing outside",
+        russian: "На улице мороз",
+        explanation: "Описание холодной погоды",
+        category: "Погода",
+        level: "Начальный"
+    },
+    {
+        english: "What a beautiful day!",
+        russian: "Какой прекрасный день!",
+        explanation: "Комментарий о хорошей погоде",
+        category: "Погода",
+        level: "Начальный"
+    },
+    {
+        english: "It looks like rain",
+        russian: "Похоже на дождь",
+        explanation: "Прогноз погоды",
+        category: "Погода",
+        level: "Начальный"
+    },
+    {
+        english: "The sun is shining brightly",
+        russian: "Солнце светит ярко",
+        explanation: "Описание солнечного дня",
+        category: "Погода",
+        level: "Начальный"
+    },
+    {
+        english: "There's a strong wind",
+        russian: "Сильный ветер",
+        explanation: "Описание ветреной погоды",
+        category: "Погода",
+        level: "Начальный"
+    },
+    {
+        english: "It's humid today",
+        russian: "Сегодня влажно",
+        explanation: "Описание влажности",
+        category: "Погода",
+        level: "Средний"
+    },
+    {
+        english: "The temperature is dropping",
+        russian: "Температура падает",
+        explanation: "Описание похолодания",
+        category: "Погода",
+        level: "Средний"
+    },
+    {
+        english: "There's a thunderstorm coming",
+        russian: "Надвигается гроза",
+        explanation: "Прогноз непогоды",
+        category: "Погода",
+        level: "Средний"
+    },
+    {
+        english: "The sky is clear",
+        russian: "Небо ясное",
+        explanation: "Описание хорошей погоды",
+        category: "Погода",
+        level: "Начальный"
     }
 ];
 
-// ===================== КЛАВИАТУРЫ (С ДОБАВЛЕННОЙ КНОПКОЙ ЗАВТРА) =====================
+
+// ===================== КЛАВИАТУРЫ =====================
 const startKeyboard = new Keyboard()
     .text('🚀 НАЧАТЬ')
     .resized();
 
 const mainMenuKeyboard = new Keyboard()
     .text('🌤️ ПОГОДА СЕЙЧАС')
-    .row()
-    .text('📅 ПОГОДА ЗАВТРА')  // НОВАЯ КНОПКА
+    .text('📅 ПОГОДА ЗАВТРА').row()
     .text('👕 ЧТО НАДЕТЬ?')
-    .row()
-    .text('💬 ФРАЗА ДНЯ')
+    .text('💬 ФРАЗА ДНЯ').row()
     .text('🏙️ СМЕНИТЬ ГОРОД')
-    .row()
     .text('ℹ️ ПОМОЩЬ')
     .resized();
 
 const cityKeyboard = new Keyboard()
     .text('📍 МОСКВА')
+    .row()
     .text('📍 САНКТ-ПЕТЕРБУРГ')
     .row()
     .text('📍 СИМФЕРОПОЛЬ')
-    .text('📍 СЕВАСТОПОЛЬ')  // ВАШ ГОРОД
-    .row()
-    .text('📍 КРАСНОДАР')
-    .text('📍 СОЧИ')
     .row()
     .text('✏️ ДРУГОЙ ГОРОД')
     .row()
     .text('🔙 НАЗАД')
     .resized();
 
-// ===================== ОБРАБОТЧИКИ (СТАРЫЕ + НОВЫЕ) =====================
-
-// 1. КОМАНДА START
+// ===================== ОБРАБОТЧИКИ =====================
 bot.command('start', async (ctx) => {
     console.log(`🚀 /start от ${ctx.from.id}`);
-    await ctx.reply(
-        `👋 Привет! Я бот погоды с английскими фразами.\n\n👇 *Нажмите НАЧАТЬ:*`,
-        { parse_mode: 'Markdown', reply_markup: startKeyboard }
-    );
+    try {
+        await ctx.reply(
+            `👋 Привет! Я бот погоды с английскими фразами.\n\n👇 *Нажмите НАЧАТЬ:*`,
+            { parse_mode: 'Markdown', reply_markup: startKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в /start:', error);
+    }
 });
 
-// 2. КНОПКА НАЧАТЬ
 bot.hears('🚀 НАЧАТЬ', async (ctx) => {
     console.log(`📍 НАЧАТЬ от ${ctx.from.id}`);
-    await ctx.reply(
-        `📍 *Выберите ваш город:*\n(включая Севастополь)`,
-        { parse_mode: 'Markdown', reply_markup: cityKeyboard }
-    );
+    try {
+        await ctx.reply(
+            `📍 *Выберите ваш город:*`,
+            { parse_mode: 'Markdown', reply_markup: cityKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в НАЧАТЬ:', error);
+    }
 });
 
-// 3. ВЫБОР ГОРОДА (включая Севастополь)
 bot.hears(/^📍 /, async (ctx) => {
     const userId = ctx.from.id;
     const city = ctx.message.text.replace('📍 ', '').trim();
     console.log(`📍 Выбран город: "${city}" для ${userId}`);
     
-    userStorage.set(userId, { city });
-    
-    await ctx.reply(
-        `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
+    try {
+        userStorage.set(userId, { city });
+        
+        await ctx.reply(
+            `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка при выборе города:', error);
+        await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
+    }
 });
 
-// 4. ПОГОДА СЕЙЧАС (с правильными осадками)
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`🌤️ ПОГОДА от ${userId}`);
     
-    const userData = userStorage.get(userId) || {};
-    
-    if (!userData.city) {
-        await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-        return;
+    try {
+        const userData = userStorage.get(userId) || {};
+        
+        if (!userData.city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`⏳ Запрашиваю погоду для ${userData.city}...`, { parse_mode: 'Markdown' });
+        
+        const weather = await getWeatherData(userData.city);
+        console.log('🌤️ Получена погода:', weather);
+        
+        await ctx.reply(
+            `🌤️ *Погода в ${weather.city}*\n\n` +
+            `🌡️ Температура: *${weather.temp}°C*\n` +
+            `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
+            `💨 Ветер: ${weather.wind} м/с\n` +
+            `💧 Влажность: ${weather.humidity}%\n` +
+            `📝 ${weather.description}\n` +
+            `🌧️ Осадки: ${weather.precipitation}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ПОГОДА:', error);
+        await ctx.reply('❌ Не удалось получить данные о погоде.', { reply_markup: mainMenuKeyboard });
     }
-    
-    await ctx.reply(`⏳ Запрашиваю погоду для ${userData.city}...`, { parse_mode: 'Markdown' });
-    
-    const weather = await getWeatherData(userData.city);
-    
-    // ПРАВИЛЬНОЕ ОТОБРАЖЕНИЕ ОСАДКОВ
-    const precipitationDisplay = weather.precipitation.toFixed(1);
-    
-    await ctx.reply(
-        `🌤️ *Погода в ${weather.city}*\n\n` +
-        `🌡️ Температура: *${weather.temp}°C*\n` +
-        `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
-        `💨 Ветер: ${weather.wind} м/с\n` +
-        `💧 Влажность: ${weather.humidity}%\n` +
-        `📝 ${weather.description}\n` +
-        `🌧️ Осадки: *${precipitationDisplay} мм/ч*`,  // ПРАВИЛЬНО!
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
 });
 
-// 5. НОВАЯ КНОПКА: ПОГОДА ЗАВТРА
 bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
     
-    const userData = userStorage.get(userId) || {};
-    
-    if (!userData.city) {
-        await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-        return;
+    try {
+        const userData = userStorage.get(userId) || {};
+        
+        if (!userData.city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`📅 Получаю прогноз на завтра для ${userData.city}...`, { parse_mode: 'Markdown' });
+        
+        const forecast = await getTomorrowWeather(userData.city);
+        console.log('📅 Получен прогноз:', forecast);
+        
+        if (!forecast) {
+            await ctx.reply('Не удалось получить прогноз. Попробуйте позже.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n` +
+                       `🔺 Максимум: *${forecast.temp_max}°C*\n` +
+                       `🔻 Минимум: *${forecast.temp_min}°C*\n` +
+                       `📝 ${forecast.description}\n` +
+                       `🌧️ Осадки: *${forecast.precipitation} мм*\n\n` +
+                       `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
+        
+        await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
+        await ctx.reply('❌ Не удалось получить прогноз.', { reply_markup: mainMenuKeyboard });
     }
-    
-    await ctx.reply(`📅 Получаю прогноз на завтра для ${userData.city}...`, { parse_mode: 'Markdown' });
-    
-    const forecast = await getTomorrowWeather(userData.city);
-    
-    if (!forecast) {
-        await ctx.reply('Не удалось получить прогноз.', { reply_markup: mainMenuKeyboard });
-        return;
-    }
-    
-    // ПРАВИЛЬНОЕ ОТОБРАЖЕНИЕ ОСАДКОВ
-    const precipitationDisplay = forecast.precipitation.toFixed(1);
-    
-    const message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n` +
-                   `🔺 Максимум: *${forecast.temp_max}°C*\n` +
-                   `🔻 Минимум: *${forecast.temp_min}°C*\n` +
-                   `📝 ${forecast.description}\n` +
-                   `🌧️ Осадки: *${precipitationDisplay} мм*`;  // ПРАВИЛЬНО!
-    
-    await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
 });
 
-// 6. ЧТО НАДЕТЬ? (расширенные советы)
+function getTomorrowAdvice(forecast) {
+    const precip = parseFloat(forecast.precipitation) || 0;
+    if (precip > 5) return "Запланируйте дела в помещении!";
+    if (forecast.temp_max - forecast.temp_min > 10) return "Одевайтесь слоями!";
+    if (forecast.temp_max > 25) return "Отличный день для пикника!";
+    return "Хорошего дня!";
+}
+
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`👕 ЧТО НАДЕТЬ? от ${userId}`);
     
-    const userData = userStorage.get(userId) || {};
-    
-    if (!userData.city) {
-        await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-        return;
+    try {
+        const userData = userStorage.get(userId) || {};
+        
+        if (!userData.city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`👗 Анализирую погоду для ${userData.city}...`, { parse_mode: 'Markdown' });
+        
+        const weather = await getWeatherData(userData.city);
+        const advice = getWardrobeAdvice(weather);
+        
+        await ctx.reply(
+            `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ЧТО НАДЕТЬ:', error);
+        await ctx.reply('❌ Не удалось получить рекомендацию.', { reply_markup: mainMenuKeyboard });
     }
-    
-    await ctx.reply(`👗 Анализирую погоду для ${userData.city}...`, { parse_mode: 'Markdown' });
-    
-    const weather = await getWeatherData(userData.city);
-    const advice = getWardrobeAdvice(weather);
-    
-    await ctx.reply(
-        `👕 *Что надеть в ${weather.city}?*\n\n` +
-        `*Текущие условия:* ${weather.temp}°C, ${weather.description}\n\n` +
-        `${advice}`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
 });
 
-// 7. ФРАЗА ДНЯ
 bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
     console.log(`💬 ФРАЗА ДНЯ от ${ctx.from.id}`);
     
-    const phrase = dailyPhrases[Math.floor(Math.random() * dailyPhrases.length)];
-    
-    await ctx.reply(
-        `💬 *Фраза дня*\n\n` +
-        `🇬🇧 *${phrase.english}*\n\n` +
-        `🇷🇺 *${phrase.russian}*\n\n` +
-        `📚 ${phrase.explanation}`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const dayOfMonth = new Date().getDate();
+        const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
+        const phrase = dailyPhrases[phraseIndex];
+        console.log(`💬 Выбрана фраза #${phraseIndex}: "${phrase.english}"`);
+        
+        await ctx.reply(
+            `💬 *Фраза дня*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 ${phrase.explanation}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ФРАЗА ДНЯ:', error);
+        await ctx.reply('❌ Не удалось получить фразу дня.', { reply_markup: mainMenuKeyboard });
+    }
 });
 
-// 8. НОВАЯ КОМАНДА: RANDOM (случайная фраза)
 bot.command('random', async (ctx) => {
     console.log(`🎲 /random от ${ctx.from.id}`);
     
-    const phrase = dailyPhrases[Math.floor(Math.random() * dailyPhrases.length)];
-    
-    await ctx.reply(
-        `🎲 *Случайная английская фраза*\n\n` +
-        `🇬🇧 *${phrase.english}*\n\n` +
-        `🇷🇺 *${phrase.russian}*\n\n` +
-        `📚 ${phrase.explanation}\n\n` +
-        `🔄 Используйте /random для новой случайной фразы!`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
+        const phrase = dailyPhrases[randomIndex];
+        console.log(`🎲 Случайная фраза #${randomIndex}: "${phrase.english}"`);
+        
+        await ctx.reply(
+            `🎲 *Случайная английская фраза*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 ${phrase.explanation}\n\n` +
+            `🔄 Используйте /random для новой случайной фразы!`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /random:', error);
+        await ctx.reply('❌ Не удалось получить случайную фразу.', { reply_markup: mainMenuKeyboard });
+    }
 });
 
-// 9. ПОМОЩЬ
 bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
-    await ctx.reply(
-        `*Помощь по боту*\n\n` +
-        `• *🌤️ ПОГОДА СЕЙЧАС* - текущая погода\n` +
-        `• *📅 ПОГОДА ЗАВТРА* - прогноз на завтра\n` +
-        `• *👕 ЧТО НАДЕТЬ?* - рекомендации по одежде\n` +
-        `• *💬 ФРАЗА ДНЯ* - английская фраза\n` +
-        `• *🏙️ СМЕНИТЬ ГОРОД* - изменить город\n` +
-        `• *ℹ️ ПОМОЩЬ* - это сообщение\n\n` +
-        `*Команды:*\n` +
-        `/start - начать работу\n` +
-        `/random - случайная английская фраза`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
+    console.log(`ℹ️ ПОМОЩЬ от ${ctx.from.id}`);
+    
+    try {
+        await ctx.reply(
+            `*Помощь по боту*\n\n` +
+            `• *🌤️ ПОГОДА СЕЙЧАС* - текущая погода\n` +
+            `• *📅 ПОГОДА ЗАВТРА* - прогноз на завтра\n` +
+            `• *👕 ЧТО НАДЕТЬ?* - рекомендации по одежде\n` +
+            `• *💬 ФРАЗА ДНЯ* - английская фраза\n` +
+            `• *🏙️ СМЕНИТЬ ГОРОД* - изменить город\n` +
+            `• *ℹ️ ПОМОЩЬ* - это сообщение\n\n` +
+            `*Команды:*\n` +
+            `/start - начать работу\n` +
+            `/random - случайная фраза`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в ПОМОЩЬ:', error);
+    }
 });
 
-// 10. ОСТАЛЬНЫЕ КНОПКИ (как было)
 bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
-    await ctx.reply('Выберите новый город:', { reply_markup: cityKeyboard });
+    console.log(`🏙️ СМЕНИТЬ ГОРОД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Выберите новый город:', { reply_markup: cityKeyboard });
+    } catch (error) {
+        console.error('❌ Ошибка в СМЕНИТЬ ГОРОД:', error);
+    }
 });
 
 bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
-    await ctx.reply('Напишите название вашего города:');
-    const userId = ctx.from.id;
-    userStorage.set(userId, { awaitingCity: true });
+    console.log(`✏️ ДРУГОЙ ГОРОД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Напишите название вашего города:');
+        const userId = ctx.from.id;
+        userStorage.set(userId, { awaitingCity: true });
+    } catch (error) {
+        console.error('❌ Ошибка в ДРУГОЙ ГОРОД:', error);
+    }
 });
 
 bot.hears('🔙 НАЗАД', async (ctx) => {
-    await ctx.reply('Главное меню:', { reply_markup: mainMenuKeyboard });
+    console.log(`🔙 НАЗАД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Главное меню:', { reply_markup: mainMenuKeyboard });
+    } catch (error) {
+        console.error('❌ Ошибка в НАЗАД:', error);
+    }
 });
 
-// 11. ОБРАБОТЧИК ТЕКСТА (для ввода города)
 bot.on('message:text', async (ctx) => {
     const userId = ctx.from.id;
     const text = ctx.message.text;
     const userData = userStorage.get(userId) || {};
+    
+    console.log(`📝 Текст от ${userId}: "${text}"`);
     
     if (text.startsWith('/') || 
         ['🚀 НАЧАТЬ', '🌤️ ПОГОДА СЕЙЧАС', '📅 ПОГОДА ЗАВТРА', '👕 ЧТО НАДЕТЬ?', 
@@ -472,25 +1181,34 @@ bot.on('message:text', async (ctx) => {
     }
     
     if (userData.awaitingCity) {
-        userStorage.set(userId, { city: text });
-        await ctx.reply(
-            `✅ *Город "${text}" сохранён!*`,
-            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-        );
+        try {
+            const city = text.trim();
+            console.log(`🏙️ Сохраняю город "${city}" для ${userId}`);
+            
+            userStorage.set(userId, { city, awaitingCity: false });
+            
+            await ctx.reply(
+                `✅ *Город "${city}" сохранён!*`,
+                { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+            );
+        } catch (error) {
+            console.error('❌ Ошибка при сохранении города:', error);
+            await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
+        }
     } else if (!userData.city) {
         await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
     }
 });
 
-// ===================== VERCEL HANDLER =====================
+// ===================== ОБРАБОТЧИК ДЛЯ VERCEL =====================
 export default async function handler(req, res) {
     console.log(`🌐 ${req.method} запрос к /api/bot`);
     
     try {
         if (req.method === 'GET') {
             return res.status(200).json({ 
-                message: 'Bot is running',
-                status: 'ok',
+                message: 'Weather & English Phrases Bot is running',
+                status: 'active',
                 timestamp: new Date().toISOString()
             });
         }
@@ -501,21 +1219,26 @@ export default async function handler(req, res) {
             console.log('📦 Получен update от Telegram');
             
             try {
-                await bot.handleUpdate(req.body);
-                console.log('✅ Update обработан');
+                const update = req.body;
+                await bot.handleUpdate(update);
+                console.log('✅ Update успешно обработан');
+                
                 return res.status(200).json({ ok: true });
             } catch (error) {
-                console.error('❌ Ошибка:', error);
-                return res.status(200).json({ ok: false });
+                console.error('❌ Ошибка обработки update:', error);
+                return res.status(200).json({ ok: false, error: 'Update processing failed' });
             }
         }
         
         return res.status(405).json({ error: 'Method not allowed' });
         
     } catch (error) {
-        console.error('🔥 Ошибка:', error);
-        return res.status(200).json({ ok: false });
+        console.error('🔥 Критическая ошибка в handler:', error);
+        return res.status(200).json({ 
+            ok: false, 
+            error: 'Internal server error'
+        });
     }
 }
 
-console.log('⚡ Бот загружен!');
+console.log('⚡ Бот загружен с исправлениями!');
