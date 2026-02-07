@@ -1019,8 +1019,11 @@ bot.hears(/^📍 /, async (ctx) => {
   console.log(`📍 Выбран город: "${city}" для ${userId}`);
   
   try {
-    // Заменяем userStorage.set() на вызов к БД
+    // Сохраняем в базу данных
     await saveUserCity(userId, city);
+    
+    // Также сохраняем локально для быстрого доступа
+    userStorage.set(userId, { city, awaitingCity: false });
     
     await ctx.reply(
       `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
@@ -1039,7 +1042,7 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
     console.log(`🌤️ ПОГОДА от ${userId}`);
     
     try {
-        // ЗАМЕНА: Получаем город из базы данных
+        // Получаем город из базы данных
         const city = await getUserCity(userId);
         
         if (!city) {
@@ -1065,7 +1068,6 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
         
     } catch (error) {
         console.error('❌ Ошибка в ПОГОДА:', error);
-        // Уточняем сообщение об ошибке
         await ctx.reply('❌ Не удалось получить данные о погоде или обработать ваш запрос.', { reply_markup: mainMenuKeyboard });
     }
 });
@@ -1076,7 +1078,7 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
     console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
     
     try {
-        // ЗАМЕНА: Получаем город из базы данных
+        // Получаем город из базы данных
         const city = await getUserCity(userId);
         
         if (!city) {
@@ -1138,16 +1140,17 @@ bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
     console.log(`👕 ЧТО НАДЕТЬ? от ${userId}`);
     
     try {
-        const userData = userStorage.get(userId) || {};
+        // Получаем город из базы данных
+        const city = await getUserCity(userId);
         
-        if (!userData.city) {
+        if (!city) {
             await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
             return;
         }
         
-        await ctx.reply(`👗 Анализирую погоду для ${userData.city}...`, { parse_mode: 'Markdown' });
+        await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
         
-        const weather = await getWeatherData(userData.city);
+        const weather = await getWeatherData(city);
         const advice = getWardrobeAdvice(weather);
         
         await ctx.reply(
@@ -1275,6 +1278,7 @@ bot.on('message:text', async (ctx) => {
     
     console.log(`📝 Текст от ${userId}: "${text}"`);
     
+    // Игнорируем команды и кнопки
     if (text.startsWith('/') || 
         ['🚀 НАЧАТЬ', '🌤️ ПОГОДА СЕЙЧАС', '📅 ПОГОДА ЗАВТРА', '👕 ЧТО НАДЕТЬ?', 
          '💬 ФРАЗА ДНЯ', '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text) ||
@@ -1282,11 +1286,16 @@ bot.on('message:text', async (ctx) => {
         return;
     }
     
+    // Если пользователь вводит город вручную
     if (userData.awaitingCity) {
         try {
             const city = text.trim();
             console.log(`🏙️ Сохраняю город "${city}" для ${userId}`);
             
+            // СОХРАНЯЕМ В БАЗУ ДАННЫХ
+            await saveUserCity(userId, city);
+            
+            // Также сохраняем локально
             userStorage.set(userId, { city, awaitingCity: false });
             
             await ctx.reply(
@@ -1297,8 +1306,21 @@ bot.on('message:text', async (ctx) => {
             console.error('❌ Ошибка при сохранении города:', error);
             await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
         }
-    } else if (!userData.city) {
-        await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
+    } else {
+        // Если пользователь просто написал сообщение, проверяем есть ли город в БД
+        try {
+            const city = await getUserCity(userId);
+            if (!city) {
+                await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
+            } else {
+                // Если город есть, предлагаем воспользоваться меню
+                await ctx.reply(`Ваш город: ${city}. Используйте кнопки меню для получения информации.`, 
+                    { reply_markup: mainMenuKeyboard });
+            }
+        } catch (error) {
+            console.error('❌ Ошибка при проверке города:', error);
+            await ctx.reply('Произошла ошибка. Попробуйте еще раз.', { reply_markup: mainMenuKeyboard });
+        }
     }
 });
 
