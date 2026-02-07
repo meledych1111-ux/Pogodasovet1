@@ -1,5 +1,5 @@
 import { Bot, Keyboard } from 'grammy';
-import { saveUserCity, getUserCity, saveGameScore } from './db.js';
+import { saveUserCity, getUserCity, saveGameScore, getGameStats, getTopPlayers } from './db.js';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
@@ -29,6 +29,69 @@ async function initializeBot() {
 initializeBot();
 
 const userStorage = new Map();
+
+// ===================== ФУНКЦИИ СТАТИСТИКИ =====================
+
+// Функция для получения красивой статистики игрока
+async function getGameStatsMessage(userId) {
+    try {
+        const stats = await getGameStats(userId, 'tetris');
+        
+        if (!stats || !stats.games_played || stats.games_played === 0) {
+            return "📊 *Статистика игры*\n\n🎮 Вы ещё не играли в тетрис!\n\nНажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!";
+        }
+        
+        // Форматируем дату последней игры
+        const lastPlayed = stats.last_played 
+            ? new Date(stats.last_played).toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+            : 'неизвестно';
+        
+        return `📊 *Ваша статистика в тетрисе*\n\n` +
+               `🎮 Игр сыграно: *${stats.games_played}*\n` +
+               `🏆 Лучший счёт: *${stats.best_score}*\n` +
+               `📈 Лучший уровень: *${stats.best_level}*\n` +
+               `📊 Лучшие линии: *${stats.best_lines}*\n` +
+               `📉 Средний счёт: *${Math.round(stats.avg_score)}*\n` +
+               `⏰ Последняя игра: ${lastPlayed}\n\n` +
+               `💪 Продолжайте играть!`;
+    } catch (error) {
+        console.error('❌ Ошибка получения статистики:', error);
+        return "❌ Не удалось получить статистику. Попробуйте позже.";
+    }
+}
+
+// Функция для получения топа игроков
+async function getTopPlayersMessage(limit = 10) {
+    try {
+        const topPlayers = await getTopPlayers('tetris', limit);
+        
+        if (!topPlayers || topPlayers.length === 0) {
+            return "🏆 *Топ игроков*\n\n📊 Пока никто не играл в тетрис!\n\nБудьте первым!";
+        }
+        
+        let message = `🏆 *Топ ${topPlayers.length} игроков в тетрисе*\n\n`;
+        
+        topPlayers.forEach((player, index) => {
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+            message += `${medal} *${player.score} очков*\n`;
+            if (player.username) {
+                message += `   👤 @${player.username}\n`;
+            }
+            message += `   🎮 Уровень: ${player.level} | 📈 Линии: ${player.lines}\n\n`;
+        });
+        
+        message += `🎯 Соревнуйтесь с другими игроками!`;
+        return message;
+    } catch (error) {
+        console.error('❌ Ошибка получения топа игроков:', error);
+        return "❌ Не удалось загрузить топ игроков. Попробуйте позже.";
+    }
+}
 
 // ===================== ФУНКЦИИ ПОГОДЫ =====================
 
@@ -642,6 +705,8 @@ const mainMenuKeyboard = new Keyboard()
     .text('🎲 СЛУЧАЙНАЯ ФРАЗА').row()
     .webApp('🎮 ИГРАТЬ В ТЕТРИС', 'https://pogodasovet1.vercel.app/')
     .row()
+    .text('📊 МОЯ СТАТИСТИКА')
+    .text('🏆 ТОП ИГРОКОВ').row()
     .text('🏙️ СМЕНИТЬ ГОРОД')
     .text('ℹ️ ПОМОЩЬ')
     .text('📋 ПОКАЗАТЬ КОМАНДЫ').row()
@@ -665,9 +730,9 @@ bot.command('start', async (ctx) => {
     try {
         // ОТПРАВЛЯЕМ КЛАВИАТУРУ СРАЗУ в первом сообщении
         await ctx.reply(
-            `👋 *Добро пожаловать в бота погоды и английских фраз!*\n\n` +
-            `🎮 *Да, здесь есть тетрис!* Но сначала давайте настроим бота.\n\n` +
-            `👇 *ШАГ 1: Нажмите кнопку ниже*`,
+            `👋 *Добро пожаловать в бота погоды, английских фраз и игр!*\n\n` +
+            `🎮 *Да, здесь есть тетрис со статистикой и топом игроков!*\n\n` +
+            `👇 *ШАГ 1: Нажмите кнопку ниже чтобы начать*`,
             { 
                 parse_mode: 'Markdown', 
                 reply_markup: startKeyboard 
@@ -684,8 +749,10 @@ bot.command('start', async (ctx) => {
             `🇬🇧 *Английский:*\n` +
             `• Фраза дня\n` +
             `• Случайные полезные фразы\n\n` +
-            `🎮 *Игры:*\n` +
-            `• Тетрис в мини-приложении\n\n` +
+            `🎮 *Игры (с полноценной статистикой):*\n` +
+            `• Тетрис в мини-приложении\n` +
+            `• 📊 Ваша статистика\n` +
+            `• 🏆 Топ игроков\n\n` +
             `👉 *Чтобы продолжить, нажмите "🚀 НАЧАТЬ РАБОТУ"*`,
             { parse_mode: 'Markdown' }
         );
@@ -707,6 +774,85 @@ bot.hears('🚀 НАЧАТЬ РАБОТУ', async (ctx) => {
     }
 });
 
+// ===================== СТАТИСТИКА И ТОП ИГРОКОВ =====================
+
+// Кнопка "МОЯ СТАТИСТИКА"
+bot.hears('📊 МОЯ СТАТИСТИКА', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`📊 МОЯ СТАТИСТИКА от ${userId}`);
+    
+    try {
+        await ctx.reply('⏳ Загружаю вашу статистику...', { parse_mode: 'Markdown' });
+        
+        const statsMessage = await getGameStatsMessage(userId);
+        await ctx.reply(statsMessage, { 
+            parse_mode: 'Markdown', 
+            reply_markup: mainMenuKeyboard 
+        });
+    } catch (error) {
+        console.error('❌ Ошибка в МОЯ СТАТИСТИКА:', error);
+        await ctx.reply('❌ Не удалось загрузить вашу статистику.', { 
+            reply_markup: mainMenuKeyboard 
+        });
+    }
+});
+
+// Кнопка "ТОП ИГРОКОВ"
+bot.hears('🏆 ТОП ИГРОКОВ', async (ctx) => {
+    console.log(`🏆 ТОП ИГРОКОВ от ${ctx.from.id}`);
+    
+    try {
+        await ctx.reply('🏆 Загружаю топ игроков...', { parse_mode: 'Markdown' });
+        
+        const topMessage = await getTopPlayersMessage(10);
+        await ctx.reply(topMessage, { 
+            parse_mode: 'Markdown', 
+            reply_markup: mainMenuKeyboard 
+        });
+    } catch (error) {
+        console.error('❌ Ошибка в ТОП ИГРОКОВ:', error);
+        await ctx.reply('❌ Не удалось загрузить топ игроков.', { 
+            reply_markup: mainMenuKeyboard 
+        });
+    }
+});
+
+// Команды для статистики
+bot.command('stats', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`📊 /stats от ${userId}`);
+    
+    try {
+        const statsMessage = await getGameStatsMessage(userId);
+        await ctx.reply(statsMessage, { 
+            parse_mode: 'Markdown', 
+            reply_markup: mainMenuKeyboard 
+        });
+    } catch (error) {
+        console.error('❌ Ошибка в /stats:', error);
+        await ctx.reply('❌ Не удалось загрузить статистику.', { 
+            reply_markup: mainMenuKeyboard 
+        });
+    }
+});
+
+bot.command('top', async (ctx) => {
+    console.log(`🏆 /top от ${ctx.from.id}`);
+    
+    try {
+        const topMessage = await getTopPlayersMessage(10);
+        await ctx.reply(topMessage, { 
+            parse_mode: 'Markdown', 
+            reply_markup: mainMenuKeyboard 
+        });
+    } catch (error) {
+        console.error('❌ Ошибка в /top:', error);
+        await ctx.reply('❌ Не удалось загрузить топ игроков.', { 
+            reply_markup: mainMenuKeyboard 
+        });
+    }
+});
+
 // ===================== КНОПКА "ПОКАЗАТЬ КОМАНДЫ" =====================
 bot.hears('📋 ПОКАЗАТЬ КОМАНДЫ', async (ctx) => {
     console.log(`📋 ПОКАЗАТЬ КОМАНДЫ от ${ctx.from.id}`);
@@ -723,6 +869,8 @@ bot.hears('📋 ПОКАЗАТЬ КОМАНДЫ', async (ctx) => {
             `/wardrobe - Что надеть по погоде сегодня\n` +
             `/phrase - Английская фраза дня\n` +
             `/random - Случайная английская фраза\n` +
+            `/stats - Ваша статистика в игре\n` +
+            `/top - Топ игроков\n` +
             `/help - Помощь и список команд\n\n` +
             `Чтобы вернуть меню кнопок, нажмите /start`,
             { 
@@ -750,7 +898,9 @@ bot.hears(/^📍 /, async (ctx) => {
       `• Узнать погоду сейчас и на завтра 🌤️\n` +
       `• Получить совет по одежде 👕\n` +
       `• Изучать английские фразы 🇬🇧\n` +
-      `• Играть в тетрис 🎮\n\n` +
+      `• Играть в тетрис с полной статистикой 🎮\n` +
+      `• Смотреть свою статистику 📊\n` +
+      `• Соревноваться в топе игроков 🏆\n\n` +
       `👇 *Используйте кнопки ниже:*`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
@@ -771,4 +921,563 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
         console.log('🎮 Данные игры:', data);
         
         if (data.action === 'tetris_score') {
-            console.log(`🎮 Счёт тетриса от
+            console.log(`🎮 Счёт тетриса от ${userId}:`, data);
+            
+            try {
+                await saveGameScore(userId, 'tetris', data.score, data.level, data.lines);
+                console.log(`✅ Рекорд пользователя ${userId} сохранён`);
+            } catch (dbError) {
+                console.error('❌ Ошибка сохранения в БД:', dbError);
+            }
+            
+            let message = '';
+            if (data.gameOver) {
+                message = `🎮 *Игра окончена!*\n\n` +
+                          `🏆 *Ваш результат:*\n` +
+                          `• 🎯 Очки: *${data.score}*\n` +
+                          `• 📊 Уровень: *${data.level}*\n` +
+                          `• 📈 Линии: *${data.lines}*\n\n`;
+            } else {
+                message = `🎮 *Прогресс в игре:*\n\n` +
+                          `• 🎯 Очки: *${data.score}*\n` +
+                          `• 📊 Уровень: *${data.level}*\n` +
+                          `• 📈 Линии: *${data.lines}*\n\n` +
+                          `💪 Продолжайте в том же духе!\n\n`;
+            }
+            
+            // ПОКАЗЫВАЕМ СТАТИСТИКУ ПОСЛЕ КАЖДОЙ ИГРЫ
+            const statsMessage = await getGameStatsMessage(userId);
+            message += statsMessage + `\n\n🔄 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой игры!`;
+            
+            await ctx.reply(message, { 
+                parse_mode: 'Markdown',
+                reply_markup: mainMenuKeyboard 
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка обработки данных игры:', error);
+        await ctx.reply('Произошла ошибка при обработке данных игры. Попробуйте ещё раз.', {
+            reply_markup: mainMenuKeyboard
+        });
+    }
+});
+
+// ===================== ПОГОДА СЕЙЧАС =====================
+bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`🌤️ ПОГОДА от ${userId}`);
+    
+    try {
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`, { parse_mode: 'Markdown' });
+        
+        const weather = await getWeatherData(city);
+        console.log('🌤️ Получена погода:', weather);
+        
+        await ctx.reply(
+            `🌤️ *Погода в ${weather.city}*\n\n` +
+            `🌡️ Температура: *${weather.temp}°C*\n` +
+            `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
+            `💨 Ветер: ${weather.wind} м/с\n` +
+            `💧 Влажность: ${weather.humidity}%\n` +
+            `📝 ${weather.description}\n` +
+            `🌧️ Осадки: ${weather.precipitation}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ПОГОДА:', error);
+        await ctx.reply('❌ Не удалось получить данные о погоде или обработать ваш запрос.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+// ===================== ПОГОДА ЗАВТРА =====================
+bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
+    
+    try {
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`📅 Получаю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
+        
+        const forecast = await getTomorrowWeather(city);
+        
+        if (!forecast) {
+            await ctx.reply('Не удалось получить прогноз. Попробуйте позже.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n` +
+                       `🔺 Максимум: *${forecast.temp_max}°C*\n` +
+                       `🔻 Минимум: *${forecast.temp_min}°C*\n` +
+                       `📝 ${forecast.description}\n` +
+                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +
+                       `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
+        
+        await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
+        await ctx.reply('❌ Не удалось получить прогноз.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+// ===================== ЧТО НАДЕТЬ =====================
+bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`👕 ЧТО НАДЕТЬ? от ${userId}`);
+    
+    try {
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
+        
+        const weather = await getWeatherData(city);
+        const advice = getWardrobeAdvice(weather);
+        
+        await ctx.reply(
+            `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ЧТО НАДЕТЬ:', error);
+        await ctx.reply('❌ Не удалось получить рекомендацию.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+// ===================== ФРАЗА ДНЯ =====================
+bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
+    console.log(`💬 ФРАЗА ДНЯ от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const dayOfMonth = new Date().getDate();
+        const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
+        const phrase = dailyPhrases[phraseIndex];
+        console.log(`💬 Выбрана фраза #${phraseIndex}: "${phrase.english}"`);
+        
+        await ctx.reply(
+            `💬 *Фраза дня*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 ${phrase.explanation}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ФРАЗА ДНЯ:', error);
+        await ctx.reply('❌ Не удалось получить фразу дня.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+// ===================== СЛУЧАЙНАЯ ФРАЗА =====================
+bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
+    console.log(`🎲 СЛУЧАЙНАЯ ФРАЗА от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('Фразы не загружены. Попробуйте позже.', { 
+                reply_markup: mainMenuKeyboard 
+            });
+            return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
+        const phrase = dailyPhrases[randomIndex];
+        
+        const message = 
+            `🎲 *Случайная английская фраза*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 *Объяснение:* ${phrase.explanation}\n\n` +
+            `📂 *Категория:* ${phrase.category || "Общие"}\n` +
+            `📊 *Уровень:* ${phrase.level || "Средний"}\n\n` +
+            `🔄 Нажмите кнопку для новой случайной фразы!`;
+        
+        await ctx.reply(message, { 
+            parse_mode: 'Markdown', 
+            reply_markup: mainMenuKeyboard 
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в СЛУЧАЙНАЯ ФРАЗА:', error);
+        await ctx.reply('❌ Не удалось получить случайную фразу. Попробуйте еще раз.', { 
+            reply_markup: mainMenuKeyboard 
+        });
+    }
+});
+
+// ===================== ТЕКСТОВЫЕ КОМАНДЫ =====================
+bot.command('weather', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`🌤️ /weather от ${userId}`);
+    
+    try {
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`);
+        
+        const weather = await getWeatherData(city);
+        
+        await ctx.reply(
+            `🌤️ *Погода в ${weather.city}*\n\n` +
+            `🌡️ Температура: *${weather.temp}°C*\n` +
+            `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
+            `💨 Ветер: ${weather.wind} м/с\n` +
+            `💧 Влажность: ${weather.humidity}%\n` +
+            `📝 ${weather.description}\n` +
+            `🌧️ Осадки: ${weather.precipitation}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /weather:', error);
+        await ctx.reply('❌ Не удалось получить данные о погоде.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.command('forecast', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`📅 /forecast от ${userId}`);
+    
+    try {
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`📅 Получаю прогноз на завтра для ${city}...`);
+        
+        const forecast = await getTomorrowWeather(city);
+        
+        if (!forecast) {
+            await ctx.reply('Не удалось получить прогноз. Попробуйте позже.');
+            return;
+        }
+        
+        const message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n` +
+                       `🔺 Максимум: *${forecast.temp_max}°C*\n` +
+                       `🔻 Минимум: *${forecast.temp_min}°C*\n` +
+                       `📝 ${forecast.description}\n` +
+                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +
+                       `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
+        
+        await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /forecast:', error);
+        await ctx.reply('❌ Не удалось получить прогноз.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.command('wardrobe', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`👕 /wardrobe от ${userId}`);
+    
+    try {
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`👗 Анализирую погоду для ${city}...`);
+        
+        const weather = await getWeatherData(city);
+        const advice = getWardrobeAdvice(weather);
+        
+        await ctx.reply(
+            `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /wardrobe:', error);
+        await ctx.reply('❌ Не удалось получить рекомендацию.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.command('phrase', async (ctx) => {
+    console.log(`💬 /phrase от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const dayOfMonth = new Date().getDate();
+        const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
+        const phrase = dailyPhrases[phraseIndex];
+        
+        await ctx.reply(
+            `💬 *Фраза дня*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 ${phrase.explanation}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /phrase:', error);
+        await ctx.reply('❌ Не удалось получить фразу дня.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.command('random', async (ctx) => {
+    console.log(`🎲 /random от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('❌ Фразы не загружены. Попробуйте позже.', { 
+                reply_markup: mainMenuKeyboard 
+            });
+            return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
+        const phrase = dailyPhrases[randomIndex];
+        
+        const message = 
+            `🎲 *Случайная английская фраза*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 *Объяснение:* ${phrase.explanation}\n\n` +
+            `📂 *Категория:* ${phrase.category || "Общие"}\n` +
+            `📊 *Уровень:* ${phrase.level || "Средний"}\n\n` +
+            `🔄 Нажмите /random или кнопку для новой случайной фразы!`;
+        
+        await ctx.reply(message, { 
+            parse_mode: 'Markdown', 
+            reply_markup: mainMenuKeyboard 
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /random:', error);
+        await ctx.reply('❌ Не удалось получить случайную фразу. Попробуйте еще раз.', { 
+            reply_markup: mainMenuKeyboard 
+        });
+    }
+});
+
+// ===================== ОБНОВЛЕННАЯ КОМАНДА /help =====================
+bot.command('help', async (ctx) => {
+    console.log(`ℹ️ /help от ${ctx.from.id}`);
+    
+    try {
+        // Убираем клавиатуру при вызове /help, чтобы были видны команды
+        await ctx.reply(
+            `*Помощь по боту*\n\n` +
+            `*Кнопки в меню:*\n` +
+            `• 🌤️ ПОГОДА СЕЙЧАС - текущая погода\n` +
+            `• 📅 ПОГОДА ЗАВТРА - прогноз на завтра\n` +
+            `• 👕 ЧТО НАДЕТЬ? - рекомендации по одежде\n` +
+            `• 💬 ФРАЗА ДНЯ - английская фраза дня\n` +
+            `• 🎲 СЛУЧАЙНАЯ ФРАЗА - случайная английская фраза\n` +
+            `• 🎮 ИГРАТЬ В ТЕТРИС - игра в мини-приложении\n` +
+            `• 📊 МОЯ СТАТИСТИКА - ваша статистика в игре\n` +
+            `• 🏆 ТОП ИГРОКОВ - лучшие игроки\n` +
+            `• 🏙️ СМЕНИТЬ ГОРОД - изменить город\n` +
+            `• ℹ️ ПОМОЩЬ - эта информация\n` +
+            `• 📋 ПОКАЗАТЬ КОМАНДЫ - убрать кнопки и использовать команды\n\n` +
+            `*Текстовые команды (доступны после нажатия "📋 ПОКАЗАТЬ КОМАНДЫ"):*\n` +
+            `/start - начать работу с ботом\n` +
+            `/weather - текущая погода\n` +
+            `/forecast - прогноз на завтра\n` +
+            `/wardrobe - что надеть?\n` +
+            `/phrase - фраза дня\n` +
+            `/random - случайная фраза\n` +
+            `/stats - ваша статистика в игре\n` +
+            `/top - топ игроков\n` +
+            `/help - помощь\n\n` +
+            `Чтобы вернуть меню кнопок, нажмите /start`,
+            { 
+                parse_mode: 'Markdown', 
+                reply_markup: { remove_keyboard: true } // Убираем клавиатуру!
+            }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в /help:', error);
+    }
+});
+
+// ===================== ДРУГИЕ КНОПКИ =====================
+bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
+    console.log(`ℹ️ ПОМОЩЬ от ${ctx.from.id}`);
+    
+    try {
+        // Оставляем клавиатуру, так как это кнопка в меню
+        await ctx.reply(
+            `*Помощь по боту*\n\n` +
+            `*Кнопки в меню:*\n` +
+            `• 🌤️ ПОГОДА СЕЙЧАС - текущая погода\n` +
+            `• 📅 ПОГОДА ЗАВТРА - прогноз на завтра\n` +
+            `• 👕 ЧТО НАДЕТЬ? - рекомендации по одежде\n` +
+            `• 💬 ФРАЗА ДНЯ - английская фраза дня\n` +
+            `• 🎲 СЛУЧАЙНАЯ ФРАЗА - случайная английская фраза\n` +
+            `• 🎮 ИГРАТЬ В ТЕТРИС - игра в мини-приложении\n` +
+            `• 📊 МОЯ СТАТИСТИКА - ваша статистика в игре\n` +
+            `• 🏆 ТОП ИГРОКОВ - лучшие игроки\n` +
+            `• 🏙️ СМЕНИТЬ ГОРОД - изменить город\n` +
+            `• ℹ️ ПОМОЩЬ - эта информация\n` +
+            `• 📋 ПОКАЗАТЬ КОМАНДЫ - убрать кнопки и использовать команды\n\n` +
+            `Чтобы использовать текстовые команды, нажмите "📋 ПОКАЗАТЬ КОМАНДЫ".`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в ПОМОЩЬ:', error);
+    }
+});
+
+bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
+    console.log(`🏙️ СМЕНИТЬ ГОРОД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Выберите новый город:', { reply_markup: cityKeyboard });
+    } catch (error) {
+        console.error('❌ Ошибка в СМЕНИТЬ ГОРОД:', error);
+    }
+});
+
+bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
+    console.log(`✏️ ДРУГОЙ ГОРОД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Напишите название вашего города:');
+        const userId = ctx.from.id;
+        userStorage.set(userId, { awaitingCity: true });
+    } catch (error) {
+        console.error('❌ Ошибка в ДРУГОЙ ГОРОД:', error);
+    }
+});
+
+bot.hears('🔙 НАЗАД', async (ctx) => {
+    console.log(`🔙 НАЗАД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Главное меню:', { reply_markup: mainMenuKeyboard });
+    } catch (error) {
+        console.error('❌ Ошибка в НАЗАД:', error);
+    }
+});
+
+// ===================== ОБРАБОТЧИК ТЕКСТОВЫХ СООБЩЕНИЙ =====================
+bot.on('message:text', async (ctx) => {
+    const userId = ctx.from.id;
+    const text = ctx.message.text;
+    const userData = userStorage.get(userId) || {};
+    
+    console.log(`📝 Текст от ${userId}: "${text}"`);
+    
+    // Игнорируем команды и кнопки
+    if (text.startsWith('/') || 
+        ['🚀 НАЧАТЬ РАБОТУ', '🌤️ ПОГОДА СЕЙЧАС', '📅 ПОГОДА ЗАВТРА', '👕 ЧТО НАДЕТЬ?', 
+         '💬 ФРАЗА ДНЯ', '🎲 СЛУЧАЙНАЯ ФРАЗА', '📊 МОЯ СТАТИСТИКА', '🏆 ТОП ИГРОКОВ',
+         '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '📋 ПОКАЗАТЬ КОМАНДЫ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text) ||
+        text.startsWith('📍 ')) {
+        return;
+    }
+    
+    // Если пользователь вводит город вручную
+    if (userData.awaitingCity) {
+        try {
+            const city = text.trim();
+            console.log(`🏙️ Сохраняю город "${city}" для ${userId}`);
+            
+            await saveUserCity(userId, city);
+            userStorage.set(userId, { city, awaitingCity: false });
+            
+            await ctx.reply(
+                `✅ *Город "${city}" сохранён!*`,
+                { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+            );
+        } catch (error) {
+            console.error('❌ Ошибка при сохранении города:', error);
+            await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
+        }
+    } else {
+        try {
+            const city = await getUserCity(userId);
+            if (!city) {
+                await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
+            } else {
+                await ctx.reply(`Ваш город: ${city}. Используйте кнопки меню для получения информации.`, 
+                    { reply_markup: mainMenuKeyboard });
+            }
+        } catch (error) {
+            console.error('❌ Ошибка при проверке города:', error);
+            await ctx.reply('Произошла ошибка. Попробуйте еще раз.', { reply_markup: mainMenuKeyboard });
+        }
+    }
+});
+
+// ===================== ОБРАБОТЧИК ДЛЯ VERCEL =====================
+export default async function handler(req, res) {
+    console.log(`🌐 ${req.method} запрос к /api/bot`);
+    
+    try {
+        if (req.method === 'GET') {
+            return res.status(200).json({ 
+                message: 'Weather & English Phrases Bot with Game Statistics is running',
+                status: 'active',
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        if (req.method === 'POST') {
+            await initializeBot();
+            
+            console.log('📦 Получен update от Telegram');
+            
+            try {
+                const update = req.body;
+                await bot.handleUpdate(update);
+                console.log('✅ Update успешно обработан');
+                
+                return res.status(200).json({ ok: true });
+            } catch (error) {
+                console.error('❌ Ошибка обработки update:', error);
+                return res.status(200).json({ ok: false, error: 'Update processing failed' });
+            }
+        }
+        
+        return res.status(405).json({ error: 'Method not allowed' });
+        
+    } catch (error) {
+        console.error('🔥 Критическая ошибка в handler:', error);
+        return res.status(200).json({ 
+            ok: false, 
+            error: 'Internal server error'
+        });
+    }
+}
+
+console.log('⚡ Бот загружен с полноценной системой статистики игр!');
