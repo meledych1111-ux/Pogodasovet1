@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Тетрис | Погодный бот</title>
+    <title>🎮 Тетрис | Погодный бот</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * { 
@@ -22,7 +22,7 @@
             overflow: hidden;
             position: fixed;
             background: linear-gradient(135deg, #8A2BE2 0%, #DA70D6 100%);
-            font-family: 'Arial', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             color: white;
         }
         
@@ -56,6 +56,7 @@
             font-size: 22px;
             margin-bottom: 5px;
             color: #FFD700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         
         .subtitle {
@@ -249,6 +250,24 @@
             .stat-value {
                 font-size: 20px;
             }
+            
+            h1 {
+                font-size: 20px;
+            }
+        }
+        
+        @media (max-height: 600px) {
+            .dpad {
+                height: 130px;
+            }
+            
+            header {
+                padding: 10px;
+            }
+            
+            .game-board-container {
+                max-height: 55vh;
+            }
         }
         
         /* Предотвращение zoom на iOS */
@@ -257,13 +276,20 @@
                 font-size: 16px !important;
             }
         }
+        
+        /* Улучшенная поддержка темной/светлой темы Telegram */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #4B0082 0%, #8A2BE2 100%);
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🎮 Тетрис </h1>
-            <p class="subtitle">Моя игра</p>
+            <h1>🎮 Тетрис</h1>
+            <p class="subtitle">Игра в Telegram мини-приложении</p>
             
             <div class="stats">
                 <div class="stat-box">
@@ -288,11 +314,11 @@
             
             <div class="controls">
                 <div class="dpad">
-                    <button class="dpad-btn" id="left">←</button>
-                    <button class="dpad-btn" id="rotate">↻</button>
-                    <button class="dpad-btn" id="right">→</button>
-                    <button class="dpad-btn" id="down">↓</button>
-                    <button class="dpad-btn" id="drop">💥</button>
+                    <button class="dpad-btn" id="left" aria-label="Влево">←</button>
+                    <button class="dpad-btn" id="rotate" aria-label="Повернуть">↻</button>
+                    <button class="dpad-btn" id="right" aria-label="Вправо">→</button>
+                    <button class="dpad-btn" id="down" aria-label="Вниз">↓</button>
+                    <button class="dpad-btn" id="drop" aria-label="Мгновенное падение">💥</button>
                 </div>
                 
                 <div class="action-buttons">
@@ -307,18 +333,20 @@
                 </div>
                 
                 <div class="touch-info">
-                    💡 Можно также использовать свайпы и кнопки на клавиатуре
+                    💡 Используйте свайпы на экране или кнопки на клавиатуре
                 </div>
             </div>
         </div>
 
         <footer>
-            <p>🎮 Тетрис в Telegram • Играйте где угодно!</p>
+            <p>🎮 Тетрис в Telegram • Результаты сохраняются в статистике</p>
         </footer>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        (function() {
+            'use strict';
+            
             // =================== КОНСТАНТЫ ===================
             const canvas = document.getElementById('tetris');
             const context = canvas.getContext('2d');
@@ -328,18 +356,14 @@
             const startButton = document.getElementById('start');
             const pauseButton = document.getElementById('pause');
             
-            // Оптимальные размеры для мобильных устройств
-            const COLS = 12; // Увеличили ширину для большего поля
-            const ROWS = 22; // Увеличили высоту
-            const BLOCK_SIZE = Math.min(
-                Math.floor(window.innerWidth * 0.8 / COLS),
-                Math.floor(window.innerHeight * 0.5 / ROWS)
-            );
+            const COLS = 12;
+            const ROWS = 22;
+            let BLOCK_SIZE = 0; // Будет рассчитан динамически
             
             // Цвета в стиле K-Drama (пастельные, красивые)
             const COLORS = [
                 null,
-                '#FFB6C1', // I - светло-розовый (как сакура)
+                '#FFB6C1', // I - светло-розовый
                 '#87CEEB', // J - небесно-голубой
                 '#98FB98', // L - мятно-зеленый
                 '#FFD700', // O - золотой
@@ -360,7 +384,7 @@
                 '#8A2BE2'  // Z
             ];
             
-            // Фигуры (немного уменьшены для большего поля)
+            // Фигуры тетриса
             const SHAPES = [
                 null,
                 [ // I
@@ -409,45 +433,23 @@
             ];
             
             // =================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ===================
-            let board = createMatrix(COLS, ROWS);
+            let board = [];
             let player = {
                 pos: {x: 0, y: 0},
                 matrix: null,
                 score: 0,
                 level: 1,
                 lines: 0,
-                dropInterval: 1200, // Медленнее для начала
+                dropInterval: 1200,
                 dropCounter: 0,
                 gameOver: false,
                 paused: false,
                 nextPiece: null,
                 lastMoveTime: 0,
-                moveDelay: 100 // Задержка между движениями для предотвращения дерганий
+                moveDelay: 100
             };
             
-            // =================== ИНИЦИАЛИЗАЦИЯ КАНВАСА ===================
-            function initCanvas() {
-                const container = canvas.parentElement;
-                const containerWidth = container.clientWidth - 16; // Учитываем padding
-                const containerHeight = container.clientHeight - 16;
-                
-                const blockSize = Math.min(
-                    Math.floor(containerWidth / COLS),
-                    Math.floor(containerHeight / ROWS)
-                );
-                
-                canvas.width = COLS * blockSize;
-                canvas.height = ROWS * blockSize;
-                
-                // Отключаем масштабирование на тач-устройствах
-                canvas.style.touchAction = 'none';
-                canvas.style.webkitTouchCallout = 'none';
-                canvas.style.webkitUserSelect = 'none';
-                
-                draw();
-            }
-            
-            // =================== ОСНОВНЫЕ ФУНКЦИИ ===================
+            // =================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===================
             function createMatrix(w, h) {
                 const matrix = [];
                 for (let i = 0; i < h; i++) {
@@ -460,37 +462,64 @@
                 return JSON.parse(JSON.stringify(SHAPES[type]));
             }
             
-            // Улучшенная отрисовка блоков с градиентами
+            function calculateBlockSize() {
+                const container = canvas.parentElement;
+                const containerWidth = container.clientWidth - 16;
+                const containerHeight = container.clientHeight - 16;
+                
+                return Math.min(
+                    Math.floor(containerWidth / COLS),
+                    Math.floor(containerHeight / ROWS)
+                );
+            }
+            
+            function initCanvas() {
+                BLOCK_SIZE = calculateBlockSize();
+                
+                canvas.width = COLS * BLOCK_SIZE;
+                canvas.height = ROWS * BLOCK_SIZE;
+                
+                // Отключаем масштабирование на тач-устройствах
+                canvas.style.touchAction = 'none';
+                canvas.style.webkitTouchCallout = 'none';
+                canvas.style.webkitUserSelect = 'none';
+                
+                // Перерисовываем поле
+                draw();
+            }
+            
+            // =================== ОТРИСОВКА ===================
             function drawBlock(x, y, colorIndex) {
+                if (!colorIndex || colorIndex < 1 || colorIndex > 7) return;
+                
                 const color = COLORS[colorIndex];
                 const shadowColor = SHADOW_COLORS[colorIndex];
-                const size = BLOCK_SIZE;
                 
                 // Основной блок с градиентом
                 const gradient = context.createLinearGradient(
-                    x * size, y * size,
-                    x * size + size, y * size + size
+                    x * BLOCK_SIZE, y * BLOCK_SIZE,
+                    x * BLOCK_SIZE + BLOCK_SIZE, y * BLOCK_SIZE + BLOCK_SIZE
                 );
                 gradient.addColorStop(0, color);
                 gradient.addColorStop(1, shadowColor);
                 
                 context.fillStyle = gradient;
-                context.fillRect(x * size, y * size, size, size);
+                context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
                 
                 // Внутренняя тень для объема
                 context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                 context.lineWidth = 1;
-                context.strokeRect(x * size + 1, y * size + 1, size - 2, size - 2);
+                context.strokeRect(x * BLOCK_SIZE + 1, y * BLOCK_SIZE + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
                 
                 // Блик сверху
                 context.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                context.fillRect(x * size, y * size, size, 2);
-                context.fillRect(x * size, y * size, 2, size);
+                context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, 2);
+                context.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, 2, BLOCK_SIZE);
                 
                 // Тень снизу
                 context.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                context.fillRect(x * size + 2, y * size + size - 2, size - 2, 2);
-                context.fillRect(x * size + size - 2, y * size + 2, 2, size - 2);
+                context.fillRect(x * BLOCK_SIZE + 2, y * BLOCK_SIZE + BLOCK_SIZE - 2, BLOCK_SIZE - 2, 2);
+                context.fillRect(x * BLOCK_SIZE + BLOCK_SIZE - 2, y * BLOCK_SIZE + 2, 2, BLOCK_SIZE - 2);
             }
             
             function drawMatrix(matrix, offset) {
@@ -537,43 +566,6 @@
                 context.strokeRect(0, 0, canvas.width, canvas.height);
             }
             
-            function drawNextPiece() {
-                if (!player.nextPiece) return;
-                
-                const size = BLOCK_SIZE * 0.7; // Уменьшенный размер для панели предпросмотра
-                const offsetX = COLS + 1;
-                const offsetY = 1;
-                
-                // Фон панели предпросмотра
-                context.fillStyle = 'rgba(255, 255, 255, 0.1)';
-                context.fillRect(offsetX * BLOCK_SIZE, offsetY * BLOCK_SIZE, 5 * size, 5 * size);
-                context.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                context.lineWidth = 1;
-                context.strokeRect(offsetX * BLOCK_SIZE, offsetY * BLOCK_SIZE, 5 * size, 5 * size);
-                
-                // Текст
-                context.fillStyle = 'white';
-                context.font = 'bold 12px Arial';
-                context.textAlign = 'center';
-                context.fillText('Следующая:', offsetX * BLOCK_SIZE + 2.5 * size, offsetY * BLOCK_SIZE - 5);
-                
-                // Отрисовка уменьшенной фигуры
-                player.nextPiece.forEach((row, y) => {
-                    row.forEach((value, x) => {
-                        if (value !== 0) {
-                            const color = COLORS[value];
-                            context.fillStyle = color;
-                            context.fillRect(
-                                offsetX * BLOCK_SIZE + x * size,
-                                offsetY * BLOCK_SIZE + y * size,
-                                size - 1,
-                                size - 1
-                            );
-                        }
-                    });
-                });
-            }
-            
             function draw() {
                 // Очистка
                 context.clearRect(0, 0, canvas.width, canvas.height);
@@ -589,19 +581,16 @@
                     drawMatrix(player.matrix, player.pos);
                 }
                 
-                // Рисуем следующую фигуру
-                drawNextPiece();
-                
                 // Сообщения о состоянии игры
                 if (player.paused && !player.gameOver) {
                     context.fillStyle = 'rgba(0, 0, 0, 0.85)';
                     context.fillRect(0, 0, canvas.width, canvas.height);
                     
                     context.fillStyle = '#FFD700';
-                    context.font = 'bold 28px Arial';
+                    context.font = `bold ${Math.min(BLOCK_SIZE * 2, 28)}px Arial`;
                     context.textAlign = 'center';
                     context.fillText('ПАУЗА', canvas.width / 2, canvas.height / 2 - 20);
-                    context.font = '16px Arial';
+                    context.font = `${Math.min(BLOCK_SIZE, 16)}px Arial`;
                     context.fillStyle = 'white';
                     context.fillText('Нажмите ПАУЗА или P', canvas.width / 2, canvas.height / 2 + 20);
                 }
@@ -611,16 +600,16 @@
                     context.fillRect(0, 0, canvas.width, canvas.height);
                     
                     context.fillStyle = '#FF6B6B';
-                    context.font = 'bold 32px Arial';
+                    context.font = `bold ${Math.min(BLOCK_SIZE * 2.5, 32)}px Arial`;
                     context.textAlign = 'center';
                     context.fillText('ИГРА ОКОНЧЕНА', canvas.width / 2, canvas.height / 2 - 50);
                     
                     context.fillStyle = '#FFD700';
-                    context.font = '24px Arial';
+                    context.font = `${Math.min(BLOCK_SIZE * 2, 24)}px Arial`;
                     context.fillText(`Счёт: ${player.score}`, canvas.width / 2, canvas.height / 2);
                     
                     context.fillStyle = 'white';
-                    context.font = '18px Arial';
+                    context.font = `${Math.min(BLOCK_SIZE * 1.5, 18)}px Arial`;
                     context.fillText('Нажмите СТАРТ', canvas.width / 2, canvas.height / 2 + 50);
                 }
             }
@@ -664,7 +653,6 @@
                 return false;
             }
             
-            // Улучшенное движение с задержкой для тач-устройств
             function playerMove(dir) {
                 if (player.paused || player.gameOver || !player.matrix) return;
                 
@@ -770,7 +758,7 @@
                 // Проверка на конец игры
                 if (collide()) {
                     player.gameOver = true;
-                    sendScoreToBot();
+                    sendScoreToBot(true);
                 }
             }
             
@@ -807,7 +795,7 @@
                     }
                     
                     updateScore();
-                    sendScoreToBot();
+                    sendScoreToBot(false);
                 }
             }
             
@@ -817,16 +805,21 @@
                 linesElement.textContent = player.lines;
             }
             
-            function sendScoreToBot() {
+            function sendScoreToBot(gameOver = false) {
                 if (window.Telegram && Telegram.WebApp) {
-                    const data = {
-                        action: 'tetris_score',
-                        score: player.score,
-                        level: player.level,
-                        lines: player.lines,
-                        gameOver: player.gameOver
-                    };
-                    Telegram.WebApp.sendData(JSON.stringify(data));
+                    try {
+                        const data = {
+                            action: 'tetris_score',
+                            score: player.score,
+                            level: player.level,
+                            lines: player.lines,
+                            gameOver: gameOver
+                        };
+                        Telegram.WebApp.sendData(JSON.stringify(data));
+                        console.log('📊 Отправлены данные в бота:', data);
+                    } catch (error) {
+                        console.error('❌ Ошибка отправки данных в бота:', error);
+                    }
                 }
             }
             
@@ -882,153 +875,175 @@
                 requestAnimationFrame(update);
             }
             
-            // =================== ТАЧ-УПРАВЛЕНИЕ ===================
-            let touchStartX = 0;
-            let touchStartY = 0;
-            let touchStartTime = 0;
-            
-            canvas.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                touchStartX = touch.clientX;
-                touchStartY = touch.clientY;
-                touchStartTime = Date.now();
-            }, { passive: false });
-            
-            canvas.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-            }, { passive: false });
-            
-            canvas.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                if (!e.changedTouches[0]) return;
+            // =================== УПРАВЛЕНИЕ ===================
+            function setupTouchControls() {
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchStartTime = 0;
                 
-                const touch = e.changedTouches[0];
-                const deltaX = touch.clientX - touchStartX;
-                const deltaY = touch.clientY - touchStartY;
-                const deltaTime = Date.now() - touchStartTime;
-                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    touchStartTime = Date.now();
+                }, { passive: false });
                 
-                // Минимальное расстояние для свайпа
-                if (distance < 20) return;
+                canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
                 
-                // Определяем направление свайпа
-                const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-                const speed = distance / deltaTime;
-                
-                if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                    // Горизонтальный свайп
-                    if (deltaX > 0) {
-                        playerMove(1); // Вправо
-                    } else {
-                        playerMove(-1); // Влево
-                    }
-                } else {
-                    // Вертикальный свайп
-                    if (deltaY > 0) {
-                        if (speed > 0.5) {
-                            playerDropInstant(); // Быстрый свайп вниз
+                canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    if (!e.changedTouches[0]) return;
+                    
+                    const touch = e.changedTouches[0];
+                    const deltaX = touch.clientX - touchStartX;
+                    const deltaY = touch.clientY - touchStartY;
+                    const deltaTime = Date.now() - touchStartTime;
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    
+                    // Минимальное расстояние для свайпа
+                    if (distance < 20) return;
+                    
+                    // Определяем направление свайпа
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                        // Горизонтальный свайп
+                        if (deltaX > 0) {
+                            playerMove(1); // Вправо
                         } else {
-                            playerDrop(); // Медленный свайп
+                            playerMove(-1); // Влево
                         }
                     } else {
-                        playerRotate(); // Свайп вверх - поворот
+                        // Вертикальный свайп
+                        if (deltaY > 0) {
+                            const speed = distance / deltaTime;
+                            if (speed > 0.5) {
+                                playerDropInstant(); // Быстрый свайп вниз
+                            } else {
+                                playerDrop(); // Медленный свайп
+                            }
+                        } else {
+                            playerRotate(); // Свайп вверх - поворот
+                        }
                     }
-                }
-            }, { passive: false });
+                }, { passive: false });
+            }
             
-            // =================== КНОПОЧНОЕ УПРАВЛЕНИЕ ===================
-            document.getElementById('left').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                playerMove(-1);
-            });
-            
-            document.getElementById('right').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                playerMove(1);
-            });
-            
-            document.getElementById('rotate').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                playerRotate();
-            });
-            
-            document.getElementById('down').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                playerDrop();
-            });
-            
-            document.getElementById('drop').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                playerDropInstant();
-            });
-            
-            startButton.addEventListener('click', startGame);
-            pauseButton.addEventListener('click', togglePause);
-            
-            // =================== КЛАВИАТУРА ===================
-            document.addEventListener('keydown', (e) => {
-                if (player.gameOver && e.key !== ' ') return;
+            function setupButtonControls() {
+                const buttons = {
+                    'left': () => playerMove(-1),
+                    'right': () => playerMove(1),
+                    'rotate': () => playerRotate(),
+                    'down': () => playerDrop(),
+                    'drop': () => playerDropInstant(),
+                    'start': () => startGame(),
+                    'pause': () => togglePause()
+                };
                 
-                switch(e.key) {
-                    case 'ArrowLeft':
-                    case 'a':
-                    case 'A':
-                        e.preventDefault();
-                        playerMove(-1);
-                        break;
-                    case 'ArrowRight':
-                    case 'd':
-                    case 'D':
-                        e.preventDefault();
-                        playerMove(1);
-                        break;
-                    case 'ArrowUp':
-                    case 'w':
-                    case 'W':
-                        e.preventDefault();
-                        playerRotate();
-                        break;
-                    case 'ArrowDown':
-                    case 's':
-                    case 'S':
-                        e.preventDefault();
-                        playerDrop();
-                        break;
-                    case ' ':
-                        e.preventDefault();
-                        playerDropInstant();
-                        break;
-                    case 'p':
-                    case 'P':
-                    case 'з':
-                    case 'З':
-                        e.preventDefault();
-                        togglePause();
-                        break;
-                }
-            });
+                Object.keys(buttons).forEach(id => {
+                    const button = document.getElementById(id);
+                    if (button) {
+                        button.addEventListener('touchstart', (e) => {
+                            e.preventDefault();
+                            buttons[id]();
+                        });
+                        button.addEventListener('click', buttons[id]);
+                    }
+                });
+            }
+            
+            function setupKeyboardControls() {
+                document.addEventListener('keydown', (e) => {
+                    if (player.gameOver && e.key !== ' ') return;
+                    
+                    switch(e.key.toLowerCase()) {
+                        case 'arrowleft':
+                        case 'a':
+                        case 'ф':
+                            e.preventDefault();
+                            playerMove(-1);
+                            break;
+                        case 'arrowright':
+                        case 'd':
+                        case 'в':
+                            e.preventDefault();
+                            playerMove(1);
+                            break;
+                        case 'arrowup':
+                        case 'w':
+                        case 'ц':
+                            e.preventDefault();
+                            playerRotate();
+                            break;
+                        case 'arrowdown':
+                        case 's':
+                        case 'ы':
+                            e.preventDefault();
+                            playerDrop();
+                            break;
+                        case ' ':
+                            e.preventDefault();
+                            playerDropInstant();
+                            break;
+                        case 'p':
+                        case 'з':
+                            e.preventDefault();
+                            togglePause();
+                            break;
+                        case 'enter':
+                            e.preventDefault();
+                            if (player.gameOver) startGame();
+                            break;
+                    }
+                });
+            }
             
             // =================== ИНИЦИАЛИЗАЦИЯ ===================
-            window.addEventListener('load', () => {
+            function init() {
                 // Telegram Web App
                 if (window.Telegram && Telegram.WebApp) {
                     Telegram.WebApp.expand();
                     Telegram.WebApp.ready();
                     document.body.style.backgroundColor = Telegram.WebApp.backgroundColor;
+                    
+                    // Устанавливаем тему из Telegram
+                    if (Telegram.WebApp.colorScheme === 'dark') {
+                        document.documentElement.style.setProperty('--bg-color', '#1a1a2e');
+                    }
                 }
+                
+                // Инициализация игры
+                board = createMatrix(COLS, ROWS);
                 
                 // Инициализация канваса
                 initCanvas();
                 
-                // Адаптация к изменению размера экрана
-                window.addEventListener('resize', initCanvas);
+                // Настройка управления
+                setupTouchControls();
+                setupButtonControls();
+                setupKeyboardControls();
                 
-                // Запуск игры
+                // Обработка изменения размера
+                window.addEventListener('resize', () => {
+                    initCanvas();
+                    draw();
+                });
+                
+                // Запуск игрового цикла
                 update();
                 draw();
-            });
-        });
-        </script>
+                
+                console.log('🎮 Игра Тетрис инициализирована!');
+            }
+            
+            // Запуск при полной загрузке страницы
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
 </body>
 </html>
