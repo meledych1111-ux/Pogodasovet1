@@ -1,16 +1,17 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-// Создаем "пул" соединений. Это эффективно для serverless-функций.
+// Создаем пул соединений для Vercel Functions
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Vercel добавил эту переменную
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false // Требуется для Neon
   }
 });
 
-// Функция для создания таблиц (вызывается один раз при инициализации)
-export async function createTables() {
+// ============ ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ============
+// Функция для создания таблиц (вызывается ВРУЧНУЮ, а не автоматически)
+async function createTables() {
   const client = await pool.connect();
   try {
     // Таблица для сессий пользователей (города)
@@ -25,7 +26,7 @@ export async function createTables() {
     await client.query(userSessionsQuery);
     console.log('✅ Таблица user_sessions создана или уже существует');
     
-    // Таблица для результатов игр (исправленная)
+    // Таблица для результатов игр
     const gameScoresQuery = `
       CREATE TABLE IF NOT EXISTS game_scores (
         id SERIAL PRIMARY KEY,
@@ -43,21 +44,16 @@ export async function createTables() {
     
   } catch (error) {
     console.error('❌ Ошибка при создании таблиц:', error);
+    throw error;
   } finally {
     client.release();
   }
 }
 
-// Вызываем создание таблиц при загрузке модуля
-createTables();
-
 // ============ ФУНКЦИИ ДЛЯ РАБОТЫ С ГОРОДАМИ ============
-
-// Функция для сохранения или обновления города пользователя
 export async function saveUserCity(userId, city) {
   const client = await pool.connect();
   try {
-    // Этот запрос вставляет новую запись или обновляет существующую
     const query = `
       INSERT INTO user_sessions (user_id, selected_city)
       VALUES ($1, $2)
@@ -65,16 +61,15 @@ export async function saveUserCity(userId, city) {
       DO UPDATE SET selected_city = $2, updated_at = NOW()
     `;
     await client.query(query, [userId, city]);
-    console.log(`✅ Город "${city}" сохранен для пользователя ${userId}`);
+    return true;
   } catch (error) {
-    console.error('❌ Ошибка при сохранении города в БД:', error);
+    console.error('❌ Ошибка при сохранении города:', error);
     throw error;
   } finally {
     client.release();
   }
 }
 
-// Функция для получения города пользователя
 export async function getUserCity(userId) {
   const client = await pool.connect();
   try {
@@ -84,7 +79,7 @@ export async function getUserCity(userId) {
     );
     return result.rows[0]?.selected_city || null;
   } catch (error) {
-    console.error('❌ Ошибка при получении города из БД:', error);
+    console.error('❌ Ошибка при получении города:', error);
     return null;
   } finally {
     client.release();
@@ -92,22 +87,16 @@ export async function getUserCity(userId) {
 }
 
 // ============ ФУНКЦИИ ДЛЯ РАБОТЫ С ИГРАМИ ============
-
-// Функция для сохранения результатов игры
 export async function saveGameScore(userId, gameType, score, level, lines) {
   const client = await pool.connect();
   try {
-    // Сохраняем результат (теперь каждый результат сохраняется отдельно)
-    const insertQuery = `
+    const query = `
       INSERT INTO game_scores (user_id, game_type, score, level, lines) 
       VALUES ($1, $2, $3, $4, $5) 
       RETURNING id
     `;
-    
-    const result = await client.query(insertQuery, [userId, gameType, score, level, lines]);
-    console.log(`✅ Результат игры сохранён для пользователя ${userId}, ID записи: ${result.rows[0]?.id}`);
+    const result = await client.query(query, [userId, gameType, score, level, lines]);
     return result.rows[0]?.id;
-    
   } catch (error) {
     console.error('❌ Ошибка при сохранении результатов игры:', error);
     throw error;
@@ -116,7 +105,6 @@ export async function saveGameScore(userId, gameType, score, level, lines) {
   }
 }
 
-// Функция для получения лучшего счёта пользователя
 export async function getUserBestScore(userId, gameType = 'tetris') {
   const client = await pool.connect();
   try {
@@ -134,8 +122,6 @@ export async function getUserBestScore(userId, gameType = 'tetris') {
 }
 
 // ============ ФУНКЦИИ ДЛЯ СТАТИСТИКИ ============
-
-// Функция для получения статистики игрока (ИСПРАВЛЕННАЯ)
 export async function getGameStats(userId, gameType = 'tetris') {
   const client = await pool.connect();
   try {
@@ -150,7 +136,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
       FROM game_scores 
       WHERE user_id = $1 AND game_type = $2
     `;
-    
     const result = await client.query(query, [userId, gameType]);
     return result.rows[0] || null;
   } catch (error) {
@@ -161,7 +146,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
   }
 }
 
-// Функция для получения топа игроков (для /top команды)
 export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   const client = await pool.connect();
   try {
@@ -178,7 +162,6 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
       ORDER BY MAX(score) DESC, MAX(level) DESC, MAX(lines) DESC
       LIMIT $2
     `;
-    
     const result = await client.query(query, [gameType, limit]);
     return result.rows;
   } catch (error) {
@@ -189,72 +172,15 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   }
 }
 
-// Функция для получения таблицы лидеров (расширенная версия с JOIN)
-export async function getLeaderboard(gameType = 'tetris', limit = 10) {
+// ============ ТЕСТОВАЯ ФУНКЦИЯ ============
+// Функция для проверки подключения (без автоматического запуска)
+export async function checkDatabaseConnection() {
   const client = await pool.connect();
   try {
-    // Этот запрос возвращает топ игроков с их лучшими результатами
-    const query = `
-      SELECT DISTINCT ON (gs.user_id)
-        gs.user_id,
-        gs.score,
-        gs.level,
-        gs.lines,
-        gs.created_at
-      FROM game_scores gs
-      WHERE gs.game_type = $1
-      ORDER BY gs.user_id, gs.score DESC, gs.level DESC, gs.lines DESC
-      LIMIT $2
-    `;
-    
-    const result = await client.query(query, [gameType, limit]);
-    return result.rows;
+    const result = await client.query('SELECT NOW() as current_time');
+    return { success: true, time: result.rows[0].current_time };
   } catch (error) {
-    console.error('❌ Ошибка при получении таблицы лидеров:', error);
-    return [];
-  } finally {
-    client.release();
-  }
-}
-
-// Дополнительная функция: получение истории игр пользователя
-export async function getUserGameHistory(userId, gameType = 'tetris', limit = 10) {
-  const client = await pool.connect();
-  try {
-    const query = `
-      SELECT 
-        score,
-        level,
-        lines,
-        created_at
-      FROM game_scores 
-      WHERE user_id = $1 AND game_type = $2
-      ORDER BY created_at DESC
-      LIMIT $3
-    `;
-    
-    const result = await client.query(query, [userId, gameType, limit]);
-    return result.rows;
-  } catch (error) {
-    console.error('❌ Ошибка получения истории игр:', error);
-    return [];
-  } finally {
-    client.release();
-  }
-}
-
-// Дополнительная функция: удаление всех данных пользователя (для тестирования)
-export async function clearUserData(userId) {
-  const client = await pool.connect();
-  try {
-    // Удаляем данные из обеих таблиц
-    await client.query('DELETE FROM user_sessions WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM game_scores WHERE user_id = $1', [userId]);
-    console.log(`✅ Данные пользователя ${userId} очищены`);
-    return true;
-  } catch (error) {
-    console.error('❌ Ошибка при очистке данных:', error);
-    return false;
+    return { success: false, error: error.message };
   } finally {
     client.release();
   }
