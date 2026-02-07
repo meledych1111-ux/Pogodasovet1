@@ -90,54 +90,64 @@ async function getWeatherData(cityName) {
 
 async function getTomorrowWeather(cityName) {
     console.log(`📅 Запрашиваю прогноз на завтра для: "${cityName}"`);
-    
+
     try {
         const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
         const geoResponse = await fetch(geoUrl);
         const geoData = await geoResponse.json();
-        
-        console.log('📍 Geo ответ для прогноза:', JSON.stringify(geoData).slice(0, 200));
-        
+
         if (!geoData.results || geoData.results.length === 0) {
             throw new Error('Город не найден');
         }
-        
+
         const { latitude, longitude, name } = geoData.results[0];
-        
-        const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=2`;
+
+        // 🔴 ИСПРАВЛЕНИЕ 1: Запрашиваем прогноз на 3 дня, чтобы завтра (индекс 1) точно был в ответе
+        const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=3`;
         console.log(`📅 Forecast URL: ${forecastUrl}`);
-        
+
         const forecastResponse = await fetch(forecastUrl);
         const forecastData = await forecastResponse.json();
-        
-        console.log('📅 Forecast ответ:', JSON.stringify(forecastData.daily).slice(0, 300));
-        
-        if (!forecastData.daily || forecastData.daily.time.length < 2) {
-            console.error('📅 Нет данных прогноза');
-            throw new Error('Нет данных прогноза');
+
+        console.log('📅 Полный ответ API:', JSON.stringify(forecastData));
+
+        // 🔴 ИСПРАВЛЕНИЕ 2: Строгая проверка наличия данных для завтрашнего дня
+        if (!forecastData.daily ||
+            forecastData.daily.time.length < 2 ||
+            forecastData.daily.temperature_2m_max[1] === undefined ||
+            forecastData.daily.precipitation_sum[1] === undefined) {
+            console.error('📅 Нет данных прогноза для завтрашнего дня в ответе API');
+            throw new Error('Нет данных прогноза для завтра');
         }
-        
-        // ПРОВЕРКА: есть ли данные для завтра
-        const tomorrowCode = forecastData.daily.weather_code?.[1];
-        console.log('📅 Код погоды на завтра:', tomorrowCode);
-        
+
+        const tomorrowCode = forecastData.daily.weather_code[1];
+        const tomorrowPrecipitation = forecastData.daily.precipitation_sum[1];
+
+        // 🔴 ИСПРАВЛЕНИЕ 3: Форматируем осадки, гарантируя, что это число
+        let precipitationFormatted = '0.0 мм';
+        if (tomorrowPrecipitation !== undefined && tomorrowPrecipitation !== null) {
+            precipitationFormatted = `${parseFloat(tomorrowPrecipitation).toFixed(1)} мм`;
+        }
+
         return {
             city: name,
             temp_max: Math.round(forecastData.daily.temperature_2m_max[1]),
             temp_min: Math.round(forecastData.daily.temperature_2m_min[1]),
-            precipitation: forecastData.daily.precipitation_sum?.[1]?.toFixed(1) || '0.0',
+            precipitation: precipitationFormatted,
+            precipitation_value: parseFloat(tomorrowPrecipitation) || 0,
             description: getWeatherDescription(tomorrowCode),
             rawCode: tomorrowCode
         };
-        
+
     } catch (error) {
         console.error('❌ Ошибка прогноза:', error.message);
-        console.error('❌ Stack:', error.stack);
+        // 🔴 ИСПРАВЛЕНИЕ 4: В fallback тоже указываем "мм" для единообразия
         return {
             city: cityName,
             temp_max: 24,
             temp_min: 18,
-            precipitation: '0.5',
+            precipitation: '0.5 мм',
+            precipitation_value: 0.5,
             description: 'Переменная облачность ⛅',
             isFallback: true
         };
