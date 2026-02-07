@@ -2,16 +2,13 @@
   "name": "weather-english-bot",
   "version": "1.0.0",
   "description": "Telegram bot with weather forecasts and English phrases",
-  "main": "bot.js",
+  "main": "api/bot.js",
   "type": "module",
   "scripts": {
-    "start": "node bot.js",
-    "dev": "node bot.js",
-    "test": "echo \"No tests specified\" && exit 0"
+    "start": "node api/bot.js"
   },
   "dependencies": {
-    "grammy": "^1.21.1",
-    "@grammyjs/storage-free": "^2.4.2"
+    "grammy": "^1.21.1"
   },
   "engines": {
     "node": ">=18.0.0"
