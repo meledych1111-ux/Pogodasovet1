@@ -5,7 +5,8 @@
   "main": "api/bot.js",
   "type": "module",
   "scripts": {
-    "start": "node api/bot.js"
+    "start": "node api/bot.js",
+    "dev": "node --watch api/bot.js"
   },
   "dependencies": {
     "grammy": "^1.21.1",
