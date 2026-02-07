@@ -1,4 +1,8 @@
-import { Bot, Keyboard, session, SessionFlavor, Context } from 'grammy';
+
+import { Bot, Keyboard, session } from 'grammy';
+import { freeStorage } from "@grammyjs/storage-free";
+import { Bot, Keyboard, session } from 'grammy';
+import { freeStorage } from "@grammyjs/storage-free"; // Добавьте этот импорт
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
@@ -6,34 +10,20 @@ if (!BOT_TOKEN) {
     throw new Error('BOT_TOKEN is required');
 }
 
-// Определяем, какие данные будем хранить в сессии
-interface SessionData {
-  selectedCity?: string;     // Будем хранить здесь выбранный город
-  awaitingCity?: boolean;    // Флаг ожидания ввода города (для "✏️ ДРУГОЙ ГОРОД")
-}
-
-// Расширяем тип контекста бота, чтобы в нем появилось ctx.session
-type MyContext = Context & SessionFlavor<SessionData>;
-
 console.log('🤖 Создаю бота...');
-const bot = new Bot<MyContext>(BOT_TOKEN);
+const bot = new Bot(BOT_TOKEN);
 
 // ===================== НАСТРОЙКА СЕССИЙ =====================
-// Функция, которая возвращает начальные (пустые) данные сессии для нового пользователя
-function initialSessionData(): SessionData {
-  return {}; // Пока у нового пользователя города нет
-}
-
-// Подключаем сессии к боту
-bot.use(session({ initial: initialSessionData }));
-
-// УДАЛИТЕ ВСЁ ОТСЮДА И ДО ФУНКЦИЙ ПОГОДЫ:
-// let botInitialized = false;
-// async function initializeBot() { ... }
-// initializeBot();
+// ТОЛЬКО ОДНА НАСТРОЙКА СЕССИЙ!
+bot.use(session({
+    initial: () => ({
+        selectedCity: undefined,
+        awaitingCity: false
+    }),
+    storage: freeStorage(bot.token), // Используем постоянное хранилище
+}));
 
 // ===================== ФУНКЦИИ ПОГОДЫ =====================
-
 // Вспомогательные функции для определения типа осадков
 function getPrecipitationType(weatherCode, precipitationAmount) {
     // Если осадков нет или очень мало
