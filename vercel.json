@@ -1,15 +1,14 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/bot.js",
-      "use": "@vercel/node"
+  "functions": {
+    "api/bot.js": {
+      "maxDuration": 30,
+      "memory": 1024
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/api/bot",
-      "dest": "api/bot.js"
+      "source": "/api/bot",
+      "destination": "/api/bot.js"
     }
   ]
 }
