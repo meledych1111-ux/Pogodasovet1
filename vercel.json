@@ -9,6 +9,10 @@
     {
       "source": "/api/bot",
       "destination": "/api/bot.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
