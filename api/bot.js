@@ -658,18 +658,57 @@ const cityKeyboard = new Keyboard()
     .text('🔙 НАЗАД')
     .resized();
 
+// ===================== ОСНОВНЫЕ КОМАНДЫ =====================
+bot.command('start', async (ctx) => {
+    console.log(`🚀 /start от ${ctx.from.id}`);
+    try {
+        await ctx.reply(
+            `👋 Привет! Я бот погоды с английскими фразами и играми.\n\n👇 *Нажмите НАЧАТЬ:*`,
+            { parse_mode: 'Markdown', reply_markup: startKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в /start:', error);
+    }
+});
+
+bot.hears('🚀 НАЧАТЬ', async (ctx) => {
+    console.log(`📍 НАЧАТЬ от ${ctx.from.id}`);
+    try {
+        await ctx.reply(
+            `📍 *Выберите ваш город:*`,
+            { parse_mode: 'Markdown', reply_markup: cityKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в НАЧАТЬ:', error);
+    }
+});
+
+bot.hears(/^📍 /, async (ctx) => {
+  const userId = ctx.from.id;
+  const city = ctx.message.text.replace('📍 ', '').trim();
+  console.log(`📍 Выбран город: "${city}" для ${userId}`);
+  
+  try {
+    await saveUserCity(userId, city);
+    userStorage.set(userId, { city, awaitingCity: false });
+    
+    await ctx.reply(
+      `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
+      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+    );
+  } catch (error) {
+    console.error('❌ Ошибка при выборе города:', error);
+    await ctx.reply('Не удалось сохранить город в базу данных. Попробуйте еще раз.');
+  }
+});
+
 // ===================== ОБРАБОТЧИК ДАННЫХ ИЗ ИГРЫ =====================
-bot.on('message:web_app_data', async (ctx) => {
+// ИСПРАВЛЕНО: Используем filter вместо on('message:web_app_data')
+bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
     const userId = ctx.from.id;
     console.log(`📱 Получены данные от Mini App от пользователя ${userId}`);
     
     try {
-        // Доступ к данным через ctx.message.web_app_data
-        if (!ctx.message?.web_app_data?.data) {
-            console.log('❌ Нет данных от игры');
-            return;
-        }
-        
         const webAppData = ctx.message.web_app_data;
         const data = JSON.parse(webAppData.data);
         console.log('🎮 Данные игры:', data);
@@ -713,49 +752,6 @@ bot.on('message:web_app_data', async (ctx) => {
             reply_markup: mainMenuKeyboard
         });
     }
-});
-// ===================== ОСНОВНЫЕ КОМАНДЫ =====================
-bot.command('start', async (ctx) => {
-    console.log(`🚀 /start от ${ctx.from.id}`);
-    try {
-        await ctx.reply(
-            `👋 Привет! Я бот погоды с английскими фразами.\n\n👇 *Нажмите НАЧАТЬ:*`,
-            { parse_mode: 'Markdown', reply_markup: startKeyboard }
-        );
-    } catch (error) {
-        console.error('❌ Ошибка в /start:', error);
-    }
-});
-
-bot.hears('🚀 НАЧАТЬ', async (ctx) => {
-    console.log(`📍 НАЧАТЬ от ${ctx.from.id}`);
-    try {
-        await ctx.reply(
-            `📍 *Выберите ваш город:*`,
-            { parse_mode: 'Markdown', reply_markup: cityKeyboard }
-        );
-    } catch (error) {
-        console.error('❌ Ошибка в НАЧАТЬ:', error);
-    }
-});
-
-bot.hears(/^📍 /, async (ctx) => {
-  const userId = ctx.from.id;
-  const city = ctx.message.text.replace('📍 ', '').trim();
-  console.log(`📍 Выбран город: "${city}" для ${userId}`);
-  
-  try {
-    await saveUserCity(userId, city);
-    userStorage.set(userId, { city, awaitingCity: false });
-    
-    await ctx.reply(
-      `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка при выборе города:', error);
-    await ctx.reply('Не удалось сохранить город в базу данных. Попробуйте еще раз.');
-  }
 });
 
 // ===================== ПОГОДА СЕЙЧАС =====================
@@ -1070,7 +1066,7 @@ bot.command('random', async (ctx) => {
             `🇷🇺 *${phrase.russian}*\n\n` +
             `📚 *Объяснение:* ${phrase.explanation}\n\n` +
             `📂 *Категория:* ${phrase.category || "Общие"}\n` +
-            `📊 *Уровень:* ${phrase.level || "Средний"}\n\n` +
+            `📊 *Уровень:* ${phrase.level || "Средный"}\n\n` +
             `🔄 Нажмите /random или кнопку для новой случайной фразы!`;
         
         await ctx.reply(message, { 
