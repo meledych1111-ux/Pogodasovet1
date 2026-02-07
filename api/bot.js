@@ -1,5 +1,5 @@
 import { Bot, Keyboard } from 'grammy';
-
+import { saveUserCity, getUserCity } from './db.js'; // Добавьте эту строку рядом с другими импортами
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
     console.error('❌ BOT_TOKEN не найден!');
@@ -1014,38 +1014,42 @@ bot.hears('🚀 НАЧАТЬ', async (ctx) => {
 });
 
 bot.hears(/^📍 /, async (ctx) => {
-    const userId = ctx.from.id;
-    const city = ctx.message.text.replace('📍 ', '').trim();
-    console.log(`📍 Выбран город: "${city}" для ${userId}`);
+  const userId = ctx.from.id;
+  const city = ctx.message.text.replace('📍 ', '').trim();
+  console.log(`📍 Выбран город: "${city}" для ${userId}`);
+  
+  try {
+    // Заменяем userStorage.set() на вызов к БД
+    await saveUserCity(userId, city);
     
-    try {
-        userStorage.set(userId, { city });
-        
-        await ctx.reply(
-            `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
-            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-        );
-    } catch (error) {
-        console.error('❌ Ошибка при выборе города:', error);
-        await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
-    }
+    await ctx.reply(
+      `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
+      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+    );
+  } catch (error) {
+    console.error('❌ Ошибка при выборе города:', error);
+    await ctx.reply('Не удалось сохранить город в базу данных. Попробуйте еще раз.');
+  }
 });
 
+
+// 2. ОБНОВЛЕННЫЙ ОБРАБОТЧИК "ПОГОДА СЕЙЧАС"
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`🌤️ ПОГОДА от ${userId}`);
     
     try {
-        const userData = userStorage.get(userId) || {};
+        // ЗАМЕНА: Получаем город из базы данных
+        const city = await getUserCity(userId);
         
-        if (!userData.city) {
+        if (!city) {
             await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
             return;
         }
         
-        await ctx.reply(`⏳ Запрашиваю погоду для ${userData.city}...`, { parse_mode: 'Markdown' });
+        await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`, { parse_mode: 'Markdown' });
         
-        const weather = await getWeatherData(userData.city);
+        const weather = await getWeatherData(city);
         console.log('🌤️ Получена погода:', weather);
         
         await ctx.reply(
@@ -1061,25 +1065,28 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
         
     } catch (error) {
         console.error('❌ Ошибка в ПОГОДА:', error);
-        await ctx.reply('❌ Не удалось получить данные о погоде.', { reply_markup: mainMenuKeyboard });
+        // Уточняем сообщение об ошибке
+        await ctx.reply('❌ Не удалось получить данные о погоде или обработать ваш запрос.', { reply_markup: mainMenuKeyboard });
     }
 });
 
+// 3. ОБНОВЛЕННЫЙ ОБРАБОТЧИК "ПОГОДА ЗАВТРА"
 bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
     
     try {
-        const userData = userStorage.get(userId) || {};
+        // ЗАМЕНА: Получаем город из базы данных
+        const city = await getUserCity(userId);
         
-        if (!userData.city) {
+        if (!city) {
             await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
             return;
         }
         
-        await ctx.reply(`📅 Получаю прогноз на завтра для ${userData.city}...`, { parse_mode: 'Markdown' });
+        await ctx.reply(`📅 Получаю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
         
-        const forecast = await getTomorrowWeather(userData.city);
+        const forecast = await getTomorrowWeather(city);
         console.log('📅 Получен прогноз:', forecast);
         
         if (!forecast) {
@@ -1091,14 +1098,14 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
                        `🔺 Максимум: *${forecast.temp_max}°C*\n` +
                        `🔻 Минимум: *${forecast.temp_min}°C*\n` +
                        `📝 ${forecast.description}\n` +
-                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +  // ← УБРАЛ " мм" и звездочки
+                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +
                        `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
         
         await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
         
     } catch (error) {
         console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
-        await ctx.reply('❌ Не удалось получить прогноз.', { reply_markup: mainMenuKeyboard });
+        await ctx.reply('❌ Не удалось получить прогноз или обработать ваш запрос.', { reply_markup: mainMenuKeyboard });
     }
 });
 
