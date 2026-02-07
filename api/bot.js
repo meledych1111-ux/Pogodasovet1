@@ -1,9 +1,10 @@
 import { Bot, Keyboard, session } from 'grammy';
 import { freeStorage } from "@grammyjs/storage-free";
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
+const BOT_TOKEN = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
 if (!BOT_TOKEN) {
     console.error('❌ BOT_TOKEN не найден!');
+    console.error('⚠️  Установите переменную окружения BOT_TOKEN в настройках Vercel');
     throw new Error('BOT_TOKEN is required');
 }
 
@@ -179,7 +180,7 @@ async function getTomorrowWeather(cityName) {
         if (!forecastData.daily || 
             forecastData.daily.time.length < 2 ||
             forecastData.daily.precipitation_sum[1] === undefined) {
-            console.error('📅 Нет данных прогноза для завтрашнего день');
+            console.error('📅 Нет данных прогноза для завтрашнего дня');
             throw new Error('Нет данных прогноза для завтра');
         }
         
@@ -293,7 +294,7 @@ function getTomorrowAdvice(forecast) {
     return "Хорошего дня!";
 }
 
-// ===================== ФРАЗЫ =====================
+// ===================== ФРАЗЫ (полный набор) =====================
 const dailyPhrases = [
     {
         english: "Where is the nearest bus stop?",
@@ -929,414 +930,380 @@ const dailyPhrases = [
 
 // ===================== КЛАВИАТУРЫ =====================
 const startKeyboard = new Keyboard()
-.text('🚀 НАЧАТЬ')
-.resized();
+    .text('🚀 НАЧАТЬ')
+    .resized();
 
 const mainMenuKeyboard = new Keyboard()
-.text('🌤️ ПОГОДА СЕЙЧАС')
-.text('📅 ПОГОДА ЗАВТРА').row()
-.text('👕 ЧТО НАДЕТЬ?')
-.text('💬 ФРАЗА ДНЯ').row()
-.text('🎲 СЛУЧАЙНАЯ ФРАЗА')
-.text('🏙️ СМЕНИТЬ ГОРОД').row()
-.text('ℹ️ ПОМОЩЬ')
-.resized();
+    .text('🌤️ ПОГОДА СЕЙЧАС')
+    .text('📅 ПОГОДА ЗАВТРА').row()
+    .text('👕 ЧТО НАДЕТЬ?')
+    .text('💬 ФРАЗА ДНЯ').row()
+    .text('🎲 СЛУЧАЙНАЯ ФРАЗА')  
+    .text('🏙️ СМЕНИТЬ ГОРОД').row()
+    .text('ℹ️ ПОМОЩЬ')
+    .resized();
 
 const cityKeyboard = new Keyboard()
-.text('📍 МОСКВА')
-.row()
-.text('📍 САНКТ-ПЕТЕРБУРГ')
-.row()
-.text('📍 СЕВАСТОПОЛЬ')
-.row()
-.text('✏️ ДРУГОЙ ГОРОД')
-.row()
-.text('🔙 НАЗАД')
-.resized();
+    .text('📍 МОСКВА')
+    .row()
+    .text('📍 САНКТ-ПЕТЕРБУРГ')
+    .row()
+    .text('📍 СЕВАСТОПОЛЬ')
+    .row()
+    .text('✏️ ДРУГОЙ ГОРОД')
+    .row()
+    .text('🔙 НАЗАД')
+    .resized();
 
 // ===================== ОБРАБОТЧИКИ =====================
 bot.command('start', async (ctx) => {
-console.log(🚀 /start от ${ctx.from.id});
-try {
-await ctx.reply(
-👋 Привет! Я бот погоды с английскими фразами.\n\n👇 *Нажмите НАЧАТЬ:*,
-{ parse_mode: 'Markdown', reply_markup: startKeyboard }
-);
-} catch (error) {
-console.error('❌ Ошибка в /start:', error);
-}
+    console.log(`🚀 /start от ${ctx.from.id}`);
+    try {
+        await ctx.reply(
+            `👋 Привет! Я бот погоды с английскими фразами.\n\n👇 *Нажмите НАЧАТЬ:*`,
+            { parse_mode: 'Markdown', reply_markup: startKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в /start:', error);
+    }
 });
 
 bot.hears('🚀 НАЧАТЬ', async (ctx) => {
-console.log(📍 НАЧАТЬ от ${ctx.from.id});
-try {
-await ctx.reply(
-📍 *Выберите ваш город:*,
-{ parse_mode: 'Markdown', reply_markup: cityKeyboard }
-);
-} catch (error) {
-console.error('❌ Ошибка в НАЧАТЬ:', error);
-}
+    console.log(`📍 НАЧАТЬ от ${ctx.from.id}`);
+    try {
+        await ctx.reply(
+            `📍 *Выберите ваш город:*`,
+            { parse_mode: 'Markdown', reply_markup: cityKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в НАЧАТЬ:', error);
+    }
 });
 
 bot.hears(/^📍 /, async (ctx) => {
-const city = ctx.message.text.replace('📍 ', '').trim();
-console.log(📍 Выбран город: "${city}" для ${ctx.from.id});
-
-```
-try {
-    ctx.session.selectedCity = city;
+    const city = ctx.message.text.replace('📍 ', '').trim();
+    console.log(`📍 Выбран город: "${city}" для ${ctx.from.id}`);
     
-    await ctx.reply(
-        `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-} catch (error) {
-    console.error('❌ Ошибка при выборе города:', error);
-    await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
-}
-```
-
-});
-
-bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
-console.log(🎲 СЛУЧАЙНАЯ ФРАЗА от ${ctx.from.id});
-
-```
-try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-        await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
-        return;
-    }
-    
-    const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
-    const phrase = dailyPhrases[randomIndex];
-    
-    await ctx.reply(
-        `🎲 *Случайная английская фраза*\n\n` +
-        `🇬🇧 *${phrase.english}*\n\n` +
-        `🇷🇺 *${phrase.russian}*\n\n` +
-        `📚 ${phrase.explanation}\n\n` +
-        `📂 Категория: ${phrase.category} (${phrase.level})`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-} catch (error) {
-    console.error('❌ Ошибка в СЛУЧАЙНАЯ ФРАЗА:', error);
-    await ctx.reply('❌ Не удалось получить случайную фразу.', { reply_markup: mainMenuKeyboard });
-}
-```
-
-});
-
-bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-console.log(🌤️ ПОГОДА от ${ctx.from.id});
-
-```
-try {
-    const city = ctx.session.selectedCity;
-    
-    if (!city) {
-        await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-        return;
-    }
-    
-    await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const weather = await getWeatherData(city);
-    
-    await ctx.reply(
-        `🌤️ *Погода в ${weather.city}*\n\n` +
-        `🌡️ Температура: *${weather.temp}°C*\n` +
-        `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
-        `💨 Ветер: ${weather.wind} м/с\n` +
-        `💧 Влажность: ${weather.humidity}%\n` +
-        `📝 ${weather.description}\n` +
-        `🌧️ Осадки: ${weather.precipitation}`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-} catch (error) {
-    console.error('❌ Ошибка в ПОГОДА:', error);
-    await ctx.reply('❌ Не удалось получить данные о погоде.', { reply_markup: mainMenuKeyboard });
-}
-```
-
-});
-
-bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
-console.log(📅 ПОГОДА ЗАВТРА от ${ctx.from.id});
-
-```
-try {
-    const city = ctx.session.selectedCity;
-    
-    if (!city) {
-        await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-        return;
-    }
-    
-    await ctx.reply(`📅 Получаю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const forecast = await getTomorrowWeather(city);
-    
-    if (!forecast) {
-        await ctx.reply('Не удалось получить прогноз. Попробуйте позже.', { reply_markup: mainMenuKeyboard });
-        return;
-    }
-    
-    const message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n` +
-                   `🔺 Максимум: *${forecast.temp_max}°C*\n` +
-                   `🔻 Минимум: *${forecast.temp_min}°C*\n` +
-                   `📝 ${forecast.description}\n` +
-                   `🌧️ Осадки: ${forecast.precipitation}\n\n` +
-                   `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
-    
-    await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
-    
-} catch (error) {
-    console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
-    await ctx.reply('❌ Не удалось получить прогноз.', { reply_markup: mainMenuKeyboard });
-}
-```
-
-});
-
-bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
-console.log(👕 ЧТО НАДЕТЬ? от ${ctx.from.id});
-
-```
-try {
-    const city = ctx.session.selectedCity;
-    
-    if (!city) {
-        await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-        return;
-    }
-    
-    await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const weather = await getWeatherData(city);
-    const advice = getWardrobeAdvice(weather);
-    
-    await ctx.reply(
-        `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-} catch (error) {
-    console.error('❌ Ошибка в ЧТО НАДЕТЬ:', error);
-    await ctx.reply('❌ Не удалось получить рекомендацию.', { reply_markup: mainMenuKeyboard });
-}
-```
-
-});
-
-bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
-console.log(💬 ФРАЗА ДНЯ от ${ctx.from.id});
-
-```
-try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-        await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
-        return;
-    }
-    
-    const dayOfMonth = new Date().getDate();
-    const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
-    const phrase = dailyPhrases[phraseIndex];
-    
-    await ctx.reply(
-        `💬 *Фраза дня*\n\n` +
-        `🇬🇧 *${phrase.english}*\n\n` +
-        `🇷🇺 *${phrase.russian}*\n\n` +
-        `📚 ${phrase.explanation}\n\n` +
-        `📂 Категория: ${phrase.category} (${phrase.level})`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-} catch (error) {
-    console.error('❌ Ошибка в ФРАЗА ДНЯ:', error);
-    await ctx.reply('❌ Не удалось получить фразу дня.', { reply_markup: mainMenuKeyboard });
-}
-```
-
-});
-
-bot.command('random', async (ctx) => {
-console.log(🎲 /random от ${ctx.from.id});
-
-```
-try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-        await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
-        return;
-    }
-    
-    const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
-    const phrase = dailyPhrases[randomIndex];
-    
-    await ctx.reply(
-        `🎲 *Случайная английская фраза*\n\n` +
-        `🇬🇧 *${phrase.english}*\n\n` +
-        `🇷🇺 *${phrase.russian}*\n\n` +
-        `📚 ${phrase.explanation}\n\n` +
-        `🔄 Используйте /random для новой случайной фразы!`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-} catch (error) {
-    console.error('❌ Ошибка в /random:', error);
-    await ctx.reply('❌ Не удалось получить случайную фразу.', { reply_markup: mainMenuKeyboard });
-}
-```
-
-});
-
-bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
-console.log(ℹ️ ПОМОЩЬ от ${ctx.from.id});
-
-```
-try {
-    await ctx.reply(
-        `*Помощь по боту*\n\n` +
-        `• *🌤️ ПОГОДА СЕЙЧАС* - текущая погода\n` +
-        `• *📅 ПОГОДА ЗАВТРА* - прогноз на завтра\n` +
-        `• *👕 ЧТО НАДЕТЬ?* - рекомендации по одежде\n` +
-        `• *💬 ФРАЗА ДНЯ* - английская фраза дня\n` +
-        `• *🎲 СЛУЧАЙНАЯ ФРАЗА* - случайная английская фраза\n` +
-        `• *🏙️ СМЕНИТЬ ГОРОД* - изменить город\n` +
-        `• *ℹ️ ПОМОЩЬ* - это сообщение\n\n` +
-        `*Команды:*\n` +
-        `/start - начать работу\n` +
-        `/random - случайная фраза`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-} catch (error) {
-    console.error('❌ Ошибка в ПОМОЩЬ:', error);
-}
-```
-
-});
-
-bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
-console.log(🏙️ СМЕНИТЬ ГОРОД от ${ctx.from.id});
-try {
-await ctx.reply('Выберите новый город:', { reply_markup: cityKeyboard });
-} catch (error) {
-console.error('❌ Ошибка в СМЕНИТЬ ГОРОД:', error);
-}
-});
-
-bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
-console.log(✏️ ДРУГОЙ ГОРОД от ${ctx.from.id});
-try {
-await ctx.reply('Напишите название вашего города:');
-ctx.session.awaitingCity = true;
-} catch (error) {
-console.error('❌ Ошибка в ДРУГОЙ ГОРОД:', error);
-}
-});
-
-bot.hears('🔙 НАЗАД', async (ctx) => {
-console.log(🔙 НАЗАД от ${ctx.from.id});
-try {
-await ctx.reply('Главное меню:', { reply_markup: mainMenuKeyboard });
-} catch (error) {
-console.error('❌ Ошибка в НАЗАД:', error);
-}
-});
-
-bot.on('message:text', async (ctx) => {
-const text = ctx.message.text;
-
-```
-console.log(`📝 Текст от ${ctx.from.id}: "${text}"`);
-
-if (text.startsWith('/') || 
-    ['🚀 НАЧАТЬ', '🌤️ ПОГОДА СЕЙЧАС', '📅 ПОГОДА ЗАВТРА', '👕 ЧТО НАДЕТЬ?', 
-     '💬 ФРАЗА ДНЯ', '🎲 СЛУЧАЙНАЯ ФРАЗА', '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text) ||
-    text.startsWith('📍 ')) {
-    return;
-}
-
-if (ctx.session.awaitingCity) {
     try {
-        const city = text.trim();
-        console.log(`🏙️ Сохраняю город "${city}" для ${ctx.from.id}`);
-        
         ctx.session.selectedCity = city;
-        ctx.session.awaitingCity = false;
         
         await ctx.reply(
-            `✅ *Город "${city}" сохранён!*`,
+            `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
             { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
         );
     } catch (error) {
-        console.error('❌ Ошибка при сохранении города:', error);
+        console.error('❌ Ошибка при выборе города:', error);
         await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
     }
-} else if (!ctx.session.selectedCity) {
-    await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
-} else {
-    await ctx.reply('Я вас не понимаю. Пожалуйста, используйте кнопки меню.', { reply_markup: mainMenuKeyboard });
-}
-```
+});
 
+bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
+    console.log(`🎲 СЛУЧАЙНАЯ ФРАЗА от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
+        const phrase = dailyPhrases[randomIndex];
+        
+        await ctx.reply(
+            `🎲 *Случайная английская фраза*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 ${phrase.explanation}\n\n` +
+            `📂 Категория: ${phrase.category} (${phrase.level})`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в СЛУЧАЙНАЯ ФРАЗА:', error);
+        await ctx.reply('❌ Не удалось получить случайную фразу.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
+    console.log(`🌤️ ПОГОДА от ${ctx.from.id}`);
+    
+    try {
+        const city = ctx.session.selectedCity;
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`, { parse_mode: 'Markdown' });
+        
+        const weather = await getWeatherData(city);
+        
+        await ctx.reply(
+            `🌤️ *Погода в ${weather.city}*\n\n` +
+            `🌡️ Температура: *${weather.temp}°C*\n` +
+            `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
+            `💨 Ветер: ${weather.wind} м/с\n` +
+            `💧 Влажность: ${weather.humidity}%\n` +
+            `📝 ${weather.description}\n` +
+            `🌧️ Осадки: ${weather.precipitation}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ПОГОДА:', error);
+        await ctx.reply('❌ Не удалось получить данные о погоде.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
+    console.log(`📅 ПОГОДА ЗАВТРА от ${ctx.from.id}`);
+    
+    try {
+        const city = ctx.session.selectedCity;
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`📅 Получаю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
+        
+        const forecast = await getTomorrowWeather(city);
+        
+        if (!forecast) {
+            await ctx.reply('Не удалось получить прогноз. Попробуйте позже.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n` +
+                       `🔺 Максимум: *${forecast.temp_max}°C*\n` +
+                       `🔻 Минимум: *${forecast.temp_min}°C*\n` +
+                       `📝 ${forecast.description}\n` +
+                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +
+                       `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
+        
+        await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
+        await ctx.reply('❌ Не удалось получить прогноз.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
+    console.log(`👕 ЧТО НАДЕТЬ? от ${ctx.from.id}`);
+    
+    try {
+        const city = ctx.session.selectedCity;
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
+        
+        const weather = await getWeatherData(city);
+        const advice = getWardrobeAdvice(weather);
+        
+        await ctx.reply(
+            `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ЧТО НАДЕТЬ:', error);
+        await ctx.reply('❌ Не удалось получить рекомендацию.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
+    console.log(`💬 ФРАЗА ДНЯ от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const dayOfMonth = new Date().getDate();
+        const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
+        const phrase = dailyPhrases[phraseIndex];
+        
+        await ctx.reply(
+            `💬 *Фраза дня*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 ${phrase.explanation}\n\n` +
+            `📂 Категория: ${phrase.category} (${phrase.level})`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в ФРАЗА ДНЯ:', error);
+        await ctx.reply('❌ Не удалось получить фразу дня.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.command('random', async (ctx) => {
+    console.log(`🎲 /random от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
+            return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
+        const phrase = dailyPhrases[randomIndex];
+        
+        await ctx.reply(
+            `🎲 *Случайная английская фраза*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 ${phrase.explanation}\n\n` +
+            `🔄 Используйте /random для новой случайной фразы!`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /random:', error);
+        await ctx.reply('❌ Не удалось получить случайную фразу.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
+    console.log(`ℹ️ ПОМОЩЬ от ${ctx.from.id}`);
+    
+    try {
+        await ctx.reply(
+            `*Помощь по боту*\n\n` +
+            `• *🌤️ ПОГОДА СЕЙЧАС* - текущая погода\n` +
+            `• *📅 ПОГОДА ЗАВТРА* - прогноз на завтра\n` +
+            `• *👕 ЧТО НАДЕТЬ?* - рекомендации по одежде\n` +
+            `• *💬 ФРАЗА ДНЯ* - английская фраза дня\n` +
+            `• *🎲 СЛУЧАЙНАЯ ФРАЗА* - случайная английская фраза\n` +
+            `• *🏙️ СМЕНИТЬ ГОРОД* - изменить город\n` +
+            `• *ℹ️ ПОМОЩЬ* - это сообщение\n\n` +
+            `*Команды:*\n` +
+            `/start - начать работу\n` +
+            `/random - случайная фраза`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в ПОМОЩЬ:', error);
+    }
+});
+
+bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
+    console.log(`🏙️ СМЕНИТЬ ГОРОД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Выберите новый город:', { reply_markup: cityKeyboard });
+    } catch (error) {
+        console.error('❌ Ошибка в СМЕНИТЬ ГОРОД:', error);
+    }
+});
+
+bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
+    console.log(`✏️ ДРУГОЙ ГОРОД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Напишите название вашего города:');
+        ctx.session.awaitingCity = true;
+    } catch (error) {
+        console.error('❌ Ошибка в ДРУГОЙ ГОРОД:', error);
+    }
+});
+
+bot.hears('🔙 НАЗАД', async (ctx) => {
+    console.log(`🔙 НАЗАД от ${ctx.from.id}`);
+    try {
+        await ctx.reply('Главное меню:', { reply_markup: mainMenuKeyboard });
+    } catch (error) {
+        console.error('❌ Ошибка в НАЗАД:', error);
+    }
+});
+
+bot.on('message:text', async (ctx) => {
+    const text = ctx.message.text;
+    
+    if (text.startsWith('/') || 
+        ['🚀 НАЧАТЬ', '🌤️ ПОГОДА СЕЙЧАС', '📅 ПОГОДА ЗАВТРА', '👕 ЧТО НАДЕТЬ?', 
+         '💬 ФРАЗА ДНЯ', '🎲 СЛУЧАЙНАЯ ФРАЗА', '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text) ||
+        text.startsWith('📍 ')) {
+        return;
+    }
+    
+    if (ctx.session.awaitingCity) {
+        try {
+            const city = text.trim();
+            console.log(`🏙️ Сохраняю город "${city}" для ${ctx.from.id}`);
+            
+            ctx.session.selectedCity = city;
+            ctx.session.awaitingCity = false;
+            
+            await ctx.reply(
+                `✅ *Город "${city}" сохранён!*`,
+                { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+            );
+        } catch (error) {
+            console.error('❌ Ошибка при сохранении города:', error);
+            await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
+        }
+    } else if (!ctx.session.selectedCity) {
+        await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
+    } else {
+        await ctx.reply('Я вас не понимаю. Пожалуйста, используйте кнопки меню.', { reply_markup: mainMenuKeyboard });
+    }
 });
 
 // ===================== ОБРАБОТЧИК ДЛЯ VERCEL =====================
 export default async function handler(req, res) {
-console.log(🌐 ${req.method} запрос к /api/bot);
-
-```
-try {
-    if (req.method === 'GET') {
+    console.log(`🌐 ${req.method} запрос к /api/bot`);
+    
+    try {
+        if (req.method === 'GET') {
+            return res.status(200).json({ 
+                message: 'Weather & English Phrases Bot is running',
+                status: 'active',
+                timestamp: new Date().toISOString(),
+                features: [
+                    'Current weather',
+                    'Tomorrow forecast',
+                    'Wardrobe advice',
+                    'Daily English phrase',
+                    'Random English phrase',
+                    'Change city',
+                    'Help menu'
+                ],
+                total_phrases: dailyPhrases.length
+            });
+        }
+        
+        if (req.method === 'POST') {
+            console.log('📦 Получен update от Telegram');
+            
+            try {
+                const update = req.body;
+                await bot.handleUpdate(update);
+                console.log('✅ Update успешно обработан');
+                
+                return res.status(200).json({ ok: true });
+            } catch (error) {
+                console.error('❌ Ошибка обработки update:', error);
+                return res.status(200).json({ ok: false, error: 'Update processing failed' });
+            }
+        }
+        
+        return res.status(405).json({ error: 'Method not allowed' });
+        
+    } catch (error) {
+        console.error('🔥 Критическая ошибка в handler:', error);
         return res.status(200).json({ 
-            message: 'Weather & English Phrases Bot is running',
-            status: 'active',
-            timestamp: new Date().toISOString(),
-            features: [
-                'Current weather',
-                'Tomorrow forecast',
-                'Wardrobe advice',
-                'Daily English phrase',
-                'Random English phrase',
-                'Change city',
-                'Help menu'
-            ],
-            total_phrases: dailyPhrases.length
+            ok: false, 
+            error: 'Internal server error'
         });
     }
-    
-    if (req.method === 'POST') {
-        console.log('📦 Получен update от Telegram');
-        
-        try {
-            const update = req.body;
-            await bot.handleUpdate(update);
-            console.log('✅ Update успешно обработан');
-            
-            return res.status(200).json({ ok: true });
-        } catch (error) {
-            console.error('❌ Ошибка обработки update:', error);
-            return res.status(200).json({ ok: false, error: 'Update processing failed' });
-        }
-    }
-    
-    return res.status(405).json({ error: 'Method not allowed' });
-    
-} catch (error) {
-    console.error('🔥 Критическая ошибка в handler:', error);
-    return res.status(200).json({ 
-        ok: false, 
-        error: 'Internal server error'
-    });
-}
-```
-
 }
 
-console.log('⚡ Бот загружен и готов к работе!');
-
-```
+console.log('⚡ Бот загружен и готов к работе на Vercel!');
