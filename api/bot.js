@@ -1,5 +1,5 @@
 import { Bot, Keyboard } from 'grammy';
-import { saveUserCity, getUserCity } from './db.js'; // Добавьте эту строку рядом с другими импортами
+import { saveUserCity, getUserCity, saveGameScore } from './db.js'; // Добавили saveGameScore
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
     console.error('❌ BOT_TOKEN не найден!');
