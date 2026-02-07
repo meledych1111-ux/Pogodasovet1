@@ -10,7 +10,7 @@ const pool = new Pool({
 });
 
 // ============ ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ============
-// Функция для создания таблиц (вызывается ВРУЧНУЮ, а не автоматически)
+// Функция для создания таблиц
 async function createTables() {
   const client = await pool.connect();
   try {
@@ -42,6 +42,19 @@ async function createTables() {
     await client.query(gameScoresQuery);
     console.log('✅ Таблица game_scores создана или уже существует');
     
+    // Создаем индексы для производительности
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_game_scores_user_type 
+      ON game_scores(user_id, game_type);
+    `);
+    console.log('✅ Индекс idx_game_scores_user_type создан');
+    
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_game_scores_score_desc 
+      ON game_scores(score DESC);
+    `);
+    console.log('✅ Индекс idx_game_scores_score_desc создан');
+    
   } catch (error) {
     console.error('❌ Ошибка при создании таблиц:', error);
     throw error;
@@ -50,8 +63,27 @@ async function createTables() {
   }
 }
 
+// Автоматическое создание таблиц при запуске
+(async () => {
+  if (process.env.DATABASE_URL) {
+    try {
+      await createTables();
+      console.log('✅ База данных инициализирована');
+    } catch (error) {
+      console.error('❌ Ошибка инициализации БД:', error.message);
+    }
+  } else {
+    console.warn('⚠️ DATABASE_URL не настроен. База данных не инициализирована.');
+  }
+})();
+
 // ============ ФУНКЦИИ ДЛЯ РАБОТЫ С ГОРОДАМИ ============
 export async function saveUserCity(userId, city) {
+  if (!process.env.DATABASE_URL) {
+    console.warn('⚠️ DATABASE_URL не настроен. Город не сохранен.');
+    return false;
+  }
+  
   const client = await pool.connect();
   try {
     const query = `
@@ -61,16 +93,22 @@ export async function saveUserCity(userId, city) {
       DO UPDATE SET selected_city = $2, updated_at = NOW()
     `;
     await client.query(query, [userId, city]);
+    console.log(`✅ Город "${city}" сохранен для пользователя ${userId}`);
     return true;
   } catch (error) {
     console.error('❌ Ошибка при сохранении города:', error);
-    throw error;
+    return false;
   } finally {
     client.release();
   }
 }
 
 export async function getUserCity(userId) {
+  if (!process.env.DATABASE_URL) {
+    console.warn('⚠️ DATABASE_URL не настроен. Город не получен.');
+    return null;
+  }
+  
   const client = await pool.connect();
   try {
     const result = await client.query(
@@ -88,6 +126,11 @@ export async function getUserCity(userId) {
 
 // ============ ФУНКЦИИ ДЛЯ РАБОТЫ С ИГРАМИ ============
 export async function saveGameScore(userId, gameType, score, level, lines) {
+  if (!process.env.DATABASE_URL) {
+    console.warn('⚠️ DATABASE_URL не настроен. Результат игры не сохранен.');
+    return null;
+  }
+  
   const client = await pool.connect();
   try {
     const query = `
@@ -96,25 +139,10 @@ export async function saveGameScore(userId, gameType, score, level, lines) {
       RETURNING id
     `;
     const result = await client.query(query, [userId, gameType, score, level, lines]);
+    console.log(`✅ Результат игры сохранен для пользователя ${userId}: ${score} очков`);
     return result.rows[0]?.id;
   } catch (error) {
     console.error('❌ Ошибка при сохранении результатов игры:', error);
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-export async function getUserBestScore(userId, gameType = 'tetris') {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(
-      'SELECT MAX(score) as best_score, MAX(level) as best_level, MAX(lines) as best_lines FROM game_scores WHERE user_id = $1 AND game_type = $2',
-      [userId, gameType]
-    );
-    return result.rows[0] || null;
-  } catch (error) {
-    console.error('❌ Ошибка при получении результатов игры:', error);
     return null;
   } finally {
     client.release();
@@ -123,6 +151,11 @@ export async function getUserBestScore(userId, gameType = 'tetris') {
 
 // ============ ФУНКЦИИ ДЛЯ СТАТИСТИКИ ============
 export async function getGameStats(userId, gameType = 'tetris') {
+  if (!process.env.DATABASE_URL) {
+    console.warn('⚠️ DATABASE_URL не настроен. Статистика не получена.');
+    return null;
+  }
+  
   const client = await pool.connect();
   try {
     const query = `
@@ -147,6 +180,11 @@ export async function getGameStats(userId, gameType = 'tetris') {
 }
 
 export async function getTopPlayers(gameType = 'tetris', limit = 10) {
+  if (!process.env.DATABASE_URL) {
+    console.warn('⚠️ DATABASE_URL не настроен. Топ игроков не получен.');
+    return [];
+  }
+  
   const client = await pool.connect();
   try {
     const query = `
@@ -173,8 +211,11 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
 }
 
 // ============ ТЕСТОВАЯ ФУНКЦИЯ ============
-// Функция для проверки подключения (без автоматического запуска)
 export async function checkDatabaseConnection() {
+  if (!process.env.DATABASE_URL) {
+    return { success: false, error: 'DATABASE_URL не настроен' };
+  }
+  
   const client = await pool.connect();
   try {
     const result = await client.query('SELECT NOW() as current_time');
@@ -185,3 +226,6 @@ export async function checkDatabaseConnection() {
     client.release();
   }
 }
+
+// Экспортируем pool для тестов
+export { pool };
