@@ -974,6 +974,7 @@ const mainMenuKeyboard = new Keyboard()
     .text('💬 ФРАЗА ДНЯ').row()
     .text('🏙️ СМЕНИТЬ ГОРОД')
     .text('ℹ️ ПОМОЩЬ')
+    .text('🎲 Случайная фраза')
     .resized();
 
 const cityKeyboard = new Keyboard()
@@ -981,14 +982,14 @@ const cityKeyboard = new Keyboard()
     .row()
     .text('📍 САНКТ-ПЕТЕРБУРГ')
     .row()
-    .text('📍 СИМФЕРОПОЛЬ')
+    .text('📍 СЕВАСТОПОЛЬ')
     .row()
     .text('✏️ ДРУГОЙ ГОРОД')
     .row()
     .text('🔙 НАЗАД')
     .resized();
 
-// ===================== ОБРАБОТЧИКИ =====================
+/// ===================== ОБРАБОТЧИКИ =====================
 bot.command('start', async (ctx) => {
     console.log(`🚀 /start от ${ctx.from.id}`);
     try {
@@ -1036,7 +1037,7 @@ bot.hears(/^📍 /, async (ctx) => {
 });
 
 
-// 2. ОБНОВЛЕННЫЙ ОБРАБОТЧИК "ПОГОДА СЕЙЧАС"
+// ===================== ОБРАБОТЧИК КНОПКИ "ПОГОДА СЕЙЧАС" =====================
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`🌤️ ПОГОДА от ${userId}`);
@@ -1072,7 +1073,7 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
     }
 });
 
-// 3. ОБНОВЛЕННЫЙ ОБРАБОТЧИК "ПОГОДА ЗАВТРА"
+// ===================== ОБРАБОТЧИК КНОПКИ "ПОГОДА ЗАВТРА" =====================
 bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
@@ -1135,6 +1136,7 @@ function getTomorrowAdvice(forecast) {
     return "Хорошего дня!";
 }
 
+// ===================== ОБРАБОТЧИК КНОПКИ "ЧТО НАДЕТЬ?" =====================
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`👕 ЧТО НАДЕТЬ? от ${userId}`);
@@ -1164,6 +1166,7 @@ bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
     }
 });
 
+// ===================== ОБРАБОТЧИК КНОПКИ "ФРАЗА ДНЯ" =====================
 bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
     console.log(`💬 ФРАЗА ДНЯ от ${ctx.from.id}`);
     
@@ -1192,8 +1195,156 @@ bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
     }
 });
 
+// ===================== ОБНОВЛЁННАЯ КОМАНДА /random =====================
 bot.command('random', async (ctx) => {
     console.log(`🎲 /random от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('❌ Фразы не загружены. Попробуйте позже.', { 
+                reply_markup: mainMenuKeyboard 
+            });
+            return;
+        }
+        
+        // Генерируем случайный индекс
+        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
+        const phrase = dailyPhrases[randomIndex];
+        
+        console.log(`🎲 Случайная фраза #${randomIndex}: "${phrase.english}"`);
+        
+        // Формируем сообщение с дополнительной информацией
+        const message = 
+            `🎲 *Случайная английская фраза*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 *Объяснение:* ${phrase.explanation}\n\n` +
+            `📂 *Категория:* ${phrase.category || "Общие"}\n` +
+            `📊 *Уровень:* ${phrase.level || "Средний"}\n\n` +
+            `🔄 Нажмите /random для новой случайной фразы!`;
+        
+        await ctx.reply(message, { 
+            parse_mode: 'Markdown', 
+            reply_markup: mainMenuKeyboard 
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /random:', error);
+        await ctx.reply('❌ Не удалось получить случайную фразу. Попробуйте еще раз.', { 
+            reply_markup: mainMenuKeyboard 
+        });
+    }
+});
+
+// ===================== НЕДОСТАЮЩИЕ ОБРАБОТЧИКИ ТЕКСТОВЫХ КОМАНД =====================
+
+// Команда /weather (аналог кнопки "ПОГОДА СЕЙЧАС")
+bot.command('weather', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`🌤️ /weather от ${userId}`);
+    
+    try {
+        // Получаем город из базы данных
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`);
+        
+        // Используем ту же функцию, что и для кнопки "ПОГОДА СЕЙЧАС"
+        const weather = await getWeatherData(city);
+        
+        await ctx.reply(
+            `🌤️ *Погода в ${weather.city}*\n\n` +
+            `🌡️ Температура: *${weather.temp}°C*\n` +
+            `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
+            `💨 Ветер: ${weather.wind} м/с\n` +
+            `💧 Влажность: ${weather.humidity}%\n` +
+            `📝 ${weather.description}\n` +
+            `🌧️ Осадки: ${weather.precipitation}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /weather:', error);
+        await ctx.reply('❌ Не удалось получить данные о погоде.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+// Команда /forecast (аналог кнопки "ПОГОДА ЗАВТРА")
+bot.command('forecast', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`📅 /forecast от ${userId}`);
+    
+    try {
+        // Получаем город из базы данных
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`📅 Получаю прогноз на завтра для ${city}...`);
+        
+        // Используем ту же функцию, что и для кнопки "ПОГОДА ЗАВТРА"
+        const forecast = await getTomorrowWeather(city);
+        
+        if (!forecast) {
+            await ctx.reply('Не удалось получить прогноз. Попробуйте позже.');
+            return;
+        }
+        
+        const message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n` +
+                       `🔺 Максимум: *${forecast.temp_max}°C*\n` +
+                       `🔻 Минимум: *${forecast.temp_min}°C*\n` +
+                       `📝 ${forecast.description}\n` +
+                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +
+                       `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
+        
+        await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /forecast:', error);
+        await ctx.reply('❌ Не удалось получить прогноз.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+// Команда /wardrobe (аналог кнопки "ЧТО НАДЕТЬ?")
+bot.command('wardrobe', async (ctx) => {
+    const userId = ctx.from.id;
+    console.log(`👕 /wardrobe от ${userId}`);
+    
+    try {
+        const city = await getUserCity(userId);
+        
+        if (!city) {
+            await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
+            return;
+        }
+        
+        await ctx.reply(`👗 Анализирую погоду для ${city}...`);
+        
+        const weather = await getWeatherData(city);
+        const advice = getWardrobeAdvice(weather);
+        
+        await ctx.reply(
+            `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+        
+    } catch (error) {
+        console.error('❌ Ошибка в /wardrobe:', error);
+        await ctx.reply('❌ Не удалось получить рекомендацию.', { reply_markup: mainMenuKeyboard });
+    }
+});
+
+// Команда /phrase (аналог кнопки "ФРАЗА ДНЯ")
+bot.command('phrase', async (ctx) => {
+    console.log(`💬 /phrase от ${ctx.from.id}`);
     
     try {
         if (!dailyPhrases || dailyPhrases.length === 0) {
@@ -1201,40 +1352,73 @@ bot.command('random', async (ctx) => {
             return;
         }
         
-        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
-        const phrase = dailyPhrases[randomIndex];
-        console.log(`🎲 Случайная фраза #${randomIndex}: "${phrase.english}"`);
+        const dayOfMonth = new Date().getDate();
+        const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
+        const phrase = dailyPhrases[phraseIndex];
         
         await ctx.reply(
-            `🎲 *Случайная английская фраза*\n\n` +
+            `💬 *Фраза дня*\n\n` +
             `🇬🇧 *${phrase.english}*\n\n` +
             `🇷🇺 *${phrase.russian}*\n\n` +
-            `📚 ${phrase.explanation}\n\n` +
-            `🔄 Используйте /random для новой случайной фразы!`,
+            `📚 ${phrase.explanation}`,
             { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
         );
         
     } catch (error) {
-        console.error('❌ Ошибка в /random:', error);
-        await ctx.reply('❌ Не удалось получить случайную фразу.', { reply_markup: mainMenuKeyboard });
+        console.error('❌ Ошибка в /phrase:', error);
+        await ctx.reply('❌ Не удалось получить фразу дня.', { reply_markup: mainMenuKeyboard });
     }
 });
 
+// Команда /help (аналог кнопки "ПОМОЩЬ")
+bot.command('help', async (ctx) => {
+    console.log(`ℹ️ /help от ${ctx.from.id}`);
+    
+    try {
+        await ctx.reply(
+            `*Помощь по боту*\n\n` +
+            `• *🌤️ ПОГОДА СЕЙЧАС* или */weather* - текущая погода\n` +
+            `• *📅 ПОГОДА ЗАВТРА* или */forecast* - прогноз на завтра\n` +
+            `• *👕 ЧТО НАДЕТЬ?* или */wardrobe* - рекомендации по одежде\n` +
+            `• *💬 ФРАЗА ДНЯ* или */phrase* - английская фраза\n` +
+            `• *🏙️ СМЕНИТЬ ГОРОД* - изменить город\n` +
+            `• *ℹ️ ПОМОЩЬ* или */help* - это сообщение\n\n` +
+            `*Команды:*\n` +
+            `/start - начать работу\n` +
+            `/random - случайная фраза\n` +
+            `/weather - текущая погода\n` +
+            `/forecast - прогноз на завтра\n` +
+            `/wardrobe - что надеть?\n` +
+            `/phrase - фраза дня\n` +
+            `/help - помощь`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
+    } catch (error) {
+        console.error('❌ Ошибка в /help:', error);
+    }
+});
+
+// Обновите также обработчик кнопки "ПОМОЩЬ" для единообразия
 bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
     console.log(`ℹ️ ПОМОЩЬ от ${ctx.from.id}`);
     
     try {
         await ctx.reply(
             `*Помощь по боту*\n\n` +
-            `• *🌤️ ПОГОДА СЕЙЧАС* - текущая погода\n` +
-            `• *📅 ПОГОДА ЗАВТРА* - прогноз на завтра\n` +
-            `• *👕 ЧТО НАДЕТЬ?* - рекомендации по одежде\n` +
-            `• *💬 ФРАЗА ДНЯ* - английская фраза\n` +
+            `• *🌤️ ПОГОДА СЕЙЧАС* или */weather* - текущая погода\n` +
+            `• *📅 ПОГОДА ЗАВТРА* или */forecast* - прогноз на завтра\n` +
+            `• *👕 ЧТО НАДЕТЬ?* или */wardrobe* - рекомендации по одежде\n` +
+            `• *💬 ФРАЗА ДНЯ* или */phrase* - английская фраза\n` +
             `• *🏙️ СМЕНИТЬ ГОРОД* - изменить город\n` +
-            `• *ℹ️ ПОМОЩЬ* - это сообщение\n\n` +
+            `• *ℹ️ ПОМОЩЬ* или */help* - это сообщение\n\n` +
             `*Команды:*\n` +
             `/start - начать работу\n` +
-            `/random - случайная фраза`,
+            `/random - случайная фраза\n` +
+            `/weather - текущая погода\n` +
+            `/forecast - прогноз на завтра\n` +
+            `/wardrobe - что надеть?\n` +
+            `/phrase - фраза дня\n` +
+            `/help - помощь`,
             { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
         );
     } catch (error) {
@@ -1242,6 +1426,7 @@ bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
     }
 });
 
+// ===================== ОСТАЛЬНЫЕ ОБРАБОТЧИКИ КНОПОК =====================
 bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
     console.log(`🏙️ СМЕНИТЬ ГОРОД от ${ctx.from.id}`);
     try {
@@ -1271,6 +1456,7 @@ bot.hears('🔙 НАЗАД', async (ctx) => {
     }
 });
 
+// ===================== ОБРАБОТЧИК ТЕКСТОВЫХ СООБЩЕНИЙ =====================
 bot.on('message:text', async (ctx) => {
     const userId = ctx.from.id;
     const text = ctx.message.text;
