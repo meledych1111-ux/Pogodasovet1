@@ -1,13 +1,17 @@
 {
-  "name": "telegram-weather-bot",
+  "name": "weather-english-bot",
   "version": "1.0.0",
+  "description": "Telegram bot with weather forecasts and English phrases",
+  "main": "bot.js",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev"
+    "start": "node bot.js",
+    "dev": "node bot.js",
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
-    "grammy": "^1.20.0",
-    "node-fetch": "^3.3.2"
+    "grammy": "^1.21.1",
+    "@grammyjs/storage-free": "^2.4.2"
   },
   "engines": {
     "node": ">=18.0.0"
