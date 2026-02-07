@@ -9,6 +9,30 @@ const pool = new Pool({
   }
 });
 
+// Функция для создания таблицы (вызывается один раз при инициализации)
+export async function createUserSessionsTable() {
+  const client = await pool.connect();
+  try {
+    const query = `
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        user_id BIGINT PRIMARY KEY,
+        selected_city VARCHAR(100),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    await client.query(query);
+    console.log('✅ Таблица user_sessions создана или уже существует');
+  } catch (error) {
+    console.error('❌ Ошибка при создании таблицы:', error);
+  } finally {
+    client.release();
+  }
+}
+
+// Вызываем создание таблицы при загрузке модуля
+createUserSessionsTable();
+
 // Функция для сохранения или обновления города пользователя
 export async function saveUserCity(userId, city) {
   const client = await pool.connect();
