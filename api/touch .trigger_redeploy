@@ -1,0 +1,3 @@
+git add .trigger_redeploy
+git commit -m "Trigger full redeploy"
+git push origin main
