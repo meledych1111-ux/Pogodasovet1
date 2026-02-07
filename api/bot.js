@@ -1,5 +1,4 @@
-import { Bot, Keyboard, session } from 'grammy';
-import { freeStorage } from "@grammyjs/storage-free";
+import { Bot, Keyboard } from 'grammy';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
@@ -10,17 +9,28 @@ if (!BOT_TOKEN) {
 console.log('🤖 Создаю бота...');
 const bot = new Bot(BOT_TOKEN);
 
-// ===================== НАСТРОЙКА СЕССИЙ =====================
-// ТОЛЬКО ОДНА НАСТРОЙКА СЕССИЙ!
-bot.use(session({
-    initial: () => ({
-        selectedCity: undefined,
-        awaitingCity: false
-    }),
-    storage: freeStorage(bot.token),
-}));
+// ===================== ИНИЦИАЛИЗАЦИЯ =====================
+let botInitialized = false;
+
+async function initializeBot() {
+    if (botInitialized) return;
+    
+    console.log('🔧 Инициализирую бота...');
+    try {
+        await bot.init();
+        botInitialized = true;
+        console.log(`✅ Бот инициализирован: @${bot.botInfo.username}`);
+    } catch (error) {
+        console.error('❌ Ошибка инициализации:', error.message);
+    }
+}
+
+initializeBot();
+
+const userStorage = new Map();
 
 // ===================== ФУНКЦИИ ПОГОДЫ =====================
+
 // Вспомогательные функции для определения типа осадков
 function getPrecipitationType(weatherCode, precipitationAmount) {
     // Если осадков нет или очень мало
@@ -962,16 +972,16 @@ const mainMenuKeyboard = new Keyboard()
     .text('📅 ПОГОДА ЗАВТРА').row()
     .text('👕 ЧТО НАДЕТЬ?')
     .text('💬 ФРАЗА ДНЯ').row()
-    .text('🎲 СЛУЧАЙНАЯ ФРАЗА')  
-    .text('🏙️ СМЕНИТЬ ГОРОД').row()  // ← ДОБАВЬТЕ .row() здесь
+    .text('🏙️ СМЕНИТЬ ГОРОД')
     .text('ℹ️ ПОМОЩЬ')
     .resized();
+
 const cityKeyboard = new Keyboard()
     .text('📍 МОСКВА')
     .row()
     .text('📍 САНКТ-ПЕТЕРБУРГ')
     .row()
-    .text('📍 СЕВАСТОПОЛЬ')
+    .text('📍 СИМФЕРОПОЛЬ')
     .row()
     .text('✏️ ДРУГОЙ ГОРОД')
     .row()
@@ -1004,12 +1014,12 @@ bot.hears('🚀 НАЧАТЬ', async (ctx) => {
 });
 
 bot.hears(/^📍 /, async (ctx) => {
+    const userId = ctx.from.id;
     const city = ctx.message.text.replace('📍 ', '').trim();
-    console.log(`📍 Выбран город: "${city}" для ${ctx.from.id}`);
+    console.log(`📍 Выбран город: "${city}" для ${userId}`);
     
     try {
-        // Сохраняем город в сессию вместо userStorage
-        ctx.session.selectedCity = city;
+        userStorage.set(userId, { city });
         
         await ctx.reply(
             `✅ *Город "${city}" сохранён!*\nТеперь вы можете узнать погоду или получить совет.`,
@@ -1021,49 +1031,21 @@ bot.hears(/^📍 /, async (ctx) => {
     }
 });
 
-bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
-    console.log(`🎲 СЛУЧАЙНАЯ ФРАЗА от ${ctx.from.id}`);
-    
-    try {
-        if (!dailyPhrases || dailyPhrases.length === 0) {
-            await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
-            return;
-        }
-        
-        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
-        const phrase = dailyPhrases[randomIndex];
-        console.log(`🎲 Случайная фраза #${randomIndex}: "${phrase.english}"`);
-        
-        await ctx.reply(
-            `🎲 *Случайная английская фраза*\n\n` +
-            `🇬🇧 *${phrase.english}*\n\n` +
-            `🇷🇺 *${phrase.russian}*\n\n` +
-            `📚 ${phrase.explanation}\n\n` +
-            `📂 Категория: ${phrase.category} (${phrase.level})`,
-            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-        );
-        
-    } catch (error) {
-        console.error('❌ Ошибка в СЛУЧАЙНАЯ ФРАЗА:', error);
-        await ctx.reply('❌ Не удалось получить случайную фразу.', { reply_markup: mainMenuKeyboard });
-    }
-});
-
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-    console.log(`🌤️ ПОГОДА от ${ctx.from.id}`);
+    const userId = ctx.from.id;
+    console.log(`🌤️ ПОГОДА от ${userId}`);
     
     try {
-        // Получаем город из сессии вместо userStorage
-        const city = ctx.session.selectedCity;
+        const userData = userStorage.get(userId) || {};
         
-        if (!city) {
+        if (!userData.city) {
             await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
             return;
         }
         
-        await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`, { parse_mode: 'Markdown' });
+        await ctx.reply(`⏳ Запрашиваю погоду для ${userData.city}...`, { parse_mode: 'Markdown' });
         
-        const weather = await getWeatherData(city);
+        const weather = await getWeatherData(userData.city);
         console.log('🌤️ Получена погода:', weather);
         
         await ctx.reply(
@@ -1084,20 +1066,20 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
 });
 
 bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
-    console.log(`📅 ПОГОДА ЗАВТРА от ${ctx.from.id}`);
+    const userId = ctx.from.id;
+    console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
     
     try {
-        // Получаем город из сессии вместо userStorage
-        const city = ctx.session.selectedCity;
+        const userData = userStorage.get(userId) || {};
         
-        if (!city) {
+        if (!userData.city) {
             await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
             return;
         }
         
-        await ctx.reply(`📅 Получаю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
+        await ctx.reply(`📅 Получаю прогноз на завтра для ${userData.city}...`, { parse_mode: 'Markdown' });
         
-        const forecast = await getTomorrowWeather(city);
+        const forecast = await getTomorrowWeather(userData.city);
         console.log('📅 Получен прогноз:', forecast);
         
         if (!forecast) {
@@ -1109,7 +1091,7 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
                        `🔺 Максимум: *${forecast.temp_max}°C*\n` +
                        `🔻 Минимум: *${forecast.temp_min}°C*\n` +
                        `📝 ${forecast.description}\n` +
-                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +
+                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +  // ← УБРАЛ " мм" и звездочки
                        `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
         
         await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
@@ -1145,20 +1127,20 @@ function getTomorrowAdvice(forecast) {
 }
 
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
-    console.log(`👕 ЧТО НАДЕТЬ? от ${ctx.from.id}`);
+    const userId = ctx.from.id;
+    console.log(`👕 ЧТО НАДЕТЬ? от ${userId}`);
     
     try {
-        // Получаем город из сессии вместо userStorage
-        const city = ctx.session.selectedCity;
+        const userData = userStorage.get(userId) || {};
         
-        if (!city) {
+        if (!userData.city) {
             await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
             return;
         }
         
-        await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
+        await ctx.reply(`👗 Анализирую погоду для ${userData.city}...`, { parse_mode: 'Markdown' });
         
-        const weather = await getWeatherData(city);
+        const weather = await getWeatherData(userData.city);
         const advice = getWardrobeAdvice(weather);
         
         await ctx.reply(
@@ -1238,7 +1220,6 @@ bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
             `• *📅 ПОГОДА ЗАВТРА* - прогноз на завтра\n` +
             `• *👕 ЧТО НАДЕТЬ?* - рекомендации по одежде\n` +
             `• *💬 ФРАЗА ДНЯ* - английская фраза\n` +
-            `• *🎲 СЛУЧАЙНАЯ ФРАЗА* - случайная английская фраза\n` +
             `• *🏙️ СМЕНИТЬ ГОРОД* - изменить город\n` +
             `• *ℹ️ ПОМОЩЬ* - это сообщение\n\n` +
             `*Команды:*\n` +
@@ -1264,8 +1245,8 @@ bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
     console.log(`✏️ ДРУГОЙ ГОРОД от ${ctx.from.id}`);
     try {
         await ctx.reply('Напишите название вашего города:');
-        // Устанавливаем флаг в сессии, что ожидаем ввод города
-        ctx.session.awaitingCity = true;
+        const userId = ctx.from.id;
+        userStorage.set(userId, { awaitingCity: true });
     } catch (error) {
         console.error('❌ Ошибка в ДРУГОЙ ГОРОД:', error);
     }
@@ -1281,27 +1262,25 @@ bot.hears('🔙 НАЗАД', async (ctx) => {
 });
 
 bot.on('message:text', async (ctx) => {
+    const userId = ctx.from.id;
     const text = ctx.message.text;
+    const userData = userStorage.get(userId) || {};
     
-    console.log(`📝 Текст от ${ctx.from.id}: "${text}"`);
+    console.log(`📝 Текст от ${userId}: "${text}"`);
     
-    // Игнорируем команды и кнопки
     if (text.startsWith('/') || 
         ['🚀 НАЧАТЬ', '🌤️ ПОГОДА СЕЙЧАС', '📅 ПОГОДА ЗАВТРА', '👕 ЧТО НАДЕТЬ?', 
-         '💬 ФРАЗА ДНЯ', '🎲 СЛУЧАЙНАЯ ФРАЗА', '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text) ||
+         '💬 ФРАЗА ДНЯ', '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text) ||
         text.startsWith('📍 ')) {
         return;
     }
     
-    // Обработка ввода города
-    if (ctx.session.awaitingCity) {
+    if (userData.awaitingCity) {
         try {
             const city = text.trim();
-            console.log(`🏙️ Сохраняю город "${city}" для ${ctx.from.id}`);
+            console.log(`🏙️ Сохраняю город "${city}" для ${userId}`);
             
-            // Сохраняем город в сессию и сбрасываем флаг
-            ctx.session.selectedCity = city;
-            ctx.session.awaitingCity = false;
+            userStorage.set(userId, { city, awaitingCity: false });
             
             await ctx.reply(
                 `✅ *Город "${city}" сохранён!*`,
@@ -1311,8 +1290,7 @@ bot.on('message:text', async (ctx) => {
             console.error('❌ Ошибка при сохранении города:', error);
             await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
         }
-    } else if (!ctx.session.selectedCity) {
-        // Если города нет в сессии
+    } else if (!userData.city) {
         await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
     }
 });
@@ -1331,8 +1309,7 @@ export default async function handler(req, res) {
         }
         
         if (req.method === 'POST') {
-            // ⚠️ УДАЛИТЬ эту строку! Не вызывайте initializeBot() здесь!
-            // await initializeBot(); // ← ЭТУ СТРОКУ НУЖНО УДАЛИТЬ
+            await initializeBot();
             
             console.log('📦 Получен update от Telegram');
             
