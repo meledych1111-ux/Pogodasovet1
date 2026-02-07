@@ -1,8 +1,5 @@
-
 import { Bot, Keyboard, session } from 'grammy';
 import { freeStorage } from "@grammyjs/storage-free";
-import { Bot, Keyboard, session } from 'grammy';
-import { freeStorage } from "@grammyjs/storage-free"; // Добавьте этот импорт
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
@@ -20,7 +17,7 @@ bot.use(session({
         selectedCity: undefined,
         awaitingCity: false
     }),
-    storage: freeStorage(bot.token), // Используем постоянное хранилище
+    storage: freeStorage(bot.token),
 }));
 
 // ===================== ФУНКЦИИ ПОГОДЫ =====================
