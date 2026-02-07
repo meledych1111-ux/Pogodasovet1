@@ -1446,7 +1446,42 @@ bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
         console.error('❌ Ошибка в ДРУГОЙ ГОРОД:', error);
     }
 });
-
+// Обработчик КНОПКИ "🎲 СЛУЧАЙНАЯ ФРАЗА" на клавиатуре
+bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
+    console.log(`🎲 КНОПКА СЛУЧАЙНАЯ ФРАЗА от ${ctx.from.id}`);
+    
+    try {
+        if (!dailyPhrases || dailyPhrases.length === 0) {
+            await ctx.reply('❌ Фразы не загружены. Попробуйте позже.', { 
+                reply_markup: mainMenuKeyboard 
+            });
+            return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
+        const phrase = dailyPhrases[randomIndex];
+        
+        const message = 
+            `🎲 *Случайная английская фраза*\n\n` +
+            `🇬🇧 *${phrase.english}*\n\n` +
+            `🇷🇺 *${phrase.russian}*\n\n` +
+            `📚 *Объяснение:* ${phrase.explanation}\n\n` +
+            `📂 *Категория:* ${phrase.category || "Общие"}\n` +
+            `📊 *Уровень:* ${phrase.level || "Средний"}\n\n` +
+            `🔄 Нажмите /random или кнопку для новой случайной фразы!`;
+        
+        await ctx.reply(message, { 
+            parse_mode: 'Markdown', 
+            reply_markup: mainMenuKeyboard 
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка в кнопке СЛУЧАЙНАЯ ФРАЗА:', error);
+        await ctx.reply('❌ Не удалось получить случайную фразу. Попробуйте еще раз.', { 
+            reply_markup: mainMenuKeyboard 
+        });
+    }
+});
 bot.hears('🔙 НАЗАД', async (ctx) => {
     console.log(`🔙 НАЗАД от ${ctx.from.id}`);
     try {
