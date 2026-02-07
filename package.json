@@ -6,7 +6,8 @@
     "dev": "vercel dev"
   },
   "dependencies": {
-    "grammy": "^1.20.0"
+    "grammy": "^1.20.0",
+    "node-fetch": "^3.3.2"
   },
   "engines": {
     "node": ">=18.0.0"
