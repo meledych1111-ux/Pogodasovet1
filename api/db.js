@@ -137,7 +137,28 @@ export async function getUserBestScore(userId, gameType = 'tetris') {
     client.release();
   }
 }
-
+// В файле db.js добавьте функцию
+export async function getGameStats(userId, gameType = 'tetris') {
+    try {
+        // Пример для PostgreSQL
+        const result = await sql`
+            SELECT 
+                COUNT(*) as games_played,
+                MAX(score) as best_score,
+                MAX(level) as best_level,
+                MAX(lines) as best_lines,
+                AVG(score) as avg_score,
+                MAX(created_at) as last_played
+            FROM game_scores 
+            WHERE user_id = ${userId} AND game_type = ${gameType}
+        `;
+        
+        return result[0] || null;
+    } catch (error) {
+        console.error('Ошибка получения статистики:', error);
+        return null;
+    }
+}
 // Функция для получения таблицы лидеров
 export async function getLeaderboard(gameType = 'tetris', limit = 10) {
   const client = await pool.connect();
