@@ -27,26 +27,10 @@ function initialSessionData(): SessionData {
 // Подключаем сессии к боту
 bot.use(session({ initial: initialSessionData }));
 
-// ===================== ИНИЦИАЛИЗАЦИЯ =====================
-let botInitialized = false;
-
-async function initializeBot() {
-    if (botInitialized) return;
-    
-    console.log('🔧 Инициализирую бота...');
-    try {
-        await bot.init();
-        botInitialized = true;
-        console.log(`✅ Бот инициализирован: @${bot.botInfo.username}`);
-    } catch (error) {
-        console.error('❌ Ошибка инициализации:', error.message);
-    }
-}
-
-initializeBot();
-
-// УДАЛИТЕ эту строку (больше не нужна):
-// const userStorage = new Map();
+// УДАЛИТЕ ВСЁ ОТСЮДА И ДО ФУНКЦИЙ ПОГОДЫ:
+// let botInitialized = false;
+// async function initializeBot() { ... }
+// initializeBot();
 
 // ===================== ФУНКЦИИ ПОГОДЫ =====================
 
@@ -1360,7 +1344,8 @@ export default async function handler(req, res) {
         }
         
         if (req.method === 'POST') {
-            await initializeBot();
+            // ⚠️ УДАЛИТЬ эту строку! Не вызывайте initializeBot() здесь!
+            // await initializeBot(); // ← ЭТУ СТРОКУ НУЖНО УДАЛИТЬ
             
             console.log('📦 Получен update от Telegram');
             
