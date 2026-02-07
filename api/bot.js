@@ -31,202 +31,8 @@ const userStorage = new Map();
 
 // ===================== ФУНКЦИИ ПОГОДЫ =====================
 
-// Вспомогательные функции для определения типа осадков
-function getPrecipitationType(weatherCode, precipitationAmount) {
-    // Если осадков нет или очень мало
-    if (!precipitationAmount || precipitationAmount < 0.1) {
-        return 'без осадков';
-    }
-    
-    // Определяем тип по погодному коду
-    const rainCodes = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99];
-    const snowCodes = [71, 73, 75, 77, 85, 86];
-    const drizzleCodes = [51, 53, 55]; // Морось
-    
-    if (snowCodes.includes(weatherCode)) {
-        return 'снег';
-    } else if (rainCodes.includes(weatherCode)) {
-        return 'дождь';
-    } else if (drizzleCodes.includes(weatherCode)) {
-        return 'морось';
-    } else {
-        return 'осадки';
-    }
-}
-
-function getPrecipitationEmoji(type) {
-    const emojiMap = {
-        'снег': '❄️',
-        'дождь': '🌧️',
-        'морось': '🌦️',
-        'осадки': '🌧️',
-        'без осадков': ''
-    };
-    return emojiMap[type] || '';
-}
-
-// Функция для получения текущей погоды (СЕЙЧАС)
-async function getWeatherData(cityName) {
-    console.log(`🌤️ Запрашиваю погоду для: "${cityName}"`);
-    
-    try {
-        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
-        console.log(`📍 Geo URL: ${geoUrl}`);
-        
-        const geoResponse = await fetch(geoUrl);
-        const geoData = await geoResponse.json();
-        
-        console.log('📍 Geo ответ:', JSON.stringify(geoData).slice(0, 200));
-        
-        if (!geoData.results || geoData.results.length === 0) {
-            console.error('📍 Город не найден');
-            throw new Error('Город не найден');
-        }
-        
-        const { latitude, longitude, name } = geoData.results[0];
-        console.log(`📍 Координаты: ${latitude}, ${longitude} (${name})`);
-        
-        // ИСПРАВЛЕНИЕ: Запрашиваем и текущую погоду, и daily прогноз
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m&daily=precipitation_sum,weather_code&wind_speed_unit=ms&timezone=auto&forecast_days=2`;
-        console.log(`🌤️ Weather URL: ${weatherUrl}`);
-        
-        const weatherResponse = await fetch(weatherUrl);
-        const weatherData = await weatherResponse.json();
-        
-        console.log('🌤️ Weather ответ (current):', JSON.stringify(weatherData.current).slice(0, 200));
-        console.log('🌤️ Weather ответ (daily):', JSON.stringify(weatherData.daily).slice(0, 200));
-        
-        if (!weatherData.current || !weatherData.daily) {
-            console.error('🌤️ Нет данных о погоде');
-            throw new Error('Нет данных о погоде');
-        }
-        
-        const current = weatherData.current;
-        // Берем данные осадков из daily[0] (сегодня), а не из current
-        const todayPrecipitation = weatherData.daily.precipitation_sum[0] || 0;
-        const todayWeatherCode = weatherData.daily.weather_code[0];
-        
-        // Определяем тип осадков
-        const precipitationType = getPrecipitationType(todayWeatherCode, todayPrecipitation);
-        const precipitationEmoji = getPrecipitationEmoji(precipitationType);
-        
-        // Форматируем текст осадков
-        let precipitationText;
-        if (precipitationType === 'без осадков') {
-            precipitationText = 'Без осадков';
-        } else {
-            precipitationText = `${precipitationEmoji} ${todayPrecipitation.toFixed(1)} мм`;
-        }
-        
-        return {
-            temp: Math.round(current.temperature_2m),
-            feels_like: Math.round(current.apparent_temperature),
-            humidity: current.relative_humidity_2m,
-            wind: current.wind_speed_10m.toFixed(1),
-            precipitation: precipitationText,
-            precipitation_value: todayPrecipitation,
-            precipitation_type: precipitationType,
-            description: getWeatherDescription(todayWeatherCode),
-            city: name
-        };
-        
-    } catch (error) {
-        console.error('❌ Ошибка получения погоды:', error.message);
-        return {
-            temp: 20,
-            feels_like: 19,
-            humidity: 65,
-            wind: '3.0',
-            precipitation: 'Без осадков',
-            precipitation_value: 0,
-            precipitation_type: 'без осадков',
-            description: 'Ясно ☀️',
-            city: cityName
-        };
-    }
-}
-
-// Функция для получения прогноза на ЗАВТРА
-async function getTomorrowWeather(cityName) {
-    console.log(`📅 Запрашиваю прогноз на завтра для: "${cityName}"`);
-    
-    try {
-        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
-        const geoResponse = await fetch(geoUrl);
-        const geoData = await geoResponse.json();
-        
-        if (!geoData.results || geoData.results.length === 0) {
-            throw new Error('Город не найден');
-        }
-        
-        const { latitude, longitude, name } = geoData.results[0];
-        
-        // Запрашиваем прогноз на 3 дня
-        const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=3`;
-        console.log(`📅 Forecast URL: ${forecastUrl}`);
-        
-        const forecastResponse = await fetch(forecastUrl);
-        const forecastData = await forecastResponse.json();
-        
-        console.log('📅 Forecast ответ:', JSON.stringify(forecastData.daily).slice(0, 300));
-        
-        if (!forecastData.daily || 
-            forecastData.daily.time.length < 2 ||
-            forecastData.daily.precipitation_sum[1] === undefined) {
-            console.error('📅 Нет данных прогноза для завтрашнего дня');
-            throw new Error('Нет данных прогноза для завтра');
-        }
-        
-        const tomorrowPrecipitation = forecastData.daily.precipitation_sum[1];
-        const tomorrowCode = forecastData.daily.weather_code[1];
-        
-        console.log('📅 Данные на завтра:', {
-            precipitation: tomorrowPrecipitation,
-            code: tomorrowCode
-        });
-        
-        // Определяем тип осадков
-        const precipitationType = getPrecipitationType(tomorrowCode, tomorrowPrecipitation);
-        const precipitationEmoji = getPrecipitationEmoji(precipitationType);
-        
-        // Форматируем текст осадков
-        let precipitationText;
-        if (precipitationType === 'без осадков') {
-            precipitationText = 'Без осадков';
-        } else {
-            precipitationText = `${precipitationEmoji} ${tomorrowPrecipitation.toFixed(1)} мм`;
-        }
-        
-        return {
-            city: name,
-            temp_max: Math.round(forecastData.daily.temperature_2m_max[1]),
-            temp_min: Math.round(forecastData.daily.temperature_2m_min[1]),
-            precipitation: precipitationText,
-            precipitation_value: tomorrowPrecipitation,
-            precipitation_type: precipitationType,
-            description: getWeatherDescription(tomorrowCode),
-            rawCode: tomorrowCode
-        };
-        
-    } catch (error) {
-        console.error('❌ Ошибка прогноза:', error.message);
-        console.error('❌ Stack:', error.stack);
-        return {
-            city: cityName,
-            temp_max: 24,
-            temp_min: 18,
-            precipitation: 'Без осадков',
-            precipitation_value: 0,
-            precipitation_type: 'без осадков',
-            description: 'Переменная облачность ⛅',
-            isFallback: true
-        };
-    }
-}
-
-function getWeatherDescription(code) {
-    console.log('📝 Получен код для описания:', code, typeof code);
-    
+// Функция для получения подробного описания погоды с учетом осадков
+function getDetailedWeatherDescription(code, precipitationMm = 0) {
     if (code === undefined || code === null) {
         return 'Погодные данные';
     }
@@ -256,7 +62,191 @@ function getWeatherDescription(code) {
         99: 'Гроза с сильным градом ⛈️'
     };
     
-    return weatherMap[code] || `Код погоды: ${code}`;
+    let description = weatherMap[code] || `Код погоды: ${code}`;
+    
+    // Улучшенная логика с учетом осадков
+    if (precipitationMm > 0) {
+        if ([0, 1, 2, 3, 45, 48].includes(code)) {
+            if (precipitationMm < 0.5) {
+                description = `Пасмурно, возможны кратковременные осадки 🌦️`;
+            } else if (precipitationMm < 2) {
+                description = `Пасмурно, возможна слабая морось 🌦️ (${precipitationMm.toFixed(1)} мм)`;
+            } else if (precipitationMm < 10) {
+                description = `Пасмурно, возможен дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
+            } else {
+                description = `Пасмурно, возможен сильный дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
+            }
+        } else if ([51, 53, 61, 63, 65, 71, 73, 75, 80, 81, 82, 85, 86].includes(code)) {
+            description += ` (${precipitationMm.toFixed(1)} мм)`;
+        }
+    } else if (precipitationMm === 0 && [3].includes(code)) {
+        description = 'Пасмурно, без осадков ☁️';
+    }
+    
+    return description;
+}
+
+// Функция для получения текущей погоды (остается без изменений)
+async function getWeatherData(cityName) {
+    console.log(`🌤️ Запрашиваю погоду для: "${cityName}"`);
+    
+    try {
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+        const geoResponse = await fetch(geoUrl);
+        const geoData = await geoResponse.json();
+        
+        if (!geoData.results || geoData.results.length === 0) {
+            throw new Error('Город не найден');
+        }
+        
+        const { latitude, longitude, name } = geoData.results[0];
+        
+        // Запрос для текущей погоды
+        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&daily=precipitation_sum&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
+        
+        const weatherResponse = await fetch(weatherUrl);
+        const weatherData = await weatherResponse.json();
+        
+        if (!weatherData.current) {
+            throw new Error('Нет данных о погоде');
+        }
+        
+        const current = weatherData.current;
+        const todayPrecipitation = weatherData.daily?.precipitation_sum[0] || 0;
+        
+        return {
+            temp: Math.round(current.temperature_2m),
+            feels_like: Math.round(current.apparent_temperature),
+            humidity: current.relative_humidity_2m,
+            wind: current.wind_speed_10m.toFixed(1),
+            precipitation: todayPrecipitation > 0 ? `${todayPrecipitation.toFixed(1)} мм` : 'Без осадков',
+            precipitation_value: todayPrecipitation,
+            description: getDetailedWeatherDescription(current.weather_code, todayPrecipitation),
+            city: name
+        };
+        
+    } catch (error) {
+        console.error('❌ Ошибка получения погоды:', error.message);
+        return {
+            temp: 20,
+            feels_like: 19,
+            humidity: 65,
+            wind: '3.0',
+            precipitation: 'Без осадков',
+            precipitation_value: 0,
+            description: 'Ясно ☀️',
+            city: cityName
+        };
+    }
+}
+
+// Функция для получения ПОДРОБНОГО прогноза на ЗАВТРА (с разбивкой по времени)
+async function getDetailedTomorrowWeather(cityName) {
+    console.log(`📅 Запрашиваю подробный прогноз на завтра для: "${cityName}"`);
+    
+    try {
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+        const geoResponse = await fetch(geoUrl);
+        const geoData = await geoResponse.json();
+        
+        if (!geoData.results || geoData.results.length === 0) {
+            throw new Error('Город не найден');
+        }
+        
+        const { latitude, longitude, name } = geoData.results[0];
+        
+        // ЗАПРАШИВАЕМ ПОЧАСОВОЙ ПРОГНОЗ на 48 часов
+        const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=2`;
+        
+        const forecastResponse = await fetch(forecastUrl);
+        const forecastData = await forecastResponse.json();
+        
+        if (!forecastData.hourly || !forecastData.daily) {
+            throw new Error('Нет данных прогноза для завтра');
+        }
+        
+        // Индексы для завтрашнего дня (с 24 по 47 часы)
+        const tomorrowHourlyData = {
+            times: forecastData.hourly.time.slice(24, 48),
+            temperatures: forecastData.hourly.temperature_2m.slice(24, 48),
+            precipitations: forecastData.hourly.precipitation.slice(24, 48),
+            weatherCodes: forecastData.hourly.weather_code.slice(24, 48)
+        };
+        
+        // Разбиваем на временные интервалы
+        const timeIntervals = {
+            '🌅 Утро (06:00-12:00)': { start: 6, end: 12 },
+            '☀️ День (12:00-18:00)': { start: 12, end: 18 },
+            '🌆 Вечер (18:00-00:00)': { start: 18, end: 24 },
+            '🌙 Ночь (00:00-06:00)': { start: 0, end: 6 }
+        };
+        
+        const periodForecasts = [];
+        
+        for (const [periodName, { start, end }] of Object.entries(timeIntervals)) {
+            const periodHours = [];
+            
+            // Собираем данные для каждого часа в периоде
+            for (let hour = start; hour < end; hour++) {
+                periodHours.push({
+                    temp: tomorrowHourlyData.temperatures[hour],
+                    precipitation: tomorrowHourlyData.precipitations[hour],
+                    weatherCode: tomorrowHourlyData.weatherCodes[hour]
+                });
+            }
+            
+            // Вычисляем средние/максимальные значения для периода
+            const avgTemp = Math.round(periodHours.reduce((sum, h) => sum + h.temp, 0) / periodHours.length);
+            const maxPrecipitation = Math.max(...periodHours.map(h => h.precipitation));
+            const dominantWeatherCode = getDominantWeatherCode(periodHours.map(h => h.weatherCode));
+            
+            periodForecasts.push({
+                period: periodName,
+                temp: avgTemp,
+                precipitation: maxPrecipitation,
+                weatherCode: dominantWeatherCode,
+                description: getDetailedWeatherDescription(dominantWeatherCode, maxPrecipitation)
+            });
+        }
+        
+        // Общие данные на день
+        const tomorrowPrecipitation = forecastData.daily.precipitation_sum[1] || 0;
+        const tomorrowCode = getDominantWeatherCode(tomorrowHourlyData.weatherCodes);
+        
+        return {
+            city: name,
+            temp_max: Math.round(forecastData.daily.temperature_2m_max[1]),
+            temp_min: Math.round(forecastData.daily.temperature_2m_min[1]),
+            precipitation: tomorrowPrecipitation > 0 ? `${tomorrowPrecipitation.toFixed(1)} мм` : 'Без осадков',
+            precipitation_value: tomorrowPrecipitation,
+            description: getDetailedWeatherDescription(tomorrowCode, tomorrowPrecipitation),
+            periodForecasts: periodForecasts, // Детализация по периодам
+            rawCode: tomorrowCode
+        };
+        
+    } catch (error) {
+        console.error('❌ Ошибка прогноза:', error.message);
+        return {
+            city: cityName,
+            temp_max: 24,
+            temp_min: 18,
+            precipitation: 'Без осадков',
+            precipitation_value: 0,
+            description: 'Переменная облачность ⛅',
+            periodForecasts: [],
+            isFallback: true
+        };
+    }
+}
+
+// Вспомогательная функция для определения доминирующего кода погоды
+function getDominantWeatherCode(codes) {
+    const frequency = {};
+    codes.forEach(code => {
+        frequency[code] = (frequency[code] || 0) + 1;
+    });
+    
+    return Object.keys(frequency).reduce((a, b) => frequency[a] > frequency[b] ? a : b);
 }
 
 // ===================== РАСШИРЕННЫЕ СОВЕТЫ ПО ОДЕЖДЕ =====================
@@ -1089,21 +1079,28 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
         
         await ctx.reply(`📅 Получаю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
         
-        const forecast = await getTomorrowWeather(city);
-        console.log('📅 Получен прогноз:', forecast);
-        
-        if (!forecast) {
-            await ctx.reply('Не удалось получить прогноз. Попробуйте позже.', { reply_markup: mainMenuKeyboard });
-            return;
-        }
-        
-        const message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n` +
-                       `🔺 Максимум: *${forecast.temp_max}°C*\n` +
-                       `🔻 Минимум: *${forecast.temp_min}°C*\n` +
-                       `📝 ${forecast.description}\n` +
-                       `🌧️ Осадки: ${forecast.precipitation}\n\n` +
-                       `💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
-        
+        // В обработчике "ПОГОДА ЗАВТРА" или /forecast
+const forecast = await getDetailedTomorrowWeather(city);
+
+// Формируем сообщение с детализацией
+let message = `📅 *Прогноз на завтра в ${forecast.city}*\n\n`;
+message += `🔺 Максимум: *${forecast.temp_max}°C*\n`;
+message += `🔻 Минимум: *${forecast.temp_min}°C*\n`;
+message += `📝 ${forecast.description}\n`;
+message += `🌧️ Осадки: ${forecast.precipitation}\n\n`;
+
+// Добавляем детализацию по периодам
+if (forecast.periodForecasts && forecast.periodForecasts.length > 0) {
+    message += `*📊 Подробно по времени:*\n`;
+    forecast.periodForecasts.forEach(period => {
+        message += `\n${period.period}: ${period.temp}°C, ${period.description}`;
+    });
+    message += `\n`;
+}
+
+message += `\n💡 *Совет:* ${getTomorrowAdvice(forecast)}`;
+
+await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
         await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
         
     } catch (error) {
