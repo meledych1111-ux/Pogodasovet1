@@ -11,9 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Размеры игрового поля - классический Tetris
     const COLS = 10;
     const ROWS = 20;
-    const BLOCK_SIZE = 30;
+    const BLOCK_SIZE = 25; // Уменьшен размер для лучшего обзора
     
-    // Цвета блоков в классическом стиле NES Tetris
+    // Цвета блоков в классическом стиле
     const COLORS = [
         null,
         '#00FFFF', // I - голубой
@@ -25,7 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
         '#FF0000'  // Z - красный
     ];
     
-    // Фигуры тетрамино в классическом представлении
+    // Названия фигур
+    const PIECE_NAMES = ['', 'I', 'J', 'L', 'O', 'S', 'T', 'Z'];
+    
+    // Фигуры тетрамино
     const SHAPES = [
         null,
         [ // I
@@ -77,7 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         dropCounter: 0,
         gameOver: false,
         paused: false,
-        nextPiece: null
+        nextPiece: null,
+        nextPieceType: 0
     };
     
     // =================== ФУНКЦИИ ===================
@@ -140,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawBoard() {
         // Рисуем черный фон игрового поля
         context.fillStyle = '#111';
-        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillRect(0, 0, COLS * BLOCK_SIZE, ROWS * BLOCK_SIZE);
         
         // Рисуем сетку игрового поля
         context.strokeStyle = 'rgba(255, 255, 255, 0.1)';
@@ -163,50 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    function drawNextPiece() {
-        // Рисуем панель для следующей фигуры
-        const nextX = COLS + 2;
-        const nextY = 2;
-        
-        // Фон панели
-        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        context.fillRect(nextX * BLOCK_SIZE - 10, nextY * BLOCK_SIZE - 25, 150, 100);
-        
-        // Заголовок
-        context.fillStyle = 'white';
-        context.font = 'bold 14px Arial';
-        context.textAlign = 'left';
-        context.fillText('Следующая:', nextX * BLOCK_SIZE - 5, nextY * BLOCK_SIZE - 10);
-        
-        // Рисуем следующую фигуру
-        if (player.nextPiece) {
-            drawMatrix(player.nextPiece, {x: nextX, y: nextY});
-        }
-    }
-    
-    function drawGameInfo() {
-        const infoX = COLS + 2;
-        
-        // Фон для информации
-        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        context.fillRect(infoX * BLOCK_SIZE - 10, 100, 150, 150);
-        
-        // Информация
-        context.fillStyle = 'white';
-        context.font = '16px Arial';
-        context.textAlign = 'left';
-        
-        context.fillText('Уровень: ' + player.level, infoX * BLOCK_SIZE - 5, 130);
-        context.fillText('Линии: ' + player.lines, infoX * BLOCK_SIZE - 5, 155);
-        context.fillText('Следующий уровень', infoX * BLOCK_SIZE - 5, 180);
-        context.fillText('через: ' + (10 - (player.lines % 10)), infoX * BLOCK_SIZE - 5, 205);
-        
-        // Скорость падения
-        context.fillText('Скорость:', infoX * BLOCK_SIZE - 5, 230);
-        const speed = Math.round(1000 / player.dropInterval);
-        context.fillText(speed + ' блок/сек', infoX * BLOCK_SIZE - 5, 255);
-    }
-    
     function draw() {
         // Очищаем весь канвас
         context.clearRect(0, 0, canvas.width, canvas.height);
@@ -222,37 +182,75 @@ document.addEventListener('DOMContentLoaded', () => {
             drawMatrix(player.matrix, player.pos);
         }
         
-        // Рисуем следующую фигуру и информацию
-        drawNextPiece();
-        drawGameInfo();
+        // Рисуем следующую фигуру
+        if (player.nextPiece) {
+            // Фон для панели следующей фигуры
+            context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            context.fillRect((COLS + 1) * BLOCK_SIZE, 0, 4 * BLOCK_SIZE, 5 * BLOCK_SIZE);
+            
+            // Заголовок
+            context.fillStyle = 'white';
+            context.font = 'bold 16px Arial';
+            context.textAlign = 'center';
+            context.fillText('Следующая:', (COLS + 3) * BLOCK_SIZE, 20);
+            
+            // Рисуем следующую фигуру
+            drawMatrix(player.nextPiece, {x: COLS + 2, y: 2});
+        }
+        
+        // Рисуем информацию о игре
+        const infoX = COLS + 1;
+        const infoY = 6;
+        
+        // Фон для информации
+        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        context.fillRect(infoX * BLOCK_SIZE, infoY * BLOCK_SIZE, 4 * BLOCK_SIZE, 7 * BLOCK_SIZE);
+        
+        // Информация
+        context.fillStyle = 'white';
+        context.font = '14px Arial';
+        context.textAlign = 'left';
+        
+        context.fillText('Скорость:', (infoX + 0.5) * BLOCK_SIZE, (infoY + 1) * BLOCK_SIZE);
+        const speed = Math.round(1000 / player.dropInterval * 10) / 10;
+        context.fillText(speed + ' бл/с', (infoX + 2) * BLOCK_SIZE, (infoY + 1) * BLOCK_SIZE);
+        
+        context.fillText('След. уровень:', (infoX + 0.5) * BLOCK_SIZE, (infoY + 2) * BLOCK_SIZE);
+        const linesToNext = 10 - (player.lines % 10);
+        context.fillText(linesToNext + ' линий', (infoX + 2) * BLOCK_SIZE, (infoY + 2) * BLOCK_SIZE);
+        
+        context.fillText('Фигура:', (infoX + 0.5) * BLOCK_SIZE, (infoY + 3) * BLOCK_SIZE);
+        if (player.nextPieceType > 0) {
+            context.fillText(PIECE_NAMES[player.nextPieceType], (infoX + 2) * BLOCK_SIZE, (infoY + 3) * BLOCK_SIZE);
+        }
         
         // Сообщение о паузе
         if (player.paused && !player.gameOver) {
             context.fillStyle = 'rgba(0, 0, 0, 0.8)';
-            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillRect(0, 0, COLS * BLOCK_SIZE, ROWS * BLOCK_SIZE);
             
             context.fillStyle = 'white';
-            context.font = 'bold 32px Arial';
+            context.font = 'bold 28px Arial';
             context.textAlign = 'center';
-            context.fillText('ПАУЗА', canvas.width / 2, canvas.height / 2 - 20);
+            context.fillText('ПАУЗА', COLS * BLOCK_SIZE / 2, ROWS * BLOCK_SIZE / 2 - 20);
             context.font = '18px Arial';
-            context.fillText('Нажмите P для продолжения', canvas.width / 2, canvas.height / 2 + 20);
+            context.fillText('Нажмите P для продолжения', COLS * BLOCK_SIZE / 2, ROWS * BLOCK_SIZE / 2 + 20);
             context.textAlign = 'left';
         }
         
         // Сообщение о конце игры
         if (player.gameOver) {
             context.fillStyle = 'rgba(0, 0, 0, 0.9)';
-            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillRect(0, 0, COLS * BLOCK_SIZE, ROWS * BLOCK_SIZE);
             
             context.fillStyle = 'white';
-            context.font = 'bold 36px Arial';
+            context.font = 'bold 32px Arial';
             context.textAlign = 'center';
-            context.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 40);
+            context.fillText('GAME OVER', COLS * BLOCK_SIZE / 2, ROWS * BLOCK_SIZE / 2 - 40);
             context.font = '24px Arial';
-            context.fillText(`Счёт: ${player.score}`, canvas.width / 2, canvas.height / 2);
+            context.fillText(`Счёт: ${player.score}`, COLS * BLOCK_SIZE / 2, ROWS * BLOCK_SIZE / 2);
             context.font = '18px Arial';
-            context.fillText('Нажмите "Старт" для новой игры', canvas.width / 2, canvas.height / 2 + 40);
+            context.fillText('Нажмите "Старт" для новой игры', COLS * BLOCK_SIZE / 2, ROWS * BLOCK_SIZE / 2 + 40);
             context.textAlign = 'left';
         }
     }
@@ -378,7 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Если нет следующей фигуры, создаем новую случайную
         if (!player.nextPiece) {
             const pieces = 'IJLOSTZ';
-            player.nextPiece = createPiece(pieces.charCodeAt(Math.floor(Math.random() * pieces.length)) % 7 + 1);
+            player.nextPieceType = pieces.charCodeAt(Math.floor(Math.random() * pieces.length)) % 7 + 1;
+            player.nextPiece = createPiece(player.nextPieceType);
         }
         
         // Текущая фигура становится следующей
@@ -388,7 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Генерируем новую следующую фигуру
         const pieces = 'IJLOSTZ';
-        player.nextPiece = createPiece(pieces.charCodeAt(Math.floor(Math.random() * pieces.length)) % 7 + 1);
+        player.nextPieceType = pieces.charCodeAt(Math.floor(Math.random() * pieces.length)) % 7 + 1;
+        player.nextPiece = createPiece(player.nextPieceType);
         
         // Проверка на конец игры
         if (collide(board, player)) {
@@ -432,14 +432,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const newLevel = Math.floor(player.lines / 10) + 1;
             if (newLevel > player.level) {
                 player.level = newLevel;
-                // Увеличиваем скорость постепенно (максимум 15 уровней для комфортной игры)
-                if (player.level <= 15) {
-                    player.dropInterval = Math.max(50, 1000 - (player.level - 1) * 60);
+                // Увеличиваем скорость постепенно (максимум 20 уровней для комфортной игры)
+                if (player.level <= 20) {
+                    player.dropInterval = Math.max(100, 1000 - (player.level - 1) * 50);
                 }
             }
             
             // Отправляем промежуточный счёт
             sendScoreToBot();
+            updateScore();
         }
     }
     
@@ -474,6 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
             player.gameOver = false;
             player.paused = false;
             player.nextPiece = null;
+            player.nextPieceType = 0;
             updateScore();
         }
         
