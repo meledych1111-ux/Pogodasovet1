@@ -659,17 +659,19 @@ const cityKeyboard = new Keyboard()
     .resized();
 
 // ===================== ОБРАБОТЧИК ДАННЫХ ИЗ ИГРЫ =====================
-bot.on('web_app_data', async (ctx) => {
+bot.on('message:web_app_data', async (ctx) => {
     const userId = ctx.from.id;
     console.log(`📱 Получены данные от Mini App от пользователя ${userId}`);
     
     try {
-        if (!ctx.webAppData || !ctx.webAppData.data) {
+        // Доступ к данным через ctx.message.web_app_data
+        if (!ctx.message?.web_app_data?.data) {
             console.log('❌ Нет данных от игры');
             return;
         }
         
-        const data = JSON.parse(ctx.webAppData.data);
+        const webAppData = ctx.message.web_app_data;
+        const data = JSON.parse(webAppData.data);
         console.log('🎮 Данные игры:', data);
         
         if (data.action === 'tetris_score') {
@@ -712,7 +714,6 @@ bot.on('web_app_data', async (ctx) => {
         });
     }
 });
-
 // ===================== ОСНОВНЫЕ КОМАНДЫ =====================
 bot.command('start', async (ctx) => {
     console.log(`🚀 /start от ${ctx.from.id}`);
