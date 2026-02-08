@@ -5,38 +5,28 @@
       "memory": 1024
     },
     "api/save-score.js": {
-      "maxDuration": 10,
-      "memory": 512
-    },
-    "api/user-stats.js": {
-      "maxDuration": 10,
-      "memory": 512
-    },
-    "api/top-players.js": {
-      "maxDuration": 10,
-      "memory": 512
-    },
-    "api/check-db.js": {
-      "maxDuration": 10,
-      "memory": 512
-    },
-    "api/diagnose.js": {
-      "maxDuration": 10,
-      "memory": 512
+      "maxDuration": 10
     },
     "api/save-progress.js": {
-      "maxDuration": 10,
-      "memory": 512
+      "maxDuration": 10
     },
     "api/get-progress.js": {
-      "maxDuration": 10,
-      "memory": 512
+      "maxDuration": 10
+    },
+    "api/user-stats.js": {
+      "maxDuration": 10
+    },
+    "api/top-players.js": {
+      "maxDuration": 10
+    },
+    "api/check-db.js": {
+      "maxDuration": 10
     }
   },
   "rewrites": [
     {
       "source": "/",
-      "destination": "/api/bot"
+      "destination": "/api/bot.js"
     },
     {
       "source": "/api/bot",
@@ -47,85 +37,8 @@
       "destination": "/public/index.html"
     },
     {
-      "source": "/api/check-db",
-      "destination": "/api/check-db.js"
-    },
-    {
-      "source": "/api/diagnose",
-      "destination": "/api/diagnose.js"
-    },
-    {
-      "source": "/api/save-score",
-      "destination": "/api/save-score.js"
-    },
-    {
-      "source": "/api/save-progress",
-      "destination": "/api/save-progress.js"
-    },
-    {
-      "source": "/api/get-progress",
-      "destination": "/api/get-progress.js"
-    },
-    {
-      "source": "/api/user-stats",
-      "destination": "/api/user-stats.js"
-    },
-    {
-      "source": "/api/top-players",
-      "destination": "/api/top-players.js"
-    }
-  ],
-  "headers": [
-    {
       "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Credentials",
-          "value": "true"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
-        }
-      ]
-    },
-    {
-      "source": "/game",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        }
-      ]
+      "destination": "/api/$1"
     }
   ]
 }
