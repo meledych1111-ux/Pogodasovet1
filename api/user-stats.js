@@ -1,4 +1,4 @@
-import { getGameStats } from './db.js';
+import { saveGameProgress, deleteGameProgress, getGameProgress } from './db.js';
 
 export default async function handler(req, res) {
   console.log('📊 API: /api/user-stats - запрос статистики пользователя');
