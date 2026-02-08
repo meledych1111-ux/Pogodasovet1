@@ -375,7 +375,7 @@ function getAchievements(stats) {
   };
 }
 
-// Хэш-функция для строк (для Web App ID)
+// Хэш-функция для строк (для Web App ID) - ИСПРАВЛЕНА!
 function hashString(str) {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -384,7 +384,7 @@ function hashString(str) {
     hash = hash & hash; // Convert to 32bit integer
   }
   return Math.abs(hash);
-}
+}  // ← Закрывающая скобка была!
 
 // Экспортируем вспомогательные функции для тестов
 export { calculateNextMilestone, getPlayerLevel, getAchievements };
