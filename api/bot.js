@@ -530,7 +530,6 @@ function getWardrobeAdvice(weatherData) {
 
 // ===================== ФРАЗЫ =====================
 const dailyPhrases = [
-  // Путешествия и транспорт
   {
     english: "Where is the nearest bus stop?",
     russian: "Где ближайшая автобусная остановка?",
@@ -545,7 +544,6 @@ const dailyPhrases = [
     category: "Путешествия",
     level: "Начальный"
   },
-  // Еда и рестораны
   {
     english: "Could I see the menu, please?",
     russian: "Можно меню, пожалуйста?",
@@ -560,7 +558,6 @@ const dailyPhrases = [
     category: "Еда",
     level: "Начальный"
   },
-  // Покупки и шоппинг
   {
     english: "How much does this cost?",
     russian: "Сколько это стоит?",
@@ -575,7 +572,6 @@ const dailyPhrases = [
     category: "Шоппинг",
     level: "Начальный"
   },
-  // Здоровье и медицина
   {
     english: "I need to see a doctor",
     russian: "Мне нужно к врачу",
@@ -622,11 +618,54 @@ const cityKeyboard = new Keyboard()
     .text('🔙 НАЗАД')
     .resized();
 
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+async function ensureUserHasCity(userId, ctx, showMessage = true) {
+  try {
+    // Сначала проверяем в локальном хранилище
+    if (userStorage.has(userId) && userStorage.get(userId).city) {
+      const city = userStorage.get(userId).city;
+      console.log(`📍 Город из кэша для ${userId}: ${city}`);
+      return city;
+    }
+    
+    // Если нет в кэше, проверяем базу данных
+    const city = await getUserCity(userId);
+    
+    if (city) {
+      console.log(`📍 Город из БД для ${userId}: ${city}`);
+      // Обновляем кэш
+      userStorage.set(userId, { 
+        city, 
+        lastActivity: Date.now(), 
+        awaitingCity: false 
+      });
+      return city;
+    }
+    
+    // Если города нет, просим выбрать
+    if (showMessage) {
+      console.log(`📍 Город не найден для ${userId}, просим выбрать`);
+      await ctx.reply(
+        '📍 *Сначала выберите ваш город*\n\n' +
+        'Бот будет показывать погоду для выбранного города.',
+        { parse_mode: 'Markdown', reply_markup: cityKeyboard }
+      );
+    }
+    
+    return null;
+    
+  } catch (error) {
+    console.error('❌ Ошибка проверки города:', error);
+    return null;
+  }
+}
+
 // ===================== ОСНОВНЫЕ КОМАНДЫ =====================
 bot.command('start', async (ctx) => {
-  console.log(`🚀 /start от ${ctx.from.id}`);
+  const userId = ctx.from.id;
+  console.log(`🚀 /start от ${userId}`);
   
-  if (isRateLimited(ctx.from.id)) {
+  if (isRateLimited(userId)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
     return;
   }
@@ -648,9 +687,10 @@ bot.command('start', async (ctx) => {
 });
 
 bot.hears('🚀 НАЧАТЬ РАБОТУ', async (ctx) => {
-  console.log(`📍 НАЧАТЬ РАБОТУ от ${ctx.from.id}`);
+  const userId = ctx.from.id;
+  console.log(`📍 НАЧАТЬ РАБОТУ от ${userId}`);
   
-  if (isRateLimited(ctx.from.id)) {
+  if (isRateLimited(userId)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
     return;
   }
@@ -677,18 +717,37 @@ bot.hears(/^📍 /, async (ctx) => {
     return;
   }
   
+  // Проверка города
+  if (!city || city.length === 0 || city.length > 100) {
+    await ctx.reply('❌ Неверное название города. Попробуйте еще раз.');
+    return;
+  }
+  
   try {
+    // Показываем сообщение о сохранении
+    const loadingMsg = await ctx.reply(`⏳ Сохраняю город "${city}"...`);
+    
+    // Сохраняем город в БД
     const saved = await saveUserCity(userId, city);
     
     if (!saved) {
-      await ctx.reply('❌ Не удалось сохранить город в базу данных. Попробуйте еще раз.');
+      await ctx.deleteMessage(loadingMsg.message_id);
+      await ctx.reply(`❌ Не удалось сохранить город "${city}". Попробуйте еще раз или выберите другой город.`);
       return;
     }
     
-    userStorage.set(userId, { city, lastActivity: Date.now(), awaitingCity: false });
+    // Обновляем кэш
+    userStorage.set(userId, { 
+      city, 
+      lastActivity: Date.now(), 
+      awaitingCity: false 
+    });
+    
+    // Удаляем сообщение о загрузке
+    await ctx.deleteMessage(loadingMsg.message_id);
     
     await ctx.reply(
-      `✅ *ШАГ 3: Готово! Город "${city}" сохранён!*\n\n` +
+      `✅ *Город "${city}" успешно сохранён!*\n\n` +
       `🎉 *Теперь доступны все функции бота:*\n\n` +
       `• Узнать погоду сейчас и на завтра 🌤️\n` +
       `• Подробный прогноз на завтра по времени суток 📅\n` +
@@ -700,9 +759,12 @@ bot.hears(/^📍 /, async (ctx) => {
       `👇 *Используйте кнопки ниже:*`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
+    
+    console.log(`✅ Город сохранен в БД для ${userId}: ${city}`);
+    
   } catch (error) {
     console.error('❌ Ошибка при выборе города:', error);
-    await ctx.reply('❌ Ошибка при сохранении города. Попробуйте еще раз.');
+    await ctx.reply('❌ Произошла ошибка при сохранении города. Попробуйте еще раз.');
   }
 });
 
@@ -767,12 +829,9 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
   }
   
   try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-      return;
-    }
+    // Проверяем и получаем город
+    const city = await ensureUserHasCity(userId, ctx);
+    if (!city) return;
     
     await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`, { parse_mode: 'Markdown' });
     
@@ -841,12 +900,9 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
   }
   
   try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-      return;
-    }
+    // Проверяем и получаем город
+    const city = await ensureUserHasCity(userId, ctx);
+    if (!city) return;
     
     await ctx.reply(`⏳ Запрашиваю прогноз погоды для ${city}...`, { 
       parse_mode: 'Markdown' 
@@ -905,12 +961,9 @@ bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   }
   
   try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-      return;
-    }
+    // Проверяем и получаем город
+    const city = await ensureUserHasCity(userId, ctx);
+    if (!city) return;
     
     await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
     
@@ -1179,7 +1232,7 @@ bot.on('message:text', async (ctx) => {
   } else {
     // Если просто текст, а не город
     try {
-      const city = await getUserCity(userId);
+      const city = await ensureUserHasCity(userId, ctx, false);
       if (!city) {
         await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
       } else {
@@ -1204,12 +1257,8 @@ bot.command('weather', async (ctx) => {
   }
   
   try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
-      return;
-    }
+    const city = await ensureUserHasCity(userId, ctx);
+    if (!city) return;
     
     await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`);
     
@@ -1241,12 +1290,8 @@ bot.command('forecast', async (ctx) => {
   }
   
   try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
-      return;
-    }
+    const city = await ensureUserHasCity(userId, ctx);
+    if (!city) return;
     
     await ctx.reply(`⏳ Запрашиваю прогноз погоды для ${city}...`);
     
@@ -1276,12 +1321,8 @@ bot.command('wardrobe', async (ctx) => {
   }
   
   try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
-      return;
-    }
+    const city = await ensureUserHasCity(userId, ctx);
+    if (!city) return;
     
     await ctx.reply(`👗 Анализирую погоду для ${city}...`);
     
