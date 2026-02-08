@@ -3,6 +3,18 @@
     "api/bot.js": {
       "maxDuration": 30,
       "memory": 1024
+    },
+    "api/save-score.js": {
+      "maxDuration": 10
+    },
+    "api/user-stats.js": {
+      "maxDuration": 10
+    },
+    "api/top-players.js": {
+      "maxDuration": 10
+    },
+    "api/check-db.js": {
+      "maxDuration": 10
     }
   },
   "rewrites": [
@@ -19,8 +31,8 @@
       "destination": "/public/index.html"
     },
     {
-      "source": "/public/(.*)",
-      "destination": "/public/$1"
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     }
   ]
 }
