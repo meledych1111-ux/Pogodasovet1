@@ -1,6 +1,6 @@
-import { saveGameScore } from './init-db.js';
+const { saveGameScore } = require('./db.js');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     
     if (!userId || score === undefined) {
       return res.status(400).json({ 
-        error: 'Missing required fields: userId and score' 
+        error: 'Missing required fields' 
       });
     }
 
@@ -19,20 +19,13 @@ export default async function handler(req, res) {
     return res.status(200).json({ 
       success: true, 
       id: resultId,
-      message: 'Score saved successfully'
+      message: 'Score saved'
     });
     
   } catch (error) {
     console.error('Error saving score:', error);
     return res.status(500).json({ 
-      error: 'Internal server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: 'Internal server error'
     });
   }
-}
-
-export const config = {
-  api: {
-    bodyParser: true,
-  },
 };
