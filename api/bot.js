@@ -1,11 +1,11 @@
-import { Bot, Keyboard } from 'grammy';
-import { 
-  saveUserCity, 
-  getUserCity, 
-  saveGameScore, 
-  getGameStats as fetchGameStats,
-  getTopPlayers as fetchTopPlayers,
-  checkDatabaseConnection 
+import { Bot, Keyboard, InlineKeyboard } from 'grammy';
+import {
+  saveUserCity,
+  getUserCity,
+  saveGameScore,
+  getGameStats,
+  getTopPlayers,
+  checkDatabaseConnection
 } from './db.js';
 
 // ===================== КОНФИГУРАЦИЯ =====================
@@ -92,9 +92,31 @@ function isRateLimited(userId) {
 // ===================== КЭШ ПОГОДЫ =====================
 const weatherCache = new Map();
 
-// ===================== ФУНКЦИИ ПОГОДЫ =====================
+// Получение координат города
+async function getCityCoordinates(cityName) {
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+    const geoResponse = await fetch(geoUrl);
+    const geoData = await geoResponse.json();
+    
+    if (!geoData.results || geoData.results.length === 0) {
+      throw new Error('Город не найден');
+    }
+    
+    return {
+      latitude: geoData.results[0].latitude,
+      longitude: geoData.results[0].longitude,
+      name: geoData.results[0].name
+    };
+  } catch (error) {
+    console.error('❌ Ошибка получения координат:', error.message);
+    throw error;
+  }
+}
+
+// Функция для получения подробной погоды на сегодня
 async function getWeatherData(cityName, forceRefresh = false) {
-  const cacheKey = `current_${cityName.toLowerCase()}`;
+  const cacheKey = cityName.toLowerCase();
   const now = Date.now();
   
   // Проверяем кэш (актуален 10 минут)
@@ -109,18 +131,10 @@ async function getWeatherData(cityName, forceRefresh = false) {
   console.log(`🌤️ Запрашиваю погоду для: "${cityName}"`);
   
   try {
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
-    const geoResponse = await fetch(geoUrl);
-    const geoData = await geoResponse.json();
+    const { latitude, longitude, name } = await getCityCoordinates(cityName);
     
-    if (!geoData.results || geoData.results.length === 0) {
-      throw new Error('Город не найден');
-    }
-    
-    const { latitude, longitude, name } = geoData.results[0];
-    
-    // Запрос для текущей погоды
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&daily=precipitation_sum&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
+    // Запрос для текущей погоды с почасовым прогнозом
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,precipitation,cloud_cover&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&wind_speed_unit=ms&timezone=auto&forecast_days=2`;
     
     const weatherResponse = await fetch(weatherUrl);
     const weatherData = await weatherResponse.json();
@@ -132,6 +146,9 @@ async function getWeatherData(cityName, forceRefresh = false) {
     const current = weatherData.current;
     const todayPrecipitation = weatherData.daily?.precipitation_sum[0] || 0;
     
+    // Получаем почасовой прогноз на сегодня
+    const hourlyToday = getHourlyForecast(weatherData.hourly, 0, 24);
+    
     const weatherResult = {
       temp: Math.round(current.temperature_2m),
       feels_like: Math.round(current.apparent_temperature),
@@ -139,9 +156,12 @@ async function getWeatherData(cityName, forceRefresh = false) {
       wind: current.wind_speed_10m.toFixed(1),
       precipitation: todayPrecipitation > 0 ? `${todayPrecipitation.toFixed(1)} мм` : 'Без осадков',
       precipitation_value: todayPrecipitation,
-      description: getDetailedWeatherDescription(current.weather_code, todayPrecipitation),
+      cloud_cover: current.cloud_cover,
+      description: getDetailedWeatherDescription(current.weather_code, todayPrecipitation, current.cloud_cover),
       city: name,
-      timestamp: new Date().toLocaleTimeString('ru-RU')
+      hourly: hourlyToday,
+      max_temp: Math.round(weatherData.daily?.temperature_2m_max[0] || current.temperature_2m),
+      min_temp: Math.round(weatherData.daily?.temperature_2m_min[0] || current.temperature_2m)
     };
     
     // Сохраняем в кэш
@@ -169,122 +189,111 @@ async function getWeatherData(cityName, forceRefresh = false) {
       wind: '3.0',
       precipitation: 'Без осадков',
       precipitation_value: 0,
+      cloud_cover: 30,
       description: 'Ясно ☀️',
       city: cityName,
-      timestamp: new Date().toLocaleTimeString('ru-RU')
+      hourly: [],
+      max_temp: 22,
+      min_temp: 15
     };
   }
 }
 
-async function getWeatherForecast(cityName) {
-  const cacheKey = `forecast_${cityName.toLowerCase()}`;
+// Функция для получения подробного прогноза на завтра (утро, день, вечер, ночь)
+async function getWeatherForecastDetailed(cityName) {
+  const cacheKey = `${cityName.toLowerCase()}_detailed_forecast`;
   const now = Date.now();
   
-  // Проверяем кэш (актуален 30 минут для прогноза)
+  // Проверяем кэш (актуален 30 минут)
   if (weatherCache.has(cacheKey)) {
     const cached = weatherCache.get(cacheKey);
     if (now - cached.timestamp < 1800000) {
-      console.log(`🌤️ Использую кэшированный прогноз для ${cityName}`);
+      console.log(`📅 Использую кэшированный подробный прогноз для ${cityName}`);
       return cached.data;
     }
   }
   
-  console.log(`🌤️ Запрашиваю прогноз на завтра для: "${cityName}"`);
+  console.log(`📅 Запрашиваю подробный прогноз погоды для: "${cityName}"`);
   
   try {
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
-    const geoResponse = await fetch(geoUrl);
-    const geoData = await geoResponse.json();
+    const { latitude, longitude, name } = await getCityCoordinates(cityName);
     
-    if (!geoData.results || geoData.results.length === 0) {
-      throw new Error('Город не найден');
-    }
-    
-    const { latitude, longitude, name } = geoData.results[0];
-    
-    // Запрос расширенного прогноза на завтра с почасовыми данными
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,wind_speed_10m_max&wind_speed_unit=ms&timezone=auto&forecast_days=2`;
+    // Запрос для прогноза на 2 дня с почасовыми данными
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=2`;
     
     const forecastResponse = await fetch(forecastUrl);
     const forecastData = await forecastResponse.json();
     
-    if (!forecastData.hourly || !forecastData.daily) {
-      throw new Error('Нет данных прогноза');
+    if (!forecastData.hourly || !forecastData.hourly.time) {
+      throw new Error('Нет данных о прогнозе');
     }
     
-    // Получаем данные на завтра
-    const tomorrowDate = new Date();
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
-    
-    // Находим индексы времени для завтра
-    const tomorrowIndexes = [];
-    forecastData.hourly.time.forEach((time, index) => {
-      if (time.startsWith(tomorrowDateStr)) {
-        tomorrowIndexes.push(index);
-      }
-    });
-    
-    if (tomorrowIndexes.length === 0) {
-      throw new Error('Нет данных на завтра');
-    }
+    // Получаем почасовой прогноз на завтра (часы 24-47)
+    const hourlyTomorrow = getHourlyForecast(forecastData.hourly, 24, 48);
     
     // Группируем по времени суток
-    const periods = {
-      'ночь': { start: 0, end: 5 },
-      'утро': { start: 6, end: 11 },
-      'день': { start: 12, end: 17 },
-      'вечер': { start: 18, end: 23 }
+    const timeSlots = {
+      morning: hourlyTomorrow.filter(h => h.hour >= 6 && h.hour < 12),
+      afternoon: hourlyTomorrow.filter(h => h.hour >= 12 && h.hour < 18),
+      evening: hourlyTomorrow.filter(h => h.hour >= 18 && h.hour < 24),
+      night: hourlyTomorrow.filter(h => h.hour >= 0 && h.hour < 6)
     };
     
-    const periodData = {};
-    
-    for (const [periodName, range] of Object.entries(periods)) {
-      const periodHours = tomorrowIndexes.filter(index => {
-        const hour = new Date(forecastData.hourly.time[index]).getHours();
-        return hour >= range.start && hour <= range.end;
-      });
+    // Рассчитываем средние значения для каждого периода
+    const calculatePeriodStats = (period) => {
+      if (period.length === 0) return null;
       
-      if (periodHours.length > 0) {
-        const temps = periodHours.map(index => forecastData.hourly.temperature_2m[index]);
-        const feels = periodHours.map(index => forecastData.hourly.apparent_temperature[index]);
-        const precip = periodHours.map(index => forecastData.hourly.precipitation_probability[index]);
-        const weatherCodes = periodHours.map(index => forecastData.hourly.weather_code[index]);
-        const winds = periodHours.map(index => forecastData.hourly.wind_speed_10m[index]);
-        
-        // Находим наиболее частый код погоды
-        const mostFrequentCode = weatherCodes.reduce((a, b, i, arr) => 
-          arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
-        );
-        
-        periodData[periodName] = {
-          temp_min: Math.round(Math.min(...temps)),
-          temp_max: Math.round(Math.max(...temps)),
-          feels_min: Math.round(Math.min(...feels)),
-          feels_max: Math.round(Math.max(...feels)),
-          precip_max: Math.max(...precip),
-          precip_avg: Math.round(precip.reduce((a, b) => a + b, 0) / precip.length),
-          wind_avg: (winds.reduce((a, b) => a + b, 0) / winds.length).toFixed(1),
-          weather_code: mostFrequentCode,
-          description: getWeatherDescription(mostFrequentCode)
-        };
-      }
-    }
+      const avgTemp = Math.round(period.reduce((sum, h) => sum + h.temp, 0) / period.length);
+      const maxTemp = Math.max(...period.map(h => h.temp));
+      const minTemp = Math.min(...period.map(h => h.temp));
+      const avgFeelsLike = Math.round(period.reduce((sum, h) => sum + h.feels_like, 0) / period.length);
+      
+      // Наиболее частый код погоды
+      const weatherCodes = period.map(h => h.weather_code);
+      const mostCommonCode = weatherCodes.sort((a,b) => 
+        weatherCodes.filter(v => v === a).length - 
+        weatherCodes.filter(v => v === b).length
+      ).pop();
+      
+      const avgPrecipitation = period.reduce((sum, h) => sum + h.precipitation_probability, 0) / period.length;
+      
+      return {
+        temp: avgTemp,
+        feels_like: avgFeelsLike,
+        temp_range: `${minTemp}°C - ${maxTemp}°C`,
+        weather_code: mostCommonCode,
+        description: getDetailedWeatherDescription(mostCommonCode, 0, 50),
+        precipitation_probability: Math.round(avgPrecipitation),
+        hours: period.map(h => h.hour)
+      };
+    };
     
-    // Данные за весь день
-    const tomorrowDailyIndex = 1; // индекс 0 - сегодня, 1 - завтра
+    const daily = forecastData.daily;
+    const tomorrowIndex = 1; // завтра
     
     const forecastResult = {
       city: name,
-      date: tomorrowDateStr,
-      temp_max: Math.round(forecastData.daily.temperature_2m_max[tomorrowDailyIndex]),
-      temp_min: Math.round(forecastData.daily.temperature_2m_min[tomorrowDailyIndex]),
-      precipitation: forecastData.daily.precipitation_sum[tomorrowDailyIndex],
-      wind_max: forecastData.daily.wind_speed_10m_max[tomorrowDailyIndex].toFixed(1),
-      sunrise: forecastData.daily.sunrise[tomorrowDailyIndex].substring(11, 16),
-      sunset: forecastData.daily.sunset[tomorrowDailyIndex].substring(11, 16),
-      periods: periodData,
-      updated: new Date().toLocaleTimeString('ru-RU')
+      date_tomorrow: new Date(Date.now() + 86400000).toLocaleDateString('ru-RU', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      }),
+      general: {
+        temp_max: Math.round(daily.temperature_2m_max[tomorrowIndex]),
+        temp_min: Math.round(daily.temperature_2m_min[tomorrowIndex]),
+        precipitation: daily.precipitation_sum[tomorrowIndex] > 0 
+          ? `${daily.precipitation_sum[tomorrowIndex].toFixed(1)} мм` 
+          : 'Без осадков',
+        weather_code: daily.weather_code[tomorrowIndex],
+        description: getDetailedWeatherDescription(daily.weather_code[tomorrowIndex], daily.precipitation_sum[tomorrowIndex], 50)
+      },
+      periods: {
+        morning: calculatePeriodStats(timeSlots.morning),
+        afternoon: calculatePeriodStats(timeSlots.afternoon),
+        evening: calculatePeriodStats(timeSlots.evening),
+        night: calculatePeriodStats(timeSlots.night)
+      },
+      hourly: hourlyTomorrow
     };
     
     // Сохраняем в кэш
@@ -296,403 +305,268 @@ async function getWeatherForecast(cityName) {
     return forecastResult;
     
   } catch (error) {
-    console.error('❌ Ошибка получения прогноза:', error.message);
-    
-    // Если есть кэшированные данные, возвращаем их
-    if (weatherCache.has(cacheKey)) {
-      console.log('🔄 Использую устаревшие кэшированные данные прогноза');
-      return weatherCache.get(cacheKey).data;
-    }
+    console.error('❌ Ошибка получения подробного прогноза:', error.message);
     
     // Fallback данные
-    const tomorrowDate = new Date(Date.now() + 86400000);
-    const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
-    
+    const tomorrow = new Date(Date.now() + 86400000);
     return {
       city: cityName,
-      date: tomorrowDateStr,
-      temp_max: 20,
-      temp_min: 10,
-      precipitation: 0,
-      wind_max: '3.0',
-      sunrise: '07:00',
-      sunset: '19:00',
-      periods: {
-        'ночь': {
-          temp_min: 10,
-          temp_max: 12,
-          feels_min: 9,
-          feels_max: 11,
-          precip_max: 10,
-          precip_avg: 5,
-          wind_avg: '2.5',
-          description: 'Ясно 🌙'
-        },
-        'утро': {
-          temp_min: 12,
-          temp_max: 16,
-          feels_min: 11,
-          feels_max: 15,
-          precip_max: 20,
-          precip_avg: 10,
-          wind_avg: '3.0',
-          description: 'Переменная облачность ⛅'
-        },
-        'день': {
-          temp_min: 18,
-          temp_max: 22,
-          feels_min: 17,
-          feels_max: 21,
-          precip_max: 15,
-          precip_avg: 5,
-          wind_avg: '3.5',
-          description: 'Ясно ☀️'
-        },
-        'вечер': {
-          temp_min: 14,
-          temp_max: 18,
-          feels_min: 13,
-          feels_max: 17,
-          precip_max: 30,
-          precip_avg: 15,
-          wind_avg: '2.8',
-          description: 'Пасмурно ☁️'
-        }
+      date_tomorrow: tomorrow.toLocaleDateString('ru-RU', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      }),
+      general: {
+        temp_max: 22,
+        temp_min: 15,
+        precipitation: 'Без осадков',
+        description: 'Преимущественно солнечно 🌤️'
       },
-      updated: new Date().toLocaleTimeString('ru-RU')
+      periods: {
+        morning: { temp: 16, feels_like: 15, description: 'Ясно ☀️', precipitation_probability: 10 },
+        afternoon: { temp: 22, feels_like: 21, description: 'Солнечно ☀️', precipitation_probability: 5 },
+        evening: { temp: 18, feels_like: 17, description: 'Малооблачно 🌤️', precipitation_probability: 15 },
+        night: { temp: 14, feels_like: 13, description: 'Ясно 🌙', precipitation_probability: 5 }
+      }
     };
   }
 }
 
-// Вспомогательная функция для описания погоды
-function getWeatherDescription(code) {
-  const weatherMap = {
-    0: 'Ясно ☀️',
-    1: 'В основном ясно 🌤️',
-    2: 'Переменная облачность ⛅',
-    3: 'Пасмурно ☁️',
-    45: 'Туман 🌫️',
-    48: 'Изморозь 🌫️',
-    51: 'Лёгкая морось 🌧️',
-    53: 'Морось 🌧️',
-    61: 'Небольшой дождь 🌧️',
-    63: 'Дождь 🌧️',
-    65: 'Сильный дождь 🌧️',
-    71: 'Небольшой снег ❄️',
-    73: 'Снег ❄️',
-    75: 'Сильный снег ❄️',
-    80: 'Ливень 🌧️',
-    81: 'Сильный ливень 🌧️',
-    82: 'Очень сильный ливень 🌧️',
-    95: 'Гроза ⛈️',
-    96: 'Гроза с градом ⛈️',
-    99: 'Сильная гроза с градом ⛈️'
-  };
+// Вспомогательная функция для получения почасового прогноза
+function getHourlyForecast(hourlyData, startHour, endHour) {
+  if (!hourlyData || !hourlyData.time) return [];
   
-  return weatherMap[code] || 'Облачно ⛅';
+  const result = [];
+  for (let i = startHour; i < endHour && i < hourlyData.time.length; i++) {
+    const time = new Date(hourlyData.time[i]);
+    result.push({
+      hour: time.getHours(),
+      time: time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      temp: Math.round(hourlyData.temperature_2m[i]),
+      feels_like: Math.round(hourlyData.apparent_temperature[i]),
+      weather_code: hourlyData.weather_code[i],
+      precipitation_probability: hourlyData.precipitation_probability[i] || 0,
+      description: getWeatherEmoji(hourlyData.weather_code[i])
+    });
+  }
+  return result;
 }
 
-function getDetailedWeatherDescription(code, precipitationMm = 0) {
+// Упрощенная функция для эмодзи погоды
+function getWeatherEmoji(code) {
+  const emojiMap = {
+    0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+    45: '🌫️', 48: '🌫️',
+    51: '🌦️', 53: '🌦️', 55: '🌦️',
+    61: '🌧️', 63: '🌧️', 65: '🌧️',
+    71: '❄️', 73: '❄️', 75: '❄️',
+    80: '🌧️', 81: '🌧️', 82: '🌧️',
+    85: '❄️', 86: '❄️',
+    95: '⛈️', 96: '⛈️', 99: '⛈️'
+  };
+  return emojiMap[code] || '🌀';
+}
+
+// ===================== ФУНКЦИИ СТАТИСТИКИ =====================
+async function getGameStatsMessage(userId) {
+  try {
+    const stats = await getGameStats(userId, 'tetris');
+    
+    // Улучшенная проверка
+    if (!stats || !stats.games_played || stats.games_played === 0) {
+      return "📊 *Статистика игры*\n\n🎮 Вы ещё не играли в тетрис!\n\nНажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!";
+    }
+    
+    // Форматируем дату последней игры
+    const lastPlayed = stats.last_played 
+      ? new Date(stats.last_played).toLocaleDateString('ru-RU', {
+          day: 'numeric',
+          month: 'long',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : 'неизвестно';
+    
+    // Используем значения по умолчанию если null
+    return `📊 *Ваша статистика в тетрисе*\n\n` +
+           `🎮 Игр сыграно: *${stats.games_played || 0}*\n` +
+           `🏆 Лучший счёт: *${stats.best_score || 0}*\n` +
+           `📈 Лучший уровень: *${stats.best_level || 1}*\n` +
+           `📊 Лучшие линии: *${stats.best_lines || 0}*\n` +
+           `📉 Средний счёт: *${Math.round(stats.avg_score || 0)}*\n` +
+           `⏰ Последняя игра: ${lastPlayed}\n\n` +
+           `💪 Продолжайте играть!`;
+  } catch (error) {
+    console.error('❌ Ошибка получения статистики:', error);
+    return "❌ Не удалось получить статистику. Попробуйте позже.";
+  }
+}
+
+async function getTopPlayersMessage(limit = 10) {
+  try {
+    const topPlayers = await getTopPlayers('tetris', limit);
+    
+    if (!topPlayers || topPlayers.length === 0) {
+      return "🏆 *Топ игроков*\n\n📊 Пока никто не играл в тетрис!\n\nБудьте первым!";
+    }
+    
+    let message = `🏆 *Топ ${topPlayers.length} игроков в тетрисе*\n\n`;
+    
+    topPlayers.forEach((player, index) => {
+      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+      message += `${medal} *${player.score} очков*\n`;
+      message += `   👤 ID: ${player.user_id} | 📈 Уровень: ${player.level} | 📊 Линии: ${player.lines} | 🕹️ Игр: ${player.games_played}\n\n`;
+    });
+    
+    message += `🎯 Соревнуйтесь с другими игроками!`;
+    return message;
+  } catch (error) {
+    console.error('❌ Ошибка получения топа игроков:', error);
+    return "❌ Не удалось загрузить топ игроков. Попробуйте позже.";
+  }
+}
+
+// ===================== ФУНКЦИИ ПОГОДЫ =====================
+function getDetailedWeatherDescription(code, precipitationMm = 0, cloudCover = 50) {
   if (code === undefined || code === null) {
     return 'Погодные данные';
   }
   
   const weatherMap = {
-    0: 'Ясно ☀️', 
-    1: 'В основном ясно 🌤️', 
-    2: 'Переменная облачность ⛅',
-    3: 'Пасмурно ☁️', 
-    45: 'Туман 🌫️', 
-    48: 'Изморозь 🌫️',
-    51: 'Легкая морось 🌧️', 
-    53: 'Морось 🌧️', 
-    61: 'Небольшой дождь 🌧️',
-    63: 'Дождь 🌧️', 
-    65: 'Сильный дождь 🌧️', 
-    71: 'Небольшой снег ❄️',
-    73: 'Снег ❄️', 
-    75: 'Сильный снег ❄️',
-    80: 'Небольшой ливень 🌧️',
-    81: 'Умеренный ливень 🌧️',
-    82: 'Сильный ливень 🌧️',
-    85: 'Небольшой снегопад ❄️',
-    86: 'Сильный снегопад ❄️',
-    95: 'Гроза ⛈️',
-    96: 'Гроза с небольшим градом ⛈️',
-    99: 'Гроза с сильным градом ⛈️'
+    0: `Ясно ${cloudCover < 20 ? '☀️' : '🌤️'}`,
+    1: `В основном ясно ${cloudCover < 40 ? '🌤️' : '⛅'}`,
+    2: `Переменная облачность ⛅`,
+    3: `Пасмурно ☁️`,
+    45: `Туман ${precipitationMm > 0 ? '🌫️💧' : '🌫️'}`,
+    48: `Изморозь 🌫️❄️`,
+    51: `Легкая морось 🌦️`,
+    53: `Морось 🌧️`,
+    55: `Сильная морось 🌧️`,
+    61: `Небольшой дождь 🌦️`,
+    63: `Дождь 🌧️`,
+    65: `Сильный дождь 🌧️💦`,
+    71: `Небольшой снег ❄️`,
+    73: `Снег ❄️`,
+    75: `Сильный снег ❄️❄️`,
+    77: `Снежная крупа ❄️🌀`,
+    80: `Небольшой ливень 🌧️`,
+    81: `Умеренный ливень 🌧️💦`,
+    82: `Сильный ливень 🌧️💦🌀`,
+    85: `Небольшой снегопад ❄️`,
+    86: `Сильный снегопад ❄️❄️`,
+    95: `Гроза ${precipitationMm > 5 ? '⛈️💦' : '⛈️'}`,
+    96: `Гроза с небольшим градом ⛈️🌀`,
+    99: `Гроза с сильным градом ⛈️🌀❄️`
   };
   
   let description = weatherMap[code] || `Код погоды: ${code}`;
   
-  // Улучшенная логика с учетом осадков
+  // Добавляем детали по осадкам
   if (precipitationMm > 0) {
-    if ([0, 1, 2, 3, 45, 48].includes(code)) {
-      if (precipitationMm < 0.5) {
-        description = `Пасмурно, возможны кратковременные осадки 🌦️`;
-      } else if (precipitationMm < 2) {
-        description = `Пасмурно, возможна слабая морось 🌦️ (${precipitationMm.toFixed(1)} мм)`;
-      } else if (precipitationMm < 10) {
-        description = `Пасмурно, возможен дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
-      } else {
-        description = `Пасмурно, возможен сильный дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
-      }
-    } else if ([51, 53, 61, 63, 65, 71, 73, 75, 80, 81, 82, 85, 86].includes(code)) {
-      description += ` (${precipitationMm.toFixed(1)} мм)`;
+    if (precipitationMm < 0.5) {
+      description += ` (легкие осадки)`;
+    } else if (precipitationMm < 2) {
+      description += ` (слабые осадки)`;
+    } else if (precipitationMm < 10) {
+      description += ` (умеренные осадки)`;
+    } else {
+      description += ` (сильные осадки)`;
     }
-  } else if (precipitationMm === 0 && [3].includes(code)) {
-    description = 'Пасмурно, без осадков ☁️';
+  }
+  
+  // Добавляем информацию об облачности
+  if ([0, 1, 2, 3].includes(code)) {
+    if (cloudCover < 20) {
+      description = `Ясно ☀️`;
+    } else if (cloudCover < 60) {
+      description = `Малооблачно 🌤️`;
+    } else if (cloudCover < 90) {
+      description = `Облачно ⛅`;
+    } else {
+      description = `Пасмурно ☁️`;
+    }
   }
   
   return description;
 }
 
-// ===================== ФУНКЦИИ СТАТИСТИКИ И ТОПА =====================
-async function getUserGameStats(userId) {
-  try {
-    console.log(`📊 Получение статистики для пользователя: ${userId}`);
-    
-    const stats = await fetchGameStats(userId, 'tetris');
-    
-    console.log(`📊 Статистика получена:`, stats);
-    
-    return stats;
-  } catch (error) {
-    console.error('❌ Ошибка получения статистики:', error);
-    return null;
-  }
-}
-
-async function getGameStatsMessage(userId) {
-  try {
-    const stats = await getUserGameStats(userId);
-    
-    // Проверяем, есть ли вообще какие-то данные в stats
-    if (!stats) {
-      return `📊 *Статистика игры*\n\n` +
-             `🎮 Данные не найдены или произошла ошибка.\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!`;
-    }
-    
-    // Проверяем, играл ли пользователь
-    const hasPlayed = stats.games_played > 0;
-    const hasScore = stats.best_score > 0;
-    
-    if (!hasPlayed && !hasScore) {
-      return `📊 *Статистика игры*\n\n` +
-             `🎮 Вы ещё не играли в тетрис!\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!`;
-    }
-    
-    // Форматируем дату последней игры
-    let lastPlayedFormatted = 'ещё не играл';
-    if (stats.last_played) {
-      try {
-        const lastPlayedDate = new Date(stats.last_played);
-        if (!isNaN(lastPlayedDate.getTime())) {
-          lastPlayedFormatted = lastPlayedDate.toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-        }
-      } catch (dateError) {
-        console.error('❌ Ошибка форматирования даты:', dateError);
-      }
-    }
-    
-    // Собираем сообщение
-    let message = `📊 *Ваша статистика в тетрисе*\n\n`;
-    message += `🎮 Игр сыграно: *${stats.games_played || 0}*\n`;
-    message += `🏆 Лучший счёт: *${stats.best_score || 0}*\n`;
-    message += `📈 Лучший уровень: *${stats.best_level || 1}*\n`;
-    message += `📊 Лучшие линии: *${stats.best_lines || 0}*\n`;
-    
-    if (stats.games_played > 0) {
-      message += `📉 Средний счёт: *${Math.round(stats.avg_score || 0)}*\n`;
-    }
-    
-    message += `⏰ Последняя игра: ${lastPlayedFormatted}\n\n`;
-    
-    // Проверяем, есть ли незавершенная игра
-    if (stats.current_progress) {
-      const progress = stats.current_progress;
-      message += `🔄 *Незавершенная игра:*\n`;
-      message += `• Текущий счёт: ${progress.score || 0}\n`;
-      message += `• Текущий уровень: ${progress.level || 1}\n`;
-      message += `• Текущие линии: ${progress.lines || 0}\n`;
-      message += `• Сохранено: ${progress.last_saved ? new Date(progress.last_saved).toLocaleTimeString('ru-RU') : 'недавно'}\n\n`;
-    }
-    
-    message += `💪 Продолжайте играть и улучшайте свои рекорды!`;
-    
-    return message;
-  } catch (error) {
-    console.error('❌ Ошибка формирования сообщения статистики:', error);
-    
-    return `❌ Не удалось получить статистику.\n\n` +
-           `*Возможные причины:*\n` +
-           `• Проблема с подключением к базе данных\n` +
-           `• Вы ещё не играли в тетрис\n` +
-           `• Технические работы\n\n` +
-           `Попробуйте позже или начните новую игру!`;
-  }
-}
-
-async function getTopPlayersList(limit = 10) {
-  try {
-    console.log(`🏆 Получение топа игроков, лимит: ${limit}`);
-    
-    const topPlayers = await fetchTopPlayers('tetris', limit);
-    
-    console.log(`🏆 Игроков в топе: ${topPlayers ? topPlayers.length : 0}`);
-    
-    return topPlayers || [];
-  } catch (error) {
-    console.error('❌ Ошибка получения топа игроков:', error);
-    return [];
-  }
-}
-
-async function getTopPlayersMessage(limit = 10, ctx = null) {
-  try {
-    const topPlayers = await getTopPlayersList(limit);
-    
-    // Если нет данных или пустой массив
-    if (!topPlayers || topPlayers.length === 0) {
-      return `🏆 *Топ игроков*\n\n` +
-             `📊 Пока никто не играл в тетрис или данные временно недоступны!\n\n` +
-             `🎮 *Будьте первым!*\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать и попасть в топ!`;
-    }
-    
-    // Проверяем, есть ли реальные данные (не нулевые очки)
-    const validPlayers = topPlayers.filter(player => 
-      player && player.score !== undefined && player.score > 0
-    );
-    
-    if (validPlayers.length === 0) {
-      return `🏆 *Топ игроков*\n\n` +
-             `📊 Пока нет игроков с результатами!\n\n` +
-             `🎮 *Будьте первым!*\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать и попасть в топ!`;
-    }
-    
-    let message = `🏆 *Топ ${Math.min(validPlayers.length, limit)} игроков в тетрисе*\n\n`;
-    
-    validPlayers.forEach((player, index) => {
-      // Получаем медаль
-      let medal;
-      switch(index) {
-        case 0: medal = '🥇'; break;
-        case 1: medal = '🥈'; break;
-        case 2: medal = '🥉'; break;
-        default: medal = `${index + 1}.`;
-      }
-      
-      const score = player.score || 0;
-      const level = player.level || 1;
-      const lines = player.lines || 0;
-      const gamesPlayed = player.games_played || 1;
-      
-      // Форматируем имя пользователя
-      let username;
-      if (player.username && player.username !== `Игрок ${index + 1}`) {
-        username = player.username;
-      } else if (player.user_id) {
-        username = `Игрок #${String(player.user_id).slice(-4)}`;
-      } else {
-        username = `Игрок ${index + 1}`;
-      }
-      
-      message += `${medal} *${username}*\n`;
-      message += `   🎯 Очки: *${score}*\n`;
-      message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
-      message += `   🕹️ Игр: ${gamesPlayed}\n\n`;
-    });
-    
-    // Добавляем информацию о текущем пользователе
-    if (ctx && ctx.from) {
-      const currentUserId = ctx.from.id;
-      const currentPlayerIndex = validPlayers.findIndex(p => p.user_id === currentUserId);
-      
-      if (currentPlayerIndex !== -1) {
-        const currentPlayer = validPlayers[currentPlayerIndex];
-        message += `👤 *Ваше место:* ${currentPlayerIndex + 1}\n`;
-        message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n\n`;
-      } else {
-        message += `👤 *Вы пока не в топе*\n`;
-        message += `🎯 Играйте больше, чтобы попасть в рейтинг!\n\n`;
-      }
-    }
-    
-    message += `🎯 *Как попасть в топ?*\n`;
-    message += `• Играйте в тетрис 🎮\n`;
-    message += `• Набирайте очки и сохраняйте результаты\n`;
-    message += `• Улучшайте свои рекорды!\n\n`;
-    
-    message += `🔄 Обновляется автоматически после каждой игры`;
-    
-    return message;
-  } catch (error) {
-    console.error('❌ Ошибка формирования сообщения топа:', error);
-    
-    return `❌ Не удалось загрузить топ игроков.\n\n` +
-           `*Возможные причины:*\n` +
-           `• Проблема с подключением к базе данных\n` +
-           `• Технические работы\n` +
-           `• Топ игроков пока пуст\n\n` +
-           `Попробуйте позже или станьте первым игроком!`;
-  }
-}
-
 // ===================== ОДЕЖДА И СОВЕТЫ =====================
 function getWardrobeAdvice(weatherData) {
-  const { temp, description, wind, precipitation } = weatherData;
+  const { temp, description, wind, precipitation, humidity } = weatherData;
   let advice = [];
 
   // Основные рекомендации по температуре
   if (temp >= 25) {
     advice.push('• 👕 *Базовый слой:* майка, футболка из хлопка или льна');
     advice.push('• 👖 *Верх:* шорты, легкие брюки из льна, юбка');
+    advice.push('• 👟 *Обувь:* сандалии, кеды, открытая обувь');
   } else if (temp >= 18) {
     advice.push('• 👕 *Базовый слой:* футболка или тонкая рубашка');
-    advice.push('• 🧥 *Верх:* джинсы, брюки, легкая куртка на вечер');
+    advice.push('• 🧥 *Верх:* джинсы, брюки, легкая куртка/ветровка на вечер');
+    advice.push('• 👟 *Обувь:* кроссовки, кеды, мокасины');
   } else if (temp >= 10) {
     advice.push('• 👕 *Базовый слой:* лонгслив, тонкое термобелье');
-    advice.push('• 🧥 *Верх:* свитер, толстовка, ветровка');
+    advice.push('• 🧥 *Верх:* свитер, толстовка, ветровка, джинсы');
+    advice.push('• 👟 *Обувь:* кроссовки, ботинки');
   } else if (temp >= 0) {
     advice.push('• 👕 *Базовый слой:* теплое термобелье или флис');
-    advice.push('• 🧥 *Верх:* утепленный свитер, зимняя куртка');
+    advice.push('• 🧥 *Верх:* утепленный свитер, зимняя куртка, теплые брюки');
+    advice.push('• 👟 *Обувь:* утепленные ботинки');
   } else {
     advice.push('• 👕 *Базовый слой:* плотное термобелье, флис');
-    advice.push('• 🧥 *Верх:* пуховик, утепленные штаны');
+    advice.push('• 🧥 *Верх:* пуховик, утепленные штаны, зимняя куртка');
+    advice.push('• 👟 *Обувь:* зимние ботинки с мехом');
   }
 
   // Дополнительные рекомендации
   if (description.toLowerCase().includes('дождь') || description.includes('🌧️')) {
-    advice.push('• ☔ *При дожде:* дождевик, зонт, непромокаемая обувь');
+    advice.push('• ☔ *Дождевая защита:* дождевик, зонт, непромокаемая обувь');
+    advice.push('• 🎒 *Сумка:* водонепроницаемая или с защитой от дождя');
   }
+  
   if (description.toLowerCase().includes('снег') || description.includes('❄️')) {
-    advice.push('• ❄️ *При снеге:* непромокаемая обувь, варежки');
+    advice.push('• ❄️ *Зимняя защита:* непромокаемая обувь, варежки, шапка');
+    advice.push('• 👢 *Обувь:* с противоскользящей подошвой');
   }
+  
   if (parseFloat(wind) > 7) {
-    advice.push('• 💨 *При ветре:* ветровка с капюшоном, шарф');
+    advice.push('• 💨 *Ветрозащита:* ветровка с капюшоном, шарф');
+    advice.push('• 👒 *Головной убор:* плотно сидящая шапка/кепка');
   }
+  
+  if (parseFloat(wind) > 12) {
+    advice.push('• ⚠️ *Внимание:* сильный ветер, одевайтесь теплее!');
+  }
+  
   if (description.includes('☀️') || description.includes('ясно')) {
-    advice.push('• 🕶️ *При солнце:* солнцезащитные очки, головной убор');
+    advice.push('• 🕶️ *Солнцезащита:* солнцезащитные очки, головной убор');
+    if (temp > 20) {
+      advice.push('• 🧴 *Крем:* солнцезащитный крем SPF 30+');
+    }
   }
 
-  // Общие советы
+  // Общие советы по влажности
+  if (humidity > 80) {
+    advice.push('• 💧 *Высокая влажность:* выбирайте дышащие ткани');
+  }
+  
+  if (humidity < 30) {
+    advice.push('• 🏜️ *Низкая влажность:* увлажняющий крем для кожи');
+  }
+
+  // Общие советы по температуре
   if (temp < 15) {
     advice.push('• 🧣 *Аксессуары:* шапка, шарф, перчатки');
   }
-  if (temp > 20 && description.includes('☀️')) {
-    advice.push('• 🧴 *Защита:* солнцезащитный крем SPF 30+');
+  
+  if (temp < 5) {
+    advice.push('• 🧤 *Тепло:* теплые носки, несколько слоев одежды');
   }
 
-  advice.push('\n👟 *Обувь:* выбирайте по погоде');
-  advice.push('🎒 *С собой:* сумка для снятых слоев одежды');
+  advice.push('\n🎒 *Рекомендации:*');
+  advice.push('• Слои одежды удобнее одного теплого слоя');
+  advice.push('• Учитывайте, что вечером может быть прохладнее');
+  advice.push('• Берите с собой сумку для снятых слоев одежды');
 
   return advice.join('\n');
 }
@@ -1018,6 +892,16 @@ const cityKeyboard = new Keyboard()
     .text('🔙 НАЗАД')
     .resized();
 
+const forecastDetailKeyboard = new Keyboard()
+    .text('🌅 УТРО (6-12)')
+    .text('🌞 ДЕНЬ (12-18)').row()
+    .text('🌆 ВЕЧЕР (18-24)')
+    .text('🌙 НОЧЬ (0-6)').row()
+    .text('📊 ОБЩИЙ ПРОГНОЗ')
+    .row()
+    .text('🔙 НАЗАД')
+    .resized();
+
 // ===================== ОСНОВНЫЕ КОМАНДЫ =====================
 bot.command('start', async (ctx) => {
   console.log(`🚀 /start от ${ctx.from.id}`);
@@ -1097,6 +981,7 @@ bot.hears(/^📍 /, async (ctx) => {
       `✅ *ШАГ 3: Готово! Город "${city}" сохранён!*\n\n` +
       `🎉 *Теперь доступны все функции бота:*\n\n` +
       `• Узнать погоду сейчас и на завтра 🌤️\n` +
+      `• Подробный прогноз на завтра по времени суток 📅\n` +
       `• Получить совет по одежде 👕\n` +
       `• Изучать английские фразы 🇬🇧\n` +
       `• Играть в тетрис с полной статистикой 🎮\n` +
@@ -1108,143 +993,6 @@ bot.hears(/^📍 /, async (ctx) => {
   } catch (error) {
     console.error('❌ Ошибка при выборе города:', error);
     await ctx.reply('Не удалось сохранить город в базу данных. Попробуйте еще раз.');
-  }
-});
-
-// ===================== ПОГОДА СЕЙЧАС =====================
-bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`🌤️ ПОГОДА от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-      return;
-    }
-    
-    await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const weather = await getWeatherData(city);
-    console.log('🌤️ Получена погода:', weather);
-    
-    await ctx.reply(
-      `🌤️ *Погода в ${weather.city}*\n` +
-      `🕒 Обновлено: ${weather.timestamp}\n\n` +
-      `🌡️ Температура: *${weather.temp}°C*\n` +
-      `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
-      `💨 Ветер: ${weather.wind} м/с\n` +
-      `💧 Влажность: ${weather.humidity}%\n` +
-      `📝 ${weather.description}\n` +
-      `🌧️ Осадки: ${weather.precipitation}`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в ПОГОДА:', error);
-    await ctx.reply('❌ Не удалось получить данные о погоде или обработать ваш запрос.', { reply_markup: mainMenuKeyboard });
-  }
-});
-
-// ===================== ПОГОДА ЗАВТРА =====================
-bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-      return;
-    }
-    
-    await ctx.reply(`⏳ Запрашиваю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const forecast = await getWeatherForecast(city);
-    
-    // Форматируем дату
-    const forecastDate = new Date(forecast.date);
-    const dateFormatted = forecastDate.toLocaleDateString('ru-RU', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long'
-    });
-    
-    // Собираем сообщение
-    let message = `📅 *Прогноз погоды на ${dateFormatted}*\n`;
-    message += `📍 *${forecast.city}*\n`;
-    message += `🕒 Обновлено: ${forecast.updated}\n\n`;
-    
-    // Общая информация
-    message += `📊 *Общий прогноз:*\n`;
-    message += `🌡️ Температура: *${forecast.temp_min}°C ... ${forecast.temp_max}°C*\n`;
-    message += `💨 Макс. ветер: ${forecast.wind_max} м/с\n`;
-    message += `🌧️ Осадки: ${forecast.precipitation > 0 ? forecast.precipitation.toFixed(1) + ' мм' : 'Нет'}\n`;
-    message += `🌅 Восход: ${forecast.sunrise}\n`;
-    message += `🌇 Закат: ${forecast.sunset}\n\n`;
-    
-    // Детали по времени суток
-    message += `⏰ *Подробный прогноз по времени суток:*\n\n`;
-    
-    const periodsOrder = ['ночь', 'утро', 'день', 'вечер'];
-    
-    for (const period of periodsOrder) {
-      if (forecast.periods[period]) {
-        const data = forecast.periods[period];
-        const precipText = data.precip_avg > 0 ? `💧 ${data.precip_avg}%` : 'Без осадков';
-        
-        message += `*${period.charAt(0).toUpperCase() + period.slice(1)}* (${data.temp_min}°C...${data.temp_max}°C)\n`;
-        message += `${data.description}\n`;
-        message += `🤔 Ощущается: ${data.feels_min}°C...${data.feels_max}°C\n`;
-        message += `💨 Ветер: ${data.wind_avg} м/с | ${precipText}\n\n`;
-      }
-    }
-    
-    message += `📝 *Рекомендации:*\n`;
-    
-    // Добавляем рекомендации
-    if (forecast.temp_max >= 25) {
-      message += `• 🥵 Жарко: легкая одежда, головной убор\n`;
-    } else if (forecast.temp_max >= 18) {
-      message += `• 😊 Комфортно: легкая куртка на вечер\n`;
-    } else if (forecast.temp_max >= 10) {
-      message += `• 🧥 Прохладно: теплая одежда, ветровка\n`;
-    } else {
-      message += `• ❄️ Холодно: зимняя куртка, шапка, шарф\n`;
-    }
-    
-    // Проверяем осадки
-    if (forecast.precipitation > 5) {
-      message += `• ☔ Возьмите зонт или дождевик\n`;
-    }
-    
-    // Проверяем ветер
-    if (parseFloat(forecast.wind_max) > 10) {
-      message += `• 💨 Сильный ветер: ветровка с капюшоном\n`;
-    }
-    
-    await ctx.reply(message, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-    
-  } catch (error) {
-    console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
-    await ctx.reply('❌ Не удалось получить прогноз погоды. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
   }
 });
 
@@ -1268,40 +1016,14 @@ bot.hears('📊 МОЯ СТАТИСТИКА', async (ctx) => {
     });
   } catch (error) {
     console.error('❌ Ошибка в МОЯ СТАТИСТИКА:', error);
-    await ctx.reply('❌ Произошла ошибка при загрузке статистики. Попробуйте позже.', { 
+    await ctx.reply('❌ Не удалось загрузить вашу статистику.', { 
       reply_markup: mainMenuKeyboard 
     });
   }
 });
 
 bot.hears('🏆 ТОП ИГРОКОВ', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`🏆 ТОП ИГРОКОВ от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply('🏆 Загружаю топ игроков...', { parse_mode: 'Markdown' });
-    
-    const topMessage = await getTopPlayersMessage(10, ctx);
-    await ctx.reply(topMessage, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-  } catch (error) {
-    console.error('❌ Ошибка в ТОП ИГРОКОВ:', error);
-    await ctx.reply('❌ Произошла ошибка при загрузке топа игроков. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-// ===================== ИГРАТЬ В ТЕТРИС =====================
-bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
-  console.log(`🎮 ИГРАТЬ В ТЕТРИС от ${ctx.from.id}`);
+  console.log(`🏆 ТОП ИГРОКОВ от ${ctx.from.id}`);
   
   if (isRateLimited(ctx.from.id)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
@@ -1309,173 +1031,417 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
   }
   
   try {
-    // URL вашего мини-приложения с тетрисом
-    const webAppUrl = 'https://pogodasovet1.vercel.app';
+    await ctx.reply('🏆 Загружаю топ игроков...', { parse_mode: 'Markdown' });
     
-    await ctx.reply(
-      `🎮 *Тетрис*\n\n` +
-      `Нажмите кнопку ниже, чтобы открыть игру в мини-приложении!\n\n` +
-      `📊 *Ваша статистика будет автоматически сохраняться.*\n` +
-      `🏆 *Соревнуйтесь с другими игроками в топе!*`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{
-              text: '🎮 Открыть тетрис',
-              web_app: { url: webAppUrl }
-            }],
-            [{
-              text: '📊 Моя статистика',
-              callback_data: 'my_stats'
-            }],
-            [{
-              text: '🏆 Топ игроков',
-              callback_data: 'top_players'
-            }]
-          ]
-        }
-      }
-    );
+    const topMessage = await getTopPlayersMessage(10);
+    await ctx.reply(topMessage, { 
+      parse_mode: 'Markdown', 
+      reply_markup: mainMenuKeyboard 
+    });
   } catch (error) {
-    console.error('❌ Ошибка в ИГРАТЬ В ТЕТРИС:', error);
-    await ctx.reply('❌ Не удалось открыть игру. Попробуйте позже.', {
-      reply_markup: mainMenuKeyboard
+    console.error('❌ Ошибка в ТОП ИГРОКОВ:', error);
+    await ctx.reply('❌ Не удалось загрузить топ игроков.', { 
+      reply_markup: mainMenuKeyboard 
     });
   }
 });
 
-// Обработчик callback для кнопок
-bot.callbackQuery('my_stats', async (ctx) => {
-  try {
-    const statsMessage = await getGameStatsMessage(ctx.from.id);
-    await ctx.editMessageText(statsMessage, { parse_mode: 'Markdown' });
-    await ctx.answerCallbackQuery();
-  } catch (error) {
-    console.error('❌ Ошибка в callback my_stats:', error);
-    await ctx.answerCallbackQuery('❌ Ошибка загрузки статистики');
-  }
-});
-
-bot.callbackQuery('top_players', async (ctx) => {
-  try {
-    const topMessage = await getTopPlayersMessage(10, ctx);
-    await ctx.editMessageText(topMessage, { parse_mode: 'Markdown' });
-    await ctx.answerCallbackQuery();
-  } catch (error) {
-    console.error('❌ Ошибка в callback top_players:', error);
-    await ctx.answerCallbackQuery('❌ Ошибка загрузки топа');
-  }
-});
-
-// ===================== ОБРАБОТЧИК ДАННЫХ ИЗ ИГРЫ =====================
-bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
+// ===================== ПОГОДА СЕЙЧАС (ПОДРОБНАЯ) =====================
+bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
   const userId = ctx.from.id;
-  const userName = `${ctx.from.first_name || ''} ${ctx.from.last_name || ''}`.trim() || `Игрок ${userId}`;
+  console.log(`🌤️ ПОГОДА СЕЙЧАС от ${userId}`);
   
-  console.log(`📱 Получены данные от Mini App от пользователя ${userId} (${userName})`);
+  if (isRateLimited(userId)) {
+    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
+    return;
+  }
   
   try {
-    const webAppData = ctx.message.web_app_data;
-    console.log(`📱 Raw data:`, webAppData.data);
+    const city = await getUserCity(userId);
     
-    const data = JSON.parse(webAppData.data);
-    console.log('🎮 Данные игры:', data);
+    if (!city) {
+      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+      return;
+    }
     
-    if (data.action === 'tetris_score' || data.gameType === 'tetris') {
-      console.log(`🎮 Счёт тетриса от ${userId}:`, data);
-      
-      const score = parseInt(data.score) || 0;
-      const level = parseInt(data.level) || 1;
-      const lines = parseInt(data.lines) || 0;
-      const gameOver = Boolean(data.gameOver);
-      
-      if (score === 0) {
-        console.log(`⚠️ Нулевой счёт от ${userId}, пропускаем сохранение`);
-        await ctx.reply(`🎮 Игра начата! Удачи! 🍀`, {
-          parse_mode: 'Markdown',
-          reply_markup: mainMenuKeyboard
-        });
-        return;
-      }
-      
-      // Сохраняем результат в базу данных
-      try {
-        const saved = await saveGameScore(userId, 'tetris', score, level, lines);
-        
-        if (saved) {
-          console.log(`✅ Рекорд пользователя ${userId} сохранён в БД`);
-          
-          // Получаем обновленную статистику
-          const stats = await getUserGameStats(userId);
-          const bestScore = stats?.best_score || 0;
-          
-          let message = '';
-          if (gameOver) {
-            message = `🎮 *Игра окончена!*\n\n`;
-          } else {
-            message = `🎮 *Прогресс сохранён!*\n\n`;
-          }
-          
-          message += `👤 *Игрок:* ${userName}\n`;
-          message += `🎯 *Результат:* ${score} очков\n`;
-          message += `📊 *Уровень:* ${level}\n`;
-          message += `📈 *Линии:* ${lines}\n\n`;
-          
-          // Проверяем, побит ли рекорд
-          if (score > bestScore) {
-            message += `🎉 *НОВЫЙ РЕКОРД!* 🎉\n`;
-            message += `🏆 Предыдущий лучший: ${bestScore}\n\n`;
-          } else if (bestScore > 0) {
-            message += `🏆 *Ваш лучший результат:* ${bestScore}\n\n`;
-          }
-          
-          message += `📊 *Теперь вы можете:*\n`;
-          message += `• Посмотреть свою статистику 📊\n`;
-          message += `• Проверить место в топе 🏆\n`;
-          message += `• Продолжить играть 🎮\n\n`;
-          
-          if (gameOver) {
-            message += `🔄 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой игры!`;
-          } else {
-            message += `💪 Продолжайте в том же духе!`;
-          }
-          
-          await ctx.reply(message, { 
-            parse_mode: 'Markdown',
-            reply_markup: mainMenuKeyboard 
-          });
-          
-        } else {
-          console.error(`❌ Не удалось сохранить результат для пользователя ${userId}`);
-          await ctx.reply(`❌ Не удалось сохранить ваш результат в базу данных. Попробуйте ещё раз.`, {
-            reply_markup: mainMenuKeyboard
-          });
-        }
-      } catch (dbError) {
-        console.error('❌ Ошибка сохранения в БД:', dbError);
-        await ctx.reply(`❌ Ошибка базы данных. Ваш результат не сохранён. Попробуйте позже.`, {
-          reply_markup: mainMenuKeyboard
-        });
-      }
-    } else {
-      console.log(`📱 Неизвестный тип данных:`, data.action || data.gameType);
-      await ctx.reply(`Получены игровые данные: ${JSON.stringify(data, null, 2)}`, {
-        reply_markup: mainMenuKeyboard
+    await ctx.reply(`⏳ Запрашиваю подробную погоду для ${city}...`, { parse_mode: 'Markdown' });
+    
+    const weather = await getWeatherData(city);
+    console.log('🌤️ Получена подробная погода:', weather);
+    
+    let message = `🌤️ *Подробная погода в ${weather.city}*\n\n`;
+    message += `🌡️ Температура: *${weather.temp}°C*\n`;
+    message += `🤔 Ощущается как: *${weather.feels_like}°C*\n`;
+    message += `📊 Диапазон: *${weather.min_temp}°C - ${weather.max_temp}°C*\n`;
+    message += `💨 Ветер: ${weather.wind} м/с\n`;
+    message += `💧 Влажность: ${weather.humidity}%\n`;
+    message += `☁️ Облачность: ${weather.cloud_cover}%\n`;
+    message += `📝 ${weather.description}\n`;
+    message += `🌧️ Осадки: ${weather.precipitation}\n\n`;
+    
+    // Добавляем почасовой прогноз (ближайшие 6 часов)
+    if (weather.hourly && weather.hourly.length > 0) {
+      message += `⏱️ *Ближайшие часы:*\n`;
+      const nextHours = weather.hourly.slice(0, 6);
+      nextHours.forEach(hour => {
+        message += `• ${hour.time}: ${hour.temp}°C ${hour.description} (ощущ. ${hour.feels_like}°C)\n`;
       });
     }
     
-  } catch (error) {
-    console.error('❌ Ошибка обработки данных игры:', error);
-    console.error('❌ Stack trace:', error.stack);
+    message += `\n👕 *Рекомендации по одежде:*\n`;
+    const adviceLines = getWardrobeAdvice(weather).split('\n').slice(0, 8);
+    message += adviceLines.join('\n');
+    message += `\n\n...и другие рекомендации в разделе "👕 ЧТО НАДЕТЬ?"`;
     
-    await ctx.reply(`❌ Произошла ошибка при обработке данных игры. Попробуйте ещё раз.`, {
-      reply_markup: mainMenuKeyboard
+    await ctx.reply(message, { 
+      parse_mode: 'Markdown', 
+      reply_markup: mainMenuKeyboard 
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в ПОГОДА СЕЙЧАС:', error);
+    await ctx.reply('❌ Не удалось получить данные о погоде или обработать ваш запрос.', { 
+      reply_markup: mainMenuKeyboard 
     });
   }
 });
 
-// ===================== ЧТО НАДЕТЬ =====================
+// ===================== ПОГОДА НА ЗАВТРА (ПОДРОБНАЯ) =====================
+bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
+  
+  if (isRateLimited(userId)) {
+    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
+    return;
+  }
+  
+  try {
+    const city = await getUserCity(userId);
+    
+    if (!city) {
+      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+      return;
+    }
+    
+    await ctx.reply(`⏳ Запрашиваю подробный прогноз погоды для ${city}...`, { 
+      parse_mode: 'Markdown' 
+    });
+    
+    const forecast = await getWeatherForecastDetailed(city);
+    console.log('📅 Получен подробный прогноз:', forecast);
+    
+    // Сохраняем прогноз в хранилище пользователя
+    userStorage.set(userId, { 
+      ...userStorage.get(userId), 
+      detailedForecast: forecast,
+      lastActivity: Date.now() 
+    });
+    
+    let message = `📅 *Прогноз погоды в ${forecast.city} на ${forecast.date_tomorrow}*\n\n`;
+    message += `🌡️ Температура: *${forecast.general.temp_min}°C - ${forecast.general.temp_max}°C*\n`;
+    message += `📝 ${forecast.general.description}\n`;
+    message += `🌧️ Осадки: ${forecast.general.precipitation}\n\n`;
+    message += `⏰ *Подробный прогноз по времени суток:*\n\n`;
+    
+    // Добавляем информацию по периодам
+    if (forecast.periods.morning) {
+      message += `🌅 *Утро (6:00-12:00):*\n`;
+      message += `• Температура: ${forecast.periods.morning.temp}°C (ощущ. ${forecast.periods.morning.feels_like}°C)\n`;
+      message += `• Погода: ${forecast.periods.morning.description}\n`;
+      message += `• Вероятность осадков: ${forecast.periods.morning.precipitation_probability}%\n\n`;
+    }
+    
+    if (forecast.periods.afternoon) {
+      message += `🌞 *День (12:00-18:00):*\n`;
+      message += `• Температура: ${forecast.periods.afternoon.temp}°C (ощущ. ${forecast.periods.afternoon.feels_like}°C)\n`;
+      message += `• Погода: ${forecast.periods.afternoon.description}\n`;
+      message += `• Вероятность осадков: ${forecast.periods.afternoon.precipitation_probability}%\n\n`;
+    }
+    
+    message += `👇 *Выберите период для детальной информации:*`;
+    
+    await ctx.reply(message, { 
+      parse_mode: 'Markdown', 
+      reply_markup: forecastDetailKeyboard 
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
+    await ctx.reply('❌ Не удалось получить прогноз погоды. Попробуйте позже.', { 
+      reply_markup: mainMenuKeyboard 
+    });
+  }
+});
+
+// ===================== ОБРАБОТКА ДЕТАЛЬНОГО ПРОГНОЗА =====================
+bot.hears('🌅 УТРО (6-12)', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`🌅 УТРО от ${userId}`);
+  
+  if (isRateLimited(userId)) {
+    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
+    return;
+  }
+  
+  try {
+    const userData = userStorage.get(userId);
+    if (!userData || !userData.detailedForecast || !userData.detailedForecast.periods.morning) {
+      await ctx.reply('Сначала запросите прогноз погоды на завтра.', { 
+        reply_markup: mainMenuKeyboard 
+      });
+      return;
+    }
+    
+    const period = userData.detailedForecast.periods.morning;
+    const city = userData.detailedForecast.city;
+    const date = userData.detailedForecast.date_tomorrow;
+    
+    let message = `🌅 *Утро в ${city} на ${date} (6:00-12:00)*\n\n`;
+    message += `🌡️ Температура: *${period.temp}°C*\n`;
+    message += `🤔 Ощущается как: *${period.feels_like}°C*\n`;
+    message += `📊 Диапазон: ${period.temp_range}\n`;
+    message += `📝 Погода: ${period.description}\n`;
+    message += `🌧️ Вероятность осадков: ${period.precipitation_probability}%\n\n`;
+    
+    // Рекомендации по одежде для утра
+    message += `👕 *Рекомендации на утро:*\n`;
+    message += `• Легкая куртка или ветровка\n`;
+    message += `• Футболка или рубашка\n`;
+    message += `• Джинсы или брюки\n`;
+    message += `• Удобная обувь\n`;
+    
+    if (period.precipitation_probability > 30) {
+      message += `• ☔ Возьмите зонт или дождевик\n`;
+    }
+    
+    if (period.temp < 15) {
+      message += `• 🧣 Теплая кофта или свитер\n`;
+    }
+    
+    await ctx.reply(message, { 
+      parse_mode: 'Markdown', 
+      reply_markup: forecastDetailKeyboard 
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в УТРО:', error);
+    await ctx.reply('❌ Не удалось получить информацию.', { 
+      reply_markup: mainMenuKeyboard 
+    });
+  }
+});
+
+bot.hears('🌞 ДЕНЬ (12-18)', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`🌞 ДЕНЬ от ${userId}`);
+  
+  if (isRateLimited(userId)) {
+    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
+    return;
+  }
+  
+  try {
+    const userData = userStorage.get(userId);
+    if (!userData || !userData.detailedForecast || !userData.detailedForecast.periods.afternoon) {
+      await ctx.reply('Сначала запросите прогноз погоды на завтра.', { 
+        reply_markup: mainMenuKeyboard 
+      });
+      return;
+    }
+    
+    const period = userData.detailedForecast.periods.afternoon;
+    const city = userData.detailedForecast.city;
+    const date = userData.detailedForecast.date_tomorrow;
+    
+    let message = `🌞 *День в ${city} на ${date} (12:00-18:00)*\n\n`;
+    message += `🌡️ Температура: *${period.temp}°C*\n`;
+    message += `🤔 Ощущается как: *${period.feels_like}°C*\n`;
+    message += `📊 Диапазон: ${period.temp_range}\n`;
+    message += `📝 Погода: ${period.description}\n`;
+    message += `🌧️ Вероятность осадков: ${period.precipitation_probability}%\n\n`;
+    
+    // Рекомендации по одежде для дня
+    message += `👕 *Рекомендации на день:*\n`;
+    
+    if (period.temp >= 20) {
+      message += `• Футболка или майка\n`;
+      message += `• Шорты или легкие брюки\n`;
+      message += `• Сандалии или кеды\n`;
+      if (period.description.includes('☀️')) {
+        message += `• 🕶️ Солнцезащитные очки\n`;
+        message += `• 🧢 Головной убор от солнца\n`;
+      }
+    } else if (period.temp >= 15) {
+      message += `• Футболка или рубашка\n`;
+      message += `• Джинсы или брюки\n`;
+      message += `• Легкая куртка\n`;
+      message += `• Кроссовки\n`;
+    } else {
+      message += `• Кофта или свитер\n`;
+      message += `• Джинсы или теплые брюки\n`;
+      message += `• Куртка\n`;
+      message += `• Кроссовки или ботинки\n`;
+    }
+    
+    if (period.precipitation_probability > 30) {
+      message += `• ☔ Дождевик или зонт\n`;
+    }
+    
+    await ctx.reply(message, { 
+      parse_mode: 'Markdown', 
+      reply_markup: forecastDetailKeyboard 
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в ДЕНЬ:', error);
+    await ctx.reply('❌ Не удалось получить информацию.', { 
+      reply_markup: mainMenuKeyboard 
+    });
+  }
+});
+
+bot.hears('🌆 ВЕЧЕР (18-24)', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`🌆 ВЕЧЕР от ${userId}`);
+  
+  if (isRateLimited(userId)) {
+    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
+    return;
+  }
+  
+  try {
+    const userData = userStorage.get(userId);
+    if (!userData || !userData.detailedForecast || !userData.detailedForecast.periods.evening) {
+      await ctx.reply('Сначала запросите прогноз погоды на завтра.', { 
+        reply_markup: mainMenuKeyboard 
+      });
+      return;
+    }
+    
+    const period = userData.detailedForecast.periods.evening;
+    const city = userData.detailedForecast.city;
+    const date = userData.detailedForecast.date_tomorrow;
+    
+    let message = `🌆 *Вечер в ${city} на ${date} (18:00-24:00)*\n\n`;
+    message += `🌡️ Температура: *${period.temp}°C*\n`;
+    message += `🤔 Ощущается как: *${period.feels_like}°C*\n`;
+    message += `📊 Диапазон: ${period.temp_range}\n`;
+    message += `📝 Погода: ${period.description}\n`;
+    message += `🌧️ Вероятность осадков: ${period.precipitation_probability}%\n\n`;
+    
+    // Рекомендации по одежде для вечера
+    message += `👕 *Рекомендации на вечер:*\n`;
+    message += `• Теплее, чем днем!\n`;
+    message += `• Свитер или толстовка\n`;
+    message += `• Джинсы или брюки\n`;
+    message += `• Куртка или ветровка\n`;
+    message += `• Закрытая обувь\n`;
+    
+    if (period.temp < 15) {
+      message += `• 🧣 Шарф или легкая шапка\n`;
+    }
+    
+    if (period.precipitation_probability > 30) {
+      message += `• ☔ Зонт или дождевик\n`;
+      message += `• Водонепроницаемая обувь\n`;
+    }
+    
+    message += `\n⚠️ *Важно:* Вечером обычно прохладнее, чем днем!`;
+    
+    await ctx.reply(message, { 
+      parse_mode: 'Markdown', 
+      reply_markup: forecastDetailKeyboard 
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в ВЕЧЕР:', error);
+    await ctx.reply('❌ Не удалось получить информацию.', { 
+      reply_markup: mainMenuKeyboard 
+    });
+  }
+});
+
+bot.hears('🌙 НОЧЬ (0-6)', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`🌙 НОЧЬ от ${userId}`);
+  
+  if (isRateLimited(userId)) {
+    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
+    return;
+  }
+  
+  try {
+    const userData = userStorage.get(userId);
+    if (!userData || !userData.detailedForecast || !userData.detailedForecast.periods.night) {
+      await ctx.reply('Сначала запросите прогноз погоды на завтра.', { 
+        reply_markup: mainMenuKeyboard 
+      });
+      return;
+    }
+    
+    const period = userData.detailedForecast.periods.night;
+    const city = userData.detailedForecast.city;
+    const date = userData.detailedForecast.date_tomorrow;
+    
+    let message = `🌙 *Ночь в ${city} на ${date} (0:00-6:00)*\n\n`;
+    message += `🌡️ Температура: *${period.temp}°C*\n`;
+    message += `🤔 Ощущается как: *${period.feels_like}°C*\n`;
+    message += `📊 Диапазон: ${period.temp_range}\n`;
+    message += `📝 Погода: ${period.description}\n`;
+    message += `🌧️ Вероятность осадков: ${period.precipitation_probability}%\n\n`;
+    
+    // Рекомендации по одежде для ночи
+    message += `👕 *Если выходите ночью:*\n`;
+    
+    if (period.temp >= 15) {
+      message += `• Легкая куртка или ветровка\n`;
+      message += `• Джинсы или брюки\n`;
+      message += `• Футболка с длинным рукавом\n`;
+    } else if (period.temp >= 10) {
+      message += `• Теплая куртка\n`;
+      message += `• Джинсы или теплые брюки\n`;
+      message += `• Свитер или толстовка\n`;
+      message += `• 🧣 Шарф (по желанию)\n`;
+    } else if (period.temp >= 0) {
+      message += `• Зимняя куртка\n`;
+      message += `• Теплые брюки\n`;
+      message += `• Термобелье или теплый свитер\n`;
+      message += `• 🧣 Шарф и перчатки\n`;
+      message += `• 🧢 Теплая шапка\n`;
+    } else {
+      message += `• ⚠️ Очень холодно! Одевайтесь очень тепло\n`;
+      message += `• Пуховик или теплая зимняя куртка\n`;
+      message += `• Термобелье\n`;
+      message += `• Теплые штаны\n`;
+      message += `• 🧤 Варежки или теплые перчатки\n`;
+      message += `• 🧣 Шарф и теплая шапка\n`;
+    }
+    
+    message += `\n👟 *Обувь:* закрытая, по погоде\n`;
+    message += `🎒 *Совет:* ночью всегда холоднее, одевайтесь теплее!`;
+    
+    await ctx.reply(message, { 
+      parse_mode: 'Markdown', 
+      reply_markup: forecastDetailKeyboard 
+    });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в НОЧЬ:', error);
+    await ctx.reply('❌ Не удалось получить информацию.', { 
+      reply_markup: mainMenuKeyboard 
+    });
+  }
+});
+
+bot.hears('📊 ОБЩИЙ ПРОГНОЗ', async (ctx) => {
+  // Возвращаемся к общему прогнозу
+  await ctx.reply('Возвращаю общий прогноз...', { 
+    reply_markup: forecastDetailKeyboard 
+  });
+});
+
+// ===================== ОСТАЛЬНЫЕ КНОПКИ =====================
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   const userId = ctx.from.id;
   console.log(`👕 ЧТО НАДЕТЬ? от ${userId}`);
@@ -1499,7 +1465,7 @@ bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
     const advice = getWardrobeAdvice(weather);
     
     await ctx.reply(
-      `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
+      `👕 *Что надеть в ${weather.city} сегодня?*\n\n${advice}`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
     
@@ -1509,7 +1475,6 @@ bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   }
 });
 
-// ===================== ФРАЗА ДНЯ =====================
 bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
   console.log(`💬 ФРАЗА ДНЯ от ${ctx.from.id}`);
   
@@ -1533,7 +1498,10 @@ bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
       `💬 *Фраза дня*\n\n` +
       `🇬🇧 *${phrase.english}*\n\n` +
       `🇷🇺 *${phrase.russian}*\n\n` +
-      `📚 ${phrase.explanation}`,
+      `📚 *Объяснение:* ${phrase.explanation}\n\n` +
+      `📂 *Категория:* ${phrase.category}\n` +
+      `📊 *Уровень сложности:* ${phrase.level}\n\n` +
+      `🔄 Завтра новая фраза!`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
     
@@ -1543,7 +1511,6 @@ bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
   }
 });
 
-// ===================== СЛУЧАЙНАЯ ФРАЗА =====================
 bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
   console.log(`🎲 СЛУЧАЙНАЯ ФРАЗА от ${ctx.from.id}`);
   
@@ -1646,9 +1613,9 @@ bot.hears('📋 ПОКАЗАТЬ КОМАНДЫ', async (ctx) => {
       `/wardrobe - Что надеть по погоде сегодня\n` +
       `/phrase - Английская фраза дня\n` +
       `/random - Случайная английская фраза\n` +
-      `/tetris - Играть в тетрис\n` +
       `/stats - Ваша статистика в игре\n` +
       `/top - Топ игроков\n` +
+      `/city - Сменить город\n` +
       `/help - Помощь и список команд\n\n` +
       `Чтобы вернуть меню кнопок, нажмите /start`,
       { 
@@ -1673,17 +1640,21 @@ bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
     await ctx.reply(
       `*Помощь по боту*\n\n` +
       `*Кнопки в меню:*\n` +
-      `• 🌤️ ПОГОДА СЕЙЧАС - текущая погода\n` +
+      `• 🌤️ ПОГОДА СЕЙЧАС - текущая погода с почасовым прогнозом\n` +
       `• 📅 ПОГОДА ЗАВТРА - подробный прогноз на завтра (утро/день/вечер/ночь)\n` +
-      `• 👕 ЧТО НАДЕТЬ? - рекомендации по одежде\n` +
-      `• 💬 ФРАЗА ДНЯ - английская фраза дня\n` +
+      `• 👕 ЧТО НАДЕТЬ? - подробные рекомендации по одежде\n` +
+      `• 💬 ФРАЗА ДНЯ - английская фраза дня с объяснением\n` +
       `• 🎲 СЛУЧАЙНАЯ ФРАЗА - случайная английская фраза\n` +
-      `• 🎮 ИГРАТЬ В ТЕТРИС - игра в мини-приложении\n` +
-      `• 📊 МОЯ СТАТИСТИКА - ваша статистика в игре\n` +
-      `• 🏆 ТОП ИГРОКОВ - лучшие игроки\n` +
-      `• 🏙️ СМЕНИТЬ ГОРОД - изменить город\n` +
+      `• 📊 МОЯ СТАТИСТИКА - ваша статистика в игре тетрис\n` +
+      `• 🏆 ТОП ИГРОКОВ - лучшие игроки в тетрис\n` +
+      `• 🏙️ СМЕНИТЬ ГОРОД - изменить город для погоды\n` +
       `• ℹ️ ПОМОЩЬ - эта информация\n` +
       `• 📋 ПОКАЗАТЬ КОМАНДЫ - убрать кнопки и использовать команды\n\n` +
+      `*Игра Тетрис:*\n` +
+      `• Доступна через меню ботов Telegram (кнопка "🎮 Играть в тетрис")\n` +
+      `• Ваш прогресс автоматически сохраняется\n` +
+      `• Смотрите статистику в разделе "📊 МОЯ СТАТИСТИКА"\n` +
+      `• Соревнуйтесь с другими в "🏆 ТОП ИГРОКОВ"\n\n` +
       `Чтобы использовать текстовые команды, нажмите "📋 ПОКАЗАТЬ КОМАНДЫ".`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
@@ -1714,17 +1685,15 @@ bot.command('weather', async (ctx) => {
     
     const weather = await getWeatherData(city);
     
-    await ctx.reply(
-      `🌤️ *Погода в ${weather.city}*\n` +
-      `🕒 Обновлено: ${weather.timestamp}\n\n` +
-      `🌡️ Температура: *${weather.temp}°C*\n` +
-      `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
-      `💨 Ветер: ${weather.wind} м/с\n` +
-      `💧 Влажность: ${weather.humidity}%\n` +
-      `📝 ${weather.description}\n` +
-      `🌧️ Осадки: ${weather.precipitation}`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
+    let message = `🌤️ *Погода в ${weather.city}*\n\n`;
+    message += `🌡️ Температура: *${weather.temp}°C*\n`;
+    message += `🤔 Ощущается как: *${weather.feels_like}°C*\n`;
+    message += `💨 Ветер: ${weather.wind} м/с\n`;
+    message += `💧 Влажность: ${weather.humidity}%\n`;
+    message += `📝 ${weather.description}\n`;
+    message += `🌧️ Осадки: ${weather.precipitation}`;
+    
+    await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
     
   } catch (error) {
     console.error('❌ Ошибка в /weather:', error);
@@ -1749,58 +1718,21 @@ bot.command('forecast', async (ctx) => {
       return;
     }
     
-    await ctx.reply(`⏳ Запрашиваю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
+    await ctx.reply(`⏳ Запрашиваю прогноз погоды для ${city}...`);
     
-    const forecast = await getWeatherForecast(city);
+    const forecast = await getWeatherForecastDetailed(city);
     
-    // Форматируем дату
-    const forecastDate = new Date(forecast.date);
-    const dateFormatted = forecastDate.toLocaleDateString('ru-RU', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long'
-    });
+    let message = `📅 *Прогноз погоды в ${forecast.city} на ${forecast.date_tomorrow}*\n\n`;
+    message += `🌡️ Максимальная: *${forecast.general.temp_max}°C*\n`;
+    message += `🌡️ Минимальная: *${forecast.general.temp_min}°C*\n`;
+    message += `📝 ${forecast.general.description}\n`;
+    message += `🌧️ Осадки: ${forecast.general.precipitation}`;
     
-    // Собираем сообщение
-    let message = `📅 *Прогноз погоды на ${dateFormatted}*\n`;
-    message += `📍 *${forecast.city}*\n`;
-    message += `🕒 Обновлено: ${forecast.updated}\n\n`;
-    
-    // Общая информация
-    message += `📊 *Общий прогноз:*\n`;
-    message += `🌡️ Температура: *${forecast.temp_min}°C ... ${forecast.temp_max}°C*\n`;
-    message += `💨 Макс. ветер: ${forecast.wind_max} м/с\n`;
-    message += `🌧️ Осадки: ${forecast.precipitation > 0 ? forecast.precipitation.toFixed(1) + ' мм' : 'Нет'}\n`;
-    message += `🌅 Восход: ${forecast.sunrise}\n`;
-    message += `🌇 Закат: ${forecast.sunset}\n\n`;
-    
-    // Детали по времени суток
-    message += `⏰ *Подробный прогноз по времени суток:*\n\n`;
-    
-    const periodsOrder = ['ночь', 'утро', 'день', 'вечер'];
-    
-    for (const period of periodsOrder) {
-      if (forecast.periods[period]) {
-        const data = forecast.periods[period];
-        const precipText = data.precip_avg > 0 ? `💧 ${data.precip_avg}%` : 'Без осадков';
-        
-        message += `*${period.charAt(0).toUpperCase() + period.slice(1)}* (${data.temp_min}°C...${data.temp_max}°C)\n`;
-        message += `${data.description}\n`;
-        message += `🤔 Ощущается: ${data.feels_min}°C...${data.feels_max}°C\n`;
-        message += `💨 Ветер: ${data.wind_avg} м/с | ${precipText}\n\n`;
-      }
-    }
-    
-    await ctx.reply(message, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
+    await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
     
   } catch (error) {
     console.error('❌ Ошибка в /forecast:', error);
-    await ctx.reply('❌ Не удалось получить прогноз погоды. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
+    await ctx.reply('❌ Не удалось получить прогноз погоды.', { reply_markup: mainMenuKeyboard });
   }
 });
 
@@ -1821,7 +1753,7 @@ bot.command('wardrobe', async (ctx) => {
       return;
     }
     
-    await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
+    await ctx.reply(`👗 Анализирую погоду для ${city}...`);
     
     const weather = await getWeatherData(city);
     const advice = getWardrobeAdvice(weather);
@@ -1909,42 +1841,6 @@ bot.command('random', async (ctx) => {
   }
 });
 
-bot.command('tetris', async (ctx) => {
-  console.log(`🎮 /tetris от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    // URL вашего мини-приложения с тетрисом
-    const webAppUrl = 'https://pogodasovet1.vercel.app';
-    await ctx.reply(
-      `🎮 *Тетрис*\n\n` +
-      `Нажмите кнопку ниже, чтобы открыть игру в мини-приложении!\n\n` +
-      `📊 *Ваша статистика будет автоматически сохраняться.*\n` +
-      `🏆 *Соревнуйтесь с другими игроками в топе!*`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{
-              text: '🎮 Открыть тетрис',
-              web_app: { url: webAppUrl }
-            }]
-          ]
-        }
-      }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка в /tetris:', error);
-    await ctx.reply('❌ Не удалось открыть игру. Попробуйте позже.', {
-      reply_markup: mainMenuKeyboard
-    });
-  }
-});
-
 bot.command('stats', async (ctx) => {
   const userId = ctx.from.id;
   console.log(`📊 /stats от ${userId}`);
@@ -1955,7 +1851,7 @@ bot.command('stats', async (ctx) => {
   }
   
   try {
-    await ctx.reply('⏳ Загружаю вашу статистику...', { parse_mode: 'Markdown' });
+    await ctx.reply('⏳ Загружаю вашу статистику...');
     
     const statsMessage = await getGameStatsMessage(userId);
     await ctx.reply(statsMessage, { 
@@ -1964,9 +1860,7 @@ bot.command('stats', async (ctx) => {
     });
   } catch (error) {
     console.error('❌ Ошибка в /stats:', error);
-    await ctx.reply('❌ Не удалось загрузить вашу статистику.', { 
-      reply_markup: mainMenuKeyboard 
-    });
+    await ctx.reply('❌ Не удалось загрузить статистику.', { reply_markup: mainMenuKeyboard });
   }
 });
 
@@ -1979,18 +1873,31 @@ bot.command('top', async (ctx) => {
   }
   
   try {
-    await ctx.reply('🏆 Загружаю топ игроков...', { parse_mode: 'Markdown' });
+    await ctx.reply('🏆 Загружаю топ игроков...');
     
-    const topMessage = await getTopPlayersMessage(10, ctx);
+    const topMessage = await getTopPlayersMessage(10);
     await ctx.reply(topMessage, { 
       parse_mode: 'Markdown', 
       reply_markup: mainMenuKeyboard 
     });
   } catch (error) {
     console.error('❌ Ошибка в /top:', error);
-    await ctx.reply('❌ Не удалось загрузить топ игроков.', { 
-      reply_markup: mainMenuKeyboard 
-    });
+    await ctx.reply('❌ Не удалось загрузить топ игроков.', { reply_markup: mainMenuKeyboard });
+  }
+});
+
+bot.command('city', async (ctx) => {
+  console.log(`🏙️ /city от ${ctx.from.id}`);
+  
+  if (isRateLimited(ctx.from.id)) {
+    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
+    return;
+  }
+  
+  try {
+    await ctx.reply('Выберите новый город:', { reply_markup: cityKeyboard });
+  } catch (error) {
+    console.error('❌ Ошибка в /city:', error);
   }
 });
 
@@ -2006,27 +1913,26 @@ bot.command('help', async (ctx) => {
     await ctx.reply(
       `*Помощь по боту*\n\n` +
       `*Кнопки в меню:*\n` +
-      `• 🌤️ ПОГОДА СЕЙЧАС - текущая погода\n` +
+      `• 🌤️ ПОГОДА СЕЙЧАС - текущая погода с почасовым прогнозом\n` +
       `• 📅 ПОГОДА ЗАВТРА - подробный прогноз на завтра (утро/день/вечер/ночь)\n` +
-      `• 👕 ЧТО НАДЕТЬ? - рекомендации по одежде\n` +
-      `• 💬 ФРАЗА ДНЯ - английская фраза дня\n` +
+      `• 👕 ЧТО НАДЕТЬ? - подробные рекомендации по одежде\n` +
+      `• 💬 ФРАЗА ДНЯ - английская фраза дня с объяснением\n` +
       `• 🎲 СЛУЧАЙНАЯ ФРАЗА - случайная английская фраза\n` +
-      `• 🎮 ИГРАТЬ В ТЕТРИС - игра в мини-приложении\n` +
-      `• 📊 МОЯ СТАТИСТИКА - ваша статистика в игре\n` +
-      `• 🏆 ТОП ИГРОКОВ - лучшие игроки\n` +
-      `• 🏙️ СМЕНИТЬ ГОРОД - изменить город\n` +
+      `• 📊 МОЯ СТАТИСТИКА - ваша статистика в игре тетрис\n` +
+      `• 🏆 ТОП ИГРОКОВ - лучшие игроки в тетрис\n` +
+      `• 🏙️ СМЕНИТЬ ГОРОД - изменить город для погоды\n` +
       `• ℹ️ ПОМОЩЬ - эта информация\n` +
       `• 📋 ПОКАЗАТЬ КОМАНДЫ - убрать кнопки и использовать команды\n\n` +
       `*Текстовые команды (доступны после нажатия "📋 ПОКАЗАТЬ КОМАНДЫ"):*\n` +
       `/start - начать работу с ботом\n` +
       `/weather - текущая погода\n` +
-      `/forecast - подробный прогноз на завтра\n` +
+      `/forecast - прогноз на завтра\n` +
       `/wardrobe - что надеть?\n` +
       `/phrase - фраза дня\n` +
       `/random - случайная фраза\n` +
-      `/tetris - играть в тетрис\n` +
       `/stats - ваша статистика в игре\n` +
       `/top - топ игроков\n` +
+      `/city - сменить город\n` +
       `/help - помощь\n\n` +
       `Чтобы вернуть меню кнопок, нажмите /start`,
       { 
@@ -2036,6 +1942,59 @@ bot.command('help', async (ctx) => {
     );
   } catch (error) {
     console.error('❌ Ошибка в /help:', error);
+  }
+});
+
+// ===================== ОБРАБОТЧИК ДАННЫХ ИЗ ИГРЫ =====================
+bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`📱 Получены данные от Mini App от пользователя ${userId}`);
+  
+  try {
+    const webAppData = ctx.message.web_app_data;
+    const data = JSON.parse(webAppData.data);
+    console.log('🎮 Данные игры:', data);
+    
+    if (data.action === 'tetris_score') {
+      console.log(`🎮 Счёт тетриса от ${userId}:`, data);
+      
+      try {
+        await saveGameScore(userId, 'tetris', data.score, data.level, data.lines);
+        console.log(`✅ Рекорд пользователя ${userId} сохранён`);
+      } catch (dbError) {
+        console.error('❌ Ошибка сохранения в БД:', dbError);
+      }
+      
+      let message = '';
+      if (data.gameOver) {
+        message = `🎮 *Игра окончена!*\n\n` +
+                  `🏆 *Ваш результат:*\n` +
+                  `• 🎯 Очки: *${data.score}*\n` +
+                  `• 📊 Уровень: *${data.level}*\n` +
+                  `• 📈 Линии: *${data.lines}*\n\n`;
+      } else {
+        message = `🎮 *Прогресс сохранён!*\n\n` +
+                  `📈 *Текущий результат:*\n` +
+                  `• 🎯 Очки: *${data.score}*\n` +
+                  `• 📊 Уровень: *${data.level}*\n` +
+                  `• 📈 Линии: *${data.lines}*\n\n` +
+                  `💾 *Прогресс сохранён, можно продолжить позже!*\n\n`;
+      }
+      
+      const statsMessage = await getGameStatsMessage(userId);
+      message += statsMessage + `\n\n🔄 Продолжайте играть!`;
+      
+      await ctx.reply(message, { 
+        parse_mode: 'Markdown',
+        reply_markup: mainMenuKeyboard 
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка обработки данных игры:', error);
+    await ctx.reply('Произошла ошибка при обработке данных игры. Попробуйте ещё раз.', {
+      reply_markup: mainMenuKeyboard
+    });
   }
 });
 
@@ -2055,9 +2014,9 @@ bot.on('message:text', async (ctx) => {
   // Игнорируем команды и кнопки
   if (text.startsWith('/') || 
       ['🚀 НАЧАТЬ РАБОТУ', '🌤️ ПОГОДА СЕЙЧАС', '📅 ПОГОДА ЗАВТРА', '👕 ЧТО НАДЕТЬ?', 
-       '💬 ФРАЗА ДНЯ', '🎲 СЛУЧАЙНАЯ ФРАЗА', '🎮 ИГРАТЬ В ТЕТРИС', '📊 МОЯ СТАТИСТИКА', 
-       '🏆 ТОП ИГРОКОВ', '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '📋 ПОКАЗАТЬ КОМАНДЫ', 
-       '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text) ||
+       '💬 ФРАЗА ДНЯ', '🎲 СЛУЧАЙНАЯ ФРАЗА', '📊 МОЯ СТАТИСТИКА', '🏆 ТОП ИГРОКОВ',
+       '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '📋 ПОКАЗАТЬ КОМАНДЫ', '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД',
+       '🌅 УТРО (6-12)', '🌞 ДЕНЬ (12-18)', '🌆 ВЕЧЕР (18-24)', '🌙 НОЧЬ (0-6)', '📊 ОБЩИЙ ПРОГНОЗ'].includes(text) ||
       text.startsWith('📍 ')) {
     return;
   }
@@ -2078,7 +2037,8 @@ bot.on('message:text', async (ctx) => {
       
       if (saved) {
         await ctx.reply(
-          `✅ *Город "${city}" сохранён!*`,
+          `✅ *Город "${city}" сохранён!*\n\n` +
+          `Теперь вы можете использовать все функции бота.`,
           { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
         );
       } else {
@@ -2121,11 +2081,10 @@ export default async function handler(req, res) {
         timestamp: new Date().toISOString(),
         bot: bot.botInfo?.username || 'не инициализирован',
         features: [
-          'Погода сейчас',
-          'Подробный прогноз на завтра',
+          'Погода с подробным прогнозом',
           'Рекомендации по одежде',
           'Английские фразы',
-          'Тетрис со статистикой',
+          'Статистика игры тетрис',
           'Топ игроков'
         ]
       });
@@ -2144,7 +2103,11 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       } catch (error) {
         console.error('❌ Ошибка обработки update:', error);
-        return res.status(200).json({ ok: false, error: 'Update processing failed' });
+        return res.status(200).json({ 
+          ok: false, 
+          error: 'Update processing failed',
+          details: error.message 
+        });
       }
     }
     
@@ -2154,11 +2117,12 @@ export default async function handler(req, res) {
     console.error('🔥 Критическая ошибка в handler:', error);
     return res.status(200).json({ 
       ok: false, 
-      error: 'Internal server error'
+      error: 'Internal server error',
+      message: error.message
     });
   }
 }
 
 // Экспортируем бота для тестов
 export { bot };
-console.log('⚡ Бот загружен с полноценной системой прогноза погоды и статистикой игр!');
+console.log('⚡ Бот загружен с полной системой погоды, фраз и статистики игр!');
