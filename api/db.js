@@ -128,22 +128,94 @@ export async function getUserCity(userId) {
 export async function saveGameScore(userId, gameType, score, level, lines) {
   const client = await pool.connect();
   try {
-    console.log(`💾 Сохранение результата: ${score} очков для пользователя ${userId}`);
+    console.log(`💾💾💾 ВЫЗОВ saveGameScore с параметрами:`, {
+      userId, gameType, score, level, lines
+    });
+    
+    // ПРОВЕРКА ПОДКЛЮЧЕНИЯ К БАЗЕ
+    console.log(`🔍 Проверка подключения к БД...`);
+    const connectionCheck = await client.query('SELECT 1 as test');
+    console.log(`🔍 Подключение к БД:`, connectionCheck.rows[0]);
     
     const query = `
       INSERT INTO game_scores (user_id, game_type, score, level, lines) 
       VALUES ($1, $2, $3, $4, $5) 
       RETURNING id
     `;
+    
+    console.log(`🔍 SQL запрос:`, query);
+    console.log(`🔍 Параметры: [$1=${userId}, $2=${gameType}, $3=${score}, $4=${level}, $5=${lines}]`);
+    
     const result = await client.query(query, [userId, gameType, score, level, lines]);
     
+    console.log(`🔍 Результат от БД:`, {
+      rowCount: result.rowCount,
+      rows: result.rows,
+      command: result.command
+    });
+    
     const savedId = result.rows[0]?.id;
-    console.log(`✅ Результат сохранен (ID: ${savedId}): ${score} очков`);
+    
+    if (savedId) {
+      console.log(`✅✅✅ УСПЕХ! Результат сохранен в game_scores с ID: ${savedId}`);
+      
+      // ПРОВЕРКА ЧТО ЗАПИСЬ ДЕЙСТВИТЕЛЬНО СОХРАНИЛАСЬ
+      const verifyQuery = `
+        SELECT id, user_id, score, created_at 
+        FROM game_scores 
+        WHERE id = $1
+      `;
+      const verifyResult = await client.query(verifyQuery, [savedId]);
+      console.log(`🔍 Проверка сохраненной записи:`, verifyResult.rows[0]);
+      
+      // ПРОВЕРКА ОБЩЕГО КОЛИЧЕСТВА ЗАПИСЕЙ
+      const countQuery = await client.query('SELECT COUNT(*) as total FROM game_scores');
+      console.log(`🔍 Всего записей в game_scores:`, parseInt(countQuery.rows[0].total));
+      
+      // ПРОВЕРКА ЗАПИСЕЙ ДЛЯ ЭТОГО ПОЛЬЗОВАТЕЛЯ
+      const userCountQuery = await client.query(
+        'SELECT COUNT(*) as user_count FROM game_scores WHERE user_id = $1',
+        [userId]
+      );
+      console.log(`🔍 Записей для пользователя ${userId}:`, parseInt(userCountQuery.rows[0].user_count));
+      
+    } else {
+      console.log(`❌❌❌ ВНИМАНИЕ: saveGameScore вернул null/undefined!`);
+      console.log(`❌ Проверка - возможно таблица game_scores не существует?`);
+      
+      // ПРОВЕРЯЕМ СУЩЕСТВОВАНИЕ ТАБЛИЦЫ
+      const tableCheck = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'game_scores'
+        )
+      `);
+      console.log(`🔍 Таблица game_scores существует?`, tableCheck.rows[0].exists);
+    }
     
     return savedId;
+    
   } catch (error) {
-    console.error('❌ Ошибка сохранения результата:', error);
-    console.error('❌ Stack trace:', error.stack);
+    console.error(`❌❌❌ КРИТИЧЕСКАЯ ОШИБКА в saveGameScore:`, error);
+    console.error(`❌ Сообщение ошибки:`, error.message);
+    console.error(`❌ Код ошибки:`, error.code);
+    console.error(`❌ Детали ошибки:`, error.detail);
+    console.error(`❌ Позиция ошибки:`, error.position);
+    
+    // ДОПОЛНИТЕЛЬНАЯ ДИАГНОСТИКА
+    try {
+      const tableInfo = await client.query(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'game_scores' 
+        ORDER BY ordinal_position
+      `);
+      console.log(`🔍 Структура таблицы game_scores:`, tableInfo.rows);
+    } catch (e) {
+      console.log(`🔍 Не удалось получить структуру таблицы:`, e.message);
+    }
+    
     return null;
   } finally {
     client.release();
@@ -219,9 +291,28 @@ export async function deleteGameProgress(userId, gameType = 'tetris') {
 export async function getGameStats(userId, gameType = 'tetris') {
   const client = await pool.connect();
   try {
-    console.log(`📊 Запрос статистики для user_id: ${userId}, game_type: ${gameType}`);
+    console.log(`📊 ВЫЗОВ getGameStats: user_id=${userId}, game_type=${gameType}`);
     
-    // Сначала получаем базовую статистику из game_scores
+    // СНАЧАЛА ПРОВЕРИМ ЕСТЬ ЛИ ВООБЩЕ ДАННЫЕ
+    const checkQuery = `
+      SELECT COUNT(*) as total_count 
+      FROM game_scores 
+      WHERE user_id = $1 AND game_type = $2
+    `;
+    const checkResult = await client.query(checkQuery, [userId, gameType]);
+    const totalCount = parseInt(checkResult.rows[0].total_count);
+    
+    console.log(`🔍 Всего записей для пользователя ${userId}:`, totalCount);
+    
+    if (totalCount === 0) {
+      console.log(`⚠️ ВНИМАНИЕ: Нет записей в game_scores для пользователя ${userId}`);
+      
+      // Проверим все записи в таблице
+      const allRecords = await client.query('SELECT COUNT(*) as all FROM game_scores');
+      console.log(`🔍 Всего записей во всей таблице game_scores:`, parseInt(allRecords.rows[0].all));
+    }
+    
+    // ОСНОВНОЙ ЗАПРОС
     const statsQuery = `
       SELECT 
         COUNT(*) as games_played,
@@ -235,18 +326,11 @@ export async function getGameStats(userId, gameType = 'tetris') {
     `;
     
     const statsResult = await client.query(statsQuery, [userId, gameType]);
+    const stats = statsResult.rows[0];
     
-    // Всегда должен вернуть хотя бы одну строку, даже если COUNT(*) = 0
-    const stats = statsResult.rows[0] || {
-      games_played: 0,
-      best_score: 0,
-      best_level: 1,
-      best_lines: 0,
-      avg_score: 0,
-      last_played: null
-    };
+    console.log(`📊 СТАТИСТИКА ИЗ БД (сырые данные):`, stats);
     
-    // Получаем текущий прогресс (если есть незавершенная игра)
+    // Получаем прогресс
     const progressQuery = `
       SELECT score, level, lines, last_saved 
       FROM game_progress 
@@ -255,7 +339,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
     const progressResult = await client.query(progressQuery, [userId, gameType]);
     const progress = progressResult.rows[0];
     
-    // Формируем результат
     const result = {
       games_played: parseInt(stats.games_played) || 0,
       best_score: parseInt(stats.best_score) || 0,
@@ -269,17 +352,18 @@ export async function getGameStats(userId, gameType = 'tetris') {
         lines: parseInt(progress.lines) || 0,
         last_saved: progress.last_saved
       } : null,
-      has_unfinished_game: !!progress
+      has_unfinished_game: !!progress,
+      debug: {
+        total_records_found: totalCount,
+        query_executed: true
+      }
     };
     
-    console.log(`📊 Статистика получена:`, result);
+    console.log(`✅ getGameStats результат:`, result);
     return result;
     
   } catch (error) {
-    console.error('❌ Ошибка получения статистики:', error);
-    console.error('❌ Stack trace:', error.stack);
-    
-    // Возвращаем дефолтные значения при ошибке
+    console.error(`❌ Ошибка getGameStats:`, error);
     return {
       games_played: 0,
       best_score: 0,
@@ -288,7 +372,8 @@ export async function getGameStats(userId, gameType = 'tetris') {
       avg_score: 0,
       last_played: null,
       current_progress: null,
-      has_unfinished_game: false
+      has_unfinished_game: false,
+      debug: { error: error.message }
     };
   } finally {
     client.release();
