@@ -1,184 +1,210 @@
-// api/save-score.js
-import { saveGameScore } from './db.js';
+import { saveGameScore, saveGameProgress, deleteGameProgress, getGameStats } from './db.js';
 
 export default async function handler(req, res) {
-  console.log('🎮 API: /api/save-score - сохранение счета');
-  console.log('🎮 Метод:', req.method);
-  console.log('🎮 Body:', req.body);
-  
-  // Устанавливаем заголовки CORS для разрешения запросов от веб-приложений
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  // Обработка предварительных OPTIONS запросов
-  if (req.method === 'OPTIONS') {
-    console.log('📦 Обработка OPTIONS запроса');
-    return res.status(200).end();
-  }
+  console.log('📨 POST /api/save-score');
   
   if (req.method !== 'POST') {
     console.log('❌ Метод не разрешен:', req.method);
     return res.status(405).json({ 
-      success: false,
-      error: 'Method not allowed. Use POST.',
-      code: 'METHOD_NOT_ALLOWED'
+      success: false, 
+      error: 'Method not allowed. Use POST.' 
     });
   }
 
   try {
-    // Пытаемся парсить JSON тело
-    let body = req.body;
-    if (typeof req.body === 'string') {
-      try {
-        body = JSON.parse(req.body);
-      } catch (e) {
-        console.log('⚠️ Тело запроса не JSON, используем как есть');
+    console.log('📊 Тело запроса:', req.body);
+    
+    let userId, score, level, lines, gameType, gameOver, isWebApp;
+    
+    // Обработка данных из Telegram Web App
+    if (req.body.userId && req.body.userId.startsWith('web_')) {
+      // Извлекаем числовую часть из web_1770548758686
+      userId = req.body.userId.replace('web_', '');
+      score = req.body.score;
+      level = req.body.level;
+      lines = req.body.lines;
+      gameType = req.body.gameType || 'tetris';
+      gameOver = req.body.gameOver || false;
+      isWebApp = true;
+    }
+    // Данные из обычной игры тетриса
+    else if (req.body.userId) {
+      userId = req.body.userId;
+      score = req.body.score;
+      level = req.body.level;
+      lines = req.body.lines;
+      gameType = req.body.gameType || 'tetris';
+      gameOver = req.body.gameOver || false;
+      isWebApp = false;
+    }
+    // Telegram Web App с action
+    else if (req.body.action === 'tetris_score') {
+      const rawUserId = req.body.user_id || req.body.userId;
+      if (rawUserId && rawUserId.startsWith('web_')) {
+        userId = rawUserId.replace('web_', '');
+      } else {
+        userId = rawUserId;
       }
+      score = req.body.score;
+      level = req.body.level;
+      lines = req.body.lines;
+      gameType = 'tetris';
+      gameOver = req.body.gameOver || false;
+      isWebApp = true;
+    }
+    // Прямые параметры
+    else {
+      const rawUserId = req.body.user_id || req.body.userId;
+      if (rawUserId && rawUserId.startsWith('web_')) {
+        userId = rawUserId.replace('web_', '');
+        isWebApp = true;
+      } else {
+        userId = rawUserId;
+        isWebApp = false;
+      }
+      score = req.body.score;
+      level = req.body.level || 1;
+      lines = req.body.lines || 0;
+      gameType = req.body.game_type || req.body.gameType || 'tetris';
+      gameOver = req.body.gameOver || false;
     }
     
-    const { 
-      userId, 
-      gameType = 'tetris', 
-      score, 
-      level = 1, 
-      lines = 0,
-      source = 'web_app'
-    } = body;
+    console.log('📊 Обработанные данные:', {
+      userId,
+      score,
+      level,
+      lines,
+      gameType,
+      gameOver,
+      isWebApp,
+      originalUserId: req.body.userId || req.body.user_id
+    });
     
-    console.log('🎮 Данные для сохранения:', { userId, gameType, score, level, lines, source });
-    
-    // Валидация параметров
+    // Валидация данных
     if (!userId) {
       console.log('❌ Отсутствует userId');
       return res.status(400).json({ 
-        success: false,
-        error: 'Missing required parameter: userId',
-        code: 'MISSING_USER_ID'
+        success: false, 
+        error: 'Missing userId field' 
       });
     }
     
     if (score === undefined || score === null) {
       console.log('❌ Отсутствует score');
       return res.status(400).json({ 
-        success: false,
-        error: 'Missing required parameter: score',
-        code: 'MISSING_SCORE'
+        success: false, 
+        error: 'Missing score field' 
       });
     }
     
-    // Парсим числовые значения
-    let numericUserId;
-    let isWebApp = false;
-    
-    if (typeof userId === 'string' && userId.startsWith('web_')) {
-      // Это ID из веб-приложения
-      isWebApp = true;
-      const webIdStr = userId.replace('web_', '');
-      numericUserId = parseInt(webIdStr);
-      
-      if (isNaN(numericUserId)) {
-        // Если не удалось преобразовать в число, используем хэш
-        numericUserId = Math.abs(hashString(userId) % 1000000000);
-      }
-    } else {
-      numericUserId = parseInt(userId);
-    }
+    // Преобразуем в числа
+    const numericUserId = parseInt(userId);
+    const numericScore = parseInt(score);
+    const numericLevel = level ? parseInt(level) : 1;
+    const numericLines = lines ? parseInt(lines) : 0;
     
     if (isNaN(numericUserId)) {
-      console.log('❌ Неверный формат userId:', userId);
+      console.log('❌ Неверный формат userId после обработки:', userId);
       return res.status(400).json({ 
-        success: false,
-        error: 'Invalid userId format. Must be a number or web_* format.',
-        code: 'INVALID_USER_ID'
+        success: false, 
+        error: 'Invalid userId format after processing' 
       });
     }
-    
-    const numericScore = parseInt(score);
-    const numericLevel = parseInt(level);
-    const numericLines = parseInt(lines);
     
     if (isNaN(numericScore)) {
-      console.log('❌ Неверный формат score:', score);
+      console.log('❌ Неверный score:', score);
       return res.status(400).json({ 
-        success: false,
-        error: 'Invalid score format. Must be a number.',
-        code: 'INVALID_SCORE'
+        success: false, 
+        error: 'Invalid score format' 
       });
     }
     
-    console.log(`🎮 Сохранение счета: user=${numericUserId}, score=${numericScore}, level=${numericLevel}, lines=${numericLines}`);
+    // Для Web App добавляем смещение, чтобы не пересекаться с реальными Telegram ID
+    const dbUserId = isWebApp ? numericUserId + 1000000000 : numericUserId;
     
-    // Сохраняем в базу данных
-    const resultId = await saveGameScore(
-      numericUserId, 
-      gameType, 
-      numericScore, 
-      numericLevel, 
-      numericLines
-    );
+    console.log('💾 Сохраняем результат в базу данных...', {
+      originalUserId: userId,
+      dbUserId: dbUserId,
+      isWebApp: isWebApp
+    });
+    
+    let resultId;
+    
+    if (gameOver) {
+      // Если игра завершена, сохраняем финальный результат
+      resultId = await saveGameScore(
+        dbUserId, 
+        gameType, 
+        numericScore, 
+        numericLevel, 
+        numericLines
+      );
+      
+      // Удаляем прогресс, так как игра завершена
+      await deleteGameProgress(dbUserId, gameType);
+      console.log('🎮 Игра завершена, прогресс удален');
+    } else {
+      // Если игра продолжается, сохраняем прогресс
+      resultId = await saveGameProgress(
+        dbUserId, 
+        gameType, 
+        numericScore, 
+        numericLevel, 
+        numericLines
+      );
+      console.log('💾 Прогресс игры сохранен');
+    }
     
     if (resultId) {
-      console.log('✅ Счет успешно сохранен, ID:', resultId);
+      // Получаем обновленную статистику
+      const stats = await getGameStats(dbUserId, gameType);
+      const bestScore = stats?.best_score || 0;
+      
+      console.log('✅ Результат сохранен успешно!', {
+        savedId: resultId,
+        originalUserId: userId,
+        dbUserId: dbUserId,
+        score: numericScore,
+        bestScore: bestScore,
+        gameOver: gameOver,
+        isWebApp: isWebApp
+      });
       
       const response = {
         success: true,
         id: resultId,
-        userId: userId,
-        dbUserId: numericUserId,
-        gameType: gameType,
+        userId: isWebApp ? `web_${userId}` : numericUserId, // Возвращаем оригинальный формат
+        dbUserId: dbUserId,
         score: numericScore,
         level: numericLevel,
         lines: numericLines,
-        source: source,
-        isWebApp: isWebApp,
-        timestamp: new Date().toISOString(),
-        message: 'Score saved successfully'
+        gameType: gameType,
+        gameOver: gameOver,
+        bestScore: bestScore,
+        newRecord: numericScore > bestScore,
+        message: gameOver ? 'Final score saved successfully' : 'Game progress saved',
+        isWebApp: isWebApp
       };
+      
+      console.log('📤 Отправляем ответ:', response);
       
       return res.status(200).json(response);
     } else {
-      console.log('❌ Не удалось сохранить счет в БД');
-      
+      console.log('❌ Не удалось сохранить в БД');
       return res.status(500).json({ 
         success: false,
-        error: 'Failed to save score to database',
-        code: 'DATABASE_ERROR',
-        userId: userId,
-        dbUserId: numericUserId
+        error: 'Failed to save to database. Check database connection.'
       });
     }
     
   } catch (error) {
-    console.error('🔥 Критическая ошибка сохранения счета:', error);
+    console.error('🔥 Критическая ошибка сохранения:', error);
     console.error('🔥 Stack trace:', error.stack);
     
-    const errorResponse = {
+    return res.status(500).json({ 
       success: false,
-      error: {
-        message: error.message,
-        code: 'SAVE_SCORE_ERROR',
-        timestamp: new Date().toISOString(),
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
-      message: 'Не удалось сохранить результат в базу данных'
-    };
-    
-    return res.status(500).json(errorResponse);
+      error: `Internal server error: ${error.message}`,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }
-
-// Хэш-функция для строк (для Web App ID)
-function hashString(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
-}
-
-// Экспортируем для тестов
-export { hashString };
