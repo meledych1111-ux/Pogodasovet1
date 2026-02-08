@@ -8,7 +8,46 @@ const pool = new Pool({
   }
 });
 
-// Функции для городов
+// Создание таблиц
+async function createTables() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        user_id BIGINT PRIMARY KEY,
+        selected_city VARCHAR(100),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS game_scores (
+        id SERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL,
+        game_type VARCHAR(50) NOT NULL DEFAULT 'tetris',
+        score INTEGER NOT NULL DEFAULT 0,
+        level INTEGER NOT NULL DEFAULT 1,
+        lines INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    
+    console.log('✅ Таблицы созданы или уже существуют');
+  } catch (error) {
+    console.error('❌ Ошибка при создании таблиц:', error);
+  } finally {
+    client.release();
+  }
+}
+
+// Автоматическое создание таблиц
+if (process.env.DATABASE_URL) {
+  createTables();
+}
+
+// Экспортируемые функции
 export async function saveUserCity(userId, city) {
   const client = await pool.connect();
   try {
@@ -46,7 +85,6 @@ export async function getUserCity(userId) {
   }
 }
 
-// Функции для игр
 export async function saveGameScore(userId, gameType, score, level, lines) {
   const client = await pool.connect();
   try {
