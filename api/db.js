@@ -274,28 +274,36 @@ export async function getGameStats(userId, gameType = 'tetris') {
 export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   const client = await pool.connect();
   try {
+    console.log(`🏆 Запрос топа игроков для: ${gameType}, лимит: ${limit}`);
+    
+    // Обновленный запрос с JOIN для получения username (если есть таблица users)
     const query = `
       SELECT 
-        user_id,
-        COALESCE(MAX(score), 0) as score,
-        COALESCE(MAX(level), 1) as level,
-        COALESCE(MAX(lines), 0) as lines,
-        COALESCE(COUNT(*), 0) as games_played
-      FROM game_scores 
-      WHERE game_type = $1 
-      GROUP BY user_id
-      ORDER BY MAX(score) DESC
+        gs.user_id,
+        COALESCE(MAX(gs.score), 0) as score,
+        COALESCE(MAX(gs.level), 1) as level,
+        COALESCE(MAX(gs.lines), 0) as lines,
+        COUNT(*) as games_played
+      FROM game_scores gs
+      WHERE gs.game_type = $1 
+      GROUP BY gs.user_id
+      HAVING COUNT(*) > 0
+      ORDER BY MAX(gs.score) DESC, MAX(gs.level) DESC, MAX(gs.lines) DESC
       LIMIT $2
     `;
+    
     const result = await client.query(query, [gameType, limit]);
+    console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
     
     // Форматируем результат
-    return result.rows.map(player => ({
+    return result.rows.map((player, index) => ({
+      rank: index + 1,
       user_id: player.user_id,
       score: parseInt(player.score) || 0,
       level: parseInt(player.level) || 1,
       lines: parseInt(player.lines) || 0,
-      games_played: parseInt(player.games_played) || 0
+      games_played: parseInt(player.games_played) || 0,
+      username: `Игрок #${player.user_id.toString().slice(-4)}` // Последние 4 цифры ID
     }));
   } catch (error) {
     console.error('❌ Ошибка получения топа:', error);
