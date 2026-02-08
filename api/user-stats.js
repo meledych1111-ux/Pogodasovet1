@@ -1,56 +1,179 @@
-import { getGameStats } from './db.js';
+import { getGameStats } from '../db.js';
 
 export default async function handler(req, res) {
-  console.log('📊 Запрос статистики:', req.method, req.query);
+  console.log('📊 API: /api/user-stats - запрос статистики пользователя');
+  console.log('📊 Метод:', req.method);
+  console.log('📊 Query параметры:', req.query);
+  console.log('📊 Body параметры:', req.body);
   
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  // Разрешаем оба метода для удобства
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    console.log('❌ Метод не разрешен:', req.method);
+    return res.status(405).json({ 
+      success: false,
+      error: 'Method not allowed. Use GET or POST.' 
+    });
   }
 
   try {
-    const { userId, gameType = 'tetris' } = req.query;
+    let userId, gameType;
     
-    console.log('👤 Получение статистики для:', { userId, gameType });
+    // Получаем параметры в зависимости от метода
+    if (req.method === 'GET') {
+      userId = req.query.userId || req.query.user_id;
+      gameType = req.query.gameType || req.query.game_type || 'tetris';
+    } else if (req.method === 'POST') {
+      userId = req.body.userId || req.body.user_id;
+      gameType = req.body.gameType || req.body.game_type || 'tetris';
+    }
     
+    console.log('👤 Извлеченные параметры:', { userId, gameType });
+    
+    // Валидация данных
     if (!userId) {
       console.log('❌ Отсутствует userId');
       return res.status(400).json({ 
-        error: 'Missing userId' 
+        success: false,
+        error: 'Missing required parameter: userId',
+        code: 'MISSING_USER_ID'
       });
     }
-
-    const stats = await getGameStats(parseInt(userId), gameType);
-    console.log('📈 Получена статистика:', stats);
     
-    const defaultStats = {
-      games_played: 0,
-      best_score: 0,
-      best_level: 1,
-      best_lines: 0,
-      avg_score: 0,
-      last_played: null,
-      current_progress: null,
-      has_unfinished_game: false
+    // Преобразуем userId в число
+    const numericUserId = parseInt(userId);
+    
+    if (isNaN(numericUserId)) {
+      console.log('❌ Неверный формат userId:', userId);
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid userId format. Must be a number.',
+        code: 'INVALID_USER_ID'
+      });
+    }
+    
+    console.log(`📊 Получение статистики для пользователя ${numericUserId}, игра: ${gameType}`);
+    
+    // Получаем статистику из базы данных
+    const stats = await getGameStats(numericUserId, gameType);
+    
+    console.log('📈 Статистика из БД:', stats);
+    
+    // Форматируем ответ с дефолтными значениями
+    const response = {
+      success: true,
+      userId: numericUserId,
+      gameType: gameType,
+      timestamp: new Date().toISOString(),
+      
+      // Основная статистика
+      stats: {
+        games_played: stats?.games_played || 0,
+        best_score: stats?.best_score || 0,
+        best_level: stats?.best_level || 1,
+        best_lines: stats?.best_lines || 0,
+        avg_score: stats?.avg_score ? parseFloat(stats.avg_score.toFixed(2)) : 0,
+        last_played: stats?.last_played || null,
+        rank: stats?.rank || 'Не определен'
+      },
+      
+      // Прогресс текущей игры
+      current_progress: stats?.has_progress ? {
+        score: stats.progress_score || 0,
+        level: stats.progress_level || 1,
+        lines: stats.progress_lines || 0,
+        last_saved: stats.progress_last_saved || null,
+        has_unfinished_game: true
+      } : null,
+      
+      // Дополнительная информация
+      meta: {
+        has_played: (stats?.games_played || 0) > 0,
+        has_unfinished_game: stats?.has_progress || false,
+        is_top_player: false, // Можно добавить логику проверки
+        next_milestone: calculateNextMilestone(stats?.best_score || 0)
+      }
     };
     
-    // Объединяем полученные данные с дефолтными значениями
-    const result = {
-      games_played: stats?.games_played || 0,
-      best_score: stats?.best_score || 0,
-      best_level: stats?.best_level || 1,
-      best_lines: stats?.best_lines || 0,
-      avg_score: stats?.avg_score || 0,
-      last_played: stats?.last_played || null,
-      current_progress: stats?.current_progress || null,
-      has_unfinished_game: stats?.has_unfinished_game || false
-    };
+    console.log('✅ Форматированный ответ:', {
+      games_played: response.stats.games_played,
+      best_score: response.stats.best_score,
+      has_unfinished_game: response.meta.has_unfinished_game
+    });
     
-    return res.status(200).json(result);
+    return res.status(200).json(response);
     
   } catch (error) {
-    console.error('❌ Ошибка получения статистики:', error);
-    return res.status(500).json({ 
-      error: 'Internal server error'
-    });
+    console.error('🔥 Критическая ошибка получения статистики:', error);
+    console.error('🔥 Stack trace:', error.stack);
+    
+    // Более информативный ответ об ошибке
+    const errorResponse = {
+      success: false,
+      error: {
+        message: error.message,
+        code: 'DATABASE_ERROR',
+        timestamp: new Date().toISOString(),
+        details: process.env.NODE_ENV === 'development' ? {
+          stack: error.stack,
+          fullError: error.toString()
+        } : undefined
+      },
+      fallback_stats: {
+        games_played: 0,
+        best_score: 0,
+        best_level: 1,
+        best_lines: 0,
+        avg_score: 0,
+        message: 'Используются данные по умолчанию из-за ошибки БД'
+      }
+    };
+    
+    return res.status(500).json(errorResponse);
   }
+}
+
+// Вспомогательная функция для расчета следующего рубежа
+function calculateNextMilestone(currentScore) {
+  const milestones = [
+    100, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000
+  ];
+  
+  for (const milestone of milestones) {
+    if (currentScore < milestone) {
+      return {
+        target: milestone,
+        needed: milestone - currentScore,
+        progress: (currentScore / milestone * 100).toFixed(1) + '%',
+        message: `Следующий рубеж: ${milestone} очков`
+      };
+    }
+  }
+  
+  return {
+    target: 100000,
+    needed: 0,
+    progress: '100%',
+    message: 'Вы достигли максимального рубежа! 🏆'
+  };
+}
+
+// Функция для тестирования API
+export const testUserStats = async (testUserId = 123456789) => {
+  try {
+    const testStats = await getGameStats(testUserId, 'tetris');
+    console.log(`🧪 Тест статистики для user ${testUserId}:`, testStats);
+    return testStats;
+  } catch (error) {
+    console.error('🧪 Ошибка теста:', error);
+    return null;
+  }
+};
+
+// Если файл запущен напрямую, выполнить тест
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log('🧪 Запуск теста user-stats.js');
+  testUserStats().then(() => {
+    console.log('🧪 Тест завершен');
+    process.exit(0);
+  });
 }
