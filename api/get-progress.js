@@ -8,6 +8,8 @@ export default async function handler(req, res) {
   try {
     const { userId, gameType = 'tetris' } = req.query;
     
+    console.log('📋 Получение прогресса для:', userId);
+    
     if (!userId) {
       return res.status(400).json({ 
         error: 'Missing userId' 
@@ -18,11 +20,16 @@ export default async function handler(req, res) {
     
     return res.status(200).json({ 
       success: true,
-      progress: progress || null
+      progress: progress || {
+        score: 0,
+        level: 1,
+        lines: 0,
+        last_saved: null
+      }
     });
     
   } catch (error) {
-    console.error('Error getting progress:', error);
+    console.error('❌ Error getting progress:', error);
     return res.status(500).json({ 
       error: 'Internal server error'
     });
