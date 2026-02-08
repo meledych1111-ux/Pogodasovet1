@@ -54,22 +54,6 @@ async function createTables() {
       )
     `);
     
-    // Создаем индексы для производительности
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_game_scores_user_game 
-      ON game_scores(user_id, game_type)
-    `);
-    
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_game_scores_score_desc 
-      ON game_scores(score DESC)
-    `);
-    
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_game_stats_best_score 
-      ON game_stats(best_score DESC)
-    `);
-    
     console.log('✅ [DB] Все таблицы проверены/созданы');
     
   } catch (error) {
@@ -93,7 +77,7 @@ if (process.env.DATABASE_URL) {
 export async function saveUserCity(userId, city) {
   if (!process.env.DATABASE_URL) {
     console.log(`📍 [DB-FALLBACK] Город сохранен в памяти: ${city} для ${userId}`);
-    return userId;
+    return true; // ВОТ ТУТ ИСПРАВЛЕНИЕ
   }
   
   const client = await pool.connect();
@@ -106,11 +90,14 @@ export async function saveUserCity(userId, city) {
       RETURNING user_id
     `;
     const result = await client.query(query, [userId, city]);
-    console.log(`📍 [DB] Город сохранен: ${city} для пользователя ${userId}`);
-    return result.rows[0]?.user_id;
+    
+    const success = result.rows.length > 0;
+    console.log(`📍 [DB] Город сохранен: ${city} для пользователя ${userId}, успех: ${success}`);
+    return success; // ВОТ ТУТ ИСПРАВЛЕНИЕ
+    
   } catch (error) {
     console.error('❌ [DB] Ошибка сохранения города:', error);
-    return null;
+    return false; // ВОТ ТУТ ИСПРАВЛЕНИЕ
   } finally {
     client.release();
   }
@@ -166,7 +153,7 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level, l
       userId, gameType, score, level, lines
     ]);
     
-    console.log(`🎮 [DB] Счет сохранен: ID=${saveResult.rows[0].id}, ${score} очков для ${userId}`);
+    console.log(`🎮 [DB] Счет сохранен: ID=${saveResult.rows[0]?.id}, ${score} очков для ${userId}`);
     
     // Обновляем статистику игрока
     const statsQuery = `
@@ -188,15 +175,15 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level, l
       userId, gameType, score, score, level, lines
     ]);
     
-    console.log(`📊 [DB] Статистика обновлена: ${statsResult.rows[0].games_played} игр для ${userId}`);
+    console.log(`📊 [DB] Статистика обновлена: ${statsResult.rows[0]?.games_played} игр для ${userId}`);
     
     // Коммитим транзакцию
     await client.query('COMMIT');
     
     return { 
       success: true, 
-      gameId: saveResult.rows[0].id,
-      gamesPlayed: statsResult.rows[0].games_played 
+      gameId: saveResult.rows[0]?.id,
+      gamesPlayed: statsResult.rows[0]?.games_played 
     };
     
   } catch (error) {
@@ -288,7 +275,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
         gs.lines,
         gs.created_at as game_time,
         gs.game_date,
-        COALESCE(gs.games_played, 1) as games_played
+        COALESCE(gst.games_played, 1) as games_played
       FROM game_scores gs
       LEFT JOIN game_stats gst ON gs.user_id = gst.user_id AND gs.game_type = gst.game_type
       WHERE gs.game_type = $1
