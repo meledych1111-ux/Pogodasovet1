@@ -172,7 +172,173 @@ async function getWeatherData(cityName, forceRefresh = false) {
     };
   }
 }
+// В bot.js добавьте эту функцию после функции getWeatherData:
 
+async function getDetailedTomorrowWeather(cityName) {
+  const cacheKey = `tomorrow_${cityName.toLowerCase()}`;
+  const now = Date.now();
+  
+  // Проверяем кэш (актуален 1 час)
+  if (weatherCache.has(cacheKey)) {
+    const cached = weatherCache.get(cacheKey);
+    if (now - cached.timestamp < 3600000) {
+      console.log(`🌤️ Использую кэшированный прогноз для ${cityName}`);
+      return cached.data;
+    }
+  }
+  
+  console.log(`🌤️ Запрашиваю детальный прогноз для: "${cityName}"`);
+  
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+    const geoResponse = await fetch(geoUrl);
+    const geoData = await geoResponse.json();
+    
+    if (!geoData.results || geoData.results.length === 0) {
+      throw new Error('Город не найден');
+    }
+    
+    const { latitude, longitude, name } = geoData.results[0];
+    
+    // Запрос детального прогноза на завтра (по часам)
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m,relative_humidity_2m&daily=sunrise,sunset&wind_speed_unit=ms&timezone=auto&forecast_days=2`;
+    
+    const forecastResponse = await fetch(forecastUrl);
+    const forecastData = await forecastResponse.json();
+    
+    if (!forecastData.hourly || !forecastData.hourly.time) {
+      throw new Error('Нет данных о прогнозе');
+    }
+    
+    // Определяем завтрашнюю дату
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowDate = tomorrow.toISOString().split('T')[0];
+    
+    // Фильтруем данные на завтра
+    const hourly = forecastData.hourly;
+    const tomorrowHours = [];
+    
+    for (let i = 0; i < hourly.time.length; i++) {
+      if (hourly.time[i].startsWith(tomorrowDate)) {
+        tomorrowHours.push({
+          time: hourly.time[i],
+          hour: new Date(hourly.time[i]).getHours(),
+          temp: Math.round(hourly.temperature_2m[i]),
+          feels_like: Math.round(hourly.apparent_temperature[i]),
+          precipitation_prob: hourly.precipitation_probability[i],
+          weather_code: hourly.weather_code[i],
+          wind: hourly.wind_speed_10m[i].toFixed(1),
+          humidity: hourly.relative_humidity_2m[i]
+        });
+      }
+    }
+    
+    // Группируем по времени суток
+    const timeSlots = {
+      night: { start: 0, end: 6, label: '🌙 Ночь', emoji: '🌙' },
+      morning: { start: 6, end: 12, label: '🌅 Утро', emoji: '🌅' },
+      afternoon: { start: 12, end: 18, label: '☀️ День', emoji: '☀️' },
+      evening: { start: 18, end: 24, label: '🌆 Вечер', emoji: '🌆' }
+    };
+    
+    const detailedForecast = {};
+    
+    for (const [slotName, slotInfo] of Object.entries(timeSlots)) {
+      const slotHours = tomorrowHours.filter(h => 
+        h.hour >= slotInfo.start && h.hour < slotInfo.end
+      );
+      
+      if (slotHours.length > 0) {
+        const avgTemp = Math.round(slotHours.reduce((sum, h) => sum + h.temp, 0) / slotHours.length);
+        const avgFeelsLike = Math.round(slotHours.reduce((sum, h) => sum + h.feels_like, 0) / slotHours.length);
+        const maxPrecipProb = Math.max(...slotHours.map(h => h.precipitation_prob));
+        const avgWind = (slotHours.reduce((sum, h) => sum + parseFloat(h.wind), 0) / slotHours.length).toFixed(1);
+        const avgHumidity = Math.round(slotHours.reduce((sum, h) => sum + h.humidity, 0) / slotHours.length);
+        
+        // Определяем основной код погоды для слота
+        const weatherCodes = slotHours.map(h => h.weather_code);
+        const mostFrequentCode = weatherCodes.reduce((a, b, i, arr) => 
+          arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
+        );
+        
+        detailedForecast[slotName] = {
+          label: slotInfo.label,
+          emoji: slotInfo.emoji,
+          temp: avgTemp,
+          feels_like: avgFeelsLike,
+          precipitation_prob: maxPrecipProb,
+          weather_code: mostFrequentCode,
+          wind: avgWind,
+          humidity: avgHumidity,
+          description: getDetailedWeatherDescription(mostFrequentCode, maxPrecipProb),
+          hours_count: slotHours.length
+        };
+      }
+    }
+    
+    // Общая информация на день
+    const dailyInfo = {
+      city: name,
+      date: tomorrowDate,
+      sunrise: forecastData.daily?.sunrise?.[1] || '06:00',
+      sunset: forecastData.daily?.sunset?.[1] || '20:00',
+      detailed_slots: detailedForecast,
+      summary: getTomorrowSummary(detailedForecast)
+    };
+    
+    // Сохраняем в кэш
+    weatherCache.set(cacheKey, {
+      data: dailyInfo,
+      timestamp: now
+    });
+    
+    return dailyInfo;
+    
+  } catch (error) {
+    console.error('❌ Ошибка получения прогноза:', error.message);
+    
+    // Fallback данные
+    return {
+      city: cityName,
+      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+      sunrise: '06:00',
+      sunset: '20:00',
+      detailed_slots: {
+        night: { label: '🌙 Ночь', temp: 15, feels_like: 14, description: 'Ясно', precipitation_prob: 10 },
+        morning: { label: '🌅 Утро', temp: 18, feels_like: 17, description: 'Ясно', precipitation_prob: 20 },
+        afternoon: { label: '☀️ День', temp: 22, feels_like: 21, description: 'Ясно', precipitation_prob: 30 },
+        evening: { label: '🌆 Вечер', temp: 19, feels_like: 18, description: 'Ясно', precipitation_prob: 15 }
+      },
+      summary: 'Прогноз временно недоступен'
+    };
+  }
+}
+
+// Функция для генерации сводки по завтрашнему дню
+function getTomorrowSummary(forecastSlots) {
+  if (!forecastSlots) return 'Прогноз недоступен';
+  
+  const slots = Object.values(forecastSlots);
+  const avgTemp = Math.round(slots.reduce((sum, s) => sum + s.temp, 0) / slots.length);
+  const maxTemp = Math.max(...slots.map(s => s.temp));
+  const minTemp = Math.min(...slots.map(s => s.temp));
+  const maxPrecip = Math.max(...slots.map(s => s.precipitation_prob));
+  
+  let summary = `Завтра ожидается температура от ${minTemp}°C до ${maxTemp}°C. `;
+  
+  if (maxPrecip > 70) {
+    summary += 'Высокая вероятность осадков, возьмите зонт. ☔';
+  } else if (maxPrecip > 40) {
+    summary += 'Возможны кратковременные осадки. 🌦️';
+  } else if (maxPrecip > 10) {
+    summary += 'Вероятность осадков невысокая. 🌤️';
+  } else {
+    summary += 'Без осадков, ясная погода. ☀️';
+  }
+  
+  return summary;
+}
 // ===================== ФУНКЦИИ СТАТИСТИКИ =====================
 async function getGameStatsMessage(userId) {
   try {
@@ -891,7 +1057,107 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
     await ctx.reply('❌ Не удалось получить данные о погоде или обработать ваш запрос.', { reply_markup: mainMenuKeyboard });
   }
 });
+// Добавьте обработчик для кнопки ПОГОДА ЗАВТРА:
+bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
+  
+  if (isRateLimited(userId)) {
+    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
+    return;
+  }
+  
+  try {
+    const city = await getUserCity(userId);
+    
+    if (!city) {
+      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
+      return;
+    }
+    
+    await ctx.reply(`⏳ Запрашиваю детальный прогноз для ${city}...`, { parse_mode: 'Markdown' });
+    
+    const forecast = await getDetailedTomorrowWeather(city);
+    
+    let message = `📅 *Прогноз погоды на завтра в ${forecast.city}*\n\n`;
+    message += `📆 Дата: ${formatDate(forecast.date)}\n`;
+    message += `🌅 Восход: ${forecast.sunrise} | 🌇 Закат: ${forecast.sunset}\n\n`;
+    
+    // Добавляем информацию по временным слотам
+    for (const [slotName, slot] of Object.entries(forecast.detailed_slots)) {
+      if (slot) {
+        message += `${slot.emoji} *${slot.label}* (${slot.temp}°C)\n`;
+        message += `   Ощущается как: ${slot.feels_like}°C\n`;
+        message += `   ${slot.description}\n`;
+        message += `   💨 Ветер: ${slot.wind} м/с | 💧 Влажность: ${slot.humidity}%\n`;
+        message += `   ☔ Вероятность осадков: ${slot.precipitation_prob}%\n\n`;
+      }
+    }
+    
+    message += `📝 *Сводка:* ${forecast.summary}\n\n`;
+    message += `👕 *Что надеть завтра:*\n`;
+    message += getTomorrowWardrobeAdvice(forecast.detailed_slots);
+    
+    await ctx.reply(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
+    await ctx.reply('❌ Не удалось получить прогноз. Попробуйте позже.', { reply_markup: mainMenuKeyboard });
+  }
+});
 
+// Функция для форматирования даты
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ru-RU', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  });
+}
+
+// Функция для рекомендаций по одежде на завтра
+function getTomorrowWardrobeAdvice(forecastSlots) {
+  const slots = Object.values(forecastSlots);
+  const maxTemp = Math.max(...slots.map(s => s.temp));
+  const minTemp = Math.min(...slots.map(s => s.temp));
+  const maxPrecip = Math.max(...slots.map(s => s.precipitation_prob));
+  
+  let advice = [];
+  
+  advice.push(`• 🌡️ *Температура:* от ${minTemp}°C до ${maxTemp}°C`);
+  
+  if (maxTemp >= 25) {
+    advice.push('• 👕 *Днем:* легкая одежда, футболка, шорты');
+    if (minTemp <= 18) {
+      advice.push('• 🧥 *Вечером:* легкая куртка или ветровка');
+    }
+  } else if (maxTemp >= 20) {
+    advice.push('• 👕 *Днем:* футболка/рубашка, джинсы');
+    advice.push('• 🧥 *Вечером:* кофта или тонкая куртка');
+  } else if (maxTemp >= 15) {
+    advice.push('• 👕 *Утром:* кофта или свитер');
+    advice.push('• 🧥 *Днем:* ветровка, можно снять кофту');
+  } else if (maxTemp >= 10) {
+    advice.push('• 👕 *База:* термобелье или лонгслив');
+    advice.push('• 🧥 *Верх:* утепленная куртка, шапка на вечер');
+  } else {
+    advice.push('• 👕 *База:* теплое термобелье');
+    advice.push('• 🧥 *Верх:* зимняя куртка, шапка, шарф');
+  }
+  
+  if (maxPrecip > 50) {
+    advice.push('• ☔ *Дополнительно:* дождевик, зонт, непромокаемая обувь');
+  } else if (maxPrecip > 20) {
+    advice.push('• 🌂 *На всякий случай:* складной зонт');
+  }
+  
+  if (maxTemp - minTemp > 10) {
+    advice.push('• 🔄 *Совет:* многослойная одежда для переменчивой погоды');
+  }
+  
+  return advice.join('\n');
+}
 // ===================== ОСТАЛЬНЫЕ КНОПКИ (сокращено для экономии места) =====================
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   const userId = ctx.from.id;
