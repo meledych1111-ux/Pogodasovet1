@@ -1,4 +1,4 @@
-import { getGameStats } from '../db.js';
+import { getGameStats } from './db.js';
 
 export default async function handler(req, res) {
   console.log('📊 API: /api/user-stats - запрос статистики пользователя');
@@ -89,7 +89,7 @@ export default async function handler(req, res) {
       meta: {
         has_played: (stats?.games_played || 0) > 0,
         has_unfinished_game: stats?.has_progress || false,
-        is_top_player: false, // Можно добавить логику проверки
+        is_top_player: false,
         next_milestone: calculateNextMilestone(stats?.best_score || 0)
       }
     };
@@ -106,7 +106,6 @@ export default async function handler(req, res) {
     console.error('🔥 Критическая ошибка получения статистики:', error);
     console.error('🔥 Stack trace:', error.stack);
     
-    // Более информативный ответ об ошибке
     const errorResponse = {
       success: false,
       error: {
@@ -155,25 +154,4 @@ function calculateNextMilestone(currentScore) {
     progress: '100%',
     message: 'Вы достигли максимального рубежа! 🏆'
   };
-}
-
-// Функция для тестирования API
-export const testUserStats = async (testUserId = 123456789) => {
-  try {
-    const testStats = await getGameStats(testUserId, 'tetris');
-    console.log(`🧪 Тест статистики для user ${testUserId}:`, testStats);
-    return testStats;
-  } catch (error) {
-    console.error('🧪 Ошибка теста:', error);
-    return null;
-  }
-};
-
-// Если файл запущен напрямую, выполнить тест
-if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('🧪 Запуск теста user-stats.js');
-  testUserStats().then(() => {
-    console.log('🧪 Тест завершен');
-    process.exit(0);
-  });
 }
