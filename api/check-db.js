@@ -1,6 +1,4 @@
 import { checkDatabaseConnection } from './db.js';
-import pg from 'pg';
-const { Pool } = pg;
 
 export default async function handler(req, res) {
   console.log('🔍 API: /api/check-db - проверка базы данных');
@@ -48,15 +46,9 @@ export default async function handler(req, res) {
       console.log('🔍 Подключение успешно, получаем дополнительную информацию...');
       
       try {
-        // Создаем временный пул для запросов
-        const tempPool = new Pool({
-          connectionString: process.env.DATABASE_URL,
-          ssl: { rejectUnauthorized: false },
-          max: 1,
-          idleTimeoutMillis: 10000
-        });
-        
-        const client = await tempPool.connect();
+        // Используем существующий пул из db.js вместо создания нового
+        const { pool } = await import('./db.js');
+        const client = await pool.connect();
         
         try {
           // Получаем информацию о таблицах
@@ -140,7 +132,6 @@ export default async function handler(req, res) {
           
         } finally {
           client.release();
-          await tempPool.end();
         }
         
       } catch (infoError) {
@@ -228,7 +219,7 @@ export const testDatabaseConnection = async () => {
 };
 
 // Если файл запущен напрямую, выполнить тест
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (typeof import.meta.url !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
   console.log('🧪 Запуск теста check-db.js');
   testDatabaseConnection().then((result) => {
     console.log('🧪 Тест завершен:', result.success ? 'Успешно' : 'Ошибка');
