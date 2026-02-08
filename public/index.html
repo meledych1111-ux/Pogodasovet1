@@ -250,7 +250,29 @@
         }
         
         .game-btn.save-btn {
-            background: linear-gradient(145deg, rgba(102, 204, 153, 0.3), rgba(77, 179, 128, 0.2));
+            background: linear-gradient(145deg, rgba(102, 204, 153, 0.4), rgba(77, 179, 128, 0.3));
+            border-color: rgba(102, 204, 153, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-btn.save-btn:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .game-btn.save-btn:active:after {
+            left: 100%;
+        }
+        
+        .game-btn.save-btn.pulsing {
+            animation: pulse 1s infinite;
         }
         
         .game-btn.pause-btn {
@@ -476,6 +498,12 @@
             100% { opacity: 1; transform: scale(1); }
         }
         
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(102, 204, 153, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(102, 204, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(102, 204, 153, 0); }
+        }
+        
         .line-clearing {
             animation: lineClear 0.4s ease-out;
         }
@@ -601,7 +629,7 @@
                     <button class="game-btn" onclick="restartGame()">
                         <span>🔄</span> ЗАНОВО
                     </button>
-                    <button class="game-btn save-btn" onclick="saveGameScore()">
+                    <button class="game-btn save-btn" onclick="saveGameScore()" id="save-btn">
                         <span>💾</span> СОХРАНИТЬ
                     </button>
                 </div>
@@ -1330,19 +1358,76 @@ function saveGameToLocalStorage() {
 
 async function saveGameScore() {
     console.log('Сохранение игры');
+    
+    // Анимация кнопки
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) {
+        saveBtn.classList.add('pulsing');
+        setTimeout(() => saveBtn.classList.remove('pulsing'), 1000);
+    }
+    
     if (gameActive && !gameOver) {
         pauseGame();
     }
     
     showNotification('💾 Сохраняем результат...');
     
+    // Сохраняем текущий результат в базу данных
     const result = await saveGameToDB();
+    
+    // Отправляем результат в Telegram бот
+    try {
+        const gameData = {
+            action: 'tetris_score',
+            score: score,
+            level: level,
+            lines: lines,
+            gameOver: false,
+            manualSave: true,
+            userId: userId
+        };
+        
+        if (tg && tg.sendData) {
+            tg.sendData(JSON.stringify(gameData));
+            console.log('✅ Данные отправлены в Telegram бот:', gameData);
+        }
+    } catch (error) {
+        console.error('❌ Ошибка отправки в Telegram:', error);
+    }
+    
     if (result.success) {
-        showNotification('✅ Результат сохранен в БД!');
+        showNotification('✅ Результат сохранен в БД и отправлен в бот!');
         loadUserStats();
     } else {
         showNotification('✅ Результат сохранен локально');
     }
+}
+
+// Функция для автосохранения каждые 30 секунд
+function setupAutoSave() {
+    setInterval(() => {
+        if (gameActive && !gamePaused && !gameOver && score > 0) {
+            console.log('💾 Автосохранение прогресса...');
+            
+            const gameData = {
+                action: 'tetris_score',
+                score: score,
+                level: level,
+                lines: lines,
+                gameOver: false,
+                autoSave: true,
+                userId: userId
+            };
+            
+            // Отправляем в Telegram бот
+            if (tg && tg.sendData) {
+                tg.sendData(JSON.stringify(gameData));
+            }
+            
+            // Сохраняем локально
+            saveGameToLocalStorage();
+        }
+    }, 30000); // 30 секунд
 }
 
 async function loadUserStats() {
@@ -1439,7 +1524,7 @@ function showLocalLeaderboard() {
         <div style="text-align: center; padding: 30px; color: #b5aaff;">
             <p>Сервер недоступен</p>
             <p style="font-size: 0.9rem;">Лидерборд временно не работает</p>
-        </div>
+    </div>
     `;
 }
 
@@ -1556,6 +1641,9 @@ function init() {
     // Инициализация игры
     initGame();
     pauseGame();
+    
+    // Настройка автосохранения
+    setupAutoSave();
     
     // Telegram WebApp
     if (tg) {
