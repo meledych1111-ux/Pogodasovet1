@@ -7,6 +7,12 @@
     "api/save-score.js": {
       "maxDuration": 10
     },
+    "api/save-progress.js": {
+      "maxDuration": 10
+    },
+    "api/get-progress.js": {
+      "maxDuration": 10
+    },
     "api/user-stats.js": {
       "maxDuration": 10
     },
