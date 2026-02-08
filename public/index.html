@@ -1195,6 +1195,137 @@
 
         // Запуск игры при загрузке
         window.addEventListener('load', init);
+        // Функция сохранения результатов
+async function saveGameScore() {
+    try {
+        // Получаем текущие значения
+        const score = parseInt(document.getElementById('score-display')?.textContent || 0);
+        const level = parseInt(document.getElementById('level-display')?.textContent || 1);
+        const lines = parseInt(document.getElementById('lines-display')?.textContent || 0);
+        
+        // Получаем user ID
+        const userId = await getTelegramUserId();
+        
+        console.log('Сохранение результатов:', { userId, score, level, lines });
+        
+        // Показываем уведомление
+        showNotification('💾 Сохраняем результат...');
+        
+        // Отправляем на сервер
+        const response = await fetch('/api/save-score', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: userId,
+                gameType: 'tetris',
+                score: score,
+                level: level,
+                lines: lines
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showNotification('✅ Результат сохранен!');
+            console.log('Результат сохранен:', result);
+            
+            // Обновляем статистику
+            updateStatsDisplay();
+        } else {
+            showNotification('❌ Ошибка сохранения');
+            console.error('Ошибка сохранения:', response.status);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showNotification('⚠️ Ошибка сети');
+    }
+}
+
+// Получение ID пользователя из Telegram
+async function getTelegramUserId() {
+    // Если в Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        const user = tg.initDataUnsafe.user;
+        if (user && user.id) {
+            return user.id.toString();
+        }
+    }
+    
+    // Для тестирования вне Telegram
+    let testId = localStorage.getItem('tetris_test_user_id');
+    if (!testId) {
+        testId = 'test_' + Date.now();
+        localStorage.setItem('tetris_test_user_id', testId);
+    }
+    return testId;
+}
+
+// Уведомление
+function showNotification(message) {
+    // Создаем или находим элемент для уведомлений
+    let notification = document.getElementById('save-notification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'save-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2a9944;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: opacity 0.3s;
+        `;
+        document.body.appendChild(notification);
+    }
+    
+    notification.textContent = message;
+    notification.style.opacity = '1';
+    
+    // Автоскрытие через 3 секунды
+    setTimeout(() => {
+        notification.style.opacity = '0';
+    }, 3000);
+}
+
+// Обновление отображения статистики
+async function updateStatsDisplay() {
+    try {
+        const userId = await getTelegramUserId();
+        const response = await fetch(`/api/user-stats?userId=${userId}&gameType=tetris`);
+        
+        if (response.ok) {
+            const stats = await response.json();
+            
+            // Обновляем элементы на странице если они есть
+            const bestScoreEl = document.getElementById('best-score-display');
+            const gamesPlayedEl = document.getElementById('games-played-display');
+            
+            if (bestScoreEl) bestScoreEl.textContent = stats.best_score || 0;
+            if (gamesPlayedEl) gamesPlayedEl.textContent = stats.games_played || 0;
+        }
+    } catch (error) {
+        console.log('Не удалось обновить статистику:', error);
+    }
+}
+
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Игра загружена, кнопка сохранения активна');
+    
+    // Проверяем соединение с API
+    fetch('/api/check-db')
+        .then(res => res.json())
+        .then(data => console.log('Проверка БД:', data))
+        .catch(err => console.warn('БД недоступна:', err));
+});
     </script>
 </body>
 </html>
