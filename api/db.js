@@ -199,7 +199,8 @@ export async function deleteGameProgress(userId, gameType = 'tetris') {
 export async function getGameStats(userId, gameType = 'tetris') {
   const client = await pool.connect();
   try {
-    const query = `
+    // Получаем статистику из сохраненных игр
+    const statsQuery = `
       SELECT 
         COALESCE(COUNT(*), 0) as games_played,
         COALESCE(MAX(score), 0) as best_score,
@@ -210,25 +211,48 @@ export async function getGameStats(userId, gameType = 'tetris') {
       FROM game_scores 
       WHERE user_id = $1 AND game_type = $2
     `;
-    const result = await client.query(query, [userId, gameType]);
+    const statsResult = await client.query(statsQuery, [userId, gameType]);
+    const stats = statsResult.rows[0];
     
-    // Если есть прогресс в игре, но нет сохраненных результатов
-    const progress = await getGameProgress(userId, gameType);
+    // Получаем текущий прогресс (если есть незавершенная игра)
+    const progressQuery = `
+      SELECT score, level, lines, last_saved 
+      FROM game_progress 
+      WHERE user_id = $1 AND game_type = $2
+    `;
+    const progressResult = await client.query(progressQuery, [userId, gameType]);
+    const progress = progressResult.rows[0];
     
-    const stats = result.rows[0];
+    // Если есть прогресс, сравниваем с лучшими результатами
+    let bestScore = parseInt(stats.best_score) || 0;
+    let bestLevel = parseInt(stats.best_level) || 1;
+    let bestLines = parseInt(stats.best_lines) || 0;
+    
+    if (progress) {
+      const currentScore = parseInt(progress.score) || 0;
+      const currentLevel = parseInt(progress.level) || 1;
+      const currentLines = parseInt(progress.lines) || 0;
+      
+      // Если текущий прогресс лучше, используем его
+      if (currentScore > bestScore) bestScore = currentScore;
+      if (currentLevel > bestLevel) bestLevel = currentLevel;
+      if (currentLines > bestLines) bestLines = currentLines;
+    }
+    
     return {
       games_played: parseInt(stats.games_played) || 0,
-      best_score: parseInt(stats.best_score) || 0,
-      best_level: parseInt(stats.best_level) || 1,
-      best_lines: parseInt(stats.best_lines) || 0,
+      best_score: bestScore,
+      best_level: bestLevel,
+      best_lines: bestLines,
       avg_score: parseFloat(stats.avg_score) || 0,
       last_played: stats.last_played,
       current_progress: progress ? {
-        score: progress.score || 0,
-        level: progress.level || 1,
-        lines: progress.lines || 0,
+        score: parseInt(progress.score) || 0,
+        level: parseInt(progress.level) || 1,
+        lines: parseInt(progress.lines) || 0,
         last_saved: progress.last_saved
-      } : null
+      } : null,
+      has_unfinished_game: !!progress
     };
   } catch (error) {
     console.error('❌ Ошибка получения статистики:', error);
@@ -239,7 +263,8 @@ export async function getGameStats(userId, gameType = 'tetris') {
       best_lines: 0,
       avg_score: 0,
       last_played: null,
-      current_progress: null
+      current_progress: null,
+      has_unfinished_game: false
     };
   } finally {
     client.release();
