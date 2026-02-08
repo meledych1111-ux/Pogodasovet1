@@ -1,6 +1,6 @@
-const { saveGameScore } = require('./db.js');
+import { saveGameScore } from './db.js';
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -14,18 +14,32 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const resultId = await saveGameScore(userId, gameType, score, level || 1, lines || 0);
+    const resultId = await saveGameScore(
+      parseInt(userId), 
+      gameType, 
+      parseInt(score), 
+      level ? parseInt(level) : 1, 
+      lines ? parseInt(lines) : 0
+    );
     
-    return res.status(200).json({ 
-      success: true, 
-      id: resultId,
-      message: 'Score saved'
-    });
+    if (resultId) {
+      return res.status(200).json({ 
+        success: true, 
+        id: resultId,
+        message: 'Score saved successfully'
+      });
+    } else {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to save score to database'
+      });
+    }
     
   } catch (error) {
     console.error('Error saving score:', error);
     return res.status(500).json({ 
+      success: false,
       error: 'Internal server error'
     });
   }
-};
+}
