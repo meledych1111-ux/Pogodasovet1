@@ -75,37 +75,71 @@ if (process.env.DATABASE_URL) {
 
 // ============ ФУНКЦИИ ДЛЯ ГОРОДОВ ============
 export async function saveUserCity(userId, city) {
+  console.log(`📍 [SAVE-CITY] Начинаем сохранение города для ${userId}: "${city}"`);
+  
+  // Проверка входных данных
+  if (!userId || !city) {
+    console.error(`❌ [SAVE-CITY] Отсутствуют обязательные параметры: userId=${userId}, city=${city}`);
+    return false;
+  }
+  
+  // Проверка длины города
+  if (city.length > 100) {
+    console.error(`❌ [SAVE-CITY] Слишком длинное название города: ${city.length} символов`);
+    return false;
+  }
+  
   if (!process.env.DATABASE_URL) {
-    console.log(`📍 [DB-FALLBACK] Город сохранен в памяти: ${city} для ${userId}`);
-    return true; // ВОТ ТУТ ИСПРАВЛЕНИЕ
+    console.warn(`📍 [DB-FALLBACK] DATABASE_URL не задан, город "${city}" сохранен только в памяти для ${userId}`);
+    return true;
   }
   
   const client = await pool.connect();
   try {
+    console.log(`📍 [DB] Подключаемся к БД для сохранения города "${city}" для ${userId}`);
+    
     const query = `
       INSERT INTO users (user_id, selected_city) 
       VALUES ($1, $2) 
       ON CONFLICT (user_id) 
       DO UPDATE SET selected_city = $2, updated_at = NOW()
-      RETURNING user_id
+      RETURNING user_id, selected_city
     `;
+    
     const result = await client.query(query, [userId, city]);
     
-    const success = result.rows.length > 0;
-    console.log(`📍 [DB] Город сохранен: ${city} для пользователя ${userId}, успех: ${success}`);
-    return success; // ВОТ ТУТ ИСПРАВЛЕНИЕ
+    if (result.rows.length > 0) {
+      const savedData = result.rows[0];
+      console.log(`✅ [DB] Город успешно сохранен:`, {
+        userId: savedData.user_id,
+        city: savedData.selected_city,
+        rowsAffected: result.rowCount
+      });
+      return true;
+    } else {
+      console.error(`❌ [DB] Не удалось сохранить город: результат пустой`);
+      return false;
+    }
     
   } catch (error) {
-    console.error('❌ [DB] Ошибка сохранения города:', error);
-    return false; // ВОТ ТУТ ИСПРАВЛЕНИЕ
+    console.error('❌ [DB] Ошибка сохранения города:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      userId,
+      city
+    });
+    return false;
   } finally {
     client.release();
   }
 }
 
 export async function getUserCity(userId) {
+  console.log(`📍 [GET-CITY] Запрос города для пользователя ${userId}`);
+  
   if (!process.env.DATABASE_URL) {
-    console.log(`📍 [DB-FALLBACK] Город для ${userId} не найден (нет БД)`);
+    console.log(`📍 [DB-FALLBACK] DATABASE_URL не задан, город для ${userId} не найден`);
     return null;
   }
   
@@ -116,11 +150,11 @@ export async function getUserCity(userId) {
     
     if (result.rows.length > 0) {
       const city = result.rows[0].selected_city;
-      console.log(`📍 [DB] Город найден: ${city} для ${userId}`);
+      console.log(`📍 [DB] Город найден для ${userId}: "${city}"`);
       return city;
     }
     
-    console.log(`📍 [DB] Город для ${userId} не найден`);
+    console.log(`📍 [DB] Город для ${userId} не найден в БД`);
     return null;
   } catch (error) {
     console.error('❌ [DB] Ошибка получения города:', error);
@@ -132,8 +166,10 @@ export async function getUserCity(userId) {
 
 // ============ ФУНКЦИИ ДЛЯ ИГР ============
 export async function saveGameScore(userId, gameType = 'tetris', score, level, lines) {
+  console.log(`🎮 [SAVE-SCORE] Сохранение счета для ${userId}: score=${score}, level=${level}, lines=${lines}`);
+  
   if (!process.env.DATABASE_URL) {
-    console.log(`🎮 [DB-FALLBACK] Счет сохранен в памяти: ${score} для ${userId}`);
+    console.log(`🎮 [DB-FALLBACK] DATABASE_URL не задан, счет сохранен только в памяти`);
     return { success: true };
   }
   
@@ -197,8 +233,10 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level, l
 }
 
 export async function getGameStats(userId, gameType = 'tetris') {
+  console.log(`📊 [GET-STATS] Запрос статистики для ${userId}, игра: ${gameType}`);
+  
   if (!process.env.DATABASE_URL) {
-    console.log(`📊 [DB-FALLBACK] Статистика для ${userId} не доступна (нет БД)`);
+    console.log(`📊 [DB-FALLBACK] DATABASE_URL не задан, статистика не доступна`);
     return {
       games_played: 0,
       best_score: 0,
@@ -233,7 +271,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
       return result.rows[0];
     }
     
-    // Если статистики нет, возвращаем значения по умолчанию
     console.log(`📊 [DB] Статистика для ${userId} не найдена, возвращаем значения по умолчанию`);
     return {
       games_played: 0,
@@ -260,8 +297,10 @@ export async function getGameStats(userId, gameType = 'tetris') {
 }
 
 export async function getTopPlayers(gameType = 'tetris', limit = 10) {
+  console.log(`🏆 [GET-TOP] Запрос топа ${limit} игроков для игры: ${gameType}`);
+  
   if (!process.env.DATABASE_URL) {
-    console.log(`🏆 [DB-FALLBACK] Топ игроков не доступен (нет БД)`);
+    console.log(`🏆 [DB-FALLBACK] DATABASE_URL не задан, топ игроков не доступен`);
     return [];
   }
   
@@ -287,7 +326,6 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     
     console.log(`🏆 [DB] Получено ${result.rows.length} топ игроков`);
     
-    // Форматируем результат
     return result.rows.map((row, index) => ({
       rank: index + 1,
       user_id: row.user_id,
@@ -308,7 +346,10 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
 }
 
 export async function checkDatabaseConnection() {
+  console.log('🔍 [DB-CHECK] Проверка подключения к базе данных');
+  
   if (!process.env.DATABASE_URL) {
+    console.log('⚠️ [DB-CHECK] DATABASE_URL не задан');
     return { 
       success: false, 
       error: 'DATABASE_URL не задан',
@@ -323,11 +364,11 @@ export async function checkDatabaseConnection() {
     const endTime = Date.now();
     const time = `${endTime - startTime}ms`;
     
-    console.log(`✅ [DB] Подключение к БД успешно (${time})`);
+    console.log(`✅ [DB-CHECK] Подключение к БД успешно (${time})`);
     return { success: true, time };
     
   } catch (error) {
-    console.error('❌ [DB] Ошибка подключения к БД:', error.message);
+    console.error('❌ [DB-CHECK] Ошибка подключения к БД:', error.message);
     return { 
       success: false, 
       error: error.message,
