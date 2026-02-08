@@ -1,4 +1,4 @@
-import { getGameProgress } from './db.js';
+import { saveGameProgress, deleteGameProgress, getGameProgress } from './db.js';
 
 export default async function handler(req, res) {
   console.log('📋 API: /api/get-progress - запрос прогресса игры');
