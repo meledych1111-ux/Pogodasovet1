@@ -1,10 +1,7 @@
-import { saveGameProgress, deleteGameProgress, getGameProgress } from './db.js';
+import { getGameStats } from './db.js';
 
 export default async function handler(req, res) {
   console.log('📊 API: /api/user-stats - запрос статистики пользователя');
-  console.log('📊 Метод:', req.method);
-  console.log('📊 Query параметры:', req.query);
-  console.log('📊 Body параметры:', req.body);
   
   // Разрешаем оба метода для удобства
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -39,8 +36,27 @@ export default async function handler(req, res) {
       });
     }
     
-    // Преобразуем userId в число
-    const numericUserId = parseInt(userId);
+    // Обработка Web App ID (web_1770548758686)
+    let isWebApp = false;
+    let numericUserId;
+    
+    if (userId.startsWith('web_')) {
+      // Извлекаем числовую часть из web_1770548758686
+      const webId = userId.replace('web_', '');
+      numericUserId = parseInt(webId);
+      if (!isNaN(numericUserId)) {
+        // Добавляем смещение для Web App пользователей
+        numericUserId = numericUserId + 1000000000;
+        isWebApp = true;
+        console.log('🌐 Web App ID обнаружен, преобразован:', { 
+          original: userId, 
+          webId: webId, 
+          dbUserId: numericUserId 
+        });
+      }
+    } else {
+      numericUserId = parseInt(userId);
+    }
     
     if (isNaN(numericUserId)) {
       console.log('❌ Неверный формат userId:', userId);
@@ -51,19 +67,21 @@ export default async function handler(req, res) {
       });
     }
     
-    console.log(`📊 Получение статистики для пользователя ${numericUserId}, игра: ${gameType}`);
+    console.log(`📊 Получение статистики для пользователя ${numericUserId} (isWebApp: ${isWebApp}), игра: ${gameType}`);
     
     // Получаем статистику из базы данных
     const stats = await getGameStats(numericUserId, gameType);
     
     console.log('📈 Статистика из БД:', stats);
     
-    // Форматируем ответ с дефолтными значениями
+    // Форматируем ответ
     const response = {
       success: true,
-      userId: numericUserId,
+      userId: isWebApp ? `web_${userId.replace('web_', '')}` : numericUserId,
+      dbUserId: numericUserId,
       gameType: gameType,
       timestamp: new Date().toISOString(),
+      isWebApp: isWebApp,
       
       // Основная статистика
       stats: {
@@ -77,18 +95,18 @@ export default async function handler(req, res) {
       },
       
       // Прогресс текущей игры
-      current_progress: stats?.has_progress ? {
-        score: stats.progress_score || 0,
-        level: stats.progress_level || 1,
-        lines: stats.progress_lines || 0,
-        last_saved: stats.progress_last_saved || null,
+      current_progress: stats?.current_progress ? {
+        score: stats.current_progress.score || 0,
+        level: stats.current_progress.level || 1,
+        lines: stats.current_progress.lines || 0,
+        last_saved: stats.current_progress.last_saved || null,
         has_unfinished_game: true
       } : null,
       
       // Дополнительная информация
       meta: {
         has_played: (stats?.games_played || 0) > 0,
-        has_unfinished_game: stats?.has_progress || false,
+        has_unfinished_game: stats?.has_unfinished_game || false,
         is_top_player: false,
         next_milestone: calculateNextMilestone(stats?.best_score || 0)
       }
