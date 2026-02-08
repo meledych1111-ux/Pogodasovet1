@@ -760,85 +760,90 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
-        const COLS = 10;
-        const ROWS = 20;
-        const BLOCK_SIZE = 24; // Уменьшенные кубики
-        
-        // Красивые цвета фигурок
-        const COLORS = [
-            '#FF6B6B', // Терракотовый/коралловый
-            '#4ECDC4', // Бирюзовый/аквамарин
-            '#45B7D1', // Голубой
-            '#96CEB4', // Мятный/зеленый
-            '#FFEAA7', // Песочный/бежевый
-            '#DDA0DD', // Сиреневый
-            '#98D8C8', // Изумрудный
-            '#F7DC6F'  // Золотистый
-        ];
-        
-        const SHAPES = [
-            [[1,1,1,1]], // I
-            [[1,1],[1,1]], // O
-            [[0,1,0],[1,1,1]], // T
-            [[1,1,0],[0,1,1]], // Z
-            [[0,1,1],[1,1,0]], // S
-            [[1,0,0],[1,1,1]], // J
-            [[0,0,1],[1,1,1]] // L
-        ];
+        /// ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
+const COLS = 10;
+const ROWS = 20;
+const BLOCK_SIZE = 24;
+const COLORS = [
+    '#FF6B6B', // Терракотовый/коралловый
+    '#4ECDC4', // Бирюзовый
+    '#45B7D1', // Голубой
+    '#96CEB4', // Мятный
+    '#FFEAA7', // Песочный
+    '#DDA0DD', // Сиреневый
+    '#98D8C8', // Изумрудный
+    '#F7DC6F'  // Золотистый
+];
+const SHAPES = [
+    [[1,1,1,1]],
+    [[1,1],[1,1]],
+    [[0,1,0],[1,1,1]],
+    [[1,1,0],[0,1,1]],
+    [[0,1,1],[1,1,0]],
+    [[1,0,0],[1,1,1]],
+    [[0,0,1],[1,1,1]]
+];
 
-        // Уровни сложности
-        const DIFFICULTY_LEVELS = [
-            { id: 'easy', name: 'Легкий', speed: 1000, desc: 'Медленно, для новичков' },
-            { id: 'medium', name: 'Средний', speed: 700, desc: 'Стандартная скорость' },
-            { id: 'hard', name: 'Сложный', speed: 450, desc: 'Быстро, для профи' },
-            { id: 'expert', name: 'Эксперт', speed: 250, desc: 'Максимальная скорость' },
-            { id: 'insane', name: 'Безумие', speed: 150, desc: 'Только для мастеров' }
-        ];
+// Уровни сложности
+const DIFFICULTY_LEVELS = [
+    { id: 'easy', name: 'Легкий', speed: 1000, desc: 'Медленно, для новичков' },
+    { id: 'medium', name: 'Средний', speed: 700, desc: 'Стандартная скорость' },
+    { id: 'hard', name: 'Сложный', speed: 450, desc: 'Быстро, для профи' },
+    { id: 'expert', name: 'Эксперт', speed: 250, desc: 'Максимальная скорость' },
+    { id: 'insane', name: 'Безумие', speed: 150, desc: 'Только для мастеров' }
+];
 
-        // DOM элементы
-        const screens = {
-            menu: document.getElementById('menu-screen'),
-            game: document.getElementById('game-screen'),
-            stats: document.getElementById('stats-screen'),
-            levels: document.getElementById('levels-screen'),
-            leaderboard: document.getElementById('leaderboard-screen'),
-            settings: document.getElementById('settings-screen')
-        };
+// ==================== API ENDPOINTS ====================
+const API_ENDPOINTS = {
+    saveScore: '/api/save-score',
+    getUserStats: '/api/user-stats',
+    getTopPlayers: '/api/top-players',
+    checkDB: '/api/check-db'
+};
 
-        const canvas = document.getElementById('tetris-canvas');
-        const ctx = canvas.getContext('2d');
+// DOM элементы
+const screens = {
+    menu: document.getElementById('menu-screen'),
+    game: document.getElementById('game-screen'),
+    stats: document.getElementById('stats-screen'),
+    levels: document.getElementById('levels-screen'),
+    leaderboard: document.getElementById('leaderboard-screen'),
+    settings: document.getElementById('settings-screen')
+};
 
-        // Игровые переменные
-        let board = [];
-        let currentPiece = null;
-        let currentX = 0;
-        let currentY = 0;
-        let score = 0;
-        let level = 1;
-        let lines = 0;
-        let gameActive = false;
-        let gamePaused = false;
-        let gameOver = false;
-        let dropCounter = 0;
-        let dropInterval = 1000;
-        let lastTime = 0;
-        let animationId = null;
-        let currentDifficulty = 'medium';
-        let userId = null;
-        let clearedLinesAnimation = [];
-        let pieceQueue = [];
-        let currentPieceIndex = 0;
+const canvas = document.getElementById('tetris-canvas');
+const ctx = canvas.getContext('2d');
 
-        // Telegram WebApp данные
-        let tg = null;
-        if (window.Telegram && window.Telegram.WebApp) {
-            tg = window.Telegram.WebApp;
-            tg.expand();
-            userId = tg.initDataUnsafe.user?.id || Math.floor(Math.random() * 1000000);
-        } else {
-            userId = 'web_' + Date.now();
-        }
+// Игровые переменные
+let board = [];
+let currentPiece = null;
+let currentX = 0;
+let currentY = 0;
+let score = 0;
+let level = 1;
+let lines = 0;
+let gameActive = false;
+let gamePaused = false;
+let gameOver = false;
+let dropCounter = 0;
+let dropInterval = 1000;
+let lastTime = 0;
+let animationId = null;
+let currentDifficulty = 'medium';
+let userId = null;
+let clearedLinesAnimation = [];
+let pieceQueue = [];
+let currentPieceIndex = 0;
+
+// Telegram WebApp данные
+let tg = null;
+if (window.Telegram && window.Telegram.WebApp) {
+    tg = window.Telegram.WebApp;
+    tg.expand();
+    userId = tg.initDataUnsafe.user?.id || Math.floor(Math.random() * 1000000);
+} else {
+    userId = 'web_' + Date.now();
+}
 
         // API endpoints
         const API_ENDPOINTS = {
