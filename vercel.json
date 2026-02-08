@@ -21,12 +21,15 @@
     },
     "api/check-db.js": {
       "maxDuration": 10
+    },
+    "api/diagnose.js": {
+      "maxDuration": 10
     }
   },
   "rewrites": [
     {
       "source": "/",
-      "destination": "/api/bot.js"
+      "destination": "/api/bot"
     },
     {
       "source": "/api/bot",
@@ -37,8 +40,47 @@
       "destination": "/public/index.html"
     },
     {
+      "source": "/api/check-db",
+      "destination": "/api/check-db.js"
+    },
+    {
+      "source": "/api/user-stats",
+      "destination": "/api/user-stats.js"
+    },
+    {
+      "source": "/api/top-players",
+      "destination": "/api/top-players.js"
+    },
+    {
+      "source": "/api/save-score",
+      "destination": "/api/save-score.js"
+    },
+    {
       "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "destination": "/api/$1.js"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+        }
+      ]
     }
   ]
 }
