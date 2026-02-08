@@ -1,4 +1,4 @@
-const pg = require('pg');
+import pg from 'pg';
 const { Pool } = pg;
 
 // Создаем пул соединений для Vercel Functions
@@ -73,8 +73,57 @@ if (process.env.DATABASE_URL) {
   console.warn('⚠️ DATABASE_URL не настроен');
 }
 
-// ============ ФУНКЦИИ БАЗЫ ДАННЫХ ============
-async function saveGameScore(userId, gameType, score, level, lines) {
+// ============ ФУНКЦИИ ДЛЯ ГОРОДОВ ============
+export async function saveUserCity(userId, city) {
+  if (!process.env.DATABASE_URL) {
+    console.warn('⚠️ DATABASE_URL не настроен, город сохранен в памяти');
+    return true;
+  }
+  
+  const client = await pool.connect();
+  try {
+    const query = `
+      INSERT INTO user_sessions (user_id, selected_city) 
+      VALUES ($1, $2) 
+      ON CONFLICT (user_id) 
+      DO UPDATE SET selected_city = $2, updated_at = NOW()
+      RETURNING user_id
+    `;
+    const result = await client.query(query, [userId, city]);
+    console.log(`✅ Город "${city}" сохранен для пользователя ${userId}`);
+    return result.rows[0]?.user_id;
+  } catch (error) {
+    console.error('❌ Ошибка сохранения города:', error);
+    return null;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getUserCity(userId) {
+  if (!process.env.DATABASE_URL) {
+    console.warn('⚠️ DATABASE_URL не настроен, возвращаю null');
+    return null;
+  }
+  
+  const client = await pool.connect();
+  try {
+    const query = `
+      SELECT selected_city FROM user_sessions 
+      WHERE user_id = $1
+    `;
+    const result = await client.query(query, [userId]);
+    return result.rows[0]?.selected_city || null;
+  } catch (error) {
+    console.error('❌ Ошибка получения города:', error);
+    return null;
+  } finally {
+    client.release();
+  }
+}
+
+// ============ ФУНКЦИИ ИГР ============
+export async function saveGameScore(userId, gameType, score, level, lines) {
   if (!process.env.DATABASE_URL) {
     console.warn('⚠️ DATABASE_URL не настроен');
     return null;
@@ -98,7 +147,7 @@ async function saveGameScore(userId, gameType, score, level, lines) {
   }
 }
 
-async function getGameStats(userId, gameType = 'tetris') {
+export async function getGameStats(userId, gameType = 'tetris') {
   if (!process.env.DATABASE_URL) {
     console.warn('⚠️ DATABASE_URL не настроен');
     return null;
@@ -127,7 +176,7 @@ async function getGameStats(userId, gameType = 'tetris') {
   }
 }
 
-async function getTopPlayers(gameType = 'tetris', limit = 10) {
+export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   if (!process.env.DATABASE_URL) {
     console.warn('⚠️ DATABASE_URL не настроен');
     return [];
@@ -158,7 +207,7 @@ async function getTopPlayers(gameType = 'tetris', limit = 10) {
   }
 }
 
-async function checkDatabaseConnection() {
+export async function checkDatabaseConnection() {
   if (!process.env.DATABASE_URL) {
     return { success: false, error: 'DATABASE_URL не настроен' };
   }
@@ -166,7 +215,10 @@ async function checkDatabaseConnection() {
   const client = await pool.connect();
   try {
     const result = await client.query('SELECT NOW() as current_time');
-    return { success: true, time: result.rows[0].current_time };
+    return { 
+      success: true, 
+      time: result.rows[0].current_time 
+    };
   } catch (error) {
     return { success: false, error: error.message };
   } finally {
@@ -174,11 +226,5 @@ async function checkDatabaseConnection() {
   }
 }
 
-// Экспорт
-module.exports = {
-  saveGameScore,
-  getGameStats,
-  getTopPlayers,
-  checkDatabaseConnection,
-  pool
-};
+// Экспортируем pool для использования в других файлах
+export { pool };
