@@ -1,4 +1,4 @@
-import { saveGameScore, saveGameProgress, deleteGameProgress, getGameStats } from '../db.js';
+import { saveGameScore, saveGameProgress, deleteGameProgress, getGameStats } from './db.js';
 
 export default async function handler(req, res) {
   console.log('📨 POST /api/save-score');
