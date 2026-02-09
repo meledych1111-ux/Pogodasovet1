@@ -1,64 +1,91 @@
 {
   "version": 2,
-  "functions": {
-    "api/bot.js": {
-      "maxDuration": 30,
-      "memory": 1024,
-      "runtime": "nodejs18.x"
+  "builds": [
+    {
+      "src": "api/bot.js",
+      "use": "@vercel/node"
     },
-    "api/save-score.js": {
-      "maxDuration": 10,
-      "runtime": "nodejs18.x"
+    {
+      "src": "api/save-score.js",
+      "use": "@vercel/node"
     },
-    "api/save-progress.js": {
-      "maxDuration": 10,
-      "runtime": "nodejs18.x"
+    {
+      "src": "api/save-progress.js",
+      "use": "@vercel/node"
     },
-    "api/get-progress.js": {
-      "maxDuration": 10,
-      "runtime": "nodejs18.x"
+    {
+      "src": "api/get-progress.js",
+      "use": "@vercel/node"
     },
-    "api/user-stats.js": {
-      "maxDuration": 10,
-      "runtime": "nodejs18.x"
+    {
+      "src": "api/user-stats.js",
+      "use": "@vercel/node"
     },
-    "api/top-players.js": {
-      "maxDuration": 10,
-      "runtime": "nodejs18.x"
+    {
+      "src": "api/top-players.js",
+      "use": "@vercel/node"
     },
-    "api/check-db.js": {
-      "maxDuration": 10,
-      "runtime": "nodejs18.x"
+    {
+      "src": "api/check-db.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
     }
-  },
-  "rewrites": [
+  ],
+  "routes": [
     {
-      "source": "/",
-      "destination": "/api/bot.js"
+      "src": "/",
+      "dest": "/public/index.html"
     },
     {
-      "source": "/api/bot",
-      "destination": "/api/bot.js"
+      "src": "/game",
+      "dest": "/public/index.html"
     },
     {
-      "source": "/bot",
-      "destination": "/api/bot.js"
+      "src": "/tetris",
+      "dest": "/public/index.html"
     },
     {
-      "source": "/game",
-      "destination": "/public/index.html"
+      "src": "/bot",
+      "dest": "/api/bot.js"
     },
     {
-      "source": "/tetris",
-      "destination": "/public/index.html"
+      "src": "/api/bot",
+      "dest": "/api/bot.js"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "src": "/api/save-score",
+      "dest": "/api/save-score.js"
     },
     {
-      "source": "/(.*)",
-      "destination": "/api/bot.js"
+      "src": "/api/save-progress",
+      "dest": "/api/save-progress.js"
+    },
+    {
+      "src": "/api/get-progress",
+      "dest": "/api/get-progress.js"
+    },
+    {
+      "src": "/api/user-stats",
+      "dest": "/api/user-stats.js"
+    },
+    {
+      "src": "/api/top-players",
+      "dest": "/api/top-players.js"
+    },
+    {
+      "src": "/api/check-db",
+      "dest": "/api/check-db.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "status": 404
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
     }
   ],
   "headers": [
@@ -78,21 +105,6 @@
           "value": "X-Requested-With, Content-Type, Accept, Authorization"
         }
       ]
-    },
-    {
-      "source": "/(.*\\.html)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
-      ]
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "buildCommand": "npm run build",
-  "outputDirectory": "public",
-  "installCommand": "npm install"
+  ]
 }
