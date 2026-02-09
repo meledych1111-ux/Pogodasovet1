@@ -195,49 +195,7 @@ if (process.env.DATABASE_URL) {
   }, 1000); // Задержка для инициализации Vercel среды
 }
 
-// ============ ФУНКЦИИ ДЛЯ ГОРОДОВ ============
-export async function saveUserCity(userId, city, username = null) {
-  const client = await pool.connect();
-  try {
-    const query = `
-      INSERT INTO user_sessions (user_id, selected_city, username) 
-      VALUES ($1, $2, $3) 
-      ON CONFLICT (user_id) 
-      DO UPDATE SET 
-        selected_city = $2, 
-        username = COALESCE($3, user_sessions.username),
-        updated_at = NOW()
-      RETURNING user_id
-    `;
-    const result = await client.query(query, [userId, city, username]);
-    console.log(`📍 Город сохранен: ${city} для пользователя ${userId}`);
-    return result.rows[0]?.user_id;
-  } catch (error) {
-    console.error('❌ Ошибка сохранения города:', error);
-    return null;
-  } finally {
-    client.release();
-  }
-}
 
-export async function getUserCity(userId) {
-  const client = await pool.connect();
-  try {
-    const query = `
-      SELECT selected_city FROM user_sessions 
-      WHERE user_id = $1
-    `;
-    const result = await client.query(query, [userId]);
-    return result.rows[0]?.selected_city || null;
-  } catch (error) {
-    console.error('❌ Ошибка получения города:', error);
-    return null;
-  } finally {
-    client.release();
-  }
-}
-
-// ============ ИСПРАВЛЕННЫЕ ФУНКЦИИ ДЛЯ ИГР ============
 // ============ ФУНКЦИИ ДЛЯ ИГР (ИСПРАВЛЕННЫЕ) ============
 
 export async function saveGameScore(userId, gameType, score, level, lines, username = null, isWin = true) {
