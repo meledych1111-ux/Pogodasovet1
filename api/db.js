@@ -9,6 +9,29 @@ const pool = new Pool({
 });
 
 // ============ СОЗДАНИЕ ТАБЛИЦ ============
+import pg from 'pg';
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+// 🔴 ДОБАВИТЬ ЭТУ ФУНКЦИЮ СРАЗУ ПОСЛЕ ПУЛА
+function convertUserIdForDb(userId) {
+  const userIdStr = String(userId);
+  
+  if (userIdStr.startsWith('web_')) {
+    return userIdStr; // Web App пользователи - строка
+  } else if (/^\d+$/.test(userIdStr)) {
+    // Telegram ID - конвертируем в число для bigint
+    const num = parseInt(userIdStr);
+    return isNaN(num) ? userIdStr : num;
+  }
+  return userIdStr;
+}
 async function createTables() {
   const client = await pool.connect();
   try {
