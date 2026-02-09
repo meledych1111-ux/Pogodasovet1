@@ -1,4 +1,5 @@
-import { getTopPlayers } from '../../lib/db.js';
+import { getTopPlayers } from '../lib/db.js';
+
 
 export default async function handler(req, res) {
   // CORS заголовки
