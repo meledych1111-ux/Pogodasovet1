@@ -59,6 +59,13 @@ export default async function handler(req, res) {
         const client = await tempPool.connect();
         
         try {
+          // 🔴 ВАЖНО: Проверяем ТОЧНЫЕ имена таблиц
+          const expectedTables = [
+            'user_sessions', 
+            'game_scores', 
+            'game_progress'
+          ];
+          
           // Получаем информацию о таблицах
           const tablesQuery = await client.query(`
             SELECT 
@@ -69,6 +76,12 @@ export default async function handler(req, res) {
             ORDER BY table_name
           `);
           
+          // Получаем существующие таблицы
+          const existingTables = tablesQuery.rows.map(row => row.table_name);
+          const missingTables = expectedTables.filter(table => 
+            !existingTables.includes(table)
+          );
+          
           // Получаем статистику по таблицам
           const tablesInfo = await Promise.all(
             tablesQuery.rows.map(async (table) => {
@@ -76,10 +89,44 @@ export default async function handler(req, res) {
                 const countResult = await client.query(
                   `SELECT COUNT(*) FROM "${table.table_name}"`
                 );
+                
+                // 🔴 ДОБАВЛЕНО: Для game_scores получаем дополнительную информацию
+                let additionalInfo = {};
+                if (table.table_name === 'game_scores') {
+                  try {
+                    const columnQuery = await client.query(`
+                      SELECT column_name, data_type, character_maximum_length
+                      FROM information_schema.columns
+                      WHERE table_name = 'game_scores'
+                      AND table_schema = 'public'
+                    `);
+                    
+                    additionalInfo.columns = columnQuery.rows.map(col => ({
+                      name: col.column_name,
+                      type: col.data_type,
+                      max_length: col.character_maximum_length
+                    }));
+                    
+                    // Проверяем наличие важных столбцов
+                    const importantColumns = ['username', 'user_id', 'is_win'];
+                    const existingColumns = columnQuery.rows.map(col => col.column_name);
+                    const missingColumns = importantColumns.filter(col => 
+                      !existingColumns.includes(col)
+                    );
+                    
+                    additionalInfo.missing_columns = missingColumns;
+                    additionalInfo.has_username = existingColumns.includes('username');
+                    additionalInfo.has_is_win = existingColumns.includes('is_win');
+                  } catch (colError) {
+                    additionalInfo.column_error = colError.message;
+                  }
+                }
+                
                 return {
                   name: table.table_name,
                   type: table.table_type,
-                  row_count: parseInt(countResult.rows[0]?.count) || 0
+                  row_count: parseInt(countResult.rows[0]?.count) || 0,
+                  ...additionalInfo
                 };
               } catch (err) {
                 return {
@@ -92,23 +139,72 @@ export default async function handler(req, res) {
             })
           );
           
-          // Получаем статистику по game_scores
+          // Получаем статистику по game_scores с учетом новой структуры
           let gameStats = null;
           try {
+            // 🔴 ИСПРАВЛЕНО: Учитываем новую структуру таблицы
             const statsResult = await client.query(`
               SELECT 
                 COUNT(*) as total_games,
                 COUNT(DISTINCT user_id) as unique_players,
+                COUNT(CASE WHEN is_win THEN 1 END) as total_wins,
                 COALESCE(MAX(score), 0) as max_score,
-                COALESCE(AVG(score), 0) as avg_score
+                COALESCE(MIN(score), 0) as min_score,
+                COALESCE(AVG(score), 0) as avg_score,
+                COUNT(CASE WHEN user_id::text LIKE 'web_%' THEN 1 END) as web_users_count,
+                COUNT(CASE WHEN username IS NOT NULL AND username != '' THEN 1 END) as games_with_names
               FROM game_scores 
-              WHERE game_type = 'tetris'
+              WHERE game_type = 'tetris' OR game_type IS NULL
             `);
             
             gameStats = statsResult.rows[0];
+            
+            // 🔴 ДОБАВЛЕНО: Получаем топ игроков для проверки
+            try {
+              const topPlayers = await client.query(`
+                SELECT 
+                  user_id,
+                  username,
+                  MAX(score) as best_score,
+                  COUNT(*) as games_played
+                FROM game_scores 
+                WHERE game_type = 'tetris' OR game_type IS NULL
+                GROUP BY user_id, username
+                ORDER BY MAX(score) DESC 
+                LIMIT 3
+              `);
+              
+              gameStats.top_players = topPlayers.rows;
+            } catch (topError) {
+              gameStats.top_error = topError.message;
+            }
           } catch (statsError) {
             console.log('⚠️ Не удалось получить статистику игр:', statsError.message);
-            gameStats = { error: statsError.message };
+            gameStats = { 
+              error: statsError.message,
+              hint: 'Возможно, таблица game_scores имеет старую структуру'
+            };
+          }
+          
+          // 🔴 ДОБАВЛЕНО: Получаем информацию о структуре user_id
+          let idStructureInfo = {};
+          try {
+            const idTypesQuery = await client.query(`
+              SELECT 
+                CASE 
+                  WHEN user_id::text LIKE 'web_%' THEN 'web_app'
+                  WHEN LENGTH(user_id::text) <= 10 AND user_id ~ '^[0-9]+$' THEN 'telegram_numeric'
+                  ELSE 'other'
+                END as id_type,
+                COUNT(*) as count
+              FROM game_scores 
+              GROUP BY id_type
+              ORDER BY count DESC
+            `);
+            
+            idStructureInfo.id_types = idTypesQuery.rows;
+          } catch (idError) {
+            idStructureInfo.error = idError.message;
           }
           
           const response = {
@@ -122,19 +218,44 @@ export default async function handler(req, res) {
             environment: {
               has_database_url: true,
               node_env: process.env.NODE_ENV || 'development',
-              vercel_env: process.env.VERCEL_ENV || 'development'
+              vercel_env: process.env.VERCEL_ENV || 'development',
+              database_url_present: !!process.env.DATABASE_URL
             },
             database_info: {
               tables: tablesInfo,
               total_tables: tablesInfo.length,
-              game_stats: gameStats
+              expected_tables: expectedTables,
+              existing_tables: existingTables,
+              missing_tables: missingTables,
+              all_tables_present: missingTables.length === 0,
+              game_stats: gameStats,
+              id_structure: idStructureInfo
             },
-            recommendations: tablesInfo.length === 0 
-              ? 'Таблицы не найдены. Возможно, требуется миграция.'
-              : 'Все таблицы присутствуют.'
+            system_status: {
+              database: missingTables.length === 0 ? 'ok' : 'warning',
+              structure: gameStats?.error ? 'error' : 'ok',
+              data_integrity: gameStats?.total_games > 0 ? 'has_data' : 'no_data'
+            },
+            recommendations: missingTables.length > 0 
+              ? `Отсутствуют таблицы: ${missingTables.join(', ')}. Требуется создание таблиц.`
+              : 'Все таблицы присутствуют.',
+            
+            // 🔴 ДОБАВЛЕНО: Конкретные рекомендации по структуре
+            structure_check: {
+              game_scores_has_username: tablesInfo.find(t => t.name === 'game_scores')?.has_username || false,
+              game_scores_has_is_win: tablesInfo.find(t => t.name === 'game_scores')?.has_is_win || false,
+              user_sessions_has_username: tablesInfo.find(t => t.name === 'user_sessions')?.has_username || false,
+              suggestion: 'Для новой системы убедитесь, что все таблицы имеют поля username и user_id как VARCHAR'
+            }
           };
           
           console.log('✅ Проверка завершена успешно');
+          console.log('📊 Сводка:', {
+            tables: response.database_info.total_tables,
+            missing_tables: response.database_info.missing_tables.length,
+            total_games: response.database_info.game_stats?.total_games || 0,
+            has_username_column: response.structure_check.game_scores_has_username
+          });
           
           return res.status(200).json(response);
           
@@ -155,7 +276,8 @@ export default async function handler(req, res) {
             time: connectionResult.time,
             message: 'База данных подключена, но не удалось получить полную информацию'
           },
-          warning: infoError.message
+          warning: infoError.message,
+          recommendation: 'Проверьте права доступа к таблицам информации схемы'
         });
       }
       
