@@ -9,7 +9,6 @@ const pool = new Pool({
 });
 
 // ============ СОЗДАНИЕ ТАБЛИЦ ============
-import pg from 'pg';
 const { Pool } = pg;
 
 const pool = new Pool({
