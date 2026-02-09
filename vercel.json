@@ -1,91 +1,25 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/bot.js",
-      "use": "@vercel/node"
+      "source": "/",
+      "destination": "/public/index.html"
     },
     {
-      "src": "api/save-score.js",
-      "use": "@vercel/node"
+      "source": "/game",
+      "destination": "/public/index.html"
     },
     {
-      "src": "api/save-progress.js",
-      "use": "@vercel/node"
+      "source": "/tetris",
+      "destination": "/public/index.html"
     },
     {
-      "src": "api/get-progress.js",
-      "use": "@vercel/node"
+      "source": "/bot",
+      "destination": "/api/bot"
     },
     {
-      "src": "api/user-stats.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/top-players.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "api/check-db.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/",
-      "dest": "/public/index.html"
-    },
-    {
-      "src": "/game",
-      "dest": "/public/index.html"
-    },
-    {
-      "src": "/tetris",
-      "dest": "/public/index.html"
-    },
-    {
-      "src": "/bot",
-      "dest": "/api/bot.js"
-    },
-    {
-      "src": "/api/bot",
-      "dest": "/api/bot.js"
-    },
-    {
-      "src": "/api/save-score",
-      "dest": "/api/save-score.js"
-    },
-    {
-      "src": "/api/save-progress",
-      "dest": "/api/save-progress.js"
-    },
-    {
-      "src": "/api/get-progress",
-      "dest": "/api/get-progress.js"
-    },
-    {
-      "src": "/api/user-stats",
-      "dest": "/api/user-stats.js"
-    },
-    {
-      "src": "/api/top-players",
-      "dest": "/api/top-players.js"
-    },
-    {
-      "src": "/api/check-db",
-      "dest": "/api/check-db.js"
-    },
-    {
-      "src": "/api/(.*)",
-      "status": 404
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/$1"
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     }
   ],
   "headers": [
