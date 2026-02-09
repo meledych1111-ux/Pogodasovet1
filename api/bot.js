@@ -2473,21 +2473,6 @@ bot.catch((err) => {
 // Глобальная переменная для отслеживания инициализации
 let botInitialized = false;
 
-async function initializeBot() {
-  if (!botInitialized) {
-    console.log('🤖 Инициализирую бота...');
-    try {
-      await bot.init();
-      botInitialized = true;
-      console.log('✅ Бот успешно инициализирован');
-      console.log('🤖 Имя бота:', bot.botInfo?.username);
-    } catch (error) {
-      console.error('❌ Ошибка инициализации бота:', error);
-      throw error;
-    }
-  }
-  return bot;
-}
 
 export default async function handler(req, res) {
   console.log(`🌐 ${req.method} запрос к /api/bot в ${new Date().toISOString()}`);
