@@ -36,61 +36,52 @@ export default async function handler(req, res) {
       });
     }
     
-    // Обработка Web App ID (web_1770548758686)
-    let isWebApp = false;
-    let numericUserId;
+    // 🔴 УБРАТЬ ПРЕОБРАЗОВАНИЯ ID!
+    // getGameStats ожидает ID в оригинальном формате
     
-    if (userId.startsWith('web_')) {
-      // Извлекаем числовую часть из web_1770548758686
-      const webId = userId.replace('web_', '');
-      numericUserId = parseInt(webId);
-      if (!isNaN(numericUserId)) {
-        // Добавляем смещение для Web App пользователей
-        numericUserId = numericUserId + 1000000000;
-        isWebApp = true;
-        console.log('🌐 Web App ID обнаружен, преобразован:', { 
-          original: userId, 
-          webId: webId, 
-          dbUserId: numericUserId 
-        });
-      }
-    } else {
-      numericUserId = parseInt(userId);
-    }
+    // Определяем тип пользователя (только для логирования)
+    const isWebApp = userId.startsWith('web_');
     
-    if (isNaN(numericUserId)) {
-      console.log('❌ Неверный формат userId:', userId);
-      return res.status(400).json({ 
-        success: false,
-        error: 'Invalid userId format. Must be a number.',
-        code: 'INVALID_USER_ID'
-      });
-    }
+    console.log(`📊 Получение статистики для пользователя ${userId} (isWebApp: ${isWebApp}), игра: ${gameType}`);
     
-    console.log(`📊 Получение статистики для пользователя ${numericUserId} (isWebApp: ${isWebApp}), игра: ${gameType}`);
-    
-    // Получаем статистику из базы данных
-    const stats = await getGameStats(numericUserId, gameType);
+    // ✅ ПРАВИЛЬНО: Передаем ID как есть в getGameStats
+    const stats = await getGameStats(userId, gameType);
     
     console.log('📈 Статистика из БД:', stats);
     
-    // Форматируем ответ
+    // 🔴 ВАЖНО: Теперь статистика содержит новые поля!
+    // Проверяем структуру
+    if (!stats) {
+      console.log('⚠️ Статистика не найдена или пустая');
+    } else {
+      console.log('📊 Поля статистики:', Object.keys(stats));
+    }
+    
+    // Форматируем ответ с учетом новой структуры
     const response = {
       success: true,
-      userId: isWebApp ? `web_${userId.replace('web_', '')}` : numericUserId,
-      dbUserId: numericUserId,
+      userId: userId, // Оригинальный ID
       gameType: gameType,
       timestamp: new Date().toISOString(),
       isWebApp: isWebApp,
       
-      // Основная статистика
+      // 🔴 ИСПРАВЛЕНО: Используем новые поля из getGameStats
       stats: {
+        // Основные поля
         games_played: stats?.games_played || 0,
         best_score: stats?.best_score || 0,
         best_level: stats?.best_level || 1,
         best_lines: stats?.best_lines || 0,
         avg_score: stats?.avg_score ? parseFloat(stats.avg_score.toFixed(2)) : 0,
         last_played: stats?.last_played || null,
+        
+        // 🔴 НОВЫЕ ПОЛЯ (если есть)
+        wins: stats?.wins || 0,
+        losses: stats?.losses || 0,
+        win_rate: stats?.win_rate || 0,
+        worst_score: stats?.worst_score || 0,
+        
+        // Ранк (если есть в БД)
         rank: stats?.rank || 'Не определен'
       },
       
@@ -102,6 +93,9 @@ export default async function handler(req, res) {
         last_saved: stats.current_progress.last_saved || null,
         has_unfinished_game: true
       } : null,
+      
+      // 🔴 ДОБАВЛЕНО: Флаг незавершенной игры
+      has_unfinished_game: stats?.has_unfinished_game || false,
       
       // Дополнительная информация
       meta: {
@@ -115,7 +109,9 @@ export default async function handler(req, res) {
     console.log('✅ Форматированный ответ:', {
       games_played: response.stats.games_played,
       best_score: response.stats.best_score,
-      has_unfinished_game: response.meta.has_unfinished_game
+      wins: response.stats.wins,
+      has_unfinished_game: response.meta.has_unfinished_game,
+      isWebApp: isWebApp
     });
     
     return res.status(200).json(response);
@@ -141,6 +137,9 @@ export default async function handler(req, res) {
         best_level: 1,
         best_lines: 0,
         avg_score: 0,
+        wins: 0,
+        losses: 0,
+        win_rate: 0,
         message: 'Используются данные по умолчанию из-за ошибки БД'
       }
     };
