@@ -1,12 +1,185 @@
-import { Bot, Keyboard } from 'grammy';
-import { 
-  saveUserCity, 
-  getUserCity, 
-  saveGameScore, 
-  getGameStats,  // 🔴 УБРАТЬ "as fetchGameStats"
-  getTopPlayers, // 🔴 УБРАТЬ "as fetchTopPlayers"
-  checkDatabaseConnection 
-} from './db.js';
+import { saveGameScore, saveGameProgress, deleteGameProgress, getGameStats } from './db.js';
+
+// Вспомогательная функция для конвертации ID
+function convertUserIdForDb(userId) {
+  const userIdStr = String(userId);
+  
+  if (userIdStr.startsWith('web_')) {
+    return userIdStr; // Web App пользователи - строка
+  } else if (/^\d+$/.test(userIdStr)) {
+    // Telegram ID - может быть bigint в базе
+    const num = parseInt(userIdStr);
+    return isNaN(num) ? userIdStr : num;
+  }
+  return userIdStr; // Остальные - как есть
+}
+
+export default async function handler(req, res) {
+  console.log('📨 POST /api/save-score');
+  console.log('📊 Метод:', req.method);
+  
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed. Use POST.' 
+    });
+  }
+
+  try {
+    // Парсим тело запроса
+    let body;
+    if (typeof req.body === 'string') {
+      try {
+        body = JSON.parse(req.body);
+      } catch {
+        body = req.body;
+      }
+    } else {
+      body = req.body || {};
+    }
+    
+    console.log('📊 Тело запроса:', JSON.stringify(body, null, 2));
+    
+    // Упрощаем: принимаем только два формата
+    let userId = body.userId || body.user_id || body.data?.userId || body.data?.user_id;
+    let username = body.username || body.first_name || `Игрок`;
+    
+    if (body.last_name && body.first_name) {
+      username = `${body.first_name} ${body.last_name}`;
+    }
+    
+    // ВАЖНО: Конвертируем ID для базы данных
+    const dbUserId = convertUserIdForDb(userId);
+    
+    const score = parseInt(body.score) || 0;
+    const level = parseInt(body.level) || 1;
+    const lines = parseInt(body.lines) || 0;
+    const gameType = body.gameType || body.game_type || 'tetris';
+    
+    // Определяем завершение игры
+    const gameOver = Boolean(
+      body.gameOver || 
+      body.game_over || 
+      body.isGameOver || 
+      body.action === 'tetris_final_score'
+    );
+    
+    const isWin = score > 0;
+    const isWebApp = String(userId).startsWith('web_');
+    
+    console.log('📊 Данные для сохранения:', {
+      originalUserId: userId,
+      dbUserId,
+      username,
+      score,
+      level,
+      lines,
+      gameType,
+      gameOver,
+      isWin,
+      isWebApp
+    });
+    
+    // Валидация
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing userId/user_id' 
+      });
+    }
+    
+    if (score === undefined || score === null) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing score field' 
+      });
+    }
+    
+    let resultId;
+    
+    if (gameOver) {
+      // Сохраняем финальный результат
+      console.log(`💾 Сохраняем финальный результат...`);
+      
+      // 🔴 ИСПРАВЛЕНИЕ: передаем dbUserId (конвертированный)
+      resultId = await saveGameScore(
+        dbUserId,        // Конвертированный ID
+        gameType, 
+        score, 
+        level, 
+        lines,
+        username,
+        isWin
+      );
+      
+      // Удаляем прогресс
+      if (resultId) {
+        await deleteGameProgress(dbUserId, gameType);
+      }
+    } else {
+      // Сохраняем прогресс
+      console.log(`💾 Сохраняем прогресс...`);
+      
+      // 🔴 ИСПРАВЛЕНИЕ: передаем dbUserId (конвертированный)
+      resultId = await saveGameProgress(
+        dbUserId,        // Конвертированный ID
+        gameType, 
+        score, 
+        level, 
+        lines,
+        username
+      );
+    }
+    
+    if (resultId) {
+      // Получаем статистику с конвертированным ID
+      const stats = await getGameStats(dbUserId, gameType);
+      
+      const response = {
+        success: true,
+        id: resultId,
+        userId: userId,           // Оригинальный ID для клиента
+        dbUserId: dbUserId,       // Конвертированный ID для отладки
+        username,
+        score,
+        level,
+        lines,
+        gameType,
+        gameOver,
+        isWin,
+        isWebApp,
+        bestScore: stats?.best_score || 0,
+        gamesPlayed: stats?.games_played || 0,
+        wins: stats?.wins || 0,
+        newRecord: score > (stats?.best_score || 0),
+        message: gameOver ? 
+          (isWin ? `Победа! ${score} очков` : `Игра завершена: ${score} очков`) : 
+          `Прогресс сохранен`,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('✅ Успешно сохранено:', response);
+      
+      return res.status(200).json(response);
+    } else {
+      console.log('❌ Не удалось сохранить в БД');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database save failed.',
+        savedData: { userId, score, gameOver }
+      });
+    }
+    
+  } catch (error) {
+    console.error('🔥 Ошибка сохранения:', error);
+    
+    return res.status(500).json({ 
+      success: false,
+      error: `Internal server error: ${error.message}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
 
 // ===================== КОНФИГУРАЦИЯ =====================
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -88,7 +261,18 @@ function isRateLimited(userId) {
   
   return false;
 }
-
+function convertUserIdForDb(userId) {
+  const userIdStr = String(userId);
+  
+  if (userIdStr.startsWith('web_')) {
+    return userIdStr; // Web App пользователи - строка
+  } else if (/^\d+$/.test(userIdStr)) {
+    // Telegram ID - конвертируем в число для bigint
+    const num = parseInt(userIdStr);
+    return isNaN(num) ? userIdStr : num;
+  }
+  return userIdStr;
+}
 // ===================== КЭШ ПОГОДЫ =====================
 const weatherCache = new Map();
 
