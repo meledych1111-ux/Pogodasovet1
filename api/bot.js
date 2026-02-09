@@ -1,4 +1,4 @@
-import { Bot, Keyboard } from 'grammy';
+      import { Bot, Keyboard } from 'grammy';
 import { 
   saveUserCity, 
   getUserCity, 
@@ -91,7 +91,6 @@ function isRateLimited(userId) {
 }
 
 // ===================== КЭШ ПОГОДЫ =====================
-
 const weatherCache = new Map();
 
 // ===================== ФУНКЦИИ ПОГОДЫ =====================
@@ -177,172 +176,87 @@ async function getWeatherData(cityName, forceRefresh = false) {
     };
   }
 }
-// ===================== КОНФИГУРАЦИЯ =====================
-const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) {
-  console.error('❌ BOT_TOKEN не найден! Задайте переменную BOT_TOKEN в Vercel.');
-  throw new Error('BOT_TOKEN is required');
+
+// Вспомогательная функция для описания погоды (добавлена для корректной работы)
+function getWeatherDescription(code) {
+  const weatherMap = {
+    0: 'Ясно ☀️',
+    1: 'В основном ясно 🌤️',
+    2: 'Переменная облачность ⛅',
+    3: 'Пасмурно ☁️',
+    45: 'Туман 🌫️',
+    48: 'Изморозь 🌫️',
+    51: 'Лёгкая морось 🌧️',
+    53: 'Морось 🌧️',
+    61: 'Небольшой дождь 🌧️',
+    63: 'Дождь 🌧️',
+    65: 'Сильный дождь 🌧️',
+    71: 'Небольшой снег ❄️',
+    73: 'Снег ❄️',
+    75: 'Сильный снег ❄️',
+    80: 'Ливень 🌧️',
+    81: 'Сильный ливень 🌧️',
+    82: 'Очень сильный ливень 🌧️',
+    95: 'Гроза ⛈️',
+    96: 'Гроза с градом ⛈️',
+    99: 'Сильная гроза с градом ⛈️'
+  };
+  
+  return weatherMap[code] || 'Облачно ⛅';
 }
 
-console.log('🤖 Создаю бота...');
-const bot = new Bot(BOT_TOKEN);
-
-// ===================== ИНИЦИАЛИЗАЦИЯ БОТА =====================
-let botInitialized = false;
-
-async function initializeBot() {
-  if (botInitialized) return;
-  
-  console.log('🔧 Инициализирую бота...');
-  try {
-    await bot.init();
-    botInitialized = true;
-    console.log(`✅ Бот инициализирован: @${bot.botInfo.username}`);
-  } catch (error) {
-    console.error('❌ Ошибка инициализации:', error.message);
+function getDetailedWeatherDescription(code, precipitationMm = 0) {
+  if (code === undefined || code === null) {
+    return 'Погодные данные';
   }
-}
-
-// Проверяем соединение с базой данных
-async function initializeDatabase() {
-  try {
-    const dbCheck = await checkDatabaseConnection();
-    if (dbCheck.success) {
-      console.log(`✅ Подключение к базе данных: OK (${dbCheck.time})`);
-    } else {
-      console.warn(`⚠️ База данных: ${dbCheck.error}`);
+  
+  const weatherMap = {
+    0: 'Ясно ☀️', 
+    1: 'В основном ясно 🌤️', 
+    2: 'Переменная облачность ⛅',
+    3: 'Пасмурно ☁️', 
+    45: 'Туман 🌫️', 
+    48: 'Изморозь 🌫️',
+    51: 'Легкая морось 🌧️', 
+    53: 'Морось 🌧️', 
+    61: 'Небольшой дождь 🌧️',
+    63: 'Дождь 🌧️', 
+    65: 'Сильный дождь 🌧️', 
+    71: 'Небольшой снег ❄️',
+    73: 'Снег ❄️', 
+    75: 'Сильный снег ❄️',
+    80: 'Небольшой ливень 🌧️',
+    81: 'Умеренный ливень 🌧️',
+    82: 'Сильный ливень 🌧️',
+    85: 'Небольшой снегопад ❄️',
+    86: 'Сильный снегопад ❄️',
+    95: 'Гроза ⛈️',
+    96: 'Гроза с небольшим градом ⛈️',
+    99: 'Гроза с сильным градом ⛈️'
+  };
+  
+  let description = weatherMap[code] || `Код погоды: ${code}`;
+  
+  // Улучшенная логика с учетом осадков
+  if (precipitationMm > 0) {
+    if ([0, 1, 2, 3, 45, 48].includes(code)) {
+      if (precipitationMm < 0.5) {
+        description = `Пасмурно, возможны кратковременные осадки 🌦️`;
+      } else if (precipitationMm < 2) {
+        description = `Пасмурно, возможна слабая морось 🌦️ (${precipitationMm.toFixed(1)} мм)`;
+      } else if (precipitationMm < 10) {
+        description = `Пасмурно, возможен дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
+      } else {
+        description = `Пасмурно, возможен сильный дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
+      }
+    } else if ([51, 53, 61, 63, 65, 71, 73, 75, 80, 81, 82, 85, 86].includes(code)) {
+      description += ` (${precipitationMm.toFixed(1)} мм)`;
     }
-  } catch (error) {
-    console.error('❌ Ошибка проверки БД:', error.message);
-  }
-}
-
-// Инициализируем при запуске
-initializeBot();
-initializeDatabase();
-
-// ===================== ХРАНИЛИЩЕ ДЛЯ СЕССИЙ =====================
-const userStorage = new Map();
-const rateLimit = new Map();
-
-// Очистка старых сессий
-function cleanupStorage() {
-  const hourAgo = Date.now() - 3600000;
-  for (const [userId, data] of userStorage.entries()) {
-    if (data.lastActivity && data.lastActivity < hourAgo) {
-      userStorage.delete(userId);
-    }
-  }
-}
-
-setInterval(cleanupStorage, 300000);
-
-// Проверка ограничения запросов
-function isRateLimited(userId) {
-  const now = Date.now();
-  const userLimit = rateLimit.get(userId) || { count: 0, lastRequest: 0 };
-  
-  if (now - userLimit.lastRequest > 60000) {
-    userLimit.count = 0;
+  } else if (precipitationMm === 0 && [3].includes(code)) {
+    description = 'Пасмурно, без осадков ☁️';
   }
   
-  userLimit.count++;
-  userLimit.lastRequest = now;
-  rateLimit.set(userId, userLimit);
-  
-  if (userLimit.count > 20) {
-    console.log(`⚠️ Ограничение запросов для ${userId}: ${userLimit.count}/мин`);
-    return true;
-  }
-  
-  return false;
-}
-
-// ===================== КЭШ ПОГОДЫ =====================
-const weatherCache = new Map();
-
-// ===================== ФУНКЦИИ ПОГОДЫ =====================
-async function getWeatherData(cityName, forceRefresh = false) {
-  const cacheKey = `current_${cityName.toLowerCase()}`;
-  const now = Date.now();
-  
-  // Проверяем кэш (актуален 10 минут)
-  if (!forceRefresh && weatherCache.has(cacheKey)) {
-    const cached = weatherCache.get(cacheKey);
-    if (now - cached.timestamp < 600000) {
-      console.log(`🌤️ Использую кэшированную погоду для ${cityName}`);
-      return cached.data;
-    }
-  }
-  
-  console.log(`🌤️ Запрашиваю погоду для: "${cityName}"`);
-  
-  try {
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
-    const geoResponse = await fetch(geoUrl);
-    const geoData = await geoResponse.json();
-    
-    if (!geoData.results || geoData.results.length === 0) {
-      throw new Error('Город не найден');
-    }
-    
-    const { latitude, longitude, name } = geoData.results[0];
-    
-    // Запрос для текущей погоды
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&daily=precipitation_sum&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
-    
-    const weatherResponse = await fetch(weatherUrl);
-    const weatherData = await weatherResponse.json();
-    
-    if (!weatherData.current) {
-      throw new Error('Нет данных о погоде');
-    }
-    
-    const current = weatherData.current;
-    const todayPrecipitation = weatherData.daily?.precipitation_sum[0] || 0;
-    
-    const weatherResult = {
-      temp: Math.round(current.temperature_2m),
-      feels_like: Math.round(current.apparent_temperature),
-      humidity: current.relative_humidity_2m,
-      wind: current.wind_speed_10m.toFixed(1),
-      precipitation: todayPrecipitation > 0 ? `${todayPrecipitation.toFixed(1)} мм` : 'Без осадков',
-      precipitation_value: todayPrecipitation,
-      description: getDetailedWeatherDescription(current.weather_code, todayPrecipitation),
-      city: name,
-      timestamp: new Date().toLocaleTimeString('ru-RU')
-    };
-    
-    // Сохраняем в кэш
-    weatherCache.set(cacheKey, {
-      data: weatherResult,
-      timestamp: now
-    });
-    
-    return weatherResult;
-    
-  } catch (error) {
-    console.error('❌ Ошибка получения погоды:', error.message);
-    
-    // Если есть кэшированные данные, возвращаем их даже если устарели
-    if (weatherCache.has(cacheKey)) {
-      console.log('🔄 Использую устаревшие кэшированные данные');
-      return weatherCache.get(cacheKey).data;
-    }
-    
-    // Fallback данные
-    return {
-      temp: 20,
-      feels_like: 19,
-      humidity: 65,
-      wind: '3.0',
-      precipitation: 'Без осадков',
-      precipitation_value: 0,
-      description: 'Ясно ☀️',
-      city: cityName,
-      timestamp: new Date().toLocaleTimeString('ru-RU')
-    };
-  }
+  return description;
 }
 
 async function getWeatherForecast(cityName) {
@@ -451,7 +365,7 @@ async function getWeatherForecast(cityName) {
       precipitation: forecastData.daily.precipitation_sum[tomorrowDailyIndex],
       wind_max: forecastData.daily.wind_speed_10m_max[tomorrowDailyIndex].toFixed(1),
       sunrise: forecastData.daily.sunrise[tomorrowDailyIndex].substring(11, 16),
-      sunset: forecastData.daily.sunset[tomorrowDailyIndex].substring(11, 16),
+      sunset: forecastData.daily.sunset[tomorrowDailyIndex].substring(
       periods: periodData,
       updated: new Date().toLocaleTimeString('ru-RU')
     };
