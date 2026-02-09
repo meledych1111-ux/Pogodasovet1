@@ -231,11 +231,73 @@ export async function getGameProgress(userId, gameType = 'tetris') {
     client.release();
   }
 }
+
 export async function getGameStats(userId, gameType = 'tetris') {
   const client = await pool.connect();
   try {
     console.log(`📊 Запрос статистики для user_id: ${userId}, game_type: ${gameType}`);
     
+    // Сначала проверяем, есть ли записи в game_scores
+    const checkQuery = await client.query(
+      'SELECT COUNT(*) as count FROM game_scores WHERE user_id = $1 AND game_type = $2',
+      [userId, gameType]
+    );
+    
+    const hasScores = parseInt(checkQuery.rows[0]?.count) > 0;
+    
+    if (!hasScores) {
+      // Если нет записей в game_scores, проверяем game_progress
+      console.log(`📊 Нет записей в game_scores, проверяем game_progress для ${userId}`);
+      
+      const progressQuery = await client.query(`
+        SELECT score, level, lines, last_saved 
+        FROM game_progress 
+        WHERE user_id = $1 AND game_type = $2
+      `, [userId, gameType]);
+      
+      const progress = progressQuery.rows[0];
+      
+      if (progress) {
+        console.log(`📊 Найден прогресс для ${userId}: ${progress.score} очков`);
+        return {
+          games_played: 1,
+          wins: 1,
+          losses: 0,
+          win_rate: '100.0',
+          best_score: parseInt(progress.score) || 0,
+          avg_score: parseInt(progress.score) || 0,
+          best_level: parseInt(progress.level) || 1,
+          best_lines: parseInt(progress.lines) || 0,
+          last_played: progress.last_saved,
+          current_progress: {
+            score: parseInt(progress.score) || 0,
+            level: parseInt(progress.level) || 1,
+            lines: parseInt(progress.lines) || 0,
+            last_saved: progress.last_saved
+          },
+          has_unfinished_game: true,
+          note: 'Из незавершенной игры'
+        };
+      } else {
+        console.log(`📊 Нет данных ни в game_scores, ни в game_progress для ${userId}`);
+        return {
+          games_played: 0,
+          wins: 0,
+          losses: 0,
+          win_rate: 0,
+          best_score: 0,
+          avg_score: 0,
+          best_level: 1,
+          best_lines: 0,
+          last_played: null,
+          current_progress: null,
+          has_unfinished_game: false,
+          note: 'Игрок еще не играл'
+        };
+      }
+    }
+    
+    // Если есть записи в game_scores, используем их
     const statsQuery = `
       SELECT 
         COUNT(*) as games_played,
@@ -260,7 +322,16 @@ export async function getGameStats(userId, gameType = 'tetris') {
       last_played: null
     };
     
-    return {
+    // Проверяем, есть ли незавершенная игра в game_progress
+    const progressQuery = await client.query(`
+      SELECT score, level, lines, last_saved 
+      FROM game_progress 
+      WHERE user_id = $1 AND game_type = $2
+    `, [userId, gameType]);
+    
+    const progress = progressQuery.rows[0];
+    
+    const result = {
       games_played: parseInt(stats.games_played) || 0,
       wins: parseInt(stats.wins) || 0,
       losses: parseInt(stats.games_played) - parseInt(stats.wins) || 0,
@@ -270,11 +341,29 @@ export async function getGameStats(userId, gameType = 'tetris') {
       avg_score: parseFloat(stats.avg_score) || 0,
       best_level: parseInt(stats.best_level) || 1,
       best_lines: parseInt(stats.best_lines) || 0,
-      last_played: stats.last_played
+      last_played: stats.last_played,
+      current_progress: progress ? {
+        score: parseInt(progress.score) || 0,
+        level: parseInt(progress.level) || 1,
+        lines: parseInt(progress.lines) || 0,
+        last_saved: progress.last_saved
+      } : null,
+      has_unfinished_game: !!progress
     };
+    
+    console.log(`📊 Статистика получена для ${userId}:`, {
+      games: result.games_played,
+      wins: result.wins,
+      best: result.best_score,
+      has_unfinished: result.has_unfinished_game
+    });
+    
+    return result;
     
   } catch (error) {
     console.error('❌ Ошибка получения статистики:', error);
+    console.error('❌ Stack trace:', error.stack);
+    
     return {
       games_played: 0,
       wins: 0,
@@ -284,12 +373,15 @@ export async function getGameStats(userId, gameType = 'tetris') {
       avg_score: 0,
       best_level: 1,
       best_lines: 0,
-      last_played: null
+      last_played: null,
+      current_progress: null,
+      has_unfinished_game: false
     };
   } finally {
     client.release();
   }
 }
+
 // Удаление прогресса после завершения игры
 export async function deleteGameProgress(userId, gameType = 'tetris') {
   const client = await pool.connect();
@@ -310,13 +402,80 @@ export async function deleteGameProgress(userId, gameType = 'tetris') {
   }
 }
 
-
 export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   const client = await pool.connect();
   try {
     console.log(`🏆 Запрос топа игроков для: ${gameType}, лимит: ${limit}`);
     
-    // ✅ ИСПРАВЛЕННЫЙ запрос - используем username из game_scores
+    // Сначала проверяем, есть ли записи в game_scores
+    const checkQuery = await client.query(
+      'SELECT COUNT(*) as count FROM game_scores WHERE game_type = $1 AND score > 0',
+      [gameType]
+    );
+    
+    const hasScores = parseInt(checkQuery.rows[0]?.count) > 0;
+    
+    if (!hasScores) {
+      // Если game_scores пустая, используем game_progress
+      console.log(`⚠️ Таблица game_scores пустая, использую game_progress для топа`);
+      
+      const query = `
+        SELECT 
+          gp.user_id,
+          COALESCE(us.username, 'Игрок #' || SUBSTRING(gp.user_id from '.{4}$')) as username,
+          gp.score,
+          gp.level,
+          gp.lines,
+          gp.last_saved as last_played,
+          1 as games_played,
+          1 as wins
+        FROM game_progress gp
+        LEFT JOIN user_sessions us ON gp.user_id = us.user_id
+        WHERE gp.game_type = $1 
+          AND gp.score > 0
+        ORDER BY gp.score DESC
+        LIMIT $2
+      `;
+      
+      const result = await client.query(query, [gameType, limit]);
+      console.log(`🏆 Найдено в прогрессах: ${result.rows.length} игроков`);
+      
+      // Форматируем результат
+      return result.rows.map((row, index) => {
+        // Улучшаем формат username
+        let username = row.username;
+        const userIdStr = String(row.user_id || '0000');
+        
+        // Если username все еще пустой или стандартный
+        if (!username || username === `Игрок #${userIdStr.slice(-4)}`) {
+          if (userIdStr.startsWith('web_')) {
+            username = `🌐 Web #${userIdStr.slice(-4)}`;
+          } else if (userIdStr.startsWith('tg_') || /^\d+$/.test(userIdStr)) {
+            username = `👤 Telegram #${userIdStr.slice(-4)}`;
+          } else {
+            username = `🎮 Игрок #${userIdStr.slice(-4)}`;
+          }
+        }
+        
+        return {
+          rank: index + 1,
+          user_id: row.user_id,
+          username: username,
+          score: parseInt(row.score) || 0,
+          level: parseInt(row.level) || 1,
+          lines: parseInt(row.lines) || 0,
+          games_played: parseInt(row.games_played) || 1,
+          wins: parseInt(row.wins) || 1,
+          win_rate: '100.0',
+          last_played: row.last_played,
+          // Для отладки
+          _source: 'game_progress',
+          _original_name: row.username
+        };
+      });
+    }
+    
+    // Если есть записи в game_scores, используем их
     const query = `
       SELECT 
         gs.user_id,
@@ -343,7 +502,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     `;
     
     const result = await client.query(query, [gameType, limit]);
-    console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
+    console.log(`🏆 Найдено игроков в топе из game_scores: ${result.rows.length}`);
     
     // Форматируем результат
     return result.rows.map((row, index) => {
@@ -375,6 +534,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
           ((parseInt(row.wins) / parseInt(row.games_played)) * 100).toFixed(1) : '0.0',
         last_played: row.last_played,
         // Для отладки
+        _source: 'game_scores',
         _original_name: row.username
       };
     });
@@ -395,13 +555,13 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
       wins: 8 - i,
       win_rate: '80.0',
       last_played: new Date().toISOString(),
-      _fallback: true
+      _fallback: true,
+      _source: 'fallback'
     }));
   } finally {
     client.release();
   }
 }
-
 
 // ============ ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ============
 export async function checkDatabaseConnection() {
