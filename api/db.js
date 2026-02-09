@@ -401,7 +401,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     client.release();
   }
 }
-// ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
 
 // ============ ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ============
 export async function checkDatabaseConnection() {
