@@ -101,8 +101,8 @@ export default async function handler(req, res) {
       // Сохраняем финальный результат
       console.log(`💾 Сохраняем финальный результат...`);
       
-      // 🔴 ИСПРАВЛЕНИЕ: передаем dbUserId (конвертированный)
-     resultId = await saveGameScore(dbUserId,
+      // ✅ ПРАВИЛЬНО: передаем dbUserId только один раз
+      resultId = await saveGameScore(
         dbUserId,        // Конвертированный ID
         gameType, 
         score, 
@@ -120,7 +120,7 @@ export default async function handler(req, res) {
       // Сохраняем прогресс
       console.log(`💾 Сохраняем прогресс...`);
       
-      // 🔴 ИСПРАВЛЕНИЕ: передаем dbUserId (конвертированный)
+      // ✅ ПРАВИЛЬНО: передаем dbUserId только один раз
       resultId = await saveGameProgress(
         dbUserId,        // Конвертированный ID
         gameType, 
@@ -261,18 +261,21 @@ function isRateLimited(userId) {
   
   return false;
 }
-function convertUserIdForDb(userId) {
-  const userIdStr = String(userId);
-  
-  if (userIdStr.startsWith('web_')) {
-    return userIdStr; // Web App пользователи - строка
-  } else if (/^\d+$/.test(userIdStr)) {
-    // Telegram ID - конвертируем в число для bigint
-    const num = parseInt(userIdStr);
-    return isNaN(num) ? userIdStr : num;
-  }
-  return userIdStr;
-}
+
+// УДАЛИТЕ ДУБЛИРУЮЩУЮ ФУНКЦИЮ (ниже есть такая же):
+// function convertUserIdForDb(userId) {
+//   const userIdStr = String(userId);
+//   
+//   if (userIdStr.startsWith('web_')) {
+//     return userIdStr; // Web App пользователи - строка
+//   } else if (/^\d+$/.test(userIdStr)) {
+//     // Telegram ID - конвертируем в число для bigint
+//     const num = parseInt(userIdStr);
+//     return isNaN(num) ? userIdStr : num;
+//   }
+//   return userIdStr;
+// }
+
 // ===================== КЭШ ПОГОДЫ =====================
 const weatherCache = new Map();
 
@@ -769,6 +772,7 @@ async function getTopPlayersList(limit = 10) {
     return [];
   }
 }
+
 async function getTopPlayersMessage(limit = 10, ctx = null) {
   try {
     const topPlayers = await getTopPlayersList(limit);
@@ -811,6 +815,7 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       const gamesPlayed = player.games_played || 1;
       const wins = player.wins || 0;
       const winRate = player.win_rate || '0.0';
+      const city = player.city || 'Город не указан';
       
       // Форматируем имя пользователя
       let username;
@@ -829,6 +834,7 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       
       message += `${medal} *${username}*\n`;
       message += `   🎯 Очки: *${score}*\n`;
+      message += `   📍 Город: ${city}\n`;
       message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
       
       // Добавляем статистику побед (если есть)
@@ -854,7 +860,8 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       if (currentPlayerIndex !== -1) {
         const currentPlayer = validPlayers[currentPlayerIndex];
         message += `👤 *Ваше место:* ${currentPlayerIndex + 1}\n`;
-        message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n\n`;
+        message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n`;
+        message += `📍 *Ваш город:* ${currentPlayer.city || 'Не указан'}\n\n`;
       } else {
         // Используем Web App ID для получения статистики
         const userStats = await getGameStats(webAppUserId, 'tetris');
@@ -887,8 +894,6 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
            `Попробуйте позже или станьте первым игроком!`;
   }
 }
-
-
 // ===================== ОДЕЖДА И СОВЕТЫ =====================
 function getWardrobeAdvice(weatherData) {
   const { temp, description, wind, precipitation } = weatherData;
