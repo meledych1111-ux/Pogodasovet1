@@ -102,7 +102,7 @@ export default async function handler(req, res) {
       console.log(`💾 Сохраняем финальный результат...`);
       
       // 🔴 ИСПРАВЛЕНИЕ: передаем dbUserId (конвертированный)
-      resultId = await saveGameScore(
+     resultId = await saveGameScore(dbUserId,
         dbUserId,        // Конвертированный ID
         gameType, 
         score, 
