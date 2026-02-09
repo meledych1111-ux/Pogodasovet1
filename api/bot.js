@@ -1759,7 +1759,15 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
         });
         return;
       }
-      
+         // ДОБАВЬТЕ ЭТУ ПРОВЕРКУ:
+      if (isNaN(score) || isNaN(level) || isNaN(lines)) {
+        console.error('❌ Некорректные данные игры:', { score, level, lines });
+        await ctx.reply(`❌ Ошибка: некорректные данные игры.`, {
+          parse_mode: 'Markdown',
+          reply_markup: mainMenuKeyboard 
+        });
+        return;
+      }
       // Сохраняем результат в базу данных
       try {
         const saved = await saveGameScore(userId, 'tetris', score, level, lines);
@@ -2397,6 +2405,193 @@ bot.command('help', async (ctx) => {
     );
   } catch (error) {
     console.error('❌ Ошибка в /help:', error);
+  }
+});
+// ===================== КОМАНДЫ ДЛЯ ТЕСТИРОВАНИЯ БАЗЫ ДАННЫХ =====================
+
+bot.command('db_check', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`🔍 db_check от ${userId}`);
+  
+  try {
+    // Проверяем подключение к БД
+    const connection = await checkDatabaseConnection();
+    
+    let message = `🔍 *Проверка базы данных:*\n\n`;
+    message += `• Подключение: ${connection.success ? '✅ Успешно' : '❌ Ошибка'}\n`;
+    
+    if (connection.success) {
+      message += `• Версия PostgreSQL: ${connection.version}\n`;
+      message += `• Время сервера: ${connection.time}\n`;
+    } else {
+      message += `• Ошибка: ${connection.error}\n`;
+    }
+    
+    await ctx.reply(message, { parse_mode: 'Markdown' });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в db_check:', error);
+    await ctx.reply(`❌ Ошибка: ${error.message}`);
+  }
+});
+
+bot.command('my_stats_raw', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`📊 my_stats_raw от ${userId}`);
+  
+  try {
+    // Получаем сырые данные статистики
+    const stats = await getUserGameStats(userId);
+    
+    // Получаем город
+    const city = await getUserCity(userId);
+    
+    let message = `📊 *Сырые данные статистики:*\n\n`;
+    message += `• Ваш ID: ${userId}\n`;
+    message += `• Ваш город: ${city || 'Не указан'}\n`;
+    message += `• Игр сыграно: ${stats?.games_played || 0}\n`;
+    message += `• Лучший счёт: ${stats?.best_score || 0}\n\n`;
+    
+    // Форматируем сырые данные JSON
+    message += `*JSON данные:*\n\`\`\`json\n${JSON.stringify(stats, null, 2)}\n\`\`\``;
+    
+    await ctx.reply(message, { parse_mode: 'Markdown' });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в my_stats_raw:', error);
+    await ctx.reply(`❌ Ошибка: ${error.message}`);
+  }
+});
+
+bot.command('test_save', async (ctx) => {
+  const userId = ctx.from.id;
+  const username = ctx.from.username ? `@${ctx.from.username}` : `Игрок ${ctx.from.id}`;
+  
+  console.log(`🧪 test_save от ${userId} (${username})`);
+  
+  try {
+    // Тестовое сохранение результата игры
+    const score = Math.floor(Math.random() * 1000) + 100;
+    const level = Math.floor(Math.random() * 10) + 1;
+    const lines = Math.floor(Math.random() * 50) + 10;
+    
+    const savedId = await saveGameScore(userId, 'tetris', score, level, lines, username);
+    
+    let message = `🧪 *Тестовое сохранение:*\n\n`;
+    
+    if (savedId) {
+      message += `✅ Результат сохранён (ID: ${savedId})\n`;
+      message += `• Очки: ${score}\n`;
+      message += `• Уровень: ${level}\n`;
+      message += `• Линии: ${lines}\n`;
+      message += `• Имя: ${username}\n\n`;
+      message += `📊 Проверьте статистику командой /stats`;
+    } else {
+      message += `❌ Ошибка сохранения результата`;
+    }
+    
+    await ctx.reply(message, { parse_mode: 'Markdown' });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в test_save:', error);
+    await ctx.reply(`❌ Ошибка: ${error.message}`);
+  }
+});
+
+bot.command('force_top', async (ctx) => {
+  console.log(`🏆 force_top от ${ctx.from.id}`);
+  
+  try {
+    // Принудительно получаем топ
+    const topPlayers = await getTopPlayersList(10);
+    
+    let message = `🏆 *Топ игроков (принудительно):*\n\n`;
+    
+    if (!topPlayers || topPlayers.length === 0) {
+      message += `📊 Пока никто не играл в тетрис!\n\n`;
+      message += `🎮 *Будьте первым!*`;
+    } else {
+      message += `👥 *Игроков в топе: ${topPlayers.length}*\n\n`;
+      
+      topPlayers.forEach((player, index) => {
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+        
+        message += `${medal} *${player.username}*\n`;
+        message += `   🎯 Очки: *${player.score}*\n`;
+        message += `   📊 Уровень: ${player.level} | 📈 Линии: ${player.lines}\n`;
+        message += `   🕹️ Игр: ${player.games_played} | 🏆 Побед: ${player.wins}\n`;
+        message += `   🏙️ Город: ${player.city || 'Не указан'}\n\n`;
+      });
+    }
+    
+    await ctx.reply(message, { parse_mode: 'Markdown' });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в force_top:', error);
+    await ctx.reply(`❌ Ошибка: ${error.message}`);
+  }
+});
+
+bot.command('debug_db', async (ctx) => {
+  try {
+    console.log('🔍 debug_db запущен');
+    
+    // Получаем диагностику
+    const diagnosis = await diagnoseConnection();
+    
+    // Проверяем данные в таблицах
+    const client = await pool.connect();
+    try {
+      // 1. Проверяем user_sessions
+      const users = await client.query('SELECT COUNT(*) as count FROM user_sessions');
+      
+      // 2. Проверяем game_scores
+      const scores = await client.query(`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(DISTINCT user_id) as unique_players,
+          COALESCE(MAX(score), 0) as max_score
+        FROM game_scores 
+        WHERE game_type = 'tetris'
+      `);
+      
+      let message = `🔍 *Диагностика базы данных:*\n\n`;
+      message += `*Подключение:*\n`;
+      message += `• Успешно: ${diagnosis.connectionTest.success ? '✅' : '❌'}\n`;
+      message += `• Тип БД: ${diagnosis.databaseUrlType}\n\n`;
+      
+      message += `*Таблицы:*\n`;
+      message += `• Пользователей: ${users.rows[0]?.count || 0}\n`;
+      message += `• Игр всего: ${scores.rows[0]?.total || 0}\n`;
+      message += `• Уникальных игроков: ${scores.rows[0]?.unique_players || 0}\n`;
+      message += `• Макс. результат: ${scores.rows[0]?.max_score || 0}\n\n`;
+      
+      // Примеры данных
+      const examples = await client.query(`
+        SELECT user_id, username, score, level, lines 
+        FROM game_scores 
+        WHERE game_type = 'tetris' 
+        ORDER BY score DESC 
+        LIMIT 3
+      `);
+      
+      if (examples.rows.length > 0) {
+        message += `*Примеры результатов:*\n`;
+        examples.rows.forEach((row, i) => {
+          const name = row.username || `Игрок #${String(row.user_id).slice(-4)}`;
+          message += `${i+1}. ${name}: ${row.score} очков (ур. ${row.level})\n`;
+        });
+      }
+      
+      await ctx.reply(message, { parse_mode: 'Markdown' });
+      
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка в debug_db:', error);
+    await ctx.reply(`❌ Ошибка: ${error.message}\n\n🔧 Проверьте настройки БД и подключение.`);
   }
 });
 
