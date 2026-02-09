@@ -257,11 +257,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
   // ... существующий код getGameStats ...
 }
 
-// ============ СТАТИСТИКА И ЛИДЕРБОРД ============
-export async function getGameStats(userId, gameType = 'tetris') {
-  // ... существующий код getGameStats ...
-}
-
 // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 // ТОЛЬКО ОДНА ФУНКЦИЯ getTopPlayers!
 // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
