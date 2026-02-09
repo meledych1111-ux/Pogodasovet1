@@ -1,11 +1,39 @@
 import pg from 'pg';
 const { Pool } = pg;
 
+// 🔴 ИСПРАВЛЕННОЕ ПОДКЛЮЧЕНИЕ ДЛЯ NEON + VERCEL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // 🔴 ВАЖНО: Neon требует правильного SSL
   ssl: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: true, // Neon не принимает false
+    // Опционально: добавьте CA сертификат для дополнительной надежности
+    ca: process.env.NODE_ENV === 'production' ? 
+      `-----BEGIN CERTIFICATE-----
+MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
+ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
+b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL
+MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv
+b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj
+ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM
+9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw
+IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6
+VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L
+93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm
+jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA
+A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI
+U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs
+N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv
+o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU
+5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy
+rqXRfboQnoZsG4q5WTP468SQvvG5
+-----END CERTIFICATE-----` : undefined
+  },
+  // 🔴 Дополнительные параметры для стабильности
+  connectionTimeoutMillis: 10000, // 10 секунд
+  idleTimeoutMillis: 30000,
+  max: 20 // максимальное количество клиентов в пуле
 });
 
 // 🔴 ДОБАВИТЬ ЭТУ ФУНКЦИЮ СРАЗУ ПОСЛЕ ПУЛА
@@ -22,10 +50,51 @@ function convertUserIdForDb(userId) {
   return userIdStr;
 }
 
+// 🔴 ФУНКЦИЯ ДЛЯ ТЕСТИРОВАНИЯ ПОДКЛЮЧЕНИЯ С ВЫВОДОМ ДЕТАЛЕЙ
+async function testConnection() {
+  let client;
+  try {
+    console.log('🧪 Тестирование подключения к БД...');
+    console.log('🧪 DATABASE_URL (первые 50 символов):', process.env.DATABASE_URL?.substring(0, 50) + '...');
+    console.log('🧪 NODE_ENV:', process.env.NODE_ENV);
+    
+    client = await pool.connect();
+    const result = await client.query('SELECT version() as version, NOW() as now');
+    
+    console.log('✅ Подключение успешно:');
+    console.log('   Версия PostgreSQL:', result.rows[0].version);
+    console.log('   Время сервера:', result.rows[0].now);
+    
+    return { success: true, version: result.rows[0].version, time: result.rows[0].now };
+  } catch (error) {
+    console.error('❌ Ошибка подключения к БД:', error.message);
+    console.error('❌ Код ошибки:', error.code);
+    console.error('❌ Детали SSL:', error.message.includes('SSL') ? 'Проблема с SSL' : 'Другая ошибка');
+    
+    // 🔴 ДОПОЛНИТЕЛЬНАЯ ДИАГНОСТИКА ДЛЯ NEON
+    if (process.env.DATABASE_URL) {
+      const url = process.env.DATABASE_URL;
+      console.log('🔍 Анализ DATABASE_URL:');
+      console.log('   Использует sslmode=require?', url.includes('sslmode=require'));
+      console.log('   Использует neon.tech домен?', url.includes('neon.tech'));
+    }
+    
+    return { success: false, error: error.message, code: error.code };
+  } finally {
+    if (client) client.release();
+  }
+}
+
 async function createTables() {
   const client = await pool.connect();
   try {
     console.log('📊 Создание таблиц...');
+    
+    // Сначала тестируем подключение
+    const testResult = await testConnection();
+    if (!testResult.success) {
+      throw new Error(`Не удалось подключиться к БД: ${testResult.error}`);
+    }
     
     // Таблица пользователей и городов
     await client.query(`
@@ -94,6 +163,15 @@ async function createTables() {
   } catch (error) {
     console.error('❌ Ошибка при создании таблиц:', error);
     console.error('❌ Stack trace:', error.stack);
+    
+    // 🔴 СПЕЦИАЛЬНЫЙ АНАЛИЗ ДЛЯ NEON SSL ПРОБЛЕМ
+    if (error.message.includes('SSL') || error.code === 'ECONNRESET') {
+      console.log('\n🔴 ВОЗМОЖНОЕ РЕШЕНИЕ ДЛЯ NEON:');
+      console.log('1. Проверьте, что DATABASE_URL содержит sslmode=require');
+      console.log('2. Убедитесь, что БД Neon активна в панели управления');
+      console.log('3. Проверьте переменные окружения в Vercel');
+      console.log('4. Для разработки добавьте ?sslmode=no-verify в конец DATABASE_URL');
+    }
   } finally {
     client.release();
   }
@@ -102,9 +180,19 @@ async function createTables() {
 // Автоматическое создание таблиц
 if (process.env.DATABASE_URL) {
   console.log('📊 Инициализация базы данных...');
-  createTables().catch(err => {
-    console.error('❌ Ошибка при инициализации БД:', err);
-  });
+  
+  // 🔴 ДОБАВЛЯЕМ ЗАДЕРЖКУ ДЛЯ VERCEL СРЕДЫ
+  setTimeout(() => {
+    createTables().catch(err => {
+      console.error('❌ Ошибка при инициализации БД:', err);
+      
+      // 🔴 ПОВТОРНАЯ ПОПЫТКА ЧЕРЕЗ 5 СЕКУНД
+      setTimeout(() => {
+        console.log('🔄 Повторная попытка подключения к БД...');
+        createTables().catch(console.error);
+      }, 5000);
+    });
+  }, 1000); // Задержка для инициализации Vercel среды
 }
 
 // ============ ФУНКЦИИ ДЛЯ ГОРОДОВ ============
@@ -524,25 +612,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
 
 // ============ ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ============
 export async function checkDatabaseConnection() {
-  const client = await pool.connect();
-  try {
-    const result = await client.query('SELECT NOW() as current_time');
-    console.log(`✅ Подключение к БД: OK (${result.rows[0].current_time})`);
-    return { 
-      success: true, 
-      time: result.rows[0].current_time,
-      message: 'База данных подключена'
-    };
-  } catch (error) {
-    console.error('❌ Ошибка подключения к БД:', error);
-    return { 
-      success: false, 
-      error: error.message,
-      message: 'Ошибка подключения к базе данных'
-    };
-  } finally {
-    client.release();
-  }
+  return await testConnection();
 }
 
 // Отладка базы данных
@@ -602,6 +672,20 @@ if (process.env.NODE_ENV !== 'production') {
   setTimeout(() => {
     debugDatabase().catch(console.error);
   }, 5000);
+}
+
+// 🔴 ЭКСПОРТИРУЕМ ТЕСТОВЫЕ ФУНКЦИИ ДЛЯ DIAGNOSTICS
+export async function diagnoseConnection() {
+  const results = {
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    databaseUrlType: process.env.DATABASE_URL?.includes('neon.tech') ? 'Neon' : 'Unknown',
+    connectionTest: await testConnection(),
+    nodeEnv: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  };
+  
+  console.log('🔍 Диагностика подключения к БД:', results);
+  return results;
 }
 
 // Экспортируем pool
