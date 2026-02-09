@@ -2469,35 +2469,43 @@ bot.on('message:text', async (ctx) => {
 bot.catch((err) => {
   console.error('🔥 Критическая ошибка бота:', err);
 });
-// ===================== ЛОКАЛЬНЫЙ ЗАПУСК (POLLING) =====================
-console.log('🚀 Запускаю бота в режиме polling для локального тестирования...');
-
-// Запускаем бота с опросом
-
-bot.start({
-    drop_pending_updates: true,
-    allowed_updates: ['message', 'callback_query']
-}).then(() => {
-    console.log('🤖 Бот запущен и готов принимать команды!');
-    console.log('📱 Отправьте /start в Telegram боту');
-}).catch(err => {
-    console.error('❌ Ошибка запуска бота:', err.message);
-});
-
-// Элегантная остановка
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
-
-console.log('✅ Код бота загружен. Ждем команды...');
 // ===================== ЭКСПОРТ ДЛЯ VERCEL =====================
+// Инициализируем бота один раз
+let botInitialized = false;
+
+async function initializeBot() {
+  if (!botInitialized) {
+    console.log('🤖 Инициализирую бота для Vercel...');
+    try {
+      // Инициализируем бота
+      await bot.init();
+      console.log(`✅ Бот инициализирован: @${bot.botInfo.username}`);
+      botInitialized = true;
+    } catch (error) {
+      console.error('❌ Ошибка инициализации бота:', error.message);
+    }
+  }
+}
+
+// Инициализируем при запуске (для Vercel)
+if (process.env.VERCEL === '1' || process.env.NODE_ENV === 'production') {
+  initializeBot().catch(console.error);
+}
+
 export default async function handler(req, res) {
   console.log(`🌐 ${req.method} запрос к /api/bot в ${new Date().toISOString()}`);
+  
+  // Для Vercel убедимся, что бот инициализирован
+  if ((process.env.VERCEL === '1' || process.env.NODE_ENV === 'production') && !botInitialized) {
+    await initializeBot();
+  }
   
   try {
     if (req.method === 'GET') {
       return res.status(200).json({ 
         message: 'Weather & English Phrases Bot with Game Statistics is running',
         status: 'active',
+        bot_initialized: botInitialized,
         timestamp: new Date().toISOString(),
         bot: bot.botInfo?.username || 'не инициализирован',
         features: [
@@ -2512,7 +2520,11 @@ export default async function handler(req, res) {
     }
     
     if (req.method === 'POST') {
-      // Бот уже инициализирован при загрузке модуля, поэтому просто обрабатываем update
+      if (!botInitialized) {
+        console.error('❌ Бот не инициализирован, пропускаем update');
+        return res.status(200).json({ ok: false, error: 'Bot not initialized' });
+      }
+      
       console.log('📦 Получен update от Telegram');
       
       try {
@@ -2539,7 +2551,6 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('🔥 Критическая ошибка в handler:', error);
-    // Всегда возвращаем 200 OK для Telegram
     return res.status(200).json({ 
       ok: false, 
       error: 'Internal server error'
