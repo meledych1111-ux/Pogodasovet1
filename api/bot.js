@@ -2517,12 +2517,20 @@ export default async function handler(req, res) {
       
       try {
         const update = req.body;
+        
+        // Проверяем, что update валиден
+        if (!update || typeof update !== 'object') {
+          console.error('❌ Неверный формат update:', update);
+          return res.status(400).json({ ok: false, error: 'Invalid update format' });
+        }
+        
         await bot.handleUpdate(update);
         console.log('✅ Update успешно обработан');
         
         return res.status(200).json({ ok: true });
       } catch (error) {
         console.error('❌ Ошибка обработки update:', error);
+        // Всегда возвращаем 200 OK для Telegram
         return res.status(200).json({ ok: false, error: 'Update processing failed' });
       }
     }
@@ -2531,9 +2539,14 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('🔥 Критическая ошибка в handler:', error);
+    // Всегда возвращаем 200 OK для Telegram
     return res.status(200).json({ 
       ok: false, 
       error: 'Internal server error'
     });
   }
 }
+
+// Экспортируем бота для тестов
+export { bot };
+console.log('⚡ Бот загружен с полноценной системой прогноза погоды и статистикой игр!');
