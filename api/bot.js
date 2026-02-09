@@ -1,2624 +1,1807 @@
-import { Bot, Keyboard } from 'grammy';
-import { 
-  saveUserCity, 
-  getUserCity, 
-  saveGameScore, 
-  getGameStats,  // 🔴 УБРАТЬ "as fetchGameStats"
-  getTopPlayers, // 🔴 УБРАТЬ "as fetchTopPlayers"
-  checkDatabaseConnection 
-} from './db.js';
-
-// ===================== КОНФИГУРАЦИЯ =====================
-const BOT_TOKEN = process.env.BOT_TOKEN;
-if (!BOT_TOKEN) {
-  console.error('❌ BOT_TOKEN не найден! Задайте переменную BOT_TOKEN в Vercel.');
-  throw new Error('BOT_TOKEN is required');
-}
-
-console.log('🤖 Создаю бота...');
-const bot = new Bot(BOT_TOKEN);
-
-// ===================== ИНИЦИАЛИЗАЦИЯ БОТА =====================
-let botInitialized = false;
-
-async function initializeBot() {
-  if (botInitialized) return;
-  
-  console.log('🔧 Инициализирую бота...');
-  try {
-    await bot.init();
-    botInitialized = true;
-    console.log(`✅ Бот инициализирован: @${bot.botInfo.username}`);
-  } catch (error) {
-    console.error('❌ Ошибка инициализации:', error.message);
-  }
-}
-
-// Проверяем соединение с базой данных
-async function initializeDatabase() {
-  try {
-    const dbCheck = await checkDatabaseConnection();
-    if (dbCheck.success) {
-      console.log(`✅ Подключение к базе данных: OK (${dbCheck.time})`);
-    } else {
-      console.warn(`⚠️ База данных: ${dbCheck.error}`);
-    }
-  } catch (error) {
-    console.error('❌ Ошибка проверки БД:', error.message);
-  }
-}
-
-// Инициализируем при запуске
-initializeBot();
-initializeDatabase();
-
-// ===================== ХРАНИЛИЩЕ ДЛЯ СЕССИЙ =====================
-const userStorage = new Map();
-const rateLimit = new Map();
-
-// Очистка старых сессий
-function cleanupStorage() {
-  const hourAgo = Date.now() - 3600000;
-  for (const [userId, data] of userStorage.entries()) {
-    if (data.lastActivity && data.lastActivity < hourAgo) {
-      userStorage.delete(userId);
-    }
-  }
-}
-
-setInterval(cleanupStorage, 300000);
-
-// Проверка ограничения запросов
-function isRateLimited(userId) {
-  const now = Date.now();
-  const userLimit = rateLimit.get(userId) || { count: 0, lastRequest: 0 };
-  
-  if (now - userLimit.lastRequest > 60000) {
-    userLimit.count = 0;
-  }
-  
-  userLimit.count++;
-  userLimit.lastRequest = now;
-  rateLimit.set(userId, userLimit);
-  
-  if (userLimit.count > 20) {
-    console.log(`⚠️ Ограничение запросов для ${userId}: ${userLimit.count}/мин`);
-    return true;
-  }
-  
-  return false;
-}
-
-// ===================== КЭШ ПОГОДЫ =====================
-const weatherCache = new Map();
-
-// ===================== ФУНКЦИИ ПОГОДЫ =====================
-async function getWeatherData(cityName, forceRefresh = false) {
-  const cacheKey = `current_${cityName.toLowerCase()}`;
-  const now = Date.now();
-  
-  // Проверяем кэш (актуален 10 минут)
-  if (!forceRefresh && weatherCache.has(cacheKey)) {
-    const cached = weatherCache.get(cacheKey);
-    if (now - cached.timestamp < 600000) {
-      console.log(`🌤️ Использую кэшированную погоду для ${cityName}`);
-      return cached.data;
-    }
-  }
-  
-  console.log(`🌤️ Запрашиваю погоду для: "${cityName}"`);
-  
-  try {
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
-    const geoResponse = await fetch(geoUrl);
-    const geoData = await geoResponse.json();
-    
-    if (!geoData.results || geoData.results.length === 0) {
-      throw new Error('Город не найден');
-    }
-    
-    const { latitude, longitude, name } = geoData.results[0];
-    
-    // Запрос для текущей погоды
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&daily=precipitation_sum&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
-    
-    const weatherResponse = await fetch(weatherUrl);
-    const weatherData = await weatherResponse.json();
-    
-    if (!weatherData.current) {
-      throw new Error('Нет данных о погоде');
-    }
-    
-    const current = weatherData.current;
-    const todayPrecipitation = weatherData.daily?.precipitation_sum[0] || 0;
-    
-    const weatherResult = {
-      temp: Math.round(current.temperature_2m),
-      feels_like: Math.round(current.apparent_temperature),
-      humidity: current.relative_humidity_2m,
-      wind: current.wind_speed_10m.toFixed(1),
-      precipitation: todayPrecipitation > 0 ? `${todayPrecipitation.toFixed(1)} мм` : 'Без осадков',
-      precipitation_value: todayPrecipitation,
-      description: getDetailedWeatherDescription(current.weather_code, todayPrecipitation),
-      city: name,
-      timestamp: new Date().toLocaleTimeString('ru-RU')
-    };
-    
-    // Сохраняем в кэш
-    weatherCache.set(cacheKey, {
-      data: weatherResult,
-      timestamp: now
-    });
-    
-    return weatherResult;
-    
-  } catch (error) {
-    console.error('❌ Ошибка получения погоды:', error.message);
-    
-    // Если есть кэшированные данные, возвращаем их даже если устарели
-    if (weatherCache.has(cacheKey)) {
-      console.log('🔄 Использую устаревшие кэшированные данные');
-      return weatherCache.get(cacheKey).data;
-    }
-    
-    // Fallback данные
-    return {
-      temp: 20,
-      feels_like: 19,
-      humidity: 65,
-      wind: '3.0',
-      precipitation: 'Без осадков',
-      precipitation_value: 0,
-      description: 'Ясно ☀️',
-      city: cityName,
-      timestamp: new Date().toLocaleTimeString('ru-RU')
-    };
-  }
-}
-
-async function getWeatherForecast(cityName) {
-  const cacheKey = `forecast_${cityName.toLowerCase()}`;
-  const now = Date.now();
-  
-  // Проверяем кэш (актуален 30 минут для прогноза)
-  if (weatherCache.has(cacheKey)) {
-    const cached = weatherCache.get(cacheKey);
-    if (now - cached.timestamp < 1800000) {
-      console.log(`🌤️ Использую кэшированный прогноз для ${cityName}`);
-      return cached.data;
-    }
-  }
-  
-  console.log(`🌤️ Запрашиваю прогноз на завтра для: "${cityName}"`);
-  
-  try {
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
-    const geoResponse = await fetch(geoUrl);
-    const geoData = await geoResponse.json();
-    
-    if (!geoData.results || geoData.results.length === 0) {
-      throw new Error('Город не найден');
-    }
-    
-    const { latitude, longitude, name } = geoData.results[0];
-    
-    // Запрос расширенного прогноза на завтра с почасовыми данными
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,wind_speed_10m_max&wind_speed_unit=ms&timezone=auto&forecast_days=2`;
-    
-    const forecastResponse = await fetch(forecastUrl);
-    const forecastData = await forecastResponse.json();
-    
-    if (!forecastData.hourly || !forecastData.daily) {
-      throw new Error('Нет данных прогноза');
-    }
-    
-    // Получаем данные на завтра
-    const tomorrowDate = new Date();
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
-    
-    // Находим индексы времени для завтра
-    const tomorrowIndexes = [];
-    forecastData.hourly.time.forEach((time, index) => {
-      if (time.startsWith(tomorrowDateStr)) {
-        tomorrowIndexes.push(index);
-      }
-    });
-    
-    if (tomorrowIndexes.length === 0) {
-      throw new Error('Нет данных на завтра');
-    }
-    
-    // Группируем по времени суток
-    const periods = {
-      'ночь': { start: 0, end: 5 },
-      'утро': { start: 6, end: 11 },
-      'день': { start: 12, end: 17 },
-      'вечер': { start: 18, end: 23 }
-    };
-    
-    const periodData = {};
-    
-    for (const [periodName, range] of Object.entries(periods)) {
-      const periodHours = tomorrowIndexes.filter(index => {
-        const hour = new Date(forecastData.hourly.time[index]).getHours();
-        return hour >= range.start && hour <= range.end;
-      });
-      
-      if (periodHours.length > 0) {
-        const temps = periodHours.map(index => forecastData.hourly.temperature_2m[index]);
-        const feels = periodHours.map(index => forecastData.hourly.apparent_temperature[index]);
-        const precip = periodHours.map(index => forecastData.hourly.precipitation_probability[index]);
-        const weatherCodes = periodHours.map(index => forecastData.hourly.weather_code[index]);
-        const winds = periodHours.map(index => forecastData.hourly.wind_speed_10m[index]);
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* ==================== СБРОС И ОСНОВНЫЕ СТИЛИ ==================== */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none; 
+            -webkit-tap-highlight-color: transparent; 
+            touch-action: manipulation; 
+        }
         
-        // Находим наиболее частый код погоды
-        const mostFrequentCode = weatherCodes.reduce((a, b, i, arr) => 
-          arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
-        );
+        html, body { 
+            height: 100%; width: 100%; overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%);
+            color: #ffffff;
+        }
         
-        periodData[periodName] = {
-          temp_min: Math.round(Math.min(...temps)),
-          temp_max: Math.round(Math.max(...temps)),
-          feels_min: Math.round(Math.min(...feels)),
-          feels_max: Math.round(Math.max(...feels)),
-          precip_max: Math.max(...precip),
-          precip_avg: Math.round(precip.reduce((a, b) => a + b, 0) / precip.length),
-          wind_avg: (winds.reduce((a, b) => a + b, 0) / winds.length).toFixed(1),
-          weather_code: mostFrequentCode,
-          description: getWeatherDescription(mostFrequentCode)
-        };
-      }
-    }
-    
-    // Данные за весь день
-    const tomorrowDailyIndex = 1; // индекс 0 - сегодня, 1 - завтра
-    
-    const forecastResult = {
-      city: name,
-      date: tomorrowDateStr,
-      temp_max: Math.round(forecastData.daily.temperature_2m_max[tomorrowDailyIndex]),
-      temp_min: Math.round(forecastData.daily.temperature_2m_min[tomorrowDailyIndex]),
-      precipitation: forecastData.daily.precipitation_sum[tomorrowDailyIndex],
-      wind_max: forecastData.daily.wind_speed_10m_max[tomorrowDailyIndex].toFixed(1),
-      sunrise: forecastData.daily.sunrise[tomorrowDailyIndex].substring(11, 16),
-      sunset: forecastData.daily.sunset[tomorrowDailyIndex].substring(11, 16),
-      periods: periodData,
-      updated: new Date().toLocaleTimeString('ru-RU')
-    };
-    
-    // Сохраняем в кэш
-    weatherCache.set(cacheKey, {
-      data: forecastResult,
-      timestamp: now
-    });
-    
-    return forecastResult;
-    
-  } catch (error) {
-    console.error('❌ Ошибка получения прогноза:', error.message);
-    
-    // Если есть кэшированные данные, возвращаем их
-    if (weatherCache.has(cacheKey)) {
-      console.log('🔄 Использую устаревшие кэшированные данные прогноза');
-      return weatherCache.get(cacheKey).data;
-    }
-    
-    // Fallback данные
-    const tomorrowDate = new Date(Date.now() + 86400000);
-    const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
-    
-    return {
-      city: cityName,
-      date: tomorrowDateStr,
-      temp_max: 20,
-      temp_min: 10,
-      precipitation: 0,
-      wind_max: '3.0',
-      sunrise: '07:00',
-      sunset: '19:00',
-      periods: {
-        'ночь': {
-          temp_min: 10,
-          temp_max: 12,
-          feels_min: 9,
-          feels_max: 11,
-          precip_max: 10,
-          precip_avg: 5,
-          wind_avg: '2.5',
-          description: 'Ясно 🌙'
-        },
-        'утро': {
-          temp_min: 12,
-          temp_max: 16,
-          feels_min: 11,
-          feels_max: 15,
-          precip_max: 20,
-          precip_avg: 10,
-          wind_avg: '3.0',
-          description: 'Переменная облачность ⛅'
-        },
-        'день': {
-          temp_min: 18,
-          temp_max: 22,
-          feels_min: 17,
-          feels_max: 21,
-          precip_max: 15,
-          precip_avg: 5,
-          wind_avg: '3.5',
-          description: 'Ясно ☀️'
-        },
-        'вечер': {
-          temp_min: 14,
-          temp_max: 18,
-          feels_min: 13,
-          feels_max: 17,
-          precip_max: 30,
-          precip_avg: 15,
-          wind_avg: '2.8',
-          description: 'Пасмурно ☁️'
+        body { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 10px;
         }
-      },
-      updated: new Date().toLocaleTimeString('ru-RU')
-    };
-  }
-}
-
-// Вспомогательная функция для описания погоды
-function getWeatherDescription(code) {
-  const weatherMap = {
-    0: 'Ясно ☀️',
-    1: 'В основном ясно 🌤️',
-    2: 'Переменная облачность ⛅',
-    3: 'Пасмурно ☁️',
-    45: 'Туман 🌫️',
-    48: 'Изморозь 🌫️',
-    51: 'Лёгкая морось 🌧️',
-    53: 'Морось 🌧️',
-    61: 'Небольшой дождь 🌧️',
-    63: 'Дождь 🌧️',
-    65: 'Сильный дождь 🌧️',
-    71: 'Небольшой снег ❄️',
-    73: 'Снег ❄️',
-    75: 'Сильный снег ❄️',
-    80: 'Ливень 🌧️',
-    81: 'Сильный ливень 🌧️',
-    82: 'Очень сильный ливень 🌧️',
-    95: 'Гроза ⛈️',
-    96: 'Гроза с градом ⛈️',
-    99: 'Сильная гроза с градом ⛈️'
-  };
-  
-  return weatherMap[code] || 'Облачно ⛅';
-}
-
-function getDetailedWeatherDescription(code, precipitationMm = 0) {
-  if (code === undefined || code === null) {
-    return 'Погодные данные';
-  }
-  
-  const weatherMap = {
-    0: 'Ясно ☀️', 
-    1: 'В основном ясно 🌤️', 
-    2: 'Переменная облачность ⛅',
-    3: 'Пасмурно ☁️', 
-    45: 'Туман 🌫️', 
-    48: 'Изморозь 🌫️',
-    51: 'Легкая морось 🌧️', 
-    53: 'Морось 🌧️', 
-    61: 'Небольшой дождь 🌧️',
-    63: 'Дождь 🌧️', 
-    65: 'Сильный дождь 🌧️', 
-    71: 'Небольшой снег ❄️',
-    73: 'Снег ❄️', 
-    75: 'Сильный снег ❄️',
-    80: 'Небольшой ливень 🌧️',
-    81: 'Умеренный ливень 🌧️',
-    82: 'Сильный ливень 🌧️',
-    85: 'Небольшой снегопад ❄️',
-    86: 'Сильный снегопад ❄️',
-    95: 'Гроза ⛈️',
-    96: 'Гроза с небольшим градом ⛈️',
-    99: 'Гроза с сильным градом ⛈️'
-  };
-  
-  let description = weatherMap[code] || `Код погоды: ${code}`;
-  
-  // Улучшенная логика с учетом осадков
-  if (precipitationMm > 0) {
-    if ([0, 1, 2, 3, 45, 48].includes(code)) {
-      if (precipitationMm < 0.5) {
-        description = `Пасмурно, возможны кратковременные осадки 🌦️`;
-      } else if (precipitationMm < 2) {
-        description = `Пасмурно, возможна слабая морось 🌦️ (${precipitationMm.toFixed(1)} мм)`;
-      } else if (precipitationMm < 10) {
-        description = `Пасмурно, возможен дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
-      } else {
-        description = `Пасмурно, возможен сильный дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
-      }
-    } else if ([51, 53, 61, 63, 65, 71, 73, 75, 80, 81, 82, 85, 86].includes(code)) {
-      description += ` (${precipitationMm.toFixed(1)} мм)`;
-    }
-  } else if (precipitationMm === 0 && [3].includes(code)) {
-    description = 'Пасмурно, без осадков ☁️';
-  }
-  
-  return description;
-}
-
-// ===================== ФУНКЦИИ СТАТИСТИКИ И ТОПА =====================
-
-async function getUserGameStats(userId) {
-  try {
-    console.log(`📊 Получение статистики для пользователя: ${userId}`);
-         
-     const stats = await getGameStats(userId, 'tetris'); // Используем функцию из db.js
-    
-    console.log(`📊 Статистика получена:`, stats);
-    
-    return stats;
-  } catch (error) {
-    console.error('❌ Ошибка получения статистики:', error);
-    return null;
-  }
-}
-
-async function getGameStatsMessage(userId) {
-  try {
-    const stats = await getUserGameStats(userId);
-    
-    // Проверяем, есть ли вообще какие-то данные в stats
-    if (!stats) {
-      return `📊 *Статистика игры*\n\n` +
-             `🎮 Данные не найдены или произошла ошибка.\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!`;
-    }
-    
         
-    // Проверяем, играл ли пользователь
-    const hasPlayed = stats.games_played > 0;
-    const hasScore = stats.best_score > 0;
-    
-    if (!hasPlayed && !hasScore) {
-      return `📊 *Статистика игры*\n\n` +
-             `🎮 Вы ещё не играли в тетрис!\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!`;
-    }
-    
-    // Форматируем дату последней игры
-    let lastPlayedFormatted = 'ещё не играл';
-    if (stats.last_played) {
-      try {
-        const lastPlayedDate = new Date(stats.last_played);
-        if (!isNaN(lastPlayedDate.getTime())) {
-          lastPlayedFormatted = lastPlayedDate.toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
+        /* ==================== ОСНОВНОЙ КОНТЕЙНЕР ==================== */
+        .game-container {
+            width: 100%;
+            max-width: 480px;
+            height: 95vh;
+            max-height: 820px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(145deg, #0f1430, #1a1f40);
+            border: 2px solid #4455cc;
+            display: flex;
+            flex-direction: column;
         }
-      } catch (dateError) {
-        console.error('❌ Ошибка форматирования даты:', dateError);
-      }
-    }
-    
-    // Собираем сообщение с новыми полями
-    let message = `📊 *Ваша статистика в тетрисе*\n\n`;
-    message += `🎮 Игр сыграно: *${stats.games_played || 0}*\n`;
-    
-    // Добавляем статистику побед/поражений
-    if (stats.games_played > 0) {
-      message += `✅ Побед: *${stats.wins || 0}* (`;
-      message += `${stats.win_rate || 0}%)\n`;
-      message += `❌ Поражений: *${stats.losses || 0}*\n`;
-    }
-    
-    message += `🏆 Лучший счёт: *${stats.best_score || 0}*\n`;
-    
-    // Добавляем худший счет (новое поле)
-    if (stats.worst_score !== undefined && stats.games_played > 1) {
-      message += `📉 Худший счёт: *${stats.worst_score || 0}*\n`;
-    }
-    
-    message += `📈 Лучший уровень: *${stats.best_level || 1}*\n`;
-    message += `📊 Лучшие линии: *${stats.best_lines || 0}*\n`;
-    
-    if (stats.games_played > 0) {
-      message += `📊 Средний счёт: *${Math.round(stats.avg_score || 0)}*\n`;
-    }
-    
-    message += `⏰ Последняя игра: ${lastPlayedFormatted}\n\n`;
-    
-    // Проверяем, есть ли незавершенная игра
-    if (stats.current_progress) {
-      const progress = stats.current_progress;
-      message += `🔄 *Незавершенная игра:*\n`;
-      message += `• Текущий счёт: ${progress.score || 0}\n`;
-      message += `• Текущий уровень: ${progress.level || 1}\n`;
-      message += `• Текущие линии: ${progress.lines || 0}\n`;
-      message += `• Сохранено: ${progress.last_saved ? new Date(progress.last_saved).toLocaleTimeString('ru-RU') : 'недавно'}\n\n`;
-    }
-    
-    message += `💪 Продолжайте играть и улучшайте свои рекорды!`;
-    
-    return message;
-  } catch (error) {
-    console.error('❌ Ошибка формирования сообщения статистики:', error);
-    
-    return `❌ Не удалось получить статистику.\n\n` +
-           `*Возможные причины:*\n` +
-           `• Проблема с подключением к базе данных\n` +
-           `• Вы ещё не играли в тетрис\n` +
-           `• Технические работы\n\n` +
-           `Попробуйте позже или начните новую игру!`;
-  }
-}
-
-async function getTopPlayersList(limit = 10) {
-  try {
-    console.log(`🏆 Получение топа игроков, лимит: ${limit}`);
-    
-    // 🔴 ПРОБЛЕМА: Используется fetchTopPlayers, но такой функции нет в db.js
-    // Вместо этого нужно использовать getTopPlayers
-    // const topPlayers = await fetchTopPlayers('tetris', limit); // ❌ Неправильно
-    
-    // ✅ Правильно:
-    const topPlayers = await getTopPlayers('tetris', limit); // Используем функцию из db.js
-    
-    console.log(`🏆 Игроков в топе: ${topPlayers ? topPlayers.length : 0}`);
-    
-    return topPlayers || [];
-  } catch (error) {
-    console.error('❌ Ошибка получения топа игроков:', error);
-    return [];
-  }
-}
-
-async function getTopPlayersMessage(limit = 10, ctx = null) {
-  try {
-    const topPlayers = await getTopPlayersList(limit);
-    
-    // Если нет данных или пустой массив
-    if (!topPlayers || topPlayers.length === 0) {
-      return `🏆 *Топ игроков*\n\n` +
-             `📊 Пока никто не играл в тетрис или данные временно недоступны!\n\n` +
-             `🎮 *Будьте первым!*\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать и попасть в топ!`;
-    }
-    
-    // Проверяем, есть ли реальные данные (не нулевые очки)
-    const validPlayers = topPlayers.filter(player => 
-      player && player.score !== undefined && player.score > 0
-    );
-    
-    if (validPlayers.length === 0) {
-      return `🏆 *Топ игроков*\n\n` +
-             `📊 Пока нет игроков с результатами!\n\n` +
-             `🎮 *Будьте первым!*\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать и попасть в топ!`;
-    }
-    
-    let message = `🏆 *Топ ${Math.min(validPlayers.length, limit)} игроков в тетрисе*\n\n`;
-    
-    validPlayers.forEach((player, index) => {
-      // Получаем медаль
-      let medal;
-      switch(index) {
-        case 0: medal = '🥇'; break;
-        case 1: medal = '🥈'; break;
-        case 2: medal = '🥉'; break;
-        default: medal = `${index + 1}.`;
-      }
-      
-      const score = player.score || 0;
-      const level = player.level || 1;
-      const lines = player.lines || 0;
-      const gamesPlayed = player.games_played || 1;
-      const wins = player.wins || 0;
-      const winRate = player.win_rate || '0.0';
-      
-     
-      // Форматируем имя пользователя
-      let username;
-      if (player.username && !player.username.startsWith('Игрок #')) {
-        // Используем реальное имя из базы
-        username = player.username;
-      } else if (player.user_id) {
-        // Если имя не указано, создаем по ID
-        const userIdStr = String(player.user_id);
-        if (userIdStr.startsWith('web_')) {
-          username = `🌐 Web #${userIdStr.slice(-4)}`;
-        } else {
-          username = `👤 Игрок #${userIdStr.slice(-4)}`;
+        
+        /* ==================== ЭКРАНЫ ==================== */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            background: inherit;
         }
-      } else {
-        username = `Игрок ${index + 1}`;
-      }
-      
-      message += `${medal} *${username}*\n`;
-      message += `   🎯 Очки: *${score}*\n`;
-      message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
-      
-      // Добавляем статистику побед (если есть)
-      if (gamesPlayed > 1) {
-        message += `   ✅ Побед: ${wins}/${gamesPlayed} (${winRate}%)\n`;
-      } else {
-        message += `   🕹️ Игр: ${gamesPlayed}\n`;
-      }
-      
-      message += `\n`;
-    });
-    
-    // Добавляем информацию о текущем пользователе
-    if (ctx && ctx.from) {
-      const currentUserId = ctx.from.id;
-      
-      // 🔴 ВАЖНО: Для Web App пользователей ID будет другим!
-      // Нужно преобразовать ID для поиска в топе
-      let searchUserId;
-      if (ctx.from && ctx.from.username && ctx.from.username.startsWith('web_')) {
-        searchUserId = ctx.from.username; // Для Web App
-      } else {
-        searchUserId = currentUserId; // Для Telegram
-      }
-      
-      const currentPlayerIndex = validPlayers.findIndex(p => 
-        String(p.user_id) === String(searchUserId)
-      );
-      
-      if (currentPlayerIndex !== -1) {
-        const currentPlayer = validPlayers[currentPlayerIndex];
-        message += `👤 *Ваше место:* ${currentPlayerIndex + 1}\n`;
-        message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n\n`;
-      } else {
-        // Проверяем, есть ли вообще статистика у пользователя
-        const userStats = await getUserGameStats(searchUserId);
-        if (userStats && userStats.games_played > 0) {
-          message += `👤 *Вы набрали:* ${userStats.best_score} очков\n`;
-          message += `🎯 Продолжайте играть, чтобы попасть в топ!\n\n`;
-        } else {
-          message += `👤 *Вы пока не играли*\n`;
-          message += `🎯 Начните игру, чтобы попасть в рейтинг!\n\n`;
+        
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
         }
-      }
-    }
-    
-    message += `🎯 *Как попасть в топ?*\n`;
-    message += `• Играйте в тетрис 🎮\n`;
-    message += `• Набирайте очки и сохраняйте результаты\n`;
-    message += `• Улучшайте свои рекорды!\n\n`;
-    
-    message += `🔄 Обновляется автоматически после каждой игры`;
-    
-    return message;
-  } catch (error) {
-    console.error('❌ Ошибка формирования сообщения топа:', error);
-    
-    return `❌ Не удалось загрузить топ игроков.\n\n` +
-           `*Возможные причины:*\n` +
-           `• Проблема с подключением к базе данных\n` +
-           `• Технические работы\n` +
-           `• Топ игроков пока пуст\n\n` +
-           `Попробуйте позже или станьте первым игроком!`;
-  }
-}
+        
+        /* ==================== ЗАГОЛОВОК ==================== */
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 15px 10px;
+            flex-shrink: 0;
+        }
+        
+        .game-title {
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(90deg, #9d7aff, #6a5bff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(106, 91, 255, 0.5);
+            margin-bottom: 5px;
+            line-height: 1.2;
+        }
+        
+        .subtitle {
+            color: #b5aaff;
+            font-size: 0.85rem;
+        }
+        
+        /* ==================== КНОПКИ МЕНЮ ==================== */
+        .menu-buttons {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 15px 0;
+            overflow-y: auto;
+        }
+        
+        .menu-btn {
+            background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 55px;
+            flex-shrink: 0;
+            border: 1px solid rgba(68, 85, 204, 0.3);
+        }
+        
+        .menu-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .menu-btn.new-game { 
+            background: linear-gradient(145deg, rgba(102, 204, 153, 0.3), rgba(77, 179, 128, 0.2));
+            border-color: rgba(102, 204, 153, 0.4);
+        }
+        .menu-btn.stats { 
+            background: linear-gradient(145deg, rgba(106, 91, 255, 0.3), rgba(86, 71, 235, 0.2));
+            border-color: rgba(106, 91, 255, 0.4);
+        }
+        .menu-btn.levels { 
+            background: linear-gradient(145deg, rgba(255, 153, 102, 0.3), rgba(235, 133, 82, 0.2));
+            border-color: rgba(255, 153, 102, 0.4);
+        }
+        .menu-btn.leaderboard { 
+            background: linear-gradient(145deg, rgba(255, 102, 204, 0.3), rgba(235, 82, 182, 0.2));
+            border-color: rgba(255, 102, 204, 0.4);
+        }
+        .menu-btn.settings { 
+            background: linear-gradient(145deg, rgba(102, 204, 204, 0.3), rgba(77, 179, 179, 0.2));
+            border-color: rgba(102, 204, 204, 0.4);
+        }
+        
+        /* ==================== ИГРОВОЙ ЭКРАН ==================== */
+        #game-screen {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+        
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(20, 30, 80, 0.5);
+            border-radius: 10px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+            border: 1px solid rgba(68, 85, 204, 0.3);
+        }
+        
+        .game-info {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .info-box {
+            background: rgba(10, 20, 60, 0.7);
+            padding: 8px 10px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 65px;
+            flex: 1;
+            max-width: 85px;
+            border: 1px solid rgba(68, 85, 204, 0.2);
+        }
+        
+        .info-label {
+            font-size: 0.7rem;
+            color: #aaccff;
+            margin-bottom: 4px;
+        }
+        
+        .info-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #66ffaa;
+        }
+        
+        .game-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 320px;
+            padding: 10px 0;
+        }
+        
+        #tetris-canvas {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            border: 2px solid rgba(68, 85, 204, 0.5);
+            box-shadow: 0 0 20px rgba(68, 85, 204, 0.2);
+            max-width: 100%;
+            max-height: 100%;
+        }
+        
+        /* ==================== ПАНЕЛЬ УПРАВЛЕНИЯ ИГРОЙ ==================== */
+        .game-controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+            flex-shrink: 0;
+        }
+        
+        .game-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 10px;
+            background: rgba(20, 30, 80, 0.5);
+            border-radius: 10px;
+            border: 1px solid rgba(68, 85, 204, 0.3);
+        }
+        
+        .game-btn {
+            background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2));
+            border: 1px solid rgba(68, 85, 204, 0.3);
+            border-radius: 8px;
+            padding: 12px 5px;
+            color: white;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            min-height: 44px;
+        }
+        
+        .game-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .game-btn.save-btn {
+            background: linear-gradient(145deg, rgba(102, 204, 153, 0.4), rgba(77, 179, 128, 0.3));
+            border-color: rgba(102, 204, 153, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .game-btn.save-btn:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .game-btn.save-btn:active:after {
+            left: 100%;
+        }
+        
+        .game-btn.save-btn.pulsing {
+            animation: pulse 1s infinite;
+        }
+        
+        .game-btn.pause-btn {
+            background: linear-gradient(145deg, rgba(255, 153, 102, 0.3), rgba(235, 133, 82, 0.2));
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 12px;
+            background: rgba(20, 30, 80, 0.5);
+            border-radius: 10px;
+            border: 1px solid rgba(68, 85, 204, 0.3);
+        }
+        
+        .control-btn {
+            background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2));
+            border: 1px solid rgba(68, 85, 204, 0.3);
+            border-radius: 10px;
+            padding: 15px 5px;
+            color: white;
+            font-size: 1.4rem;
+            cursor: pointer;
+            transition: all 0.1s;
+            min-height: 50px;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* ==================== СТАТИСТИКА ==================== */
+        .stats-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(20, 30, 80, 0.3);
+            border-radius: 10px;
+            margin: 10px 0;
+            border: 1px solid rgba(68, 85, 204, 0.2);
+        }
+        
+        .stat-card {
+            background: rgba(30, 40, 100, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #6a5bff;
+            border: 1px solid rgba(68, 85, 204, 0.2);
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .stat-label {
+            color: #aaccff;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #66ffaa;
+        }
+        
+        /* ==================== УРОВНИ ==================== */
+        .levels-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 15px 0;
+            overflow-y: auto;
+        }
+        
+        .level-card {
+            background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2));
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            min-height: 110px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid rgba(68, 85, 204, 0.3);
+        }
+        
+        .level-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .level-card.active {
+            background: linear-gradient(145deg, rgba(102, 204, 153, 0.3), rgba(77, 179, 128, 0.2));
+            border-color: rgba(102, 204, 153, 0.4);
+        }
+        
+        .level-icon {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+        
+        .level-name {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .level-desc {
+            font-size: 0.75rem;
+            color: #aaccff;
+        }
+        
+        /* ==================== ЛИДЕРБОРД ==================== */
+        .leaderboard-list {
+            flex: 1;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: rgba(30, 40, 100, 0.4);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(68, 85, 204, 0.2);
+        }
+        
+        .rank {
+            font-size: 1.2rem;
+            font-weight: bold;
+            width: 45px;
+            text-align: center;
+            color: #ffcc66;
+        }
+        
+        .player-info {
+            flex: 1;
+        }
+        
+        .player-name {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .player-score {
+            color: #66ffaa;
+            font-size: 1rem;
+        }
+        
+        /* ==================== ФУТЕР ==================== */
+        .footer {
+            padding: 12px 10px;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin-top: auto;
+            flex-shrink: 0;
+        }
+        
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 0.85rem;
+            min-width: 100px;
+            min-height: 40px;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .back-btn:active {
+            transform: scale(0.98);
+        }
+        
+        /* ==================== УВЕДОМЛЕНИЯ ==================== */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(42, 153, 68, 0.9);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 300px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .notification.show {
+            opacity: 1;
+        }
+        
+        /* ==================== АНИМАЦИИ ==================== */
+        @keyframes lineClear {
+            0% { opacity: 1; transform: scaleY(1); }
+            50% { opacity: 0.5; transform: scaleY(1.1); background: rgba(255, 255, 255, 0.6); }
+            100% { opacity: 0; transform: scaleY(1); }
+        }
+        
+        @keyframes pieceLand {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+            100% { transform: translateY(0); }
+        }
+        
+        @keyframes pieceSpawn {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(102, 204, 153, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(102, 204, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(102, 204, 153, 0); }
+        }
+        
+        .line-clearing {
+            animation: lineClear 0.4s ease-out;
+        }
+        
+        .piece-landing {
+            animation: pieceLand 0.2s ease;
+        }
+        
+        .piece-spawning {
+            animation: pieceSpawn 0.2s ease;
+        }
+        
+        /* ==================== АДАПТИВНОСТЬ ==================== */
+        @media (max-width: 400px) {
+            .game-title { font-size: 1.6rem; }
+            .menu-btn { padding: 14px 10px; font-size: 0.9rem; }
+            .info-value { font-size: 1.1rem; }
+            .control-btn { font-size: 1.2rem; padding: 12px 5px; }
+            .game-btn { font-size: 0.8rem; padding: 10px 3px; }
+            .level-name { font-size: 0.9rem; }
+            .level-card { padding: 12px; min-height: 100px; }
+        }
+        
+        @media (max-height: 700px) {
+            .game-container {
+                max-height: 650px;
+                min-height: 500px;
+            }
+            
+            .game-area {
+                min-height: 250px;
+            }
+            
+            .menu-btn {
+                padding: 12px 10px;
+                min-height: 50px;
+            }
+            
+            .controls {
+                padding: 8px;
+            }
+        }
+        
+        /* ==================== SCROLLBAR ==================== */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(106, 91, 255, 0.5);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- ГЛАВНОЕ МЕНЮ -->
+        <div class="screen active" id="menu-screen">
+            <div class="header">
+                <h1 class="game-title">ТЕТРИС PRO</h1>
+                <p class="subtitle">Telegram Mini App Edition</p>
+            </div>
+            
+            <div class="menu-buttons">
+                <button class="menu-btn new-game" onclick="startGame()">
+                    <span>🎮</span> НОВАЯ ИГРА
+                </button>
+                <button class="menu-btn stats" onclick="showStats()">
+                    <span>📊</span> СТАТИСТИКА
+                </button>
+                <button class="menu-btn levels" onclick="showLevels()">
+                    <span>⭐</span> УРОВНИ
+                </button>
+                <button class="menu-btn leaderboard" onclick="showLeaderboard()">
+                    <span>🏆</span> ЛИДЕРБОРД
+                </button>
+                <button class="menu-btn settings" onclick="showSettings()">
+                    <span>⚙️</span> НАСТРОЙКИ
+                </button>
+            </div>
+            
+            <div class="footer">
+                <p style="color: #aaccff; font-size: 0.8rem;">База данных Neon PostgreSQL</p>
+            </div>
+        </div>
+        
+        <!-- ИГРОВОЙ ЭКРАН -->
+        <div class="screen" id="game-screen">
+            <div class="game-header">
+                <div>
+                    <button class="back-btn" onclick="showMenu()">← МЕНЮ</button>
+                </div>
+                <div class="game-info">
+                    <div class="info-box">
+                        <div class="info-label">УРОВЕНЬ</div>
+                        <div class="info-value" id="level-display">1</div>
+                    </div>
+                    <div class="info-box">
+                        <div class="info-label">ОЧКИ</div>
+                        <div class="info-value" id="score-display">0</div>
+                    </div>
+                    <div class="info-box">
+                        <div class="info-label">ЛИНИИ</div>
+                        <div class="info-value" id="lines-display">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="game-area">
+                <canvas id="tetris-canvas" width="240" height="480"></canvas>
+            </div>
+            
+            <div class="game-controls-panel">
+                <div class="game-buttons">
+                    <button class="game-btn pause-btn" onclick="pauseGame()">
+                        <span>⏸</span> ПАУЗА
+                    </button>
+                    <button class="game-btn" onclick="restartGame()">
+                        <span>🔄</span> ЗАНОВО
+                    </button>
+                    <button class="game-btn save-btn" onclick="saveGameScore()" id="save-btn">
+                        <span>💾</span> СОХРАНИТЬ
+                    </button>
+                </div>
+                
+                <div class="controls">
+                    <button class="control-btn" onclick="moveLeft()">←</button>
+                    <button class="control-btn" onclick="rotatePiece()">↻</button>
+                    <button class="control-btn" onclick="moveRight()">→</button>
+                    <button class="control-btn" onclick="hardDrop()">↓</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- СТАТИСТИКА -->
+        <div class="screen" id="stats-screen">
+            <div class="header">
+                <h1 class="game-title">СТАТИСТИКА</h1>
+            </div>
+            
+            <div class="stats-container">
+                <div class="stat-card">
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Ваша статистика</h3>
+                    <div id="user-stats">
+                        <div class="stat-row">
+                            <span class="stat-label">Лучший счет:</span>
+                            <span class="stat-value" id="best-score">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Рекордный уровень:</span>
+                            <span class="stat-value" id="best-level">1</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Всего линий:</span>
+                            <span class="stat-value" id="total-lines">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Сыграно игр:</span>
+                            <span class="stat-value" id="games-played">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Средний счет:</span>
+                            <span class="stat-value" id="avg-score">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Текущая сессия</h3>
+                    <div id="session-stats">
+                        <div class="stat-row">
+                            <span class="stat-label">Текущий уровень:</span>
+                            <span class="stat-value" id="current-level">1</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Текущий счет:</span>
+                            <span class="stat-value" id="current-score">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Линии в сессии:</span>
+                            <span class="stat-value" id="session-lines">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+            </div>
+        </div>
+        
+        <!-- УРОВНИ СЛОЖНОСТИ -->
+        <div class="screen" id="levels-screen">
+            <div class="header">
+                <h1 class="game-title">УРОВНИ</h1>
+                <p class="subtitle">Выберите сложность игры</p>
+            </div>
+            
+            <div class="levels-grid" id="levels-grid">
+                <!-- Уровни будут добавлены через JS -->
+            </div>
+            
+            <div class="footer">
+                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+            </div>
+        </div>
+        
+        <!-- ЛИДЕРБОРД -->
+        <div class="screen" id="leaderboard-screen">
+            <div class="header">
+                <h1 class="game-title">ЛИДЕРБОРД</h1>
+                <p class="subtitle">Топ-10 игроков</p>
+            </div>
+            
+            <div class="leaderboard-list" id="leaderboard-list">
+                <!-- Лидерборд будет загружен через JS -->
+            </div>
+            
+            <div class="footer">
+                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+            </div>
+        </div>
+        
+        <!-- НАСТРОЙКИ -->
+        <div class="screen" id="settings-screen">
+            <div class="header">
+                <h1 class="game-title">НАСТРОЙКИ</h1>
+            </div>
+            
+            <div class="stats-container">
+                <div class="stat-card">
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Управление</h3>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="touch-controls" checked style="margin-right: 10px;">
+                            Сенсорное управление
+                        </label>
+                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="keyboard-controls" checked style="margin-right: 10px;">
+                            Управление клавиатурой
+                        </label>
+                        <label style="display: flex; align-items: center;">
+                            <input type="checkbox" id="vibration" checked style="margin-right: 10px;">
+                            Виброотклик
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Графика</h3>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 10px;">Качество графики:</label>
+                        <select id="graphics-quality" 
+                                aria-label="Качество графики"
+                                style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(106, 91, 255, 0.5);">
+                            <option value="low">Низкое</option>
+                            <option value="medium" selected>Среднее</option>
+                            <option value="high">Высокое</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- БАЗА ДАННЫХ -->
+                <div class="stat-card">
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">База данных</h3>
+                    <div id="db-status" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(106, 91, 255, 0.3);">
+                        Статус: <span id="db-status-text">Проверка...</span>
+                    </div>
+                    <button class="back-btn" style="width: 100%; margin-bottom: 10px;" onclick="testDatabase()">
+                        🔍 Тест соединения с БД
+                    </button>
+                    <button class="back-btn" style="width: 100%;" onclick="syncLocalGames()">
+                        🔄 Синхронизировать локальные игры
+                    </button>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+            </div>
+        </div>
+    </div>
 
+    <!-- Уведомление -->
+    <div id="notification" class="notification"></div>
 
-// ===================== ОДЕЖДА И СОВЕТЫ =====================
-function getWardrobeAdvice(weatherData) {
-  const { temp, description, wind, precipitation } = weatherData;
-  let advice = [];
-
-  // Основные рекомендации по температуре
-  if (temp >= 25) {
-    advice.push('• 👕 *Базовый слой:* майка, футболка из хлопка или льна');
-    advice.push('• 👖 *Верх:* шорты, легкие брюки из льна, юбка');
-  } else if (temp >= 18) {
-    advice.push('• 👕 *Базовый слой:* футболка или тонкая рубашка');
-    advice.push('• 🧥 *Верх:* джинсы, брюки, легкая куртка на вечер');
-  } else if (temp >= 10) {
-    advice.push('• 👕 *Базовый слой:* лонгслив, тонкое термобелье');
-    advice.push('• 🧥 *Верх:* свитер, толстовка, ветровка');
-  } else if (temp >= 0) {
-    advice.push('• 👕 *Базовый слой:* теплое термобелье или флис');
-    advice.push('• 🧥 *Верх:* утепленный свитер, зимняя куртка');
-  } else {
-    advice.push('• 👕 *Базовый слой:* плотное термобелье, флис');
-    advice.push('• 🧥 *Верх:* пуховик, утепленные штаны');
-  }
-
-  // Дополнительные рекомендации
-  if (description.toLowerCase().includes('дождь') || description.includes('🌧️')) {
-    advice.push('• ☔ *При дожде:* дождевик, зонт, непромокаемая обувь');
-  }
-  if (description.toLowerCase().includes('снег') || description.includes('❄️')) {
-    advice.push('• ❄️ *При снеге:* непромокаемая обувь, варежки');
-  }
-  if (parseFloat(wind) > 7) {
-    advice.push('• 💨 *При ветре:* ветровка с капюшоном, шарф');
-  }
-  if (description.includes('☀️') || description.includes('ясно')) {
-    advice.push('• 🕶️ *При солнце:* солнцезащитные очки, головной убор');
-  }
-
-  // Общие советы
-  if (temp < 15) {
-    advice.push('• 🧣 *Аксессуары:* шапка, шарф, перчатки');
-  }
-  if (temp > 20 && description.includes('☀️')) {
-    advice.push('• 🧴 *Защита:* солнцезащитный крем SPF 30+');
-  }
-
-  advice.push('\n👟 *Обувь:* выбирайте по погоде');
-  advice.push('🎒 *С собой:* сумка для снятых слоев одежды');
-
-  return advice.join('\n');
-}
-
-// ===================== ФРАЗЫ ДНЯ =====================
-const dailyPhrases = [
-    // ===================== ПУТЕШЕСТВИЯ И ТРАНСПОРТ (30 фраз) =====================
-    {
-        english: "Where is the nearest bus stop?",
-        russian: "Где ближайшая автобусная остановка?",
-        explanation: "Спрашиваем про общественный транспорт",
-        category: "Путешествия",
-        level: "Начальный"
-    },
-    {
-        english: "How much is a ticket to the airport?",
-        russian: "Сколько стоит билет до аэропорта?",
-        explanation: "Узнаем цену проезда",
-        category: "Путешествия",
-        level: "Начальный"
-    },
-    {
-        english: "Is this seat taken?",
-        russian: "Это место занято?",
-        explanation: "Вежливый вопрос в транспорте",
-        category: "Путешествия", 
-        level: "Начальный"
-    },
-    {
-        english: "Could you tell me the way to the railway station?",
-        russian: "Не подскажете дорогу до вокзала?",
-        explanation: "Просим указать направление",
-        category: "Путешествия",
-        level: "Средний"
-    },
-    {
-        english: "I'd like to rent a car for three days",
-        russian: "Я хотел бы арендовать машину на три дня",
-        explanation: "Фраза для аренды автомобиля",
-        category: "Путешествия",
-        level: "Средний"
-    },
-    {
-        english: "Does this train go to the city center?",
-        russian: "Этот поезд идет в центр города?",
-        explanation: "Уточнение маршрута",
-        category: "Путешествия",
-        level: "Начальный"
-    },
-    {
-        english: "Where can I buy a metro card?",
-        russian: "Где я могу купить карту метро?",
-        explanation: "Вопрос о проездных",
-        category: "Путешествия",
-        level: "Начальный"
-    },
-    {
-        english: "What time does the last bus leave?",
-        russian: "Во сколько уходит последний автобус?",
-        explanation: "Уточнение расписания",
-        category: "Путешествия",
-        level: "Начальный"
-    },
-    {
-        english: "I need a taxi, please",
-        russian: "Мне нужно такси, пожалуйста",
-        explanation: "Простая просьба вызвать такси",
-        category: "Путешествия",
-        level: "Начальный"
-    },
-    {
-        english: "Is there a direct flight to London?",
-        russian: "Есть прямой рейс в Лондон?",
-        explanation: "Вопрос о авиаперелетах",
-        category: "Путешествия",
-        level: "Средний"
-    },
-
-    // ===================== ЕДА И РЕСТОРАНЫ (25 фраз) =====================
-    {
-        english: "Could I see the menu, please?",
-        russian: "Можно меню, пожалуйста?",
-        explanation: "Просим меню в ресторане",
-        category: "Еда",
-        level: "Начальный"
-    },
-    {
-        english: "I'm allergic to nuts",
-        russian: "У меня аллергия на орехи",
-        explanation: "Важная информация об аллергии",
-        category: "Еда",
-        level: "Начальный"
-    },
-    {
-        english: "Is this dish spicy?",
-        russian: "Это блюдо острое?",
-        explanation: "Уточнение о специях",
-        category: "Еда",
-        level: "Начальный"
-    },
-    {
-        english: "Could we have the bill, please?",
-        russian: "Можем мы получить счет, пожалуйста?",
-        explanation: "Просим счет в ресторане",
-        category: "Еда",
-        level: "Начальный"
-    },
-    {
-        english: "I'd like to make a reservation for two",
-        russian: "Я хотел бы зарезервировать столик на двоих",
-        explanation: "Бронирование столика",
-        category: "Еда",
-        level: "Средний"
-    },
-    {
-        english: "This is delicious!",
-        russian: "Это очень вкусно!",
-        explanation: "Комплимент повару",
-        category: "Еда",
-        level: "Начальный"
-    },
-    {
-        english: "Could I have some water, please?",
-        russian: "Можно мне воды, пожалуйста?",
-        explanation: "Простая просьба",
-        category: "Еда",
-        level: "Начальный"
-    },
-    {
-        english: "Is service included?",
-        russian: "Обслуживание включено?",
-        explanation: "Вопрос о чаевых",
-        category: "Еда",
-        level: "Средний"
-    },
-    {
-        english: "I'll have the same",
-        russian: "Я возьму то же самое",
-        explanation: "Заказ в ресторане",
-        category: "Еда",
-        level: "Начальный"
-    },
-    {
-        english: "Could you recommend something?",
-        russian: "Не могли бы вы что-нибудь порекомендовать?",
-        explanation: "Просим рекомендацию",
-        category: "Еда",
-        level: "Средний"
-    },
-
-    // ===================== ПОКУПКИ И ШОППИНГ (20 фраз) =====================
-    {
-        english: "How much does this cost?",
-        russian: "Сколько это стоит?",
-        explanation: "Самый частый вопрос в магазине",
-        category: "Шоппинг",
-        level: "Начальный"
-    },
-    {
-        english: "Do you have this in a larger size?",
-        russian: "Есть ли это в большем размере?",
-        explanation: "Примерка одежды",
-        category: "Шоппинг",
-        level: "Начальный"
-    },
-    {
-        english: "Where are the fitting rooms?",
-        russian: "Где примерочные?",
-        explanation: "Ищем где примерить",
-        category: "Шоппинг",
-        level: "Начальный"
-    },
-    {
-        english: "I'm just looking, thank you",
-        russian: "Я просто смотрю, спасибо",
-        explanation: "Отказ от помощи продавца",
-        category: "Шоппинг",
-        level: "Начальный"
-    },
-    {
-        english: "Can I pay by credit card?",
-        russian: "Могу я оплатить кредитной картой?",
-        explanation: "Вопрос о способе оплаты",
-        category: "Шоппинг",
-        level: "Начальный"
-    },
-    {
-        english: "Is there a warranty?",
-        russian: "Есть гарантия?",
-        explanation: "Важный вопрос при покупке",
-        category: "Шоппинг",
-        level: "Средний"
-    },
-    {
-        english: "Could I have a receipt, please?",
-        russian: "Можно чек, пожалуйста?",
-        explanation: "Просим чек",
-        category: "Шоппинг",
-        level: "Начальный"
-    },
-    {
-        english: "Do you offer discounts?",
-        russian: "У вас есть скидки?",
-        explanation: "Вопрос о скидках",
-        category: "Шоппинг",
-        level: "Средний"
-    },
-    {
-        english: "I'd like to return this item",
-        russian: "Я хотел бы вернуть этот товар",
-        explanation: "Возврат покупки",
-        category: "Шоппинг",
-        level: "Средний"
-    },
-    {
-        english: "Where is the cash desk?",
-        russian: "Где касса?",
-        explanation: "Ищем где оплатить",
-        category: "Шоппинг",
-        level: "Начальный"
-    },
-
-    // ===================== ЗДОРОВЬЕ И МЕДИЦИНА (15 фраз) =====================
-    {
-        english: "I need to see a doctor",
-        russian: "Мне нужно к врачу",
-        explanation: "Экстренная ситуация",
-        category: "Здоровье",
-        level: "Начальный"
-    },
-    {
-        english: "Where is the nearest pharmacy?",
-        russian: "Где ближайшая аптека?",
-        explanation: "Ищем лекарства",
-        category: "Здоровье",
-        level: "Начальный"
-    },
-    {
-        english: "I have a headache",
-        russian: "У меня болит голова",
-        explanation: "Описание симптомов",
-        category: "Здоровье",
-        level: "Начальный"
-    },
-    {
-        english: "I feel sick",
-        russian: "Мне плохо",
-        explanation: "Общее недомогание",
-        category: "Здоровье",
-        level: "Начальный"
-    },
-    {
-        english: "Do I need a prescription?",
-        russian: "Мне нужен рецепт?",
-        explanation: "Вопрос в аптеке",
-        category: "Здоровье",
-        level: "Средний"
-    },
-    {
-        english: "I've cut my finger",
-        russian: "Я порезал палец",
-        explanation: "Описание травмы",
-        category: "Здоровье",
-        level: "Начальный"
-    },
-    {
-        english: "Call an ambulance, please",
-        russian: "Вызовите скорую, пожалуйста",
-        explanation: "Экстренный вызов",
-        category: "Здоровье",
-        level: "Начальный"
-    },
-    {
-        english: "I have a temperature",
-        russian: "У меня температура",
-        explanation: "Сообщаем о температуре",
-        category: "Здоровье",
-        level: "Начальный"
-    },
-    {
-        english: "How should I take this medicine?",
-        russian: "Как мне принимать это лекарство?",
-        explanation: "Вопрос о дозировке",
-        category: "Здоровье",
-        level: "Средний"
-    },
-    {
-        english: "I'm diabetic",
-        russian: "У меня диабет",
-        explanation: "Важная медицинская информация",
-        category: "Здоровье",
-        level: "Средний"
-    },
-
-    // ===================== РАБОЧИЕ И ДЕЛОВЫЕ СИТУАЦИИ (15 фраз) =====================
-    {
-        english: "Could I speak to the manager?",
-        russian: "Могу я поговорить с менеджером?",
-        explanation: "Просьба в бизнес-ситуации",
-        category: "Бизнес",
-        level: "Средний"
-    },
-    {
-        english: "Let's schedule a meeting",
-        russian: "Давайте назначим встречу",
-        explanation: "Деловая фраза",
-        category: "Бизнес",
-        level: "Средний"
-    },
-    {
-        english: "Could you send me an email with details?",
-        russian: "Не могли бы вы отправить мне детали по email?",
-        explanation: "Профессиональная просьба",
-        category: "Бизнес",
-        level: "Средний"
-    },
-    {
-        english: "I'll get back to you on that",
-        russian: "Я вернусь к вам по этому вопросу",
-        explanation: "Деловой ответ",
-        category: "Бизнес",
-        level: "Средний"
-    },
-    {
-        english: "What's your deadline?",
-        russian: "Каков ваш дедлайн?",
-        explanation: "Вопрос о сроках",
-        category: "Бизнес",
-        level: "Средний"
-    },
-    {
-        english: "Let me think it over",
-        russian: "Дайте мне подумать",
-        explanation: "Взятие паузы в переговорах",
-        category: "Бизнес",
-        level: "Средний"
-    },
-    {
-        english: "That's a reasonable offer",
-        russian: "Это разумное предложение",
-        explanation: "Положительный ответ",
-        category: "Бизнес",
-        level: "Средний"
-    },
-    {
-        english: "I need it by Friday",
-        russian: "Мне нужно это к пятнице",
-        explanation: "Указание сроков",
-        category: "Бизнес",
-        level: "Начальный"
-    },
-    {
-        english: "Could you clarify that point?",
-        russian: "Не могли бы вы уточнить этот момент?",
-        explanation: "Просьба о разъяснении",
-        category: "Бизнес",
-        level: "Средний"
-    },
-    {
-        english: "Let's touch base next week",
-        russian: "Давайте свяжемся на следующей неделе",
-        explanation: "Деловая идиома",
-        category: "Бизнес",
-        level: "Продвинутый"
-    },
-
-    // ===================== СОЦИАЛЬНОЕ ОБЩЕНИЕ (25 фраз) =====================
-    {
-        english: "Nice to meet you!",
-        russian: "Приятно познакомиться!",
-        explanation: "Стандартное приветствие при знакомстве",
-        category: "Общение",
-        level: "Начальный"
-    },
-    {
-        english: "What do you do for a living?",
-        russian: "Чем вы занимаетесь?",
-        explanation: "Вопрос о профессии",
-        category: "Общение",
-        level: "Начальный"
-    },
-    {
-        english: "How was your day?",
-        russian: "Как прошел твой день?",
-        explanation: "Дружеский вопрос",
-        category: "Общение",
-        level: "Начальный"
-    },
-    {
-        english: "Could you give me a hand?",
-        russian: "Не мог бы ты мне помочь?",
-        explanation: "Просьба о помощи",
-        category: "Общение",
-        level: "Начальный"
-    },
-    {
-        english: "I'm really sorry about that",
-        russian: "Мне очень жаль",
-        explanation: "Извинение",
-        category: "Общение",
-        level: "Начальный"
-    },
-    {
-        english: "What are your plans for the weekend?",
-        russian: "Какие у тебя планы на выходные?",
-        explanation: "Социальный вопрос",
-        category: "Общение",
-        level: "Начальный"
-    },
-    {
-        english: "Let's keep in touch",
-        russian: "Давайте оставаться на связи",
-        explanation: "Прощание с намерением общаться",
-        category: "Общение",
-        level: "Средний"
-    },
-    {
-        english: "I couldn't agree more",
-        russian: "Не могу не согласиться",
-        explanation: "Полное согласие",
-        category: "Общение",
-        level: "Средний"
-    },
-    {
-        english: "That's beside the point",
-        russian: "Это не относится к делу",
-        explanation: "Возражение в дискуссии",
-        category: "Общение",
-        level: "Средний"
-    },
-    {
-        english: "Let's agree to disagree",
-        russian: "Давайте останемся при своем мнении",
-        explanation: "Цивилизованное окончание спора",
-        category: "Общение",
-        level: "Продвинутый"
-    },
-
-    // ===================== АНГЛИЙСКИЕ ИДИОМЫ И ВЫРАЖЕНИЯ (20 фраз) =====================
-    {
-        english: "It's raining cats and dogs",
-        russian: "Льёт как из ведра",
-        explanation: "Сильный дождь",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "Break the ice",
-        russian: "Растопить лёд",
-        explanation: "Начать общение в неловкой ситуации",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "Bite the bullet",
-        russian: "Стиснуть зубы",
-        explanation: "Решиться на что-то неприятное",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "Once in a blue moon",
-        russian: "Раз в сто лет",
-        explanation: "Очень редко",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "The ball is in your court",
-        russian: "Теперь твой ход",
-        explanation: "Теперь ваша очередь решать",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "Spill the beans",
-        russian: "Выложить всё",
-        explanation: "Раскрыть секрет",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "Costs an arm and a leg",
-        russian: "Стоит целое состояние",
-        explanation: "Очень дорого",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "Hit the nail on the head",
-        russian: "Попасть в самую точку",
-        explanation: "Точно угадать",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "Let the cat out of the bag",
-        russian: "Выпустить кота из мешка",
-        explanation: "Выдать секрет",
-        category: "Идиомы",
-        level: "Средний"
-    },
-    {
-        english: "A piece of cake",
-        russian: "Проще простого",
-        explanation: "Очень легко",
-        category: "Идиомы",
-        level: "Начальный"
-    },
-
-    // ===================== ЭКСТРЕННЫЕ СИТУАЦИИ (10 фраз) =====================
-    {
-        english: "Help!",
-        russian: "Помогите!",
-        explanation: "Критическая ситуация",
-        category: "Экстренно",
-        level: "Начальный"
-    },
-    {
-        english: "Call the police!",
-        russian: "Вызовите полицию!",
-        explanation: "Экстренный вызов",
-        category: "Экстренно",
-        level: "Начальный"
-    },
-    {
-        english: "I'm lost",
-        russian: "Я заблудился",
-        explanation: "Ситуация потерявшегося",
-        category: "Экстренно",
-        level: "Начальный"
-    },
-    {
-        english: "My wallet was stolen",
-        russian: "У меня украли кошелек",
-        explanation: "Сообщение о краже",
-        category: "Экстренно",
-        level: "Средний"
-    },
-    {
-        english: "There's been an accident",
-        russian: "Произошел несчастный случай",
-        explanation: "Сообщение о аварии",
-        category: "Экстренно",
-        level: "Средний"
-    },
-    {
-        english: "I need a translator",
-        russian: "Мне нужен переводчик",
-        explanation: "Просьба в сложной ситуации",
-        category: "Экстренно",
-        level: "Начальный"
-    },
-    {
-        english: "Where is the embassy?",
-        russian: "Где посольство?",
-        explanation: "Важный вопрос за границей",
-        category: "Экстренно",
-        level: "Средний"
-    },
-    {
-        english: "I've lost my passport",
-        russian: "Я потерял паспорт",
-        explanation: "Серьезная проблема",
-        category: "Экстренно",
-        level: "Средний"
-    },
-    {
-        english: "Is it safe here?",
-        russian: "Здесь безопасно?",
-        explanation: "Вопрос о безопасности",
-        category: "Экстренно",
-        level: "Начальный"
-    },
-    {
-        english: "I need to contact my family",
-        russian: "Мне нужно связаться с семьей",
-        explanation: "Важная просьба",
-        category: "Экстренно",
-        level: "Средний"
-    },
-
-    // ===================== ПОГОДА И ПРИРОДА (10 фраз) =====================
-    {
-        english: "What's the weather like today?",
-        russian: "Какая сегодня погода?",
-        explanation: "Стандартный вопрос о погоде",
-        category: "Погода",
-        level: "Начальный"
-    },
-    {
-        english: "It's freezing outside",
-        russian: "На улице мороз",
-        explanation: "Описание холодной погоды",
-        category: "Погода",
-        level: "Начальный"
-    },
-    {
-        english: "What a beautiful day!",
-        russian: "Какой прекрасный день!",
-        explanation: "Комментарий о хорошей погоде",
-        category: "Погода",
-        level: "Начальный"
-    },
-    {
-        english: "It looks like rain",
-        russian: "Похоже на дождь",
-        explanation: "Прогноз погоды",
-        category: "Погода",
-        level: "Начальный"
-    },
-    {
-        english: "The sun is shining brightly",
-        russian: "Солнце светит ярко",
-        explanation: "Описание солнечного дня",
-        category: "Погода",
-        level: "Начальный"
-    },
-    {
-        english: "There's a strong wind",
-        russian: "Сильный ветер",
-        explanation: "Описание ветреной погоды",
-        category: "Погода",
-        level: "Начальный"
-    },
-    {
-        english: "It's humid today",
-        russian: "Сегодня влажно",
-        explanation: "Описание влажности",
-        category: "Погода",
-        level: "Средний"
-    },
-    {
-        english: "The temperature is dropping",
-        russian: "Температура падает",
-        explanation: "Описание похолодания",
-        category: "Погода",
-        level: "Средний"
-    },
-    {
-        english: "There's a thunderstorm coming",
-        russian: "Надвигается гроза",
-        explanation: "Прогноз непогоды",
-        category: "Погода",
-        level: "Средний"
-    },
-    {
-        english: "The sky is clear",
-        russian: "Небо ясное",
-        explanation: "Описание хорошей погоды",
-        category: "Погода",
-        level: "Начальный"
-    }
+    <script>
+// ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
+const COLS = 10;
+const ROWS = 20;
+const BLOCK_SIZE = 24;
+const COLORS = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+    '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'
+];
+const SHAPES = [
+    [[1,1,1,1]],
+    [[1,1],[1,1]],
+    [[0,1,0],[1,1,1]],
+    [[1,1,0],[0,1,1]],
+    [[0,1,1],[1,1,0]],
+    [[1,0,0],[1,1,1]],
+    [[0,0,1],[1,1,1]]
 ];
 
-// ===================== КЛАВИАТУРЫ =====================
-const startKeyboard = new Keyboard()
-    .text('🚀 НАЧАТЬ РАБОТУ')
-    .resized();
+// Уровни сложности
+const DIFFICULTY_LEVELS = [
+    { id: 'easy', name: 'Легкий', speed: 1000, desc: 'Медленно, для новичков' },
+    { id: 'medium', name: 'Средний', speed: 700, desc: 'Стандартная скорость' },
+    { id: 'hard', name: 'Сложный', speed: 450, desc: 'Быстро, для профи' },
+    { id: 'expert', name: 'Эксперт', speed: 250, desc: 'Максимальная скорость' },
+    { id: 'insane', name: 'Безумие', speed: 150, desc: 'Только для мастеров' }
+];
 
-const mainMenuKeyboard = new Keyboard()
-    .text('🌤️ ПОГОДА СЕЙЧАС')
-    .text('📅 ПОГОДА ЗАВТРА').row()
-    .text('👕 ЧТО НАДЕТЬ?')
-    .text('💬 ФРАЗА ДНЯ')
-    .text('🎲 СЛУЧАЙНАЯ ФРАЗА').row()
-    .text('📊 МОЯ СТАТИСТИКА')
-    .text('🏆 ТОП ИГРОКОВ').row()
-    .text('🏙️ СМЕНИТЬ ГОРОД')
-    .text('ℹ️ ПОМОЩЬ')
-    .text('📋 ПОКАЗАТЬ КОМАНДЫ').row()
-    .resized();
+// ==================== API ENDPOINTS ====================
+const API_ENDPOINTS = {
+    saveScore: '/api/save-score',
+    getUserStats: '/api/user-stats',
+    getTopPlayers: '/api/top-players',
+    checkDB: '/api/check-db'
+};
 
-const cityKeyboard = new Keyboard()
-    .text('📍 МОСКВА')
-    .row()
-    .text('📍 САНКТ-ПЕТЕРБУРГ')
-    .row()
-    .text('📍 СЕВАСТОПОЛЬ')
-    .row()
-    .text('✏️ ДРУГОЙ ГОРОД')
-    .row()
-    .text('🔙 НАЗАД')
-    .resized();
+// DOM элементы
+const screens = {
+    menu: document.getElementById('menu-screen'),
+    game: document.getElementById('game-screen'),
+    stats: document.getElementById('stats-screen'),
+    levels: document.getElementById('levels-screen'),
+    leaderboard: document.getElementById('leaderboard-screen'),
+    settings: document.getElementById('settings-screen')
+};
 
-// ===================== ОСНОВНЫЕ КОМАНДЫ =====================
-bot.command('start', async (ctx) => {
-  console.log(`🚀 /start от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply(
-      `👋 *Добро пожаловать в бота погоды, английских фраз и игр!*\n\n` +
-      `🎮 *Да, здесь есть тетрис со статистикой и топом игроков!*\n\n` +
-      `👇 *ШАГ 1: Нажмите кнопку ниже чтобы начать*`,
-      { 
-        parse_mode: 'Markdown', 
-        reply_markup: startKeyboard 
-      }
-    );
-    
-    await ctx.reply(
-      `📱 *Что умеет бот:*\n\n` +
-      `🌤️ *Погода:*\n` +
-      `• Текущая погода в вашем городе\n` +
-      `• Подробный прогноз на завтра (утро/день/вечер/ночь)\n` +
-      `• Совет, что надеть\n\n` +
-      `🇬🇧 *Английский:*\n` +
-      `• Фраза дня\n` +
-      `• Случайные полезные фразы\n\n` +
-      `🎮 *Игры (с полноценной статистикой):*\n` +
-      `• Тетрис в мини-приложении\n` +
-      `• 📊 Ваша статистика\n` +
-      `• 🏆 Топ игроков\n\n` +
-      `👉 *Чтобы продолжить, нажмите "🚀 НАЧАТЬ РАБОТУ"*`,
-      { parse_mode: 'Markdown' }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка в /start:', error);
-  }
-});
+const canvas = document.getElementById('tetris-canvas');
+const ctx = canvas.getContext('2d');
 
-bot.hears('🚀 НАЧАТЬ РАБОТУ', async (ctx) => {
-  console.log(`📍 НАЧАТЬ РАБОТУ от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply(
-      `📍 *ШАГ 2: Выберите ваш город*\n\n` +
-      `Бот будет показывать погоду для выбранного города.`,
-      { parse_mode: 'Markdown', reply_markup: cityKeyboard }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка в НАЧАТЬ РАБОТУ:', error);
-  }
-});
+// Игровые переменные
+let board = [];
+let currentPiece = null;
+let currentX = 0;
+let currentY = 0;
+let score = 0;
+let level = 1;
+let lines = 0;
+let gameActive = false;
+let gamePaused = false;
+let gameOver = false;
+let dropCounter = 0;
+let dropInterval = 1000;
+let lastTime = 0;
+let animationId = null;
+let currentDifficulty = 'medium';
+let userId = null;
+let clearedLinesAnimation = [];
+let pieceQueue = [];
 
-// ===================== ОБРАБОТКА ВЫБОРА ГОРОДА =====================
-bot.hears(/^📍 /, async (ctx) => {
-  const userId = ctx.from.id;
-  const city = ctx.message.text.replace('📍 ', '').trim();
-  console.log(`📍 Выбран город: "${city}" для ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await saveUserCity(userId, city);
-    userStorage.set(userId, { city, lastActivity: Date.now(), awaitingCity: false });
-    
-    await ctx.reply(
-      `✅ *ШАГ 3: Готово! Город "${city}" сохранён!*\n\n` +
-      `🎉 *Теперь доступны все функции бота:*\n\n` +
-      `• Узнать погоду сейчас и на завтра 🌤️\n` +
-      `• Получить совет по одежде 👕\n` +
-      `• Изучать английские фразы 🇬🇧\n` +
-      `• Играть в тетрис с полной статистикой 🎮\n` +
-      `• Смотреть свою статистику 📊\n` +
-      `• Соревноваться в топе игроков 🏆\n\n` +
-      `👇 *Используйте кнопки ниже:*`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка при выборе города:', error);
-    await ctx.reply('Не удалось сохранить город в базу данных. Попробуйте еще раз.');
-  }
-});
-
-// ===================== ПОГОДА СЕЙЧАС =====================
-bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`🌤️ ПОГОДА от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-      return;
-    }
-    
-    await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const weather = await getWeatherData(city);
-    console.log('🌤️ Получена погода:', weather);
-    
-    await ctx.reply(
-      `🌤️ *Погода в ${weather.city}*\n` +
-      `🕒 Обновлено: ${weather.timestamp}\n\n` +
-      `🌡️ Температура: *${weather.temp}°C*\n` +
-      `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
-      `💨 Ветер: ${weather.wind} м/с\n` +
-      `💧 Влажность: ${weather.humidity}%\n` +
-      `📝 ${weather.description}\n` +
-      `🌧️ Осадки: ${weather.precipitation}`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в ПОГОДА:', error);
-    await ctx.reply('❌ Не удалось получить данные о погоде или обработать ваш запрос.', { reply_markup: mainMenuKeyboard });
-  }
-});
-
-// ===================== ПОГОДА ЗАВТРА =====================
-bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`📅 ПОГОДА ЗАВТРА от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-      return;
-    }
-    
-    await ctx.reply(`⏳ Запрашиваю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const forecast = await getWeatherForecast(city);
-    
-    // Форматируем дату
-    const forecastDate = new Date(forecast.date);
-    const dateFormatted = forecastDate.toLocaleDateString('ru-RU', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long'
-    });
-    
-    // Собираем сообщение
-    let message = `📅 *Прогноз погоды на ${dateFormatted}*\n`;
-    message += `📍 *${forecast.city}*\n`;
-    message += `🕒 Обновлено: ${forecast.updated}\n\n`;
-    
-    // Общая информация
-    message += `📊 *Общий прогноз:*\n`;
-    message += `🌡️ Температура: *${forecast.temp_min}°C ... ${forecast.temp_max}°C*\n`;
-    message += `💨 Макс. ветер: ${forecast.wind_max} м/с\n`;
-    message += `🌧️ Осадки: ${forecast.precipitation > 0 ? forecast.precipitation.toFixed(1) + ' мм' : 'Нет'}\n`;
-    message += `🌅 Восход: ${forecast.sunrise}\n`;
-    message += `🌇 Закат: ${forecast.sunset}\n\n`;
-    
-    // Детали по времени суток
-    message += `⏰ *Подробный прогноз по времени суток:*\n\n`;
-    
-    const periodsOrder = ['ночь', 'утро', 'день', 'вечер'];
-    
-    for (const period of periodsOrder) {
-      if (forecast.periods[period]) {
-        const data = forecast.periods[period];
-        const precipText = data.precip_avg > 0 ? `💧 ${data.precip_avg}%` : 'Без осадков';
-        
-        message += `*${period.charAt(0).toUpperCase() + period.slice(1)}* (${data.temp_min}°C...${data.temp_max}°C)\n`;
-        message += `${data.description}\n`;
-        message += `🤔 Ощущается: ${data.feels_min}°C...${data.feels_max}°C\n`;
-        message += `💨 Ветер: ${data.wind_avg} м/с | ${precipText}\n\n`;
-      }
-    }
-    
-    message += `📝 *Рекомендации:*\n`;
-    
-    // Добавляем рекомендации
-    if (forecast.temp_max >= 25) {
-      message += `• 🥵 Жарко: легкая одежда, головной убор\n`;
-    } else if (forecast.temp_max >= 18) {
-      message += `• 😊 Комфортно: легкая куртка на вечер\n`;
-    } else if (forecast.temp_max >= 10) {
-      message += `• 🧥 Прохладно: теплая одежда, ветровка\n`;
-    } else {
-      message += `• ❄️ Холодно: зимняя куртка, шапка, шарф\n`;
-    }
-    
-    // Проверяем осадки
-    if (forecast.precipitation > 5) {
-      message += `• ☔ Возьмите зонт или дождевик\n`;
-    }
-    
-    // Проверяем ветер
-    if (parseFloat(forecast.wind_max) > 10) {
-      message += `• 💨 Сильный ветер: ветровка с капюшоном\n`;
-    }
-    
-    await ctx.reply(message, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-    
-  } catch (error) {
-    console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
-    await ctx.reply('❌ Не удалось получить прогноз погоды. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-// ===================== СТАТИСТИКА И ТОП ИГРОКОВ =====================
-bot.hears('📊 МОЯ СТАТИСТИКА', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`📊 МОЯ СТАТИСТИКА от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply('⏳ Загружаю вашу статистику...', { parse_mode: 'Markdown' });
-    
-    const statsMessage = await getGameStatsMessage(userId);
-    await ctx.reply(statsMessage, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-  } catch (error) {
-    console.error('❌ Ошибка в МОЯ СТАТИСТИКА:', error);
-    await ctx.reply('❌ Произошла ошибка при загрузке статистики. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-bot.hears('🏆 ТОП ИГРОКОВ', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`🏆 ТОП ИГРОКОВ от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply('🏆 Загружаю топ игроков...', { parse_mode: 'Markdown' });
-    
-    const topMessage = await getTopPlayersMessage(10, ctx);
-    await ctx.reply(topMessage, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-  } catch (error) {
-    console.error('❌ Ошибка в ТОП ИГРОКОВ:', error);
-    await ctx.reply('❌ Произошла ошибка при загрузке топа игроков. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-// ===================== ИГРАТЬ В ТЕТРИС =====================
-bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
-  console.log(`🎮 ИГРАТЬ В ТЕТРИС от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    // URL вашего мини-приложения с тетрисом
-    const webAppUrl = 'https://pogodasovet1.vercel.app';
-    
-    await ctx.reply(
-      `🎮 *Тетрис*\n\n` +
-      `Нажмите кнопку ниже, чтобы открыть игру в мини-приложении!\n\n` +
-      `📊 *Ваша статистика будет автоматически сохраняться.*\n` +
-      `🏆 *Соревнуйтесь с другими игроками в топе!*`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{
-              text: '🎮 Открыть тетрис',
-              web_app: { url: webAppUrl }
-            }],
-            [{
-              text: '📊 Моя статистика',
-              callback_data: 'my_stats'
-            }],
-            [{
-              text: '🏆 Топ игроков',
-              callback_data: 'top_players'
-            }]
-          ]
-        }
-      }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка в ИГРАТЬ В ТЕТРИС:', error);
-    await ctx.reply('❌ Не удалось открыть игру. Попробуйте позже.', {
-      reply_markup: mainMenuKeyboard
-    });
-  }
-});
-
-// Обработчик callback для кнопок
-bot.callbackQuery('my_stats', async (ctx) => {
-  try {
-    const statsMessage = await getGameStatsMessage(ctx.from.id);
-    await ctx.editMessageText(statsMessage, { parse_mode: 'Markdown' });
-    await ctx.answerCallbackQuery();
-  } catch (error) {
-    console.error('❌ Ошибка в callback my_stats:', error);
-    await ctx.answerCallbackQuery('❌ Ошибка загрузки статистики');
-  }
-});
-
-bot.callbackQuery('top_players', async (ctx) => {
-  try {
-    const topMessage = await getTopPlayersMessage(10, ctx);
-    await ctx.editMessageText(topMessage, { parse_mode: 'Markdown' });
-    await ctx.answerCallbackQuery();
-  } catch (error) {
-    console.error('❌ Ошибка в callback top_players:', error);
-    await ctx.answerCallbackQuery('❌ Ошибка загрузки топа');
-  }
-});
-
-// ===================== ОБРАБОТЧИК ДАННЫХ ИЗ ИГРЫ =====================
-bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
-  const userId = ctx.from.id;
-  const userName = `${ctx.from.first_name || ''} ${ctx.from.last_name || ''}`.trim() || `Игрок ${userId}`;
-  
-  console.log(`📱 Получены данные от Mini App от пользователя ${userId} (${userName})`);
-  
-  try {
-    const webAppData = ctx.message.web_app_data;
-    console.log(`📱 Raw data:`, webAppData.data);
-    
-    const data = JSON.parse(webAppData.data);
-    console.log('🎮 Данные игры:', data);
-    
-    if (data.action === 'tetris_score' || data.gameType === 'tetris') {
-      console.log(`🎮 Счёт тетриса от ${userId}:`, data);
-      
-      const score = parseInt(data.score) || 0;
-      const level = parseInt(data.level) || 1;
-      const lines = parseInt(data.lines) || 0;
-      const gameOver = Boolean(data.gameOver);
-      const isWin = score > 0; // Определяем победу/поражение
-      
-      // 🔴 УБРАТЬ ЭТО - теперь сохраняем ВСЕ игры!
-      // if (score === 0) {
-      //   console.log(`⚠️ Нулевой счёт от ${userId}, пропускаем сохранение`);
-      //   await ctx.reply(`🎮 Игра начата! Удачи! 🍀`, {
-      //     parse_mode: 'Markdown',
-      //     reply_markup: mainMenuKeyboard
-      //   });
-      //   return;
-      // }
-      
-      // Сохраняем результат в базу данных
-      try {
-        // ✅ ИСПОЛЬЗУЕМ НОВУЮ ВЕРСИЮ ФУНКЦИИ С username И isWin
-        const savedId = await saveGameScore(
-          userId.toString(),  // ID как строка
-          'tetris', 
-          score, 
-          level, 
-          lines,
-          userName,           // Передаём имя пользователя
-          isWin               // Передаём результат (победа/поражение)
-        );
-        
-        if (savedId) {
-          console.log(`✅ Результат пользователя ${userId} сохранён (ID: ${savedId})`);
-          
-          // Получаем обновленную статистику
-          const stats = await getGameStats(userId.toString(), 'tetris'); // ✅ Используем getGameStats
-          const bestScore = stats?.best_score || 0;
-          const gamesPlayed = stats?.games_played || 0;
-          const wins = stats?.wins || 0;
-          
-          let message = '';
-          if (gameOver) {
-            if (isWin) {
-              message = `🎮 *Победа! Игра окончена!* 🏆\n\n`;
-            } else {
-              message = `🎮 *Игра окончена!* 📉\n\n`;
-            }
-          } else {
-            message = `🎮 *Прогресс сохранён!* 💾\n\n`;
-          }
-          
-          message += `👤 *Игрок:* ${userName}\n`;
-          message += `🎯 *Результат:* ${score} очков\n`;
-          message += `📊 *Уровень:* ${level}\n`;
-          message += `📈 *Линии:* ${lines}\n\n`;
-          
-          // Добавляем общую статистику
-          if (gamesPlayed > 0) {
-            message += `📊 *Общая статистика:*\n`;
-            message += `• Игр сыграно: ${gamesPlayed}\n`;
-            message += `• Побед: ${wins}\n`;
-            if (gamesPlayed > 1) {
-              const winRate = stats.win_rate || 0;
-              message += `• Процент побед: ${winRate}%\n`;
-            }
-            message += `\n`;
-          }
-          
-          // Проверяем, побит ли рекорд
-          if (score > bestScore && score > 0) {
-            message += `🎉 *НОВЫЙ РЕКОРД!* 🎉\n`;
-            message += `🏆 Предыдущий лучший: ${bestScore}\n\n`;
-          } else if (bestScore > 0) {
-            message += `🏆 *Ваш лучший результат:* ${bestScore}\n\n`;
-          } else if (score === 0) {
-            message += `📉 *Попытка завершена!* Попробуйте ещё раз!\n\n`;
-          }
-          
-          message += `📊 *Теперь вы можете:*\n`;
-          message += `• Посмотреть свою статистику 📊\n`;
-          message += `• Проверить место в топе 🏆\n`;
-          message += `• Продолжить играть 🎮\n\n`;
-          
-          if (gameOver) {
-            if (isWin) {
-              message += `🎉 Отличная игра! Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой попытки!`;
-            } else {
-              message += `🔄 Не сдавайтесь! Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой попытки!`;
-            }
-          } else {
-            message += `💪 Продолжайте в том же духе!`;
-          }
-          
-          await ctx.reply(message, { 
-            parse_mode: 'Markdown',
-            reply_markup: mainMenuKeyboard 
-          });
-          
-          // 🔴 ДОПОЛНИТЕЛЬНО: Если игра завершена, удаляем прогресс
-          if (gameOver) {
-            await deleteGameProgress(userId.toString(), 'tetris');
-            console.log(`🗑️ Прогресс игры удалён для пользователя ${userId}`);
-          }
-          
-        } else {
-          console.error(`❌ Не удалось сохранить результат для пользователя ${userId}`);
-          await ctx.reply(`❌ Не удалось сохранить ваш результат в базу данных. Попробуйте ещё раз.`, {
-            reply_markup: mainMenuKeyboard
-          });
-        }
-      } catch (dbError) {
-        console.error('❌ Ошибка сохранения в БД:', dbError);
-        console.error('❌ Stack trace:', dbError.stack);
-        await ctx.reply(`❌ Ошибка базы данных. Ваш результат не сохранён. Попробуйте позже.`, {
-          reply_markup: mainMenuKeyboard
-        });
-      }
-    } else {
-      console.log(`📱 Неизвестный тип данных:`, data.action || data.gameType);
-      await ctx.reply(`Получены игровые данные: ${JSON.stringify(data, null, 2)}`, {
-        reply_markup: mainMenuKeyboard
-      });
-    }
-    
-  } catch (error) {
-    console.error('❌ Ошибка обработки данных игры:', error);
-    console.error('❌ Stack trace:', error.stack);
-    
-    await ctx.reply(`❌ Произошла ошибка при обработке данных игры. Попробуйте ещё раз.`, {
-      reply_markup: mainMenuKeyboard
-    });
-  }
-});
-// ===================== ЧТО НАДЕТЬ =====================
-bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`👕 ЧТО НАДЕТЬ? от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
-      return;
-    }
-    
-    await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const weather = await getWeatherData(city);
-    const advice = getWardrobeAdvice(weather);
-    
-    await ctx.reply(
-      `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в ЧТО НАДЕТЬ:', error);
-    await ctx.reply('❌ Не удалось получить рекомендацию.', { reply_markup: mainMenuKeyboard });
-  }
-});
-
-// ===================== ФРАЗА ДНЯ =====================
-bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
-  console.log(`💬 ФРАЗА ДНЯ от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-      await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
-      return;
-    }
-    
-    const dayOfMonth = new Date().getDate();
-    const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
-    const phrase = dailyPhrases[phraseIndex];
-    console.log(`💬 Выбрана фраза #${phraseIndex}: "${phrase.english}"`);
-    
-    await ctx.reply(
-      `💬 *Фраза дня*\n\n` +
-      `🇬🇧 *${phrase.english}*\n\n` +
-      `🇷🇺 *${phrase.russian}*\n\n` +
-      `📚 ${phrase.explanation}`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в ФРАЗА ДНЯ:', error);
-    await ctx.reply('❌ Не удалось получить фразу дня.', { reply_markup: mainMenuKeyboard });
-  }
-});
-
-// ===================== СЛУЧАЙНАЯ ФРАЗА =====================
-bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
-  console.log(`🎲 СЛУЧАЙНАЯ ФРАЗА от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-      await ctx.reply('Фразы не загружены. Попробуйте позже.', { 
-        reply_markup: mainMenuKeyboard 
-      });
-      return;
-    }
-    
-    const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
-    const phrase = dailyPhrases[randomIndex];
-    
-    const message = 
-      `🎲 *Случайная английская фраза*\n\n` +
-      `🇬🇧 *${phrase.english}*\n\n` +
-      `🇷🇺 *${phrase.russian}*\n\n` +
-      `📚 *Объяснение:* ${phrase.explanation}\n\n` +
-      `📂 *Категория:* ${phrase.category || "Общие"}\n` +
-      `📊 *Уровень:* ${phrase.level || "Средний"}\n\n` +
-      `🔄 Нажмите кнопку для новой случайной фразы!`;
-    
-    await ctx.reply(message, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-    
-  } catch (error) {
-    console.error('❌ Ошибка в СЛУЧАЙНАЯ ФРАЗА:', error);
-    await ctx.reply('❌ Не удалось получить случайную фразу. Попробуйте еще раз.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-// ===================== ВСПОМОГАТЕЛЬНЫЕ КНОПКИ =====================
-bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
-  console.log(`🏙️ СМЕНИТЬ ГОРОД от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply('Выберите новый город:', { reply_markup: cityKeyboard });
-  } catch (error) {
-    console.error('❌ Ошибка в СМЕНИТЬ ГОРОД:', error);
-  }
-});
-
-bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
-  console.log(`✏️ ДРУГОЙ ГОРОД от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply('Напишите название вашего города:');
-    const userId = ctx.from.id;
-    userStorage.set(userId, { awaitingCity: true, lastActivity: Date.now() });
-  } catch (error) {
-    console.error('❌ Ошибка в ДРУГОЙ ГОРОД:', error);
-  }
-});
-
-bot.hears('🔙 НАЗАД', async (ctx) => {
-  console.log(`🔙 НАЗАД от ${ctx.from.id}`);
-  try {
-    await ctx.reply('Главное меню:', { reply_markup: mainMenuKeyboard });
-  } catch (error) {
-    console.error('❌ Ошибка в НАЗАД:', error);
-  }
-});
-
-bot.hears('📋 ПОКАЗАТЬ КОМАНДЫ', async (ctx) => {
-  console.log(`📋 ПОКАЗАТЬ КОМАНДЫ от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply(
-      `📋 *Клавиатура скрыта. Теперь доступны команды!*\n\n` +
-      `Нажмите / или введите команду вручную:\n\n` +
-      `*Список команд:*\n` +
-      `/start - Начать работу с ботом\n` +
-      `/weather - Текущая погода в вашем городе\n` +
-      `/forecast - Прогноз погоды на завтра\n` +
-      `/wardrobe - Что надеть по погоде сегодня\n` +
-      `/phrase - Английская фраза дня\n` +
-      `/random - Случайная английская фраза\n` +
-      `/tetris - Играть в тетрис\n` +
-      `/stats - Ваша статистика в игре\n` +
-      `/top - Топ игроков\n` +
-      `/help - Помощь и список команд\n\n` +
-      `Чтобы вернуть меню кнопок, нажмите /start`,
-      { 
-        parse_mode: 'Markdown',
-        reply_markup: { remove_keyboard: true }
-      }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка в ПОКАЗАТЬ КОМАНДЫ:', error);
-  }
-});
-
-bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
-  console.log(`ℹ️ ПОМОЩЬ от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply(
-      `*Помощь по боту*\n\n` +
-      `*Кнопки в меню:*\n` +
-      `• 🌤️ ПОГОДА СЕЙЧАС - текущая погода\n` +
-      `• 📅 ПОГОДА ЗАВТРА - подробный прогноз на завтра (утро/день/вечер/ночь)\n` +
-      `• 👕 ЧТО НАДЕТЬ? - рекомендации по одежде\n` +
-      `• 💬 ФРАЗА ДНЯ - английская фраза дня\n` +
-      `• 🎲 СЛУЧАЙНАЯ ФРАЗА - случайная английская фраза\n` +
-      `• 🎮 ИГРАТЬ В ТЕТРИС - игра в мини-приложении\n` +
-      `• 📊 МОЯ СТАТИСТИКА - ваша статистика в игре\n` +
-      `• 🏆 ТОП ИГРОКОВ - лучшие игроки\n` +
-      `• 🏙️ СМЕНИТЬ ГОРОД - изменить город\n` +
-      `• ℹ️ ПОМОЩЬ - эта информация\n` +
-      `• 📋 ПОКАЗАТЬ КОМАНДЫ - убрать кнопки и использовать команды\n\n` +
-      `Чтобы использовать текстовые команды, нажмите "📋 ПОКАЗАТЬ КОМАНДЫ".`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка в ПОМОЩЬ:', error);
-  }
-});
-
-// ===================== ТЕКСТОВЫЕ КОМАНДЫ =====================
-bot.command('weather', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`🌤️ /weather от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
-      return;
-    }
-    
-    await ctx.reply(`⏳ Запрашиваю погоду для ${city}...`);
-    
-    const weather = await getWeatherData(city);
-    
-    await ctx.reply(
-      `🌤️ *Погода в ${weather.city}*\n` +
-      `🕒 Обновлено: ${weather.timestamp}\n\n` +
-      `🌡️ Температура: *${weather.temp}°C*\n` +
-      `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
-      `💨 Ветер: ${weather.wind} м/с\n` +
-      `💧 Влажность: ${weather.humidity}%\n` +
-      `📝 ${weather.description}\n` +
-      `🌧️ Осадки: ${weather.precipitation}`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в /weather:', error);
-    await ctx.reply('❌ Не удалось получить данные о погоде.', { reply_markup: mainMenuKeyboard });
-  }
-});
-
-bot.command('forecast', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`📅 /forecast от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
-      return;
-    }
-    
-    await ctx.reply(`⏳ Запрашиваю прогноз на завтра для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const forecast = await getWeatherForecast(city);
-    
-    // Форматируем дату
-    const forecastDate = new Date(forecast.date);
-    const dateFormatted = forecastDate.toLocaleDateString('ru-RU', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long'
-    });
-    
-    // Собираем сообщение
-    let message = `📅 *Прогноз погоды на ${dateFormatted}*\n`;
-    message += `📍 *${forecast.city}*\n`;
-    message += `🕒 Обновлено: ${forecast.updated}\n\n`;
-    
-    // Общая информация
-    message += `📊 *Общий прогноз:*\n`;
-    message += `🌡️ Температура: *${forecast.temp_min}°C ... ${forecast.temp_max}°C*\n`;
-    message += `💨 Макс. ветер: ${forecast.wind_max} м/с\n`;
-    message += `🌧️ Осадки: ${forecast.precipitation > 0 ? forecast.precipitation.toFixed(1) + ' мм' : 'Нет'}\n`;
-    message += `🌅 Восход: ${forecast.sunrise}\n`;
-    message += `🌇 Закат: ${forecast.sunset}\n\n`;
-    
-    // Детали по времени суток
-    message += `⏰ *Подробный прогноз по времени суток:*\n\n`;
-    
-    const periodsOrder = ['ночь', 'утро', 'день', 'вечер'];
-    
-    for (const period of periodsOrder) {
-      if (forecast.periods[period]) {
-        const data = forecast.periods[period];
-        const precipText = data.precip_avg > 0 ? `💧 ${data.precip_avg}%` : 'Без осадков';
-        
-        message += `*${period.charAt(0).toUpperCase() + period.slice(1)}* (${data.temp_min}°C...${data.temp_max}°C)\n`;
-        message += `${data.description}\n`;
-        message += `🤔 Ощущается: ${data.feels_min}°C...${data.feels_max}°C\n`;
-        message += `💨 Ветер: ${data.wind_avg} м/с | ${precipText}\n\n`;
-      }
-    }
-    
-    await ctx.reply(message, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-    
-  } catch (error) {
-    console.error('❌ Ошибка в /forecast:', error);
-    await ctx.reply('❌ Не удалось получить прогноз погоды. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-bot.command('wardrobe', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`👕 /wardrobe от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    const city = await getUserCity(userId);
-    
-    if (!city) {
-      await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
-      return;
-    }
-    
-    await ctx.reply(`👗 Анализирую погоду для ${city}...`, { parse_mode: 'Markdown' });
-    
-    const weather = await getWeatherData(city);
-    const advice = getWardrobeAdvice(weather);
-    
-    await ctx.reply(
-      `👕 *Что надеть в ${weather.city}?*\n\n${advice}`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в /wardrobe:', error);
-    await ctx.reply('❌ Не удалось получить рекомендацию.', { reply_markup: mainMenuKeyboard });
-  }
-});
-
-bot.command('phrase', async (ctx) => {
-  console.log(`💬 /phrase от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-      await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
-      return;
-    }
-    
-    const dayOfMonth = new Date().getDate();
-    const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
-    const phrase = dailyPhrases[phraseIndex];
-    
-    await ctx.reply(
-      `💬 *Фраза дня*\n\n` +
-      `🇬🇧 *${phrase.english}*\n\n` +
-      `🇷🇺 *${phrase.russian}*\n\n` +
-      `📚 ${phrase.explanation}`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в /phrase:', error);
-    await ctx.reply('❌ Не удалось получить фразу дня.', { reply_markup: mainMenuKeyboard });
-  }
-});
-
-bot.command('random', async (ctx) => {
-  console.log(`🎲 /random от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-      await ctx.reply('Фразы не загружены. Попробуйте позже.', { 
-        reply_markup: mainMenuKeyboard 
-      });
-      return;
-    }
-    
-    const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
-    const phrase = dailyPhrases[randomIndex];
-    
-    const message = 
-      `🎲 *Случайная английская фраза*\n\n` +
-      `🇬🇧 *${phrase.english}*\n\n` +
-      `🇷🇺 *${phrase.russian}*\n\n` +
-      `📚 *Объяснение:* ${phrase.explanation}\n\n` +
-      `📂 *Категория:* ${phrase.category || "Общие"}\n` +
-      `📊 *Уровень:* ${phrase.level || "Средний"}`;
-    
-    await ctx.reply(message, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-    
-  } catch (error) {
-    console.error('❌ Ошибка в /random:', error);
-    await ctx.reply('❌ Не удалось получить случайную фразу. Попробуйте еще раз.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-bot.command('tetris', async (ctx) => {
-  console.log(`🎮 /tetris от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    // URL вашего мини-приложения с тетрисом
-    const webAppUrl = 'https://pogodasovet1.vercel.app';
-    await ctx.reply(
-      `🎮 *Тетрис*\n\n` +
-      `Нажмите кнопку ниже, чтобы открыть игру в мини-приложении!\n\n` +
-      `📊 *Ваша статистика будет автоматически сохраняться.*\n` +
-      `🏆 *Соревнуйтесь с другими игроками в топе!*`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{
-              text: '🎮 Открыть тетрис',
-              web_app: { url: webAppUrl }
-            }]
-          ]
-        }
-      }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка в /tetris:', error);
-    await ctx.reply('❌ Не удалось открыть игру. Попробуйте позже.', {
-      reply_markup: mainMenuKeyboard
-    });
-  }
-});
-
-bot.command('stats', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`📊 /stats от ${userId}`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply('⏳ Загружаю вашу статистику...', { parse_mode: 'Markdown' });
-    
-    const statsMessage = await getGameStatsMessage(userId);
-    await ctx.reply(statsMessage, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-  } catch (error) {
-    console.error('❌ Ошибка в /stats:', error);
-    await ctx.reply('❌ Не удалось загрузить вашу статистику.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-bot.command('top', async (ctx) => {
-  console.log(`🏆 /top от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply('🏆 Загружаю топ игроков...', { parse_mode: 'Markdown' });
-    
-    const topMessage = await getTopPlayersMessage(10, ctx);
-    await ctx.reply(topMessage, { 
-      parse_mode: 'Markdown', 
-      reply_markup: mainMenuKeyboard 
-    });
-  } catch (error) {
-    console.error('❌ Ошибка в /top:', error);
-    await ctx.reply('❌ Не удалось загрузить топ игроков.', { 
-      reply_markup: mainMenuKeyboard 
-    });
-  }
-});
-
-bot.command('help', async (ctx) => {
-  console.log(`ℹ️ /help от ${ctx.from.id}`);
-  
-  if (isRateLimited(ctx.from.id)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  try {
-    await ctx.reply(
-      `*Помощь по боту*\n\n` +
-      `*Кнопки в меню:*\n` +
-      `• 🌤️ ПОГОДА СЕЙЧАС - текущая погода\n` +
-      `• 📅 ПОГОДА ЗАВТРА - подробный прогноз на завтра (утро/день/вечер/ночь)\n` +
-      `• 👕 ЧТО НАДЕТЬ? - рекомендации по одежде\n` +
-      `• 💬 ФРАЗА ДНЯ - английская фраза дня\n` +
-      `• 🎲 СЛУЧАЙНАЯ ФРАЗА - случайная английская фраза\n` +
-      `• 🎮 ИГРАТЬ В ТЕТРИС - игра в мини-приложении\n` +
-      `• 📊 МОЯ СТАТИСТИКА - ваша статистика в игре\n` +
-      `• 🏆 ТОП ИГРОКОВ - лучшие игроки\n` +
-      `• 🏙️ СМЕНИТЬ ГОРОД - изменить город\n` +
-      `• ℹ️ ПОМОЩЬ - эта информация\n` +
-      `• 📋 ПОКАЗАТЬ КОМАНДЫ - убрать кнопки и использовать команды\n\n` +
-      `*Текстовые команды (доступны после нажатия "📋 ПОКАЗАТЬ КОМАНДЫ"):*\n` +
-      `/start - начать работу с ботом\n` +
-      `/weather - текущая погода\n` +
-      `/forecast - подробный прогноз на завтра\n` +
-      `/wardrobe - что надеть?\n` +
-      `/phrase - фраза дня\n` +
-      `/random - случайная фраза\n` +
-      `/tetris - играть в тетрис\n` +
-      `/stats - ваша статистика в игре\n` +
-      `/top - топ игроков\n` +
-      `/help - помощь\n\n` +
-      `Чтобы вернуть меню кнопок, нажмите /start`,
-      { 
-        parse_mode: 'Markdown', 
-        reply_markup: { remove_keyboard: true }
-      }
-    );
-  } catch (error) {
-    console.error('❌ Ошибка в /help:', error);
-  }
-});
-
-// ===================== ОБРАБОТЧИК ТЕКСТОВЫХ СООБЩЕНИЙ =====================
-bot.on('message:text', async (ctx) => {
-  const userId = ctx.from.id;
-  const text = ctx.message.text;
-  const userData = userStorage.get(userId) || {};
-  
-  console.log(`📝 Текст от ${userId}: "${text}"`);
-  
-  if (isRateLimited(userId)) {
-    await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
-    return;
-  }
-  
-  // Игнорируем команды и кнопки
-  if (text.startsWith('/') || 
-      ['🚀 НАЧАТЬ РАБОТУ', '🌤️ ПОГОДА СЕЙЧАС', '📅 ПОГОДА ЗАВТРА', '👕 ЧТО НАДЕТЬ?', 
-       '💬 ФРАЗА ДНЯ', '🎲 СЛУЧАЙНАЯ ФРАЗА', '🎮 ИГРАТЬ В ТЕТРИС', '📊 МОЯ СТАТИСТИКА', 
-       '🏆 ТОП ИГРОКОВ', '🏙️ СМЕНИТЬ ГОРОД', 'ℹ️ ПОМОЩЬ', '📋 ПОКАЗАТЬ КОМАНДЫ', 
-       '🔙 НАЗАД', '✏️ ДРУГОЙ ГОРОД'].includes(text) ||
-      text.startsWith('📍 ')) {
-    return;
-  }
-  
-  // Если пользователь вводит город вручную
-  if (userData.awaitingCity) {
-    try {
-      const city = text.trim();
-      if (city.length === 0 || city.length > 100) {
-        await ctx.reply('❌ Неверное название города. Попробуйте еще раз.');
-        return;
-      }
-      
-      console.log(`🏙️ Сохраняю город "${city}" для ${userId}`);
-      
-      const saved = await saveUserCity(userId, city);
-      userStorage.set(userId, { city, lastActivity: Date.now(), awaitingCity: false });
-      
-      if (saved) {
-        await ctx.reply(
-          `✅ *Город "${city}" сохранён!*`,
-          { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-        );
-      } else {
-        await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
-      }
-    } catch (error) {
-      console.error('❌ Ошибка при сохранении города:', error);
-      await ctx.reply('Не удалось сохранить город. Попробуйте еще раз.');
-    }
-  } else {
-    try {
-      const city = await getUserCity(userId);
-      if (!city) {
-        await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
-      } else {
-        await ctx.reply(`Ваш город: ${city}. Используйте кнопки меню для получения информации.`, 
-          { reply_markup: mainMenuKeyboard });
-      }
-    } catch (error) {
-      console.error('❌ Ошибка при проверке города:', error);
-      await ctx.reply('Произошла ошибка. Попробуйте еще раз.', { reply_markup: mainMenuKeyboard });
-    }
-  }
-});
-
-// ===================== ОБРАБОТЧИК ОШИБОК =====================
-bot.catch((err) => {
-  console.error('🔥 Критическая ошибка бота:', err);
-});
-
-// ===================== ЭКСПОРТ ДЛЯ VERCEL =====================
-export default async function handler(req, res) {
-  console.log(`🌐 ${req.method} запрос к /api/bot в ${new Date().toISOString()}`);
-  
-  try {
-    if (req.method === 'GET') {
-      return res.status(200).json({ 
-        message: 'Weather & English Phrases Bot with Game Statistics is running',
-        status: 'active',
-        timestamp: new Date().toISOString(),
-        bot: bot.botInfo?.username || 'не инициализирован',
-        features: [
-          'Погода сейчас',
-          'Подробный прогноз на завтра',
-          'Рекомендации по одежде',
-          'Английские фразы',
-          'Тетрис со статистикой',
-          'Топ игроков'
-        ]
-      });
-    }
-    
-    if (req.method === 'POST') {
-      await initializeBot();
-      
-      console.log('📦 Получен update от Telegram');
-      
-      try {
-        const update = req.body;
-        await bot.handleUpdate(update);
-        console.log('✅ Update успешно обработан');
-        
-        return res.status(200).json({ ok: true });
-      } catch (error) {
-        console.error('❌ Ошибка обработки update:', error);
-        return res.status(200).json({ ok: false, error: 'Update processing failed' });
-      }
-    }
-    
-    return res.status(405).json({ error: 'Method not allowed' });
-    
-  } catch (error) {
-    console.error('🔥 Критическая ошибка в handler:', error);
-    return res.status(200).json({ 
-      ok: false, 
-      error: 'Internal server error'
-    });
-  }
+// Telegram WebApp данные
+let tg = null;
+if (window.Telegram && window.Telegram.WebApp) {
+    tg = window.Telegram.WebApp;
+    tg.expand();
+    userId = tg.initDataUnsafe.user?.id || Math.floor(Math.random() * 1000000);
+} else {
+    userId = 'web_' + Date.now();
 }
 
-// Экспортируем бота для тестов
-export { bot };
-console.log('⚡ Бот загружен с полноценной системой прогноза погоды и статистикой игр!');
+// ==================== ФУНКЦИИ ЭКРАНОВ ====================
+function showScreen(screenName) {
+    Object.keys(screens).forEach(key => {
+        screens[key].classList.remove('active');
+    });
+    screens[screenName].classList.add('active');
+    
+    if (screenName !== 'game' && gameActive && !gamePaused) {
+        pauseGame();
+    }
+}
+
+function showMenu() {
+    showScreen('menu');
+}
+
+function startGame() {
+    console.log('Начало новой игры');
+    initGame();
+    showScreen('game');
+    resumeGame();
+    showNotification('🎮 Игра началась!');
+}
+
+// ==================== ФУНКЦИЯ loadUserStats ====================
+async function loadUserStats() {
+    try {
+        const response = await fetch(`${API_ENDPOINTS.getUserStats}?userId=${userId}&gameType=tetris`);
+        
+        if (response && response.ok) {
+            const stats = await response.json();
+            
+            // Обновляем DOM
+            document.getElementById('best-score').textContent = stats.best_score || 0;
+            document.getElementById('best-level').textContent = stats.best_level || 1;
+            document.getElementById('total-lines').textContent = stats.best_lines || 0;
+            document.getElementById('games-played').textContent = stats.games_played || 0;
+            document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
+            
+            // Обновляем текущую сессию
+            if (stats.current_progress) {
+                document.getElementById('current-level').textContent = stats.current_progress.level || 1;
+                document.getElementById('current-score').textContent = stats.current_progress.score || 0;
+                document.getElementById('session-lines').textContent = stats.current_progress.lines || 0;
+            }
+            
+            console.log('✅ Статистика загружена:', stats);
+            return stats;
+        } else {
+            console.error('❌ Ошибка загрузки статистики');
+            loadLocalStats();
+            return null;
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сети при загрузке статистики:', error);
+        loadLocalStats();
+        return null;
+    }
+}
+
+function showStats() {
+    console.log('Показать статистику');
+    loadUserStats();
+    showScreen('stats');
+}
+
+function showLevels() {
+    console.log('Показать уровни');
+    renderLevels();
+    showScreen('levels');
+}
+
+function showLeaderboard() {
+    console.log('Показать лидерборд');
+    loadLeaderboard();
+    showScreen('leaderboard');
+}
+
+function showSettings() {
+    console.log('Показать настройки');
+    showScreen('settings');
+}
+
+// ==================== ИГРОВАЯ ЛОГИКА ====================
+function initGame() {
+    console.log('Инициализация игры');
+    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    score = 0;
+    level = 1;
+    lines = 0;
+    gameActive = true;
+    gamePaused = false;
+    gameOver = false;
+    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
+    clearedLinesAnimation = [];
+    pieceQueue = [];
+    
+    generatePieceQueue();
+    
+    updateDisplay();
+    spawnPiece();
+    drawBoard();
+    
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+    }
+    
+    lastTime = 0;
+    dropCounter = 0;
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+function generatePieceQueue() {
+    pieceQueue = [];
+    for (let i = 0; i < 3; i++) {
+        const shapeId = Math.floor(Math.random() * SHAPES.length);
+        pieceQueue.push(shapeId);
+    }
+}
+
+function spawnPiece() {
+    if (pieceQueue.length === 0) {
+        generatePieceQueue();
+    }
+    
+    const shapeId = pieceQueue.shift();
+    pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+    
+    currentPiece = {
+        shape: SHAPES[shapeId],
+        color: COLORS[shapeId]
+    };
+    currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
+    currentY = 0;
+    
+    if (collide(currentPiece, currentX, currentY)) {
+        gameOver = true;
+        saveGameToDB(true);
+        showNotification('🎯 Игра окончена! Счет: ' + score);
+        setTimeout(() => showMenu(), 1500);
+    }
+}
+
+function collide(piece, x, y) {
+    for (let row = 0; row < piece.shape.length; row++) {
+        for (let col = 0; col < piece.shape[row].length; col++) {
+            if (piece.shape[row][col] &&
+                (board[y + row] === undefined ||
+                 board[y + row][x + col] === undefined ||
+                 board[y + row][x + col] ||
+                 x + col < 0 ||
+                 x + col >= COLS ||
+                 y + row >= ROWS)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function mergePiece() {
+    for (let y = 0; y < currentPiece.shape.length; y++) {
+        for (let x = 0; x < currentPiece.shape[y].length; x++) {
+            if (currentPiece.shape[y][x]) {
+                if (currentY + y >= 0) {
+                    board[currentY + y][currentX + x] = currentPiece.color;
+                }
+            }
+        }
+    }
+}
+
+function moveDown() {
+    if (gameOver || gamePaused) return;
+    
+    if (!collide(currentPiece, currentX, currentY + 1)) {
+        currentY++;
+    } else {
+        mergePiece();
+        checkLines();
+        spawnPiece();
+    }
+    drawBoard();
+}
+
+function moveLeft() {
+    if (gameOver || gamePaused) return;
+    
+    if (!collide(currentPiece, currentX - 1, currentY)) {
+        currentX--;
+        drawBoard();
+    }
+}
+
+function moveRight() {
+    if (gameOver || gamePaused) return;
+    
+    if (!collide(currentPiece, currentX + 1, currentY)) {
+        currentX++;
+        drawBoard();
+    }
+}
+
+function rotatePiece() {
+    if (gameOver || gamePaused) return;
+    
+    const originalShape = currentPiece.shape;
+    const rotated = [];
+    const piece = currentPiece.shape;
+    
+    for (let i = 0; i < piece[0].length; i++) {
+        rotated[i] = [];
+        for (let j = 0; j < piece.length; j++) {
+            rotated[i][j] = piece[piece.length - 1 - j][i];
+        }
+    }
+    
+    currentPiece.shape = rotated;
+    
+    if (collide(currentPiece, currentX, currentY)) {
+        currentPiece.shape = originalShape;
+    }
+    
+    drawBoard();
+}
+
+function hardDrop() {
+    if (gameOver || gamePaused) return;
+    
+    let dropDistance = 0;
+    while (!collide(currentPiece, currentX, currentY + 1)) {
+        currentY++;
+        dropDistance++;
+    }
+    
+    score += dropDistance * 2;
+    mergePiece();
+    checkLines();
+    spawnPiece();
+    updateDisplay();
+    drawBoard();
+}
+
+function checkLines() {
+    let linesCleared = 0;
+    let clearedRows = [];
+    
+    for (let y = ROWS - 1; y >= 0; y--) {
+        if (board[y].every(cell => cell !== 0)) {
+            clearedRows.push(y);
+            linesCleared++;
+        }
+    }
+    
+    if (linesCleared > 0) {
+        lines += linesCleared;
+        
+        // Анимация очистки линий
+        clearedLinesAnimation = clearedRows;
+        
+        // Бонус за несколько линий
+        const lineBonus = [0, 100, 300, 500, 800];
+        score += lineBonus[linesCleared] * level;
+        
+        // Повышение уровня
+        if (lines >= level * 10) {
+            level++;
+            dropInterval = Math.max(150, dropInterval - 50);
+            showNotification(`🎉 Уровень ${level}!`);
+        }
+        
+        // Удаляем линии после анимации
+        setTimeout(() => {
+            for (let y of clearedRows.sort((a, b) => a - b)) {
+                board.splice(y, 1);
+                board.unshift(Array(COLS).fill(0));
+            }
+            clearedLinesAnimation = [];
+            updateDisplay();
+            drawBoard();
+        }, 400);
+        
+        updateDisplay();
+    }
+}
+
+function pauseGame() {
+    if (gameActive && !gameOver) {
+        gamePaused = !gamePaused;
+        if (gamePaused) {
+            cancelAnimationFrame(animationId);
+            showNotification('⏸ Игра на паузе');
+        } else {
+            lastTime = 0;
+            animationId = requestAnimationFrame(gameLoop);
+            showNotification('▶️ Игра продолжается');
+        }
+    }
+}
+
+function restartGame() {
+    if (confirm('Начать новую игру? Текущий прогресс будет потерян.')) {
+        initGame();
+        showNotification('🔄 Новая игра начата');
+    }
+}
+
+function updateDisplay() {
+    document.getElementById('level-display').textContent = level;
+    document.getElementById('score-display').textContent = score;
+    document.getElementById('lines-display').textContent = lines;
+    
+    document.getElementById('current-level').textContent = level;
+    document.getElementById('current-score').textContent = score;
+    document.getElementById('session-lines').textContent = lines;
+}
+
+function drawBoard() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Фон
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Сетка
+    ctx.strokeStyle = 'rgba(106, 91, 255, 0.15)';
+    ctx.lineWidth = 1;
+    
+    for (let x = 0; x <= COLS; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * BLOCK_SIZE, 0);
+        ctx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
+        ctx.stroke();
+    }
+    
+    for (let y = 0; y <= ROWS; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * BLOCK_SIZE);
+        ctx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
+        ctx.stroke();
+    }
+    
+    // Установленные блоки
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            if (board[y][x]) {
+                drawBlock(x, y, board[y][x], false);
+            }
+        }
+    }
+    
+    // Анимация очистки линий
+    if (clearedLinesAnimation.length > 0) {
+        ctx.globalAlpha = 0.7;
+        clearedLinesAnimation.forEach(rowY => {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, rowY * BLOCK_SIZE, COLS * BLOCK_SIZE, BLOCK_SIZE);
+        });
+        ctx.globalAlpha = 1.0;
+    }
+    
+    // Текущая фигура
+    if (currentPiece) {
+        for (let y = 0; y < currentPiece.shape.length; y++) {
+            for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                if (currentPiece.shape[y][x]) {
+                    drawBlock(currentX + x, currentY + y, currentPiece.color, true);
+                }
+            }
+        }
+    }
+}
+
+function drawBlock(x, y, color, isCurrent = false) {
+    const size = BLOCK_SIZE;
+    const blockX = x * size;
+    const blockY = y * size;
+    
+    ctx.fillStyle = color;
+    ctx.fillRect(blockX, blockY, size, size);
+    
+    const gradient = ctx.createLinearGradient(
+        blockX, blockY, 
+        blockX + size, blockY + size
+    );
+    
+    if (isCurrent) {
+        gradient.addColorStop(0, lightenColor(color, 30));
+        gradient.addColorStop(1, color);
+        
+        ctx.strokeStyle = lightenColor(color, 40);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(blockX + 1, blockY + 1, size - 2, size - 2);
+    } else {
+        gradient.addColorStop(0, lightenColor(color, 20));
+        gradient.addColorStop(0.5, color);
+        gradient.addColorStop(1, darkenColor(color, 20));
+        
+        ctx.strokeStyle = darkenColor(color, 30);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(blockX, blockY, size, size);
+    }
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(blockX, blockY, size, size);
+}
+
+function lightenColor(color, percent) {
+    const num = parseInt(color.slice(1), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.min(255, (num >> 16) + amt);
+    const G = Math.min(255, (num >> 8 & 0x00FF) + amt);
+    const B = Math.min(255, (num & 0x0000FF) + amt);
+    
+    return `rgb(${R}, ${G}, ${B})`;
+}
+
+function darkenColor(color, percent) {
+    const num = parseInt(color.slice(1), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = Math.max(0, (num >> 16) - amt);
+    const G = Math.max(0, (num >> 8 & 0x00FF) - amt);
+    const B = Math.max(0, (num & 0x0000FF) - amt);
+    
+    return `rgb(${R}, ${G}, ${B})`;
+}
+
+function gameLoop(time) {
+    if (gameOver || gamePaused) return;
+    
+    const delta = time - lastTime;
+    lastTime = time;
+    
+    dropCounter += delta;
+    if (dropCounter > dropInterval) {
+        moveDown();
+        dropCounter = 0;
+    }
+    
+    drawBoard();
+    animationId = requestAnimationFrame(gameLoop);
+}
+
+function resumeGame() {
+    if (gameActive && gamePaused) {
+        gamePaused = false;
+        lastTime = 0;
+        animationId = requestAnimationFrame(gameLoop);
+    }
+}
+
+// ==================== УВЕДОМЛЕНИЯ ====================
+function showNotification(message) {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 2000);
+}
+
+// ==================== РАБОТА С БАЗОЙ ДАННЫХ ====================
+async function saveGameToDB(isFinalSave = false) {
+    try {
+        const response = await fetch(API_ENDPOINTS.saveScore, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: userId,
+                gameType: 'tetris',
+                score: score,
+                level: level,
+                lines: lines,
+                gameOver: isFinalSave
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Результат сохранен в БД:', result);
+            return { success: true, data: result };
+        } else {
+            console.error('❌ Ошибка сохранения:', response.status);
+            saveGameToLocalStorage();
+            return { success: false, error: 'Server error' };
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сети:', error);
+        saveGameToLocalStorage();
+        return { success: false, error: 'Network error' };
+    }
+}
+
+function saveGameToLocalStorage() {
+    try {
+        const gameData = {
+            userId: userId,
+            score: score,
+            level: level,
+            lines: lines,
+            timestamp: new Date().toISOString()
+        };
+        
+        let existing = JSON.parse(localStorage.getItem('tetris_games') || '[]');
+        existing.push(gameData);
+        
+        if (existing.length > 50) {
+            existing = existing.slice(-50);
+        }
+        
+        localStorage.setItem('tetris_games', JSON.stringify(existing));
+        console.log('✅ Результат сохранен локально');
+    } catch (error) {
+        console.error('❌ Ошибка локального сохранения:', error);
+    }
+}
+
+// ==================== ФУНКЦИЯ saveGameScore ====================
+async function saveGameScore() {
+    console.log('Сохранение игры');
+    
+    // Анимация кнопки
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) {
+        saveBtn.classList.add('pulsing');
+        setTimeout(() => saveBtn.classList.remove('pulsing'), 1000);
+    }
+    
+    if (gameActive && !gameOver) {
+        pauseGame();
+    }
+    
+    showNotification('💾 Сохраняем результат...');
+    
+    // Сохраняем текущий результат в базу данных
+    const result = await saveGameToDB(false);
+    
+    // Отправляем результат в Telegram бот
+    try {
+        const gameData = {
+            action: 'tetris_score',
+            score: score,
+            level: level,
+            lines: lines,
+            gameOver: false,
+            manualSave: true,
+            userId: userId
+        };
+        
+        if (tg && tg.sendData) {
+            tg.sendData(JSON.stringify(gameData));
+            console.log('✅ Данные отправлены в Telegram бот:', gameData);
+        }
+    } catch (error) {
+        console.error('❌ Ошибка отправки в Telegram:', error);
+    }
+    
+    if (result.success) {
+        showNotification('✅ Результат сохранен в БД и отправлен в бот!');
+        loadUserStats();
+    } else {
+        showNotification('✅ Результат сохранен локально');
+    }
+}
+
+function loadLocalStats() {
+    try {
+        const games = JSON.parse(localStorage.getItem('tetris_games') || '[]');
+        const userGames = games.filter(g => g.userId === userId);
+        
+        if (userGames.length > 0) {
+            const bestScore = Math.max(...userGames.map(g => g.score));
+            const bestLevel = Math.max(...userGames.map(g => g.level));
+            const bestLines = Math.max(...userGames.map(g => g.lines));
+            const avgScore = userGames.reduce((sum, g) => sum + g.score, 0) / userGames.length;
+            
+            document.getElementById('best-score').textContent = bestScore || 0;
+            document.getElementById('best-level').textContent = bestLevel || 1;
+            document.getElementById('total-lines').textContent = bestLines || 0;
+            document.getElementById('games-played').textContent = userGames.length || 0;
+            document.getElementById('avg-score').textContent = Math.round(avgScore || 0);
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки локальной статистики:', error);
+    }
+}
+
+async function loadLeaderboard() {
+    try {
+        const response = await fetch(`${API_ENDPOINTS.getTopPlayers}?gameType=tetris&limit=10`);
+        const leaderboardList = document.getElementById('leaderboard-list');
+        leaderboardList.innerHTML = '';
+        
+        if (response && response.ok) {
+            const data = await response.json();
+            
+            // 🔧 Извлекаем массив игроков из ответа
+            let players = [];
+            
+            if (Array.isArray(data)) {
+                // Если сервер возвращает массив напрямую
+                players = data;
+            } else if (data && typeof data === 'object') {
+                // Если сервер возвращает объект - пробуем разные ключи
+                players = data.players || data.data || data.results || data.leaderboard || data.topPlayers || [];
+            }
+            
+            // Проверяем, что получили массив
+            if (!Array.isArray(players) || players.length === 0) {
+                leaderboardList.innerHTML = `
+                    <div style="text-align: center; padding: 30px; color: #b5aaff;">
+                        <p>Лидерборд пуст</p>
+                        <p style="font-size: 0.9rem;">Будьте первым!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Выводим игроков
+            players.forEach((player, index) => {
+                const isCurrentUser = player.user_id == userId;
+                const item = document.createElement('div');
+                item.className = 'leaderboard-item';
+                
+                item.innerHTML = `
+                    <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
+                    <div class="player-info">
+                        <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
+                            ${isCurrentUser ? 'Вы' : (player.username || `Игрок ${String(player.user_id || '').slice(-4) || index + 1}`)}
+                        </div>
+                        <div class="player-score">${player.score || 0} очков</div>
+                    </div>
+                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.level || 1}</div>
+                `;
+                leaderboardList.appendChild(item);
+            });
+        } else {
+            showLocalLeaderboard();
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки лидерборда:', error);
+        showLocalLeaderboard();
+    }
+}
+
+function showLocalLeaderboard() {
+    const leaderboardList = document.getElementById('leaderboard-list');
+    leaderboardList.innerHTML = `
+        <div style="text-align: center; padding: 30px; color: #b5aaff;">
+            <p>Сервер недоступен</p>
+            <p style="font-size: 0.9rem;">Лидерборд временно не работает</p>
+        </div>
+    `;
+}
+
+function getRankColor(rank) {
+    switch(rank) {
+        case 1: return '#ffd700';
+        case 2: return '#c0c0c0';
+        case 3: return '#cd7f32';
+        default: return '#ffcc66';
+    }
+}
+
+// ==================== УРОВНИ СЛОЖНОСТИ ====================
+function renderLevels() {
+    const levelsGrid = document.getElementById('levels-grid');
+    levelsGrid.innerHTML = '';
+    
+    DIFFICULTY_LEVELS.forEach(level => {
+        const levelCard = document.createElement('div');
+        levelCard.className = `level-card ${level.id === currentDifficulty ? 'active' : ''}`;
+        levelCard.onclick = () => selectDifficulty(level.id);
+        
+        levelCard.innerHTML = `
+            <div class="level-icon">${getLevelIcon(level.id)}</div>
+            <div class="level-name">${level.name}</div>
+            <div class="level-desc">${level.desc}</div>
+            <div style="margin-top: 8px; font-size: 0.75rem; color: #ffcc66;">
+                ${level.speed}ms
+            </div>
+        `;
+        
+        levelsGrid.appendChild(levelCard);
+    });
+}
+
+function getLevelIcon(levelId) {
+    const icons = {
+        easy: '🐣',
+        medium: '⚡',
+        hard: '🔥',
+        expert: '👑',
+        insane: '💀'
+    };
+    return icons[levelId] || '⭐';
+}
+
+function selectDifficulty(levelId) {
+    currentDifficulty = levelId;
+    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === levelId).speed;
+    renderLevels();
+    
+    showNotification(`Сложность: ${DIFFICULTY_LEVELS.find(d => d.id === levelId).name}`);
+    
+    if (gameActive && !gameOver) {
+        if (confirm('Изменить сложность? Текущая игра будет перезапущена.')) {
+            initGame();
+        }
+    }
+}
+
+// ==================== УПРАВЛЕНИЕ ====================
+document.addEventListener('keydown', (e) => {
+    if (!document.getElementById('keyboard-controls')?.checked) return;
+    
+    switch(e.key) {
+        case 'ArrowLeft': e.preventDefault(); moveLeft(); break;
+        case 'ArrowRight': e.preventDefault(); moveRight(); break;
+        case 'ArrowDown': e.preventDefault(); moveDown(); break;
+        case 'ArrowUp': e.preventDefault(); rotatePiece(); break;
+        case ' ': e.preventDefault(); hardDrop(); break;
+        case 'p': case 'P': e.preventDefault(); pauseGame(); break;
+        case 'Escape': e.preventDefault(); showMenu(); break;
+        case 'r': case 'R': e.preventDefault(); restartGame(); break;
+    }
+});
+
+// ==================== ФУНКЦИЯ adaptCanvasSize ====================
+function adaptCanvasSize() {
+    const gameArea = document.querySelector('.game-area');
+    if (!gameArea) return;
+    
+    const maxWidth = gameArea.clientWidth - 20;
+    const maxHeight = gameArea.clientHeight - 20;
+    
+    const scale = Math.min(
+        maxWidth / canvas.width,
+        maxHeight / canvas.height
+    );
+    
+    canvas.style.width = `${canvas.width * scale}px`;
+    canvas.style.height = `${canvas.height * scale}px`;
+}
+
+// ==================== ФУНКЦИЯ testDatabase ====================
+async function testDatabase() {
+    const statusEl = document.getElementById('db-status-text');
+    statusEl.textContent = 'Проверка...';
+    statusEl.style.color = '#ffcc66';
+    
+    try {
+        const response = await fetch(API_ENDPOINTS.checkDB);
+        
+        if (response && response.ok) {
+            const data = await response.json();
+            
+            if (data.success) {
+                statusEl.textContent = 'База данных подключена ✓';
+                statusEl.style.color = '#66ffaa';
+                showNotification('✅ База данных подключена');
+            } else {
+                statusEl.textContent = 'Ошибка БД ✗';
+                statusEl.style.color = '#ff6666';
+                showNotification('⚠️ Ошибка базы данных');
+            }
+        } else {
+            statusEl.textContent = 'Сервер БД недоступен';
+            statusEl.style.color = '#ff6666';
+            showNotification('🌐 Сервер базы данных недоступен');
+        }
+    } catch (error) {
+        statusEl.textContent = 'Сеть недоступна';
+        statusEl.style.color = '#ff6666';
+        showNotification('🔌 Проблемы с сетью');
+    }
+}
+
+// ==================== ФУНКЦИЯ syncLocalGames ====================
+async function syncLocalGames() {
+    try {
+        const games = JSON.parse(localStorage.getItem('tetris_games') || '[]');
+        const userGames = games.filter(g => g.userId === userId);
+        
+        if (userGames.length === 0) {
+            showNotification('📂 Нет локальных игр для синхронизации');
+            return;
+        }
+        
+        showNotification(`🔄 Синхронизация ${userGames.length} игр...`);
+        
+        let synced = 0;
+        let errors = 0;
+        
+        for (const game of userGames) {
+            try {
+                const response = await fetch(API_ENDPOINTS.saveScore, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: game.userId,
+                        gameType: 'tetris',
+                        score: game.score,
+                        level: game.level,
+                        lines: game.lines,
+                        gameOver: true,
+                        sync: true
+                    })
+                });
+                
+                if (response && response.ok) {
+                    synced++;
+                } else {
+                    errors++;
+                }
+            } catch (error) {
+                errors++;
+            }
+        }
+        
+        showNotification(`✅ Синхронизировано: ${synced} игр, ошибок: ${errors}`);
+        
+        // Обновляем статистику после синхронизации
+        if (synced > 0) {
+            setTimeout(loadUserStats, 1000);
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации:', error);
+        showNotification('❌ Ошибка синхронизации');
+    }
+}
+
+// ==================== ФУНКЦИЯ checkAndRestoreGame ====================
+async function checkAndRestoreGame() {
+    try {
+        const savedGames = JSON.parse(localStorage.getItem('tetris_games') || '[]');
+        const lastGame = savedGames
+            .filter(g => g.userId === userId && !g.gameOver)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+        
+        if (lastGame && !gameActive) {
+            const shouldRestore = confirm(
+                `Найден сохраненный прогресс (${lastGame.score} очков). Восстановить игру?`
+            );
+            
+            if (shouldRestore) {
+                score = lastGame.score || 0;
+                level = lastGame.level || 1;
+                lines = lastGame.lines || 0;
+                
+                initGame();
+                pauseGame();
+                showNotification('🎮 Игра восстановлена');
+            }
+        }
+    } catch (error) {
+        console.error('❌ Ошибка восстановления:', error);
+    }
+}
+
+// ==================== ФУНКЦИЯ setupAutoSave ====================
+function setupAutoSave() {
+    let lastAutoSaveScore = 0;
+    
+    setInterval(() => {
+        if (gameActive && !gamePaused && !gameOver && score > 0) {
+            if (score !== lastAutoSaveScore) {
+                console.log('💾 Автосохранение прогресса...');
+                lastAutoSaveScore = score;
+                
+                saveGameToDB(false).then(result => {
+                    if (result.success) {
+                        console.log('✅ Автосохранение успешно');
+                    }
+                });
+            }
+        }
+    }, 30000);
+}
+
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
+function init() {
+    console.log('🎮 Игра инициализирована. User ID:', userId);
+    
+    // Проверка БД
+    setTimeout(testDatabase, 500);
+    
+    // Начальная сложность
+    selectDifficulty('medium');
+    
+    // Загрузка статистики
+    setTimeout(loadUserStats, 1000);
+    
+    // Инициализация игры
+    initGame();
+    pauseGame();
+    
+    // Настройка автосохранения
+    setupAutoSave();
+    
+    // Проверка сохраненной игры
+    setTimeout(checkAndRestoreGame, 1500);
+    
+    // Telegram WebApp
+    if (tg) {
+        tg.ready();
+        tg.MainButton.setText('Открыть меню').show();
+        tg.MainButton.onClick(showMenu);
+        tg.BackButton.onClick(showMenu);
+    }
+    
+    // Адаптация размера
+    adaptCanvasSize();
+    window.addEventListener('resize', adaptCanvasSize);
+}
+
+// Запуск игры
+window.addEventListener('load', init);
+    </script>
+</body>
+</html>
