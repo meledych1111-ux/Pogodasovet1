@@ -7,13 +7,23 @@
   "scripts": {
     "start": "node api/bot.js",
     "dev": "node --watch api/bot.js",
-    "build": "echo 'Build completed'"
+    "build": "echo 'Build completed'",
+    "vercel-build": "echo 'Vercel build completed'"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "grammy": "^1.21.1",
     "pg": "^8.11.3"
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "keywords": [
+    "telegram-bot",
+    "weather",
+    "english",
+    "game"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
 }
