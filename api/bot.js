@@ -1,18 +1,46 @@
-      import { Bot, Keyboard } from 'grammy';
-import { 
-  saveUserCity, 
-  getUserCity, 
-  saveGameScore, 
-  getGameStats,
-  getTopPlayers,
+import { Bot, Keyboard } from 'grammy';
+import dotenv from 'dotenv'; // <-- ДОБАВЬТЕ ЭТОТ ИМПОРТ
+import path from 'path';
+import { fileURLToPath } from 'url';
+// ===================== ИМПОРТ ФУНКЦИЙ ИЗ БАЗЫ ДАННЫХ =====================
+import {
+  saveUserCity,
+  getUserCity,
+  saveGameScore,
+  getGameStats as fetchGameStats,  // <-- переименовываем, чтобы избежать конфликта имен
+  getTopPlayers as fetchTopPlayers,  // <-- переименовываем
+  saveGameProgress,
+  getGameProgress,
+  deleteGameProgress,
   checkDatabaseConnection,
-  deleteGameProgress
+  debugDatabase
 } from './db.js';
+
+// ===================== ЗАГРУЗКА ПЕРЕМЕННЫХ ОКРУЖЕНИЯ =====================
+// Получаем путь к текущему файлу
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Загружаем .env.local из корневой директории проекта
+const envPath = path.join(__dirname, '..', '.env.local');
+console.log('🔧 Загружаю переменные окружения из:', envPath);
+
+// Загружаем .env и .env.local
+dotenv.config(); // Загружает .env (если есть)
+dotenv.config({ path: envPath }); // Загружает .env.local
+
+console.log('✅ Переменные окружения загружены');
+console.log('🔑 BOT_TOKEN найден?', !!process.env.BOT_TOKEN);
+console.log('🗄️ DATABASE_URL найден?', !!process.env.DATABASE_URL);
 
 // ===================== КОНФИГУРАЦИЯ =====================
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
-  console.error('❌ BOT_TOKEN не найден! Задайте переменную BOT_TOKEN в Vercel.');
+  console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: BOT_TOKEN не найден!');
+  console.error('Проверьте файл .env.local в корне проекта:');
+  console.error('Путь:', envPath);
+  console.error('Содержимое файла должен содержать:');
+  console.error('BOT_TOKEN="ваш_токен_бота"');
   throw new Error('BOT_TOKEN is required');
 }
 
@@ -22,36 +50,6 @@ const bot = new Bot(BOT_TOKEN);
 // ===================== ИНИЦИАЛИЗАЦИЯ БОТА =====================
 let botInitialized = false;
 
-async function initializeBot() {
-  if (botInitialized) return;
-  
-  console.log('🔧 Инициализирую бота...');
-  try {
-    await bot.init();
-    botInitialized = true;
-    console.log(`✅ Бот инициализирован: @${bot.botInfo.username}`);
-  } catch (error) {
-    console.error('❌ Ошибка инициализации:', error.message);
-  }
-}
-
-// Проверяем соединение с базой данных
-async function initializeDatabase() {
-  try {
-    const dbCheck = await checkDatabaseConnection();
-    if (dbCheck.success) {
-      console.log(`✅ Подключение к базе данных: OK (${dbCheck.time})`);
-    } else {
-      console.warn(`⚠️ База данных: ${dbCheck.error}`);
-    }
-  } catch (error) {
-    console.error('❌ Ошибка проверки БД:', error.message);
-  }
-}
-
-// Инициализируем при запуске
-initializeBot();
-initializeDatabase();
 
 // ===================== ХРАНИЛИЩЕ ДЛЯ СЕССИЙ =====================
 const userStorage = new Map();
@@ -177,88 +175,6 @@ async function getWeatherData(cityName, forceRefresh = false) {
   }
 }
 
-// Вспомогательная функция для описания погоды (добавлена для корректной работы)
-function getWeatherDescription(code) {
-  const weatherMap = {
-    0: 'Ясно ☀️',
-    1: 'В основном ясно 🌤️',
-    2: 'Переменная облачность ⛅',
-    3: 'Пасмурно ☁️',
-    45: 'Туман 🌫️',
-    48: 'Изморозь 🌫️',
-    51: 'Лёгкая морось 🌧️',
-    53: 'Морось 🌧️',
-    61: 'Небольшой дождь 🌧️',
-    63: 'Дождь 🌧️',
-    65: 'Сильный дождь 🌧️',
-    71: 'Небольшой снег ❄️',
-    73: 'Снег ❄️',
-    75: 'Сильный снег ❄️',
-    80: 'Ливень 🌧️',
-    81: 'Сильный ливень 🌧️',
-    82: 'Очень сильный ливень 🌧️',
-    95: 'Гроза ⛈️',
-    96: 'Гроза с градом ⛈️',
-    99: 'Сильная гроза с градом ⛈️'
-  };
-  
-  return weatherMap[code] || 'Облачно ⛅';
-}
-
-function getDetailedWeatherDescription(code, precipitationMm = 0) {
-  if (code === undefined || code === null) {
-    return 'Погодные данные';
-  }
-  
-  const weatherMap = {
-    0: 'Ясно ☀️', 
-    1: 'В основном ясно 🌤️', 
-    2: 'Переменная облачность ⛅',
-    3: 'Пасмурно ☁️', 
-    45: 'Туман 🌫️', 
-    48: 'Изморозь 🌫️',
-    51: 'Легкая морось 🌧️', 
-    53: 'Морось 🌧️', 
-    61: 'Небольшой дождь 🌧️',
-    63: 'Дождь 🌧️', 
-    65: 'Сильный дождь 🌧️', 
-    71: 'Небольшой снег ❄️',
-    73: 'Снег ❄️', 
-    75: 'Сильный снег ❄️',
-    80: 'Небольшой ливень 🌧️',
-    81: 'Умеренный ливень 🌧️',
-    82: 'Сильный ливень 🌧️',
-    85: 'Небольшой снегопад ❄️',
-    86: 'Сильный снегопад ❄️',
-    95: 'Гроза ⛈️',
-    96: 'Гроза с небольшим градом ⛈️',
-    99: 'Гроза с сильным градом ⛈️'
-  };
-  
-  let description = weatherMap[code] || `Код погоды: ${code}`;
-  
-  // Улучшенная логика с учетом осадков
-  if (precipitationMm > 0) {
-    if ([0, 1, 2, 3, 45, 48].includes(code)) {
-      if (precipitationMm < 0.5) {
-        description = `Пасмурно, возможны кратковременные осадки 🌦️`;
-      } else if (precipitationMm < 2) {
-        description = `Пасмурно, возможна слабая морось 🌦️ (${precipitationMm.toFixed(1)} мм)`;
-      } else if (precipitationMm < 10) {
-        description = `Пасмурно, возможен дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
-      } else {
-        description = `Пасмурно, возможен сильный дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
-      }
-    } else if ([51, 53, 61, 63, 65, 71, 73, 75, 80, 81, 82, 85, 86].includes(code)) {
-      description += ` (${precipitationMm.toFixed(1)} мм)`;
-    }
-  } else if (precipitationMm === 0 && [3].includes(code)) {
-    description = 'Пасмурно, без осадков ☁️';
-  }
-  
-  return description;
-}
-
 async function getWeatherForecast(cityName) {
   const cacheKey = `forecast_${cityName.toLowerCase()}`;
   const now = Date.now();
@@ -365,7 +281,7 @@ async function getWeatherForecast(cityName) {
       precipitation: forecastData.daily.precipitation_sum[tomorrowDailyIndex],
       wind_max: forecastData.daily.wind_speed_10m_max[tomorrowDailyIndex].toFixed(1),
       sunrise: forecastData.daily.sunrise[tomorrowDailyIndex].substring(11, 16),
-      sunset: forecastData.daily.sunset[tomorrowDailyIndex].substring(
+      sunset: forecastData.daily.sunset[tomorrowDailyIndex].substring(11, 16),
       periods: periodData,
       updated: new Date().toLocaleTimeString('ru-RU')
     };
@@ -530,23 +446,13 @@ function getDetailedWeatherDescription(code, precipitationMm = 0) {
 }
 
 // ===================== ФУНКЦИИ СТАТИСТИКИ И ТОПА =====================
-
 async function getUserGameStats(userId) {
   try {
     console.log(`📊 Получение статистики для пользователя: ${userId}`);
     
-    // ✅ ИСПРАВЛЕНИЕ: Конвертируем Telegram ID → Web App ID если нужно
-    let searchUserId = userId;
+    const stats = await fetchGameStats(userId, 'tetris');
     
-    // Если это Telegram ID (только цифры), конвертируем в Web App ID
-    if (typeof userId === 'number' || /^\d+$/.test(userId)) {
-      searchUserId = `web_${userId}`;
-      console.log(`📊 Конвертация Telegram ID -> Web App ID: ${userId} -> ${searchUserId}`);
-    }
-    
-    const stats = await getGameStats(searchUserId, 'tetris');
-    
-    console.log(`📊 Статистика получена для ${searchUserId}:`, stats);
+    console.log(`📊 Статистика получена:`, stats);
     
     return stats;
   } catch (error) {
@@ -557,15 +463,7 @@ async function getUserGameStats(userId) {
 
 async function getGameStatsMessage(userId) {
   try {
-    // ✅ Создаем Web App ID из Telegram ID для поиска в БД
-    const webAppUserId = `web_${userId}`;
-    
-    console.log(`📊 Получение статистики для Telegram пользователя: ${userId} (Web App ID: ${webAppUserId})`);
-    
-    // ✅ Используем Web App ID для поиска в БД
-    const stats = await getGameStats(webAppUserId, 'tetris');
-    
-    console.log(`📊 Статистика получена:`, stats);
+    const stats = await getUserGameStats(userId);
     
     // Проверяем, есть ли вообще какие-то данные в stats
     if (!stats) {
@@ -605,26 +503,12 @@ async function getGameStatsMessage(userId) {
     // Собираем сообщение
     let message = `📊 *Ваша статистика в тетрисе*\n\n`;
     message += `🎮 Игр сыграно: *${stats.games_played || 0}*\n`;
-    
-    // Добавляем статистику побед/поражений
-    if (stats.games_played > 0) {
-      message += `✅ Побед: *${stats.wins || 0}* (`;
-      message += `${stats.win_rate || 0}%)\n`;
-      message += `❌ Поражений: *${stats.losses || 0}*\n`;
-    }
-    
     message += `🏆 Лучший счёт: *${stats.best_score || 0}*\n`;
-    
-    // Добавляем худший счет
-    if (stats.worst_score !== undefined && stats.games_played > 1) {
-      message += `📉 Худший счёт: *${stats.worst_score || 0}*\n`;
-    }
-    
     message += `📈 Лучший уровень: *${stats.best_level || 1}*\n`;
     message += `📊 Лучшие линии: *${stats.best_lines || 0}*\n`;
     
     if (stats.games_played > 0) {
-      message += `📊 Средний счёт: *${Math.round(stats.avg_score || 0)}*\n`;
+      message += `📉 Средний счёт: *${Math.round(stats.avg_score || 0)}*\n`;
     }
     
     message += `⏰ Последняя игра: ${lastPlayedFormatted}\n\n`;
@@ -658,7 +542,7 @@ async function getTopPlayersList(limit = 10) {
   try {
     console.log(`🏆 Получение топа игроков, лимит: ${limit}`);
     
-    const topPlayers = await getTopPlayers('tetris', limit);
+    const topPlayers = await fetchTopPlayers('tetris', limit);
     
     console.log(`🏆 Игроков в топе: ${topPlayers ? topPlayers.length : 0}`);
     
@@ -709,65 +593,35 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       const level = player.level || 1;
       const lines = player.lines || 0;
       const gamesPlayed = player.games_played || 1;
-      const wins = player.wins || 0;
-      const winRate = player.win_rate || '0.0';
-      const city = player.city || 'Город не указан';
       
       // Форматируем имя пользователя
       let username;
-      const userIdStr = String(player.user_id || '');
-      
-      if (player.username && !player.username.startsWith('Игрок #') && !player.username.startsWith('🌐 Web #')) {
-        // Используем реальное имя из базы
+      if (player.username && player.username !== `Игрок ${index + 1}`) {
         username = player.username;
-      } else if (userIdStr.startsWith('web_')) {
-        // Web App игроки
-        username = `🌐 Web #${userIdStr.slice(-4)}`;
+      } else if (player.user_id) {
+        username = `Игрок #${String(player.user_id).slice(-4)}`;
       } else {
-        // Telegram игроки
-        username = `👤 Игрок #${userIdStr.slice(-4)}`;
+        username = `Игрок ${index + 1}`;
       }
       
       message += `${medal} *${username}*\n`;
       message += `   🎯 Очки: *${score}*\n`;
-      message += `   📍 Город: ${city}\n`;
       message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
-      
-      // Добавляем статистику побед (если есть)
-      if (gamesPlayed > 1) {
-        message += `   ✅ Побед: ${wins}/${gamesPlayed} (${winRate}%)\n`;
-      } else {
-        message += `   🕹️ Игр: ${gamesPlayed}\n`;
-      }
-      
-      message += `\n`;
+      message += `   🕹️ Игр: ${gamesPlayed}\n\n`;
     });
     
-    // Добавляем информацию о текущем пользователе с Web App ID
+    // Добавляем информацию о текущем пользователе
     if (ctx && ctx.from) {
-      const telegramUserId = ctx.from.id;
-      const webAppUserId = `web_${telegramUserId}`; // Конвертируем Telegram ID → Web App ID
-      
-      // Ищем в топе по Web App ID
-      const currentPlayerIndex = validPlayers.findIndex(p => 
-        String(p.user_id) === String(webAppUserId)
-      );
+      const currentUserId = ctx.from.id;
+      const currentPlayerIndex = validPlayers.findIndex(p => p.user_id === currentUserId);
       
       if (currentPlayerIndex !== -1) {
         const currentPlayer = validPlayers[currentPlayerIndex];
         message += `👤 *Ваше место:* ${currentPlayerIndex + 1}\n`;
-        message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n`;
-        message += `📍 *Ваш город:* ${currentPlayer.city || 'Не указан'}\n\n`;
+        message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n\n`;
       } else {
-        // Используем Web App ID для получения статистики
-        const userStats = await getGameStats(webAppUserId, 'tetris');
-        if (userStats && userStats.games_played > 0) {
-          message += `👤 *Вы набрали:* ${userStats.best_score} очков\n`;
-          message += `🎯 Продолжайте играть, чтобы попасть в топ!\n\n`;
-        } else {
-          message += `👤 *Вы пока не играли*\n`;
-          message += `🎯 Начните игру, чтобы попасть в рейтинг!\n\n`;
-        }
+        message += `👤 *Вы пока не в топе*\n`;
+        message += `🎯 Играйте больше, чтобы попасть в рейтинг!\n\n`;
       }
     }
     
@@ -843,7 +697,6 @@ function getWardrobeAdvice(weatherData) {
 }
 
 // ===================== ФРАЗЫ ДНЯ =====================
-
 const dailyPhrases = [
     // ===================== ПУТЕШЕСТВИЯ И ТРАНСПОРТ (30 фраз) =====================
     {
@@ -1876,129 +1729,101 @@ bot.callbackQuery('top_players', async (ctx) => {
 
 // ===================== ОБРАБОТЧИК ДАННЫХ ИЗ ИГРЫ =====================
 bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
-  const telegramUserId = ctx.from.id;
-  const userName = `${ctx.from.first_name || ''} ${ctx.from.last_name || ''}`.trim() || `Игрок ${telegramUserId}`;
+  const userId = ctx.from.id;
+  const userName = `${ctx.from.first_name || ''} ${ctx.from.last_name || ''}`.trim() || `Игрок ${userId}`;
   
-  console.log(`📱 Получены данные от Mini App от Telegram пользователя ${telegramUserId} (${userName})`);
+  console.log(`📱 Получены данные от Mini App от пользователя ${userId} (${userName})`);
   
   try {
     const webAppData = ctx.message.web_app_data;
     console.log(`📱 Raw data:`, webAppData.data);
     
     const data = JSON.parse(webAppData.data);
-    console.log('🎮 Данные игры из Mini App:', data);
+    console.log('🎮 Данные игры:', data);
     
-    // ✅ ИСПРАВЛЕНИЕ: Используем ID из данных Mini App, а не Telegram ID
-    const webAppUserId = data.userId || data.user_id || `web_${telegramUserId}`;
-    const score = parseInt(data.score) || 0;
-    const level = parseInt(data.level) || 1;
-    const lines = parseInt(data.lines) || 0;
-    const gameOver = Boolean(data.gameOver);
-    const isWin = score > 0;
-    
-    console.log(`🎮 Счёт тетриса от ${webAppUserId} (Telegram: ${telegramUserId}):`, {
-      score, level, lines, gameOver, isWin
-    });
-    
-    // Сохраняем результат в базу данных
-    try {
-      // ✅ ВАЖНО: Используем webAppUserId (например "web_123456")
-      const savedId = await saveGameScore(
-        webAppUserId,           // ← Web App ID, а не Telegram ID
-        'tetris', 
-        score, 
-        level, 
-        lines,
-        userName,              // Telegram имя
-        isWin
-      );
+    if (data.action === 'tetris_score' || data.gameType === 'tetris') {
+      console.log(`🎮 Счёт тетриса от ${userId}:`, data);
       
-      if (savedId) {
-        console.log(`✅ Результат пользователя ${webAppUserId} сохранён (ID: ${savedId})`);
-        
-        // ✅ Обновляем: Используем webAppUserId для статистики
-        const stats = await getGameStats(webAppUserId, 'tetris');
-        const bestScore = stats?.best_score || 0;
-        const gamesPlayed = stats?.games_played || 0;
-        const wins = stats?.wins || 0;
-        
-        let message = '';
-        if (gameOver) {
-          if (isWin) {
-            message = `🎮 *Победа! Игра окончена!* 🏆\n\n`;
-          } else {
-            message = `🎮 *Игра окончена!* 📉\n\n`;
-          }
-        } else {
-          message = `🎮 *Прогресс сохранён!* 💾\n\n`;
-        }
-        
-        message += `👤 *Игрок:* ${userName}\n`;
-        message += `🎯 *Результат:* ${score} очков\n`;
-        message += `📊 *Уровень:* ${level}\n`;
-        message += `📈 *Линии:* ${lines}\n\n`;
-        
-        // Добавляем общую статистику
-        if (gamesPlayed > 0) {
-          message += `📊 *Общая статистика:*\n`;
-          message += `• Игр сыграно: ${gamesPlayed}\n`;
-          message += `• Побед: ${wins}\n`;
-          if (gamesPlayed > 1) {
-            const winRate = stats.win_rate || 0;
-            message += `• Процент побед: ${winRate}%\n`;
-          }
-          message += `\n`;
-        }
-        
-        // Проверяем, побит ли рекорд
-        if (score > bestScore && score > 0) {
-          message += `🎉 *НОВЫЙ РЕКОРД!* 🎉\n`;
-          message += `🏆 Предыдущий лучший: ${bestScore}\n\n`;
-        } else if (bestScore > 0) {
-          message += `🏆 *Ваш лучший результат:* ${bestScore}\n\n`;
-        } else if (score === 0) {
-          message += `📉 *Попытка завершена!* Попробуйте ещё раз!\n\n`;
-        }
-        
-        message += `📊 *Теперь вы можете:*\n`;
-        message += `• Посмотреть свою статистику 📊\n`;
-        message += `• Проверить место в топе 🏆\n`;
-        message += `• Продолжить играть 🎮\n\n`;
-        
-        if (gameOver) {
-          if (isWin) {
-            message += `🎉 Отличная игра! Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой попытки!`;
-          } else {
-            message += `🔄 Не сдавайтесь! Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой попытки!`;
-          }
-        } else {
-          message += `💪 Продолжайте в том же духе!`;
-        }
-        
-        await ctx.reply(message, { 
+      const score = parseInt(data.score) || 0;
+      const level = parseInt(data.level) || 1;
+      const lines = parseInt(data.lines) || 0;
+      const gameOver = Boolean(data.gameOver);
+      
+      if (score === 0) {
+        console.log(`⚠️ Нулевой счёт от ${userId}, пропускаем сохранение`);
+        await ctx.reply(`🎮 Игра начата! Удачи! 🍀`, {
           parse_mode: 'Markdown',
-          reply_markup: mainMenuKeyboard 
+          reply_markup: mainMenuKeyboard
         });
+        return;
+      }
+      
+      // Сохраняем результат в базу данных
+      try {
+        const saved = await saveGameScore(userId, 'tetris', score, level, lines);
         
-        // ✅ Обновляем: Используем webAppUserId для удаления прогресса
-        if (gameOver) {
-          await deleteGameProgress(webAppUserId, 'tetris');
-          console.log(`🗑️ Прогресс игры удалён для пользователя ${webAppUserId}`);
+        if (saved) {
+          console.log(`✅ Рекорд пользователя ${userId} сохранён в БД`);
+          
+          // Получаем обновленную статистику
+          const stats = await getUserGameStats(userId);
+          const bestScore = stats?.best_score || 0;
+          
+          let message = '';
+          if (gameOver) {
+            message = `🎮 *Игра окончена!*\n\n`;
+          } else {
+            message = `🎮 *Прогресс сохранён!*\n\n`;
+          }
+          
+          message += `👤 *Игрок:* ${userName}\n`;
+          message += `🎯 *Результат:* ${score} очков\n`;
+          message += `📊 *Уровень:* ${level}\n`;
+          message += `📈 *Линии:* ${lines}\n\n`;
+          
+          // Проверяем, побит ли рекорд
+          if (score > bestScore) {
+            message += `🎉 *НОВЫЙ РЕКОРД!* 🎉\n`;
+            message += `🏆 Предыдущий лучший: ${bestScore}\n\n`;
+          } else if (bestScore > 0) {
+            message += `🏆 *Ваш лучший результат:* ${bestScore}\n\n`;
+          }
+          
+          message += `📊 *Теперь вы можете:*\n`;
+          message += `• Посмотреть свою статистику 📊\n`;
+          message += `• Проверить место в топе 🏆\n`;
+          message += `• Продолжить играть 🎮\n\n`;
+          
+          if (gameOver) {
+            message += `🔄 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой игры!`;
+          } else {
+            message += `💪 Продолжайте в том же духе!`;
+          }
+          
+          await ctx.reply(message, { 
+            parse_mode: 'Markdown',
+            reply_markup: mainMenuKeyboard 
+          });
+          
+        } else {
+          console.error(`❌ Не удалось сохранить результат для пользователя ${userId}`);
+          await ctx.reply(`❌ Не удалось сохранить ваш результат в базу данных. Попробуйте ещё раз.`, {
+            reply_markup: mainMenuKeyboard
+          });
         }
-        
-      } else {
-        console.error(`❌ Не удалось сохранить результат для пользователя ${webAppUserId}`);
-        await ctx.reply(`❌ Не удалось сохранить ваш результат в базу данных. Попробуйте ещё раз.`, {
+      } catch (dbError) {
+        console.error('❌ Ошибка сохранения в БД:', dbError);
+        await ctx.reply(`❌ Ошибка базы данных. Ваш результат не сохранён. Попробуйте позже.`, {
           reply_markup: mainMenuKeyboard
         });
       }
-    } catch (dbError) {
-      console.error('❌ Ошибка сохранения в БД:', dbError);
-      console.error('❌ Stack trace:', dbError.stack);
-      await ctx.reply(`❌ Ошибка базы данных. Ваш результат не сохранён. Попробуйте позже.`, {
+    } else {
+      console.log(`📱 Неизвестный тип данных:`, data.action || data.gameType);
+      await ctx.reply(`Получены игровые данные: ${JSON.stringify(data, null, 2)}`, {
         reply_markup: mainMenuKeyboard
       });
     }
+    
   } catch (error) {
     console.error('❌ Ошибка обработки данных игры:', error);
     console.error('❌ Stack trace:', error.stack);
@@ -2008,6 +1833,7 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
     });
   }
 });
+
 // ===================== ЧТО НАДЕТЬ =====================
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   const userId = ctx.from.id;
@@ -2641,7 +2467,26 @@ bot.on('message:text', async (ctx) => {
 bot.catch((err) => {
   console.error('🔥 Критическая ошибка бота:', err);
 });
+// ===================== ЛОКАЛЬНЫЙ ЗАПУСК (POLLING) =====================
+console.log('🚀 Запускаю бота в режиме polling для локального тестирования...');
 
+// Запускаем бота с опросом
+
+bot.start({
+    drop_pending_updates: true,
+    allowed_updates: ['message', 'callback_query']
+}).then(() => {
+    console.log('🤖 Бот запущен и готов принимать команды!');
+    console.log('📱 Отправьте /start в Telegram боту');
+}).catch(err => {
+    console.error('❌ Ошибка запуска бота:', err.message);
+});
+
+// Элегантная остановка
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
+
+console.log('✅ Код бота загружен. Ждем команды...');
 // ===================== ЭКСПОРТ ДЛЯ VERCEL =====================
 export default async function handler(req, res) {
   console.log(`🌐 ${req.method} запрос к /api/bot в ${new Date().toISOString()}`);
