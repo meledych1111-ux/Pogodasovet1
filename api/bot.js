@@ -2510,7 +2510,6 @@ export default async function handler(req, res) {
     }
     
     if (req.method === 'POST') {
-      await initializeBot();
       
       console.log('📦 Получен update от Telegram');
       
