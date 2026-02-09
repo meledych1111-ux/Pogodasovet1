@@ -258,7 +258,7 @@ export async function getGameStats(userId, gameType = 'tetris') {
   try {
     console.log(`📊 Запрос статистики для user_id: ${userId}, game_type: ${gameType}`);
     
-    // Полная статистика из game_scores (ВСЕ игры, включая проигрыши)
+    // ✅ ИСПРАВЛЕННЫЙ запрос - используем колонку is_win которая теперь есть
     const statsQuery = `
       SELECT 
         COUNT(*) as games_played,
@@ -352,7 +352,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   try {
     console.log(`🏆 Запрос топа игроков для: ${gameType}, лимит: ${limit}`);
     
-    // Улучшенный запрос с REAL именами пользователей
+    // ✅ Убедитесь, что этот запрос использует is_win
     const query = `
       SELECT 
         gs.user_id,
@@ -375,7 +375,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     const result = await client.query(query, [gameType, limit]);
     console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
     
-    // Форматируем результат с РЕАЛЬНЫМИ именами
+    // Форматируем результат
     return result.rows.map((row, index) => {
       const username = row.username || `Игрок #${String(row.user_id).slice(-4)}`;
       
