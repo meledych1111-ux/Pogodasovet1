@@ -252,10 +252,6 @@ export async function deleteGameProgress(userId, gameType = 'tetris') {
   }
 }
 
-// ============ СТАТИСТИКА И ЛИДЕРБОРД ============
-export async function getGameStats(userId, gameType = 'tetris') {
-  // ... существующий код getGameStats ...
-}
 
 // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 // ТОЛЬКО ОДНА ФУНКЦИЯ getTopPlayers!
