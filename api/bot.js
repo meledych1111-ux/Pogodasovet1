@@ -2469,16 +2469,44 @@ bot.catch((err) => {
 });
 
 // ===================== ЭКСПОРТ ДЛЯ VERCEL =====================
+
+// Глобальная переменная для отслеживания инициализации
+let botInitialized = false;
+
+async function initializeBot() {
+  if (!botInitialized) {
+    console.log('🤖 Инициализирую бота...');
+    try {
+      await bot.init();
+      botInitialized = true;
+      console.log('✅ Бот успешно инициализирован');
+      console.log('🤖 Имя бота:', bot.botInfo?.username);
+    } catch (error) {
+      console.error('❌ Ошибка инициализации бота:', error);
+      throw error;
+    }
+  }
+  return bot;
+}
+
 export default async function handler(req, res) {
   console.log(`🌐 ${req.method} запрос к /api/bot в ${new Date().toISOString()}`);
   
   try {
+    // Инициализируем бота при любом запросе
+    await initializeBot();
+    
     if (req.method === 'GET') {
       return res.status(200).json({ 
         message: 'Weather & English Phrases Bot with Game Statistics is running',
         status: 'active',
         timestamp: new Date().toISOString(),
-        bot: bot.botInfo?.username || 'не инициализирован',
+        bot_info: {
+          username: bot.botInfo?.username,
+          id: bot.botInfo?.id,
+          name: bot.botInfo?.first_name,
+          initialized: botInitialized
+        },
         features: [
           'Погода сейчас',
           'Подробный прогноз на завтра',
@@ -2491,7 +2519,6 @@ export default async function handler(req, res) {
     }
     
     if (req.method === 'POST') {
-      
       console.log('📦 Получен update от Telegram');
       
       try {
@@ -2512,7 +2539,8 @@ export default async function handler(req, res) {
     console.error('🔥 Критическая ошибка в handler:', error);
     return res.status(200).json({ 
       ok: false, 
-      error: 'Internal server error'
+      error: 'Internal server error',
+      message: error.message
     });
   }
 }
