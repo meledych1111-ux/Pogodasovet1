@@ -1,4 +1,4 @@
-import { saveGameProgress, deleteGameProgress, getGameProgress } from './db.js';
+import { getGameProgress } from './db.js';
 
 export default async function handler(req, res) {
   console.log('📋 API: /api/get-progress - запрос прогресса игры');
@@ -6,16 +6,26 @@ export default async function handler(req, res) {
   console.log('📋 Query параметры:', req.query);
   console.log('📋 Body параметры:', req.body);
   
-  if (req.method !== 'GET') {
+  // Разрешаем GET и POST для удобства
+  if (req.method !== 'GET' && req.method !== 'POST') {
     console.log('❌ Метод не разрешен:', req.method);
     return res.status(405).json({ 
       success: false,
-      error: 'Method not allowed. Use GET.' 
+      error: 'Method not allowed. Use GET or POST.' 
     });
   }
 
   try {
-    const { userId, gameType = 'tetris' } = req.query;
+    let userId, gameType;
+    
+    // Получаем параметры в зависимости от метода
+    if (req.method === 'GET') {
+      userId = req.query.userId || req.query.user_id;
+      gameType = req.query.gameType || req.query.game_type || 'tetris';
+    } else if (req.method === 'POST') {
+      userId = req.body.userId || req.body.user_id;
+      gameType = req.body.gameType || req.body.game_type || 'tetris';
+    }
     
     console.log('📋 Получение прогресса для:', { userId, gameType });
     
@@ -29,21 +39,13 @@ export default async function handler(req, res) {
       });
     }
     
-    const numericUserId = parseInt(userId);
+    // 🔴 УБРАТЬ ПРЕОБРАЗОВАНИЕ В ЧИСЛО!
+    // getGameProgress ожидает ID как строку
     
-    if (isNaN(numericUserId)) {
-      console.log('❌ Неверный формат userId:', userId);
-      return res.status(400).json({ 
-        success: false,
-        error: 'Invalid userId format. Must be a number.',
-        code: 'INVALID_USER_ID'
-      });
-    }
+    console.log(`📋 Получение прогресса пользователя ${userId}, игра: ${gameType}`);
     
-    console.log(`📋 Получение прогресса пользователя ${numericUserId}, игра: ${gameType}`);
-    
-    // Получаем прогресс из базы данных
-    const progress = await getGameProgress(numericUserId, gameType);
+    // ✅ ПРАВИЛЬНО: Передаем ID как есть
+    const progress = await getGameProgress(userId, gameType);
     
     console.log('📋 Прогресс из БД:', progress);
     
@@ -55,15 +57,26 @@ export default async function handler(req, res) {
         lines: parseInt(progress.lines) || 0,
         last_saved: progress.last_saved,
         has_progress: true,
-        timestamp: progress.last_saved || new Date().toISOString()
+        timestamp: progress.last_saved || new Date().toISOString(),
+        
+        // 🔴 ДОБАВЛЕНО: Время в читаемом формате
+        last_saved_formatted: progress.last_saved 
+          ? new Date(progress.last_saved).toLocaleString('ru-RU') 
+          : null
       };
       
-      console.log('✅ Прогресс найден:', formattedProgress);
+      console.log('✅ Прогресс найден:', {
+        userId: userId,
+        score: formattedProgress.score,
+        level: formattedProgress.level,
+        has_progress: true
+      });
       
       return res.status(200).json({ 
         success: true,
-        userId: numericUserId,
+        userId: userId,
         gameType: gameType,
+        isWebApp: userId.startsWith('web_'), // Добавляем тип пользователя
         progress: formattedProgress,
         message: 'Прогресс игры найден',
         timestamp: new Date().toISOString()
@@ -77,17 +90,25 @@ export default async function handler(req, res) {
         level: 1,
         lines: 0,
         last_saved: null,
+        last_saved_formatted: null,
         has_progress: false,
         timestamp: new Date().toISOString()
       };
       
       return res.status(200).json({ 
         success: true,
-        userId: numericUserId,
+        userId: userId,
         gameType: gameType,
+        isWebApp: userId.startsWith('web_'), // Добавляем тип пользователя
         progress: emptyProgress,
         message: 'Сохраненного прогресса не найдено',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        
+        // 🔴 ДОБАВЛЕНО: Возможность начать новую игру
+        suggestions: [
+          'Начните новую игру',
+          'Ваш прогресс будет автоматически сохраняться'
+        ]
       });
     }
     
@@ -119,7 +140,7 @@ export default async function handler(req, res) {
 }
 
 // Вспомогательная функция для тестирования API
-export const testGetProgress = async (testUserId = 123456789) => {
+export const testGetProgress = async (testUserId = '123456789') => {
   try {
     console.log(`🧪 Тест получения прогресса для user ${testUserId}`);
     const progress = await getGameProgress(testUserId, 'tetris');
@@ -134,8 +155,20 @@ export const testGetProgress = async (testUserId = 123456789) => {
 // Если файл запущен напрямую, выполнить тест
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('🧪 Запуск теста get-progress.js');
-  testGetProgress().then(() => {
-    console.log('🧪 Тест завершен');
+  
+  // Тестируем оба типа пользователей
+  const testUsers = [
+    { id: '123456789', type: 'telegram' },
+    { id: 'web_1770548758686', type: 'web' }
+  ];
+  
+  Promise.all(testUsers.map(user => 
+    testGetProgress(user.id).then(progress => {
+      console.log(`🧪 Результат для ${user.type} (${user.id}):`, 
+        progress ? 'Прогресс найден' : 'Нет прогресса');
+    })
+  )).then(() => {
+    console.log('🧪 Все тесты завершены');
     process.exit(0);
   });
 }
