@@ -231,7 +231,65 @@ export async function getGameProgress(userId, gameType = 'tetris') {
     client.release();
   }
 }
-
+export async function getGameStats(userId, gameType = 'tetris') {
+  const client = await pool.connect();
+  try {
+    console.log(`📊 Запрос статистики для user_id: ${userId}, game_type: ${gameType}`);
+    
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as games_played,
+        COUNT(CASE WHEN is_win THEN 1 END) as wins,
+        COALESCE(MAX(score), 0) as best_score,
+        COALESCE(AVG(score), 0) as avg_score,
+        COALESCE(MAX(level), 1) as best_level,
+        COALESCE(MAX(lines), 0) as best_lines,
+        MAX(created_at) as last_played
+      FROM game_scores 
+      WHERE user_id = $1 AND game_type = $2
+    `;
+    
+    const statsResult = await client.query(statsQuery, [userId, gameType]);
+    const stats = statsResult.rows[0] || {
+      games_played: 0,
+      wins: 0,
+      best_score: 0,
+      avg_score: 0,
+      best_level: 1,
+      best_lines: 0,
+      last_played: null
+    };
+    
+    return {
+      games_played: parseInt(stats.games_played) || 0,
+      wins: parseInt(stats.wins) || 0,
+      losses: parseInt(stats.games_played) - parseInt(stats.wins) || 0,
+      win_rate: stats.games_played > 0 ? 
+        (parseInt(stats.wins) / parseInt(stats.games_played) * 100).toFixed(1) : 0,
+      best_score: parseInt(stats.best_score) || 0,
+      avg_score: parseFloat(stats.avg_score) || 0,
+      best_level: parseInt(stats.best_level) || 1,
+      best_lines: parseInt(stats.best_lines) || 0,
+      last_played: stats.last_played
+    };
+    
+  } catch (error) {
+    console.error('❌ Ошибка получения статистики:', error);
+    return {
+      games_played: 0,
+      wins: 0,
+      losses: 0,
+      win_rate: 0,
+      best_score: 0,
+      avg_score: 0,
+      best_level: 1,
+      best_lines: 0,
+      last_played: null
+    };
+  } finally {
+    client.release();
+  }
+}
 // Удаление прогресса после завершения игры
 export async function deleteGameProgress(userId, gameType = 'tetris') {
   const client = await pool.connect();
