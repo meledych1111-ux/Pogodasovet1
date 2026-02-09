@@ -739,7 +739,7 @@
             </div>
         </div>
         
-       <!-- НАСТРОЙКИ -->
+      <!-- НАСТРОЙКИ -->
 <div class="screen" id="settings-screen">
     <div class="header">
         <h1 class="game-title">НАСТРОЙКИ</h1>
@@ -778,7 +778,8 @@
             </div>
         </div>
         
-            <div class="stat-card">
+        <!-- ✅ ОДИН БЛОК БАЗЫ ДАННЫХ -->
+        <div class="stat-card">
             <h3 style="color: #6a5bff; margin-bottom: 15px;">База данных</h3>
             <div id="db-status" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(106, 91, 255, 0.3);">
                 Статус: <span id="db-status-text">Проверка...</span>
@@ -796,21 +797,6 @@
         <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
     </div>
 </div>
-                
-                <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">База данных</h3>
-                    <div id="db-status" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(106, 91, 255, 0.3);">
-                        Статус: <span id="db-status-text">Проверка...</span>
-                    </div>
-                    <button class="back-btn" style="width: 100%;" onclick="testDatabase()">Тест соединения с БД</button>
-                </div>
-            </div>
-            
-            <div class="footer">
-                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Уведомление -->
     <div id="notification" class="notification"></div>
@@ -1431,53 +1417,6 @@ async function saveGameScore() {
     }
 }
 
-// Функция для автосохранения каждые 30 секунд
-function setupAutoSave() {
-    setInterval(() => {
-        if (gameActive && !gamePaused && !gameOver && score > 0) {
-            console.log('💾 Автосохранение прогресса...');
-            
-            const gameData = {
-                action: 'tetris_score',
-                score: score,
-                level: level,
-                lines: lines,
-                gameOver: false,
-                autoSave: true,
-                userId: userId
-            };
-            
-            // Отправляем в Telegram бот
-            if (tg && tg.sendData) {
-                tg.sendData(JSON.stringify(gameData));
-            }
-            
-            // Сохраняем локально
-            saveGameToLocalStorage();
-        }
-    }, 30000); // 30 секунд
-}
-
-async function loadUserStats() {
-    try {
-        const response = await fetch(`${API_ENDPOINTS.getUserStats}?userId=${userId}&gameType=tetris`);
-        
-        if (response.ok) {
-            const stats = await response.json();
-            
-            document.getElementById('best-score').textContent = stats.best_score || 0;
-            document.getElementById('best-level').textContent = stats.best_level || 1;
-            document.getElementById('total-lines').textContent = stats.best_lines || 0;
-            document.getElementById('games-played').textContent = stats.games_played || 0;
-            document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
-        } else {
-            loadLocalStats();
-        }
-    } catch (error) {
-        console.error('❌ Ошибка загрузки статистики:', error);
-        loadLocalStats();
-    }
-}
 
 function loadLocalStats() {
     try {
@@ -1565,29 +1504,7 @@ function getRankColor(rank) {
     }
 }
 
-async function testDatabase() {
-    const statusEl = document.getElementById('db-status-text');
-    statusEl.textContent = 'Проверка...';
-    statusEl.style.color = '#ffcc66';
-    
-    try {
-        const response = await fetch(API_ENDPOINTS.checkDB);
-        if (response.ok) {
-            const data = await response.json();
-            statusEl.textContent = 'База данных подключена ✓';
-            statusEl.style.color = '#66ffaa';
-            showNotification('✅ База данных подключена');
-        } else {
-            statusEl.textContent = 'Ошибка подключения ✗';
-            statusEl.style.color = '#ff6666';
-            showNotification('⚠️ База данных временно недоступна');
-        }
-    } catch (error) {
-        statusEl.textContent = 'Сервер недоступен';
-        statusEl.style.color = '#ff6666';
-        showNotification('🌐 Сервер недоступен');
-    }
-}
+
 
 // ==================== УРОВНИ СЛОЖНОСТИ ====================
 function renderLevels() {
@@ -1654,54 +1571,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-function init() {
-    console.log('🎮 Игра инициализирована. User ID:', userId);
-    
-    // Проверка БД
-    setTimeout(testDatabase, 1000);
-    
-    // Начальная сложность
-    selectDifficulty('medium');
-    
-    // Загрузка статистики
-    loadUserStats();
-    
-    // Инициализация игры
-    initGame();
-    pauseGame();
-    
-    // Настройка автосохранения
-    setupAutoSave();
-    
-    // Telegram WebApp
-    if (tg) {
-        tg.ready();
-        tg.MainButton.setText('Открыть меню').show();
-        tg.MainButton.onClick(showMenu);
-        tg.BackButton.onClick(showMenu);
-    }
-    
-    // Адаптация размера
-    adaptCanvasSize();
-    window.addEventListener('resize', adaptCanvasSize);
-}
 
-function adaptCanvasSize() {
-    const gameArea = document.querySelector('.game-area');
-    const maxWidth = gameArea.clientWidth - 20;
-    const maxHeight = gameArea.clientHeight - 20;
-    
-    const scale = Math.min(
-        maxWidth / (COLS * BLOCK_SIZE),
-        maxHeight / (ROWS * BLOCK_SIZE)
-    );
-    
-    const newWidth = Math.floor(COLS * BLOCK_SIZE * scale);
-    const newHeight = Math.floor(ROWS * BLOCK_SIZE * scale);
-    
-    canvas.style.width = newWidth + 'px';
-    canvas.style.height = newHeight + 'px';
-}
 // ==================== ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ БАЗЫ ДАННЫХ ====================
 
 // 🔴 ФУНКЦИЯ 1: Сохранение прогресса (не финального результата)
