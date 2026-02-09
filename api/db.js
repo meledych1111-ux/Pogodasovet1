@@ -1,3 +1,53 @@
+// === ДОБАВЬТЕ ЭТО В САМОЕ НАЧАЛО db.js ===
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 1. Загружаем из корня проекта
+console.log('📂 db.js: Загружаю переменные окружения...');
+console.log('📂 Текущая директория:', process.cwd());
+
+// 2. Сначала загружаем .env
+const envPath = path.join(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+    console.log('✅ Найден .env в:', envPath);
+    dotenv.config({ path: envPath });
+} else {
+    console.log('⚠️ .env не найден');
+}
+
+// 3. Затем загружаем .env.local (переопределяет)
+const envLocalPath = path.join(process.cwd(), '.env.local');
+if (fs.existsSync(envLocalPath)) {
+    console.log('✅ Найден .env.local в:', envLocalPath);
+    dotenv.config({ path: envLocalPath, override: true });
+    
+    // Проверяем содержимое файла
+    const content = fs.readFileSync(envLocalPath, 'utf8');
+    console.log('📝 Содержимое .env.local:');
+    console.log(content);
+} else {
+    console.log('❌ .env.local не найден!');
+    console.log('📁 Искали в:', envLocalPath);
+}
+
+// 4. Логируем что загрузилось
+console.log('🔍 Загруженные переменные в db.js:');
+console.log('- DATABASE_URL:', process.env.DATABASE_URL ? 'ЕСТЬ (' + process.env.DATABASE_URL.substring(0, 30) + '...)' : 'НЕТ!');
+console.log('- NODE_ENV:', process.env.NODE_ENV || 'не установлен');
+
+// Если нет DATABASE_URL, выходим с ошибкой
+if (!process.env.DATABASE_URL) {
+    console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: DATABASE_URL не загружен!');
+    console.error('❌ Проверьте файл .env.local в корне проекта');
+    console.error('❌ Текущая рабочая директория:', process.cwd());
+    console.error('❌ Содержимое директории:', fs.readdirSync(process.cwd()));
+}
+// === КОНЕЦ ДОБАВЛЕНИЯ ===
 import pg from 'pg';
 const { Pool } = pg;
 
