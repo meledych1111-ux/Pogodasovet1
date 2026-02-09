@@ -1309,8 +1309,17 @@ function showNotification(message) {
 }
 
 // ==================== РАБОТА С БАЗОЙ ДАННЫХ ====================
-async function saveGameToDB() {
+async function saveGameToDB(gameOverFlag = false) {
     try {
+        console.log('💾 Сохранение в БД:', {
+            userId: userId,
+            score: score,
+            level: level,
+            lines: lines,
+            gameOver: gameOverFlag
+        });
+        
+        // ✅ ИСПРАВЛЕННЫЙ ЗАПРОС: Добавляем все необходимые поля
         const response = await fetch(API_ENDPOINTS.saveScore, {
             method: 'POST',
             headers: { 
@@ -1322,33 +1331,60 @@ async function saveGameToDB() {
                 gameType: 'tetris',
                 score: score,
                 level: level,
-                lines: lines
+                lines: lines,
+                gameOver: gameOverFlag,
+                // ✅ ВАЖНО: Добавляем имя пользователя из Telegram
+                username: tg?.initDataUnsafe?.user?.first_name || 'Telegram Player',
+                first_name: tg?.initDataUnsafe?.user?.first_name || '',
+                last_name: tg?.initDataUnsafe?.user?.last_name || '',
+                // ✅ Для совместимости с save-score.js
+                action: 'tetris_score',
+                isWebApp: true
             })
         });
         
+        const responseText = await response.text();
+        console.log('📋 Ответ сервера:', responseText);
+        
         if (response.ok) {
-            const result = await response.json();
+            const result = JSON.parse(responseText);
             console.log('✅ Результат сохранен в БД:', result);
+            
+            // ✅ ТОЛЬКО ПОСЛЕ успешного сохранения в API отправляем в Telegram
+            if (tg && tg.sendData) {
+                const gameData = {
+                    action: 'tetris_score',
+                    score: score,
+                    level: level,
+                    lines: lines,
+                    gameOver: gameOverFlag,
+                    userId: userId
+                };
+                tg.sendData(JSON.stringify(gameData));
+                console.log('✅ Данные также отправлены в Telegram бот:', gameData);
+            }
+            
             return { success: true, data: result };
         } else {
-            console.error('❌ Ошибка сохранения:', response.status);
-            saveGameToLocalStorage();
-            return { success: false, error: 'Server error' };
+            console.error('❌ Ошибка сохранения:', response.status, responseText);
+            saveGameToLocalStorage(gameOverFlag);
+            return { success: false, error: 'Server error: ' + response.status };
         }
     } catch (error) {
-        console.error('❌ Ошибка сети:', error);
-        saveGameToLocalStorage();
-        return { success: false, error: 'Network error' };
+        console.error('❌ Ошибка сети при сохранении:', error);
+        saveGameToLocalStorage(gameOverFlag);
+        return { success: false, error: 'Network error: ' + error.message };
     }
 }
 
-function saveGameToLocalStorage() {
+function saveGameToLocalStorage(gameOverFlag = false) {
     try {
         const gameData = {
             userId: userId,
             score: score,
             level: level,
             lines: lines,
+            gameOver: gameOverFlag,
             timestamp: new Date().toISOString()
         };
         
@@ -1360,14 +1396,14 @@ function saveGameToLocalStorage() {
         }
         
         localStorage.setItem('tetris_games', JSON.stringify(existing));
-        console.log('✅ Результат сохранен локально');
+        console.log('✅ Результат сохранен локально:', gameData);
     } catch (error) {
         console.error('❌ Ошибка локального сохранения:', error);
     }
 }
 
 async function saveGameScore() {
-    console.log('Сохранение игры');
+    console.log('🎮 Сохранение игры (ручное)');
     
     // Анимация кнопки
     const saveBtn = document.getElementById('save-btn');
@@ -1382,32 +1418,13 @@ async function saveGameScore() {
     
     showNotification('💾 Сохраняем результат...');
     
-    // Сохраняем текущий результат в базу данных
-    const result = await saveGameToDB();
-    
-    // Отправляем результат в Telegram бот
-    try {
-        const gameData = {
-            action: 'tetris_score',
-            score: score,
-            level: level,
-            lines: lines,
-            gameOver: false,
-            manualSave: true,
-            userId: userId
-        };
-        
-        if (tg && tg.sendData) {
-            tg.sendData(JSON.stringify(gameData));
-            console.log('✅ Данные отправлены в Telegram бот:', gameData);
-        }
-    } catch (error) {
-        console.error('❌ Ошибка отправки в Telegram:', error);
-    }
+    // ✅ ОБНОВЛЕНИЕ: Сохраняем текущий прогресс (не финальный результат)
+    const result = await saveGameToDB(false);
     
     if (result.success) {
-        showNotification('✅ Результат сохранен в БД и отправлен в бот!');
-        loadUserStats();
+        showNotification('✅ Результат сохранен в БД!');
+        // Обновляем статистику после сохранения
+        await loadUserStats();
     } else {
         showNotification('✅ Результат сохранен локально');
     }
@@ -1415,44 +1432,58 @@ async function saveGameScore() {
 
 // Функция для автосохранения каждые 30 секунд
 function setupAutoSave() {
-    setInterval(() => {
+    setInterval(async () => {
         if (gameActive && !gamePaused && !gameOver && score > 0) {
             console.log('💾 Автосохранение прогресса...');
             
-            const gameData = {
-                action: 'tetris_score',
-                score: score,
-                level: level,
-                lines: lines,
-                gameOver: false,
-                autoSave: true,
-                userId: userId
-            };
-            
-            // Отправляем в Telegram бот
-            if (tg && tg.sendData) {
-                tg.sendData(JSON.stringify(gameData));
+            try {
+                // ✅ Сохраняем прогресс в БД
+                await saveGameToDB(false);
+                
+                // ✅ Сохраняем в Telegram
+                if (tg && tg.sendData) {
+                    const gameData = {
+                        action: 'tetris_score',
+                        score: score,
+                        level: level,
+                        lines: lines,
+                        gameOver: false,
+                        autoSave: true,
+                        userId: userId
+                    };
+                    tg.sendData(JSON.stringify(gameData));
+                }
+                
+                console.log('✅ Автосохранение завершено');
+            } catch (error) {
+                console.error('❌ Ошибка автосохранения:', error);
             }
-            
-            // Сохраняем локально
-            saveGameToLocalStorage();
         }
     }, 30000); // 30 секунд
 }
 
 async function loadUserStats() {
+    console.log('📊 Загрузка статистики пользователя:', userId);
+    
     try {
         const response = await fetch(`${API_ENDPOINTS.getUserStats}?userId=${userId}&gameType=tetris`);
         
         if (response.ok) {
             const stats = await response.json();
+            console.log('📊 Статистика получена:', stats);
             
             document.getElementById('best-score').textContent = stats.best_score || 0;
             document.getElementById('best-level').textContent = stats.best_level || 1;
             document.getElementById('total-lines').textContent = stats.best_lines || 0;
             document.getElementById('games-played').textContent = stats.games_played || 0;
             document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
+            
+            // ✅ Обновляем текущие значения
+            document.getElementById('current-score').textContent = score;
+            document.getElementById('current-level').textContent = level;
+            document.getElementById('session-lines').textContent = lines;
         } else {
+            console.warn('⚠️ Не удалось загрузить статистику с сервера, загружаем локально');
             loadLocalStats();
         }
     } catch (error) {
@@ -1477,6 +1508,12 @@ function loadLocalStats() {
             document.getElementById('total-lines').textContent = bestLines || 0;
             document.getElementById('games-played').textContent = userGames.length || 0;
             document.getElementById('avg-score').textContent = Math.round(avgScore || 0);
+        } else {
+            document.getElementById('best-score').textContent = 0;
+            document.getElementById('best-level').textContent = 1;
+            document.getElementById('total-lines').textContent = 0;
+            document.getElementById('games-played').textContent = 0;
+            document.getElementById('avg-score').textContent = 0;
         }
     } catch (error) {
         console.error('❌ Ошибка загрузки локальной статистики:', error);
@@ -1484,6 +1521,8 @@ function loadLocalStats() {
 }
 
 async function loadLeaderboard() {
+    console.log('🏆 Загрузка лидерборда');
+    
     try {
         const response = await fetch(`${API_ENDPOINTS.getTopPlayers}?gameType=tetris&limit=10`);
         const leaderboardList = document.getElementById('leaderboard-list');
@@ -1491,6 +1530,7 @@ async function loadLeaderboard() {
         
         if (response.ok) {
             const players = await response.json();
+            console.log('🏆 Игроков в лидерборде:', players.length);
             
             if (players.length === 0) {
                 leaderboardList.innerHTML = `
@@ -1503,7 +1543,7 @@ async function loadLeaderboard() {
             }
             
             players.forEach((player, index) => {
-                const isCurrentUser = player.user_id == userId;
+                const isCurrentUser = String(player.user_id) === String(userId);
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
                 
@@ -1511,7 +1551,8 @@ async function loadLeaderboard() {
                     <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
                     <div class="player-info">
                         <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
-                            ${isCurrentUser ? 'Вы' : `Игрок ${String(player.user_id).slice(-4)}`}
+                            ${player.username || `Игрок ${String(player.user_id).slice(-4)}`}
+                            ${isCurrentUser ? ' (Вы)' : ''}
                         </div>
                         <div class="player-score">${player.score} очков</div>
                     </div>
@@ -1520,6 +1561,7 @@ async function loadLeaderboard() {
                 leaderboardList.appendChild(item);
             });
         } else {
+            console.warn('⚠️ Не удалось загрузить лидерборд с сервера');
             showLocalLeaderboard();
         }
     } catch (error) {
@@ -1534,7 +1576,7 @@ function showLocalLeaderboard() {
         <div style="text-align: center; padding: 30px; color: #b5aaff;">
             <p>Сервер недоступен</p>
             <p style="font-size: 0.9rem;">Лидерборд временно не работает</p>
-    </div>
+        </div>
     `;
 }
 
@@ -1553,24 +1595,49 @@ async function testDatabase() {
     statusEl.style.color = '#ffcc66';
     
     try {
+        console.log('🔍 Тест подключения к БД');
         const response = await fetch(API_ENDPOINTS.checkDB);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log('✅ Результат теста БД:', data);
+            
             statusEl.textContent = 'База данных подключена ✓';
             statusEl.style.color = '#66ffaa';
             showNotification('✅ База данных подключена');
         } else {
+            const errorText = await response.text();
+            console.error('❌ Ошибка подключения к БД:', errorText);
+            
             statusEl.textContent = 'Ошибка подключения ✗';
             statusEl.style.color = '#ff6666';
             showNotification('⚠️ База данных временно недоступна');
         }
     } catch (error) {
+        console.error('❌ Ошибка теста БД:', error);
+        
         statusEl.textContent = 'Сервер недоступен';
         statusEl.style.color = '#ff6666';
         showNotification('🌐 Сервер недоступен');
     }
 }
 
+// ✅ ДОБАВИТЕ эту функцию для сохранения при завершении игры
+function saveGameOnGameOver() {
+    if (gameOver) {
+        console.log('🎯 Сохранение финального результата');
+        saveGameToDB(true); // true = gameOver
+    }
+}
+
+// ✅ Добавьте вызов в spawnPiece() когда игра завершается
+// В функции spawnPiece() добавьте:
+if (collide(currentPiece, currentX, currentY)) {
+    gameOver = true;
+    saveGameOnGameOver(); // ← ДОБАВЬТЕ ЭТУ СТРОКУ
+    showNotification('🎯 Игра окончена! Счет: ' + score);
+    setTimeout(() => showMenu(), 1500);
+}
 // ==================== УРОВНИ СЛОЖНОСТИ ====================
 function renderLevels() {
     const levelsGrid = document.getElementById('levels-grid');
