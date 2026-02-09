@@ -352,11 +352,11 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   try {
     console.log(`🏆 Запрос топа игроков для: ${gameType}, лимит: ${limit}`);
     
-    // ✅ Убедитесь, что этот запрос использует is_win
+    // ✅ ИСПРАВЛЕННЫЙ запрос - убрал gs.username, так как этой колонки нет
     const query = `
       SELECT 
         gs.user_id,
-        COALESCE(us.username, gs.username, 'Игрок #' || SUBSTRING(gs.user_id from '.{4}$')) as username,
+        COALESCE(us.username, 'Игрок #' || SUBSTRING(gs.user_id from '.{4}$')) as username,
         MAX(gs.score) as score,
         MAX(gs.level) as level,
         MAX(gs.lines) as lines,
@@ -367,7 +367,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
       LEFT JOIN user_sessions us ON gs.user_id = us.user_id
       WHERE gs.game_type = $1 
         AND gs.score >= 0  -- Включаем все игры
-      GROUP BY gs.user_id, us.username, gs.username
+      GROUP BY gs.user_id, us.username
       ORDER BY MAX(gs.score) DESC, wins DESC, games_played DESC
       LIMIT $2
     `;
@@ -375,9 +375,19 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     const result = await client.query(query, [gameType, limit]);
     console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
     
-    // Форматируем результат
+    // ✅ Улучшенное форматирование имени
     return result.rows.map((row, index) => {
-      const username = row.username || `Игрок #${String(row.user_id).slice(-4)}`;
+      const userIdStr = String(row.user_id);
+      let username = row.username;
+      
+      // Если имя не установлено, создаем по типу пользователя
+      if (!username || username.startsWith('Игрок #')) {
+        if (userIdStr.startsWith('web_')) {
+          username = `🌐 Web #${userIdStr.slice(-4)}`;
+        } else {
+          username = `👤 Игрок #${userIdStr.slice(-4)}`;
+        }
+      }
       
       return {
         rank: index + 1,
@@ -407,7 +417,6 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     client.release();
   }
 }
-
 // ============ ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ============
 export async function checkDatabaseConnection() {
   const client = await pool.connect();
