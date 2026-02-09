@@ -585,6 +585,125 @@ async function getTopPlayersList(limit = 10) {
     return [];
   }
 }
+async function getTopPlayersMessage(limit = 10, ctx = null) {
+  try {
+    const topPlayers = await getTopPlayersList(limit);
+    
+    // Если нет данных или пустой массив
+    if (!topPlayers || topPlayers.length === 0) {
+      return `🏆 *Топ игроков*\n\n` +
+             `📊 Пока никто не играл в тетрис или данные временно недоступны!\n\n` +
+             `🎮 *Будьте первым!*\n\n` +
+             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать и попасть в топ!`;
+    }
+    
+    // Проверяем, есть ли реальные данные (не нулевые очки)
+    const validPlayers = topPlayers.filter(player => 
+      player && player.score !== undefined && player.score > 0
+    );
+    
+    if (validPlayers.length === 0) {
+      return `🏆 *Топ игроков*\n\n` +
+             `📊 Пока нет игроков с результатами!\n\n` +
+             `🎮 *Будьте первым!*\n\n` +
+             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать и попасть в топ!`;
+    }
+    
+    let message = `🏆 *Топ ${Math.min(validPlayers.length, limit)} игроков в тетрисе*\n\n`;
+    
+    validPlayers.forEach((player, index) => {
+      // Получаем медаль
+      let medal;
+      switch(index) {
+        case 0: medal = '🥇'; break;
+        case 1: medal = '🥈'; break;
+        case 2: medal = '🥉'; break;
+        default: medal = `${index + 1}.`;
+      }
+      
+      const score = player.score || 0;
+      const level = player.level || 1;
+      const lines = player.lines || 0;
+      const gamesPlayed = player.games_played || 1;
+      const wins = player.wins || 0;
+      const winRate = player.win_rate || '0.0';
+      
+      // Форматируем имя пользователя
+      let username;
+      const userIdStr = String(player.user_id || '');
+      
+      if (player.username && !player.username.startsWith('Игрок #') && !player.username.startsWith('🌐 Web #')) {
+        // Используем реальное имя из базы
+        username = player.username;
+      } else if (userIdStr.startsWith('web_')) {
+        // Web App игроки
+        username = `🌐 Web #${userIdStr.slice(-4)}`;
+      } else {
+        // Telegram игроки
+        username = `👤 Игрок #${userIdStr.slice(-4)}`;
+      }
+      
+      message += `${medal} *${username}*\n`;
+      message += `   🎯 Очки: *${score}*\n`;
+      message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
+      
+      // Добавляем статистику побед (если есть)
+      if (gamesPlayed > 1) {
+        message += `   ✅ Побед: ${wins}/${gamesPlayed} (${winRate}%)\n`;
+      } else {
+        message += `   🕹️ Игр: ${gamesPlayed}\n`;
+      }
+      
+      message += `\n`;
+    });
+    
+    // Добавляем информацию о текущем пользователе с Web App ID
+    if (ctx && ctx.from) {
+      const telegramUserId = ctx.from.id;
+      const webAppUserId = `web_${telegramUserId}`; // Конвертируем Telegram ID → Web App ID
+      
+      // Ищем в топе по Web App ID
+      const currentPlayerIndex = validPlayers.findIndex(p => 
+        String(p.user_id) === String(webAppUserId)
+      );
+      
+      if (currentPlayerIndex !== -1) {
+        const currentPlayer = validPlayers[currentPlayerIndex];
+        message += `👤 *Ваше место:* ${currentPlayerIndex + 1}\n`;
+        message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n\n`;
+      } else {
+        // Используем Web App ID для получения статистики
+        const userStats = await getGameStats(webAppUserId, 'tetris');
+        if (userStats && userStats.games_played > 0) {
+          message += `👤 *Вы набрали:* ${userStats.best_score} очков\n`;
+          message += `🎯 Продолжайте играть, чтобы попасть в топ!\n\n`;
+        } else {
+          message += `👤 *Вы пока не играли*\n`;
+          message += `🎯 Начните игру, чтобы попасть в рейтинг!\n\n`;
+        }
+      }
+    }
+    
+    message += `🎯 *Как попасть в топ?*\n`;
+    message += `• Играйте в тетрис 🎮\n`;
+    message += `• Набирайте очки и сохраняйте результаты\n`;
+    message += `• Улучшайте свои рекорды!\n\n`;
+    
+    message += `🔄 Обновляется автоматически после каждой игры`;
+    
+    return message;
+  } catch (error) {
+    console.error('❌ Ошибка формирования сообщения топа:', error);
+    
+    return `❌ Не удалось загрузить топ игроков.\n\n` +
+           `*Возможные причины:*\n` +
+           `• Проблема с подключением к базе данных\n` +
+           `• Технические работы\n` +
+           `• Топ игроков пока пуст\n\n` +
+           `Попробуйте позже или станьте первым игроком!`;
+  }
+}
+
 
 // ===================== ОДЕЖДА И СОВЕТЫ =====================
 function getWardrobeAdvice(weatherData) {
