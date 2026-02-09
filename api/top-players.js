@@ -1,7 +1,23 @@
 import { getTopPlayers } from '../../lib/db.js';
 
 export default async function handler(req, res) {
+  // CORS заголовки
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Обработка предварительного запроса OPTIONS
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  // Только GET запросы
+  if (req.method !== 'GET') {
+    return res.status(405).json({
+      success: false,
+      error: 'Метод не разрешен'
+    });
+  }
   
   console.log('🏆 /api/top-players - Request:', req.query);
 
@@ -9,45 +25,54 @@ export default async function handler(req, res) {
     const { gameType = 'tetris', limit = 10, userId } = req.query;
     const numericLimit = Math.min(parseInt(limit) || 10, 100);
     
-    // Получаем топ игроков
-    const players = await getTopPlayers(gameType, numericLimit);
-    
-    console.log('🏆 Игроков из БД:', players.length);
-    
-    // ВАЖНО: Проверяем что это массив
-    if (!Array.isArray(players)) {
-      console.error('❌ players не массив:', typeof players);
-      return res.status(200).json({
-        success: true,
-        players: [],
-        message: 'Нет данных'
+    // Валидация gameType
+    const validGameTypes = ['tetris', 'snake', 'pong', 'racing'];
+    if (!validGameTypes.includes(gameType)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Некорректный тип игры',
+        validGameTypes: validGameTypes
       });
     }
     
+    // Получаем топ игроков
+    const players = await getTopPlayers(gameType, numericLimit);
+    
+    console.log(`🏆 Игроков из БД (${gameType}):`, players?.length || 0);
+    
+    // Проверяем что функция вернула данные
+    if (!players) {
+      console.error('❌ getTopPlayers вернул null/undefined');
+      return res.status(500).json({
+        success: false,
+        error: 'Ошибка получения данных из базы',
+        players: []
+      });
+    }
+    
+    // Гарантируем что работаем с массивом
+    const playersArray = Array.isArray(players) ? players : [];
+    
     // Форматируем для фронтенда
-    const formattedPlayers = players.map((player, index) => {
-      // player может быть разным форматом
-      const playerId = player.user_id || player.userId || player.id;
-      const playerScore = player.score || player.best_score || 0;
+    const formattedPlayers = playersArray.map((player, index) => {
+      // Стандартизируем поля
+      const playerId = player.user_id || player.userId || player.id || null;
+      const playerScore = Number(player.score || player.best_score || player.high_score || 0);
+      const playerLevel = Number(player.level || player.best_level || 1);
+      const playerLines = Number(player.lines || player.best_lines || 0);
+      const gamesPlayed = Number(player.games_played || player.total_games || 1);
       
-      // Создаем имя игрока
-      let username;
-      if (player.username) {
-        username = player.username;
-      } else if (playerId) {
-        // Определяем тип игрока
-        const isTelegramUser = String(playerId).length <= 10; // Telegram ID обычно до 10 цифр
-        const isWebUser = String(playerId).length > 10; // Веб ID длинный
-        
-        if (isTelegramUser) {
-          username = `👤 Telegram #${String(playerId).slice(-4)}`;
-        } else if (isWebUser) {
-          username = `🌐 Web #${String(playerId).slice(-4)}`;
+      // Генерация имени
+      let username = player.username || `Игрок ${index + 1}`;
+      
+      // Если нет username, создаем его на основе ID
+      if (!player.username && playerId) {
+        const idStr = String(playerId);
+        if (idStr.length <= 10) {
+          username = `👤 Telegram #${idStr.slice(-4)}`;
         } else {
-          username = `Игрок #${String(playerId).slice(-4)}`;
+          username = `🌐 Web #${idStr.slice(-4)}`;
         }
-      } else {
-        username = `Игрок ${index + 1}`;
       }
       
       return {
@@ -55,9 +80,16 @@ export default async function handler(req, res) {
         user_id: playerId,
         username: username,
         score: playerScore,
-        level: player.level || player.best_level || 1,
-        lines: player.lines || player.best_lines || 0,
-        games_played: player.games_played || 1
+        level: playerLevel,
+        lines: playerLines,
+        games_played: gamesPlayed,
+        // Добавляем оригинальные данные для отладки
+        _original: {
+          id: player.id,
+          user_id: player.user_id,
+          username: player.username,
+          score: player.score
+        }
       };
     });
     
@@ -66,25 +98,29 @@ export default async function handler(req, res) {
       gameType: gameType,
       limit: numericLimit,
       count: formattedPlayers.length,
-      players: formattedPlayers, // ГАРАНТИРУЕМ что это массив
-      timestamp: new Date().toISOString()
+      players: formattedPlayers,
+      timestamp: new Date().toISOString(),
+      // Для отладки
+      debug: process.env.NODE_ENV === 'development' ? {
+        originalCount: playersArray.length,
+        query: req.query
+      } : undefined
     };
     
-    console.log('✅ Топ игроков сформирован:', {
-      count: response.count,
-      isArray: Array.isArray(response.players)
-    });
+    console.log(`✅ Топ игроков (${gameType}): ${formattedPlayers.length} игроков`);
     
     return res.status(200).json(response);
 
   } catch (error) {
-    console.error('❌ Ошибка получения топа:', error);
+    console.error('❌ Критическая ошибка получения топа:', error);
     
-    // ВСЕГДА возвращаем массив, даже при ошибке!
-    return res.status(200).json({
+    // Возвращаем 500 только для реальных ошибок сервера
+    return res.status(500).json({
       success: false,
-      players: [], // Пустой массив
-      error: error.message,
+      players: [],
+      error: 'Внутренняя ошибка сервера',
+      // Детали ошибки только в development
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       timestamp: new Date().toISOString()
     });
   }
