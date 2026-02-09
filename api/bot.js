@@ -262,20 +262,6 @@ function isRateLimited(userId) {
   return false;
 }
 
-// УДАЛИТЕ ДУБЛИРУЮЩУЮ ФУНКЦИЮ (ниже есть такая же):
-// function convertUserIdForDb(userId) {
-//   const userIdStr = String(userId);
-//   
-//   if (userIdStr.startsWith('web_')) {
-//     return userIdStr; // Web App пользователи - строка
-//   } else if (/^\d+$/.test(userIdStr)) {
-//     // Telegram ID - конвертируем в число для bigint
-//     const num = parseInt(userIdStr);
-//     return isNaN(num) ? userIdStr : num;
-//   }
-//   return userIdStr;
-// }
-
 // ===================== КЭШ ПОГОДЫ =====================
 const weatherCache = new Map();
 
@@ -894,6 +880,7 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
            `Попробуйте позже или станьте первым игроком!`;
   }
 }
+
 // ===================== ОДЕЖДА И СОВЕТЫ =====================
 function getWardrobeAdvice(weatherData) {
   const { temp, description, wind, precipitation } = weatherData;
@@ -946,6 +933,7 @@ function getWardrobeAdvice(weatherData) {
 }
 
 // ===================== ФРАЗЫ ДНЯ =====================
+
 const dailyPhrases = [
     // ===================== ПУТЕШЕСТВИЯ И ТРАНСПОРТ (30 фраз) =====================
     {
