@@ -2,25 +2,32 @@
   "functions": {
     "api/bot.js": {
       "maxDuration": 30,
-      "memory": 1024
+      "memory": 1024,
+      "runtime": "nodejs18.x"
     },
     "api/save-score.js": {
-      "maxDuration": 10
+      "maxDuration": 10,
+      "runtime": "nodejs18.x"
     },
     "api/save-progress.js": {
-      "maxDuration": 10
+      "maxDuration": 10,
+      "runtime": "nodejs18.x"
     },
     "api/get-progress.js": {
-      "maxDuration": 10
+      "maxDuration": 10,
+      "runtime": "nodejs18.x"
     },
     "api/user-stats.js": {
-      "maxDuration": 10
+      "maxDuration": 10,
+      "runtime": "nodejs18.x"
     },
     "api/top-players.js": {
-      "maxDuration": 10
+      "maxDuration": 10,
+      "runtime": "nodejs18.x"
     },
     "api/check-db.js": {
-      "maxDuration": 10
+      "maxDuration": 10,
+      "runtime": "nodejs18.x"
     }
   },
   "rewrites": [
@@ -33,12 +40,58 @@
       "destination": "/api/bot.js"
     },
     {
+      "source": "/bot",
+      "destination": "/api/bot.js"
+    },
+    {
       "source": "/game",
+      "destination": "/public/index.html"
+    },
+    {
+      "source": "/tetris",
       "destination": "/public/index.html"
     },
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/bot.js"
     }
-  ]
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-Requested-With, Content-Type, Accept, Authorization"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.html)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "installCommand": "npm install"
 }
