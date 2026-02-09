@@ -1,6 +1,5 @@
-import { checkDatabaseConnection } from './db.js';
-import pg from 'pg';
-const { Pool } = pg;
+// api/check-db.js
+import { checkDatabaseConnection, pool, diagnoseConnection } from '../db.js';
 
 export default async function handler(req, res) {
   console.log('🔍 API: /api/check-db - проверка базы данных');
@@ -48,15 +47,9 @@ export default async function handler(req, res) {
       console.log('🔍 Подключение успешно, получаем дополнительную информацию...');
       
       try {
-        // Создаем временный пул для запросов
-        const tempPool = new Pool({
-          connectionString: process.env.DATABASE_URL,
-          ssl: { rejectUnauthorized: false },
-          max: 1,
-          idleTimeoutMillis: 10000
-        });
-        
-        const client = await tempPool.connect();
+        // 🔴 ИСПРАВЛЕНИЕ: Используем существующий pool из db.js
+        // НЕ создаем новый Pool!
+        const client = await pool.connect();
         
         try {
           // 🔴 ВАЖНО: Проверяем ТОЧНЫЕ имена таблиц
@@ -86,9 +79,12 @@ export default async function handler(req, res) {
           const tablesInfo = await Promise.all(
             tablesQuery.rows.map(async (table) => {
               try {
-                const countResult = await client.query(
-                  `SELECT COUNT(*) FROM "${table.table_name}"`
-                );
+                // 🔴 БЕЗОПАСНЫЙ ЗАПРОС - используем параметризацию для имени таблицы
+                // Но так как имя таблицы - динамическое, будем осторожны
+                const countResult = await client.query({
+                  text: `SELECT COUNT(*) as count FROM "${table.table_name}"`,
+                  rowMode: 'array'
+                });
                 
                 // 🔴 ДОБАВЛЕНО: Для game_scores получаем дополнительную информацию
                 let additionalInfo = {};
@@ -99,6 +95,7 @@ export default async function handler(req, res) {
                       FROM information_schema.columns
                       WHERE table_name = 'game_scores'
                       AND table_schema = 'public'
+                      ORDER BY ordinal_position
                     `);
                     
                     additionalInfo.columns = columnQuery.rows.map(col => ({
@@ -108,7 +105,7 @@ export default async function handler(req, res) {
                     }));
                     
                     // Проверяем наличие важных столбцов
-                    const importantColumns = ['username', 'user_id', 'is_win'];
+                    const importantColumns = ['username', 'user_id', 'is_win', 'game_type'];
                     const existingColumns = columnQuery.rows.map(col => col.column_name);
                     const missingColumns = importantColumns.filter(col => 
                       !existingColumns.includes(col)
@@ -117,6 +114,35 @@ export default async function handler(req, res) {
                     additionalInfo.missing_columns = missingColumns;
                     additionalInfo.has_username = existingColumns.includes('username');
                     additionalInfo.has_is_win = existingColumns.includes('is_win');
+                    additionalInfo.has_game_type = existingColumns.includes('game_type');
+                  } catch (colError) {
+                    additionalInfo.column_error = colError.message;
+                  }
+                }
+                
+                // 🔴 ДОБАВЛЕНО: Проверяем user_sessions
+                if (table.table_name === 'user_sessions') {
+                  try {
+                    const columnQuery = await client.query(`
+                      SELECT column_name, data_type
+                      FROM information_schema.columns
+                      WHERE table_name = 'user_sessions'
+                      AND table_schema = 'public'
+                      ORDER BY ordinal_position
+                    `);
+                    
+                    additionalInfo.columns = columnQuery.rows.map(col => ({
+                      name: col.column_name,
+                      type: col.data_type
+                    }));
+                    
+                    const importantColumns = ['user_id', 'selected_city', 'username'];
+                    const existingColumns = columnQuery.rows.map(col => col.column_name);
+                    const missingColumns = importantColumns.filter(col => 
+                      !existingColumns.includes(col)
+                    );
+                    
+                    additionalInfo.missing_columns = missingColumns;
                   } catch (colError) {
                     additionalInfo.column_error = colError.message;
                   }
@@ -125,7 +151,7 @@ export default async function handler(req, res) {
                 return {
                   name: table.table_name,
                   type: table.table_type,
-                  row_count: parseInt(countResult.rows[0]?.count) || 0,
+                  row_count: parseInt(countResult.rows[0]?.[0]) || 0,
                   ...additionalInfo
                 };
               } catch (err) {
@@ -142,38 +168,61 @@ export default async function handler(req, res) {
           // Получаем статистику по game_scores с учетом новой структуры
           let gameStats = null;
           try {
-            // 🔴 ИСПРАВЛЕНО: Учитываем новую структуру таблицы
-            const statsResult = await client.query(`
+            // 🔴 АДАПТИВНЫЙ ЗАПРОС: Проверяем наличие столбцов перед выполнением
+            const columnsCheck = await client.query(`
+              SELECT column_name 
+              FROM information_schema.columns 
+              WHERE table_name = 'game_scores' 
+              AND table_schema = 'public'
+            `);
+            
+            const hasGameType = columnsCheck.rows.some(col => col.column_name === 'game_type');
+            const hasIsWin = columnsCheck.rows.some(col => col.column_name === 'is_win');
+            
+            // 🔴 СОЗДАЕМ ЗАПРОС С УЧЕТОМ НАЛИЧИЯ СТОЛБЦОВ
+            let statsQuery = `
               SELECT 
                 COUNT(*) as total_games,
                 COUNT(DISTINCT user_id) as unique_players,
-                COUNT(CASE WHEN is_win THEN 1 END) as total_wins,
                 COALESCE(MAX(score), 0) as max_score,
                 COALESCE(MIN(score), 0) as min_score,
                 COALESCE(AVG(score), 0) as avg_score,
                 COUNT(CASE WHEN user_id::text LIKE 'web_%' THEN 1 END) as web_users_count,
                 COUNT(CASE WHEN username IS NOT NULL AND username != '' THEN 1 END) as games_with_names
-              FROM game_scores 
-              WHERE game_type = 'tetris' OR game_type IS NULL
-            `);
+            `;
             
+            if (hasIsWin) {
+              statsQuery += `,
+                COUNT(CASE WHEN is_win THEN 1 END) as total_wins
+              `;
+            }
+            
+            statsQuery += `
+              FROM game_scores 
+              WHERE ${hasGameType ? "game_type = 'tetris' OR game_type IS NULL" : '1=1'}
+            `;
+            
+            const statsResult = await client.query(statsQuery);
             gameStats = statsResult.rows[0];
+            gameStats.has_game_type = hasGameType;
+            gameStats.has_is_win = hasIsWin;
             
             // 🔴 ДОБАВЛЕНО: Получаем топ игроков для проверки
             try {
-              const topPlayers = await client.query(`
+              let topQuery = `
                 SELECT 
                   user_id,
                   username,
                   MAX(score) as best_score,
                   COUNT(*) as games_played
                 FROM game_scores 
-                WHERE game_type = 'tetris' OR game_type IS NULL
+                WHERE ${hasGameType ? "game_type = 'tetris' OR game_type IS NULL" : '1=1'}
                 GROUP BY user_id, username
                 ORDER BY MAX(score) DESC 
                 LIMIT 3
-              `);
+              `;
               
+              const topPlayers = await client.query(topQuery);
               gameStats.top_players = topPlayers.rows;
             } catch (topError) {
               gameStats.top_error = topError.message;
@@ -207,6 +256,55 @@ export default async function handler(req, res) {
             idStructureInfo.error = idError.message;
           }
           
+          // 🔴 ДОБАВЛЕНО: Получаем информацию об индексах
+          let indexesInfo = {};
+          try {
+            const indexesQuery = await client.query(`
+              SELECT 
+                indexname,
+                indexdef
+              FROM pg_indexes 
+              WHERE tablename IN ('user_sessions', 'game_scores', 'game_progress')
+              AND schemaname = 'public'
+              ORDER BY tablename, indexname
+            `);
+            
+            indexesInfo.indexes = indexesQuery.rows;
+          } catch (indexError) {
+            indexesInfo.error = indexError.message;
+          }
+          
+          // 🔴 ДОБАВЛЕНО: Получаем информацию о подключениях
+          let connectionsInfo = {};
+          try {
+            const connectionsQuery = await client.query(`
+              SELECT 
+                count(*) as total_connections,
+                count(*) filter (where state = 'active') as active_connections,
+                count(*) filter (where state = 'idle') as idle_connections
+              FROM pg_stat_activity 
+              WHERE datname = current_database()
+            `);
+            
+            connectionsInfo = connectionsQuery.rows[0] || {};
+          } catch (connError) {
+            connectionsInfo.error = connError.message;
+          }
+          
+          // 🔴 ДОБАВЛЕНО: Получаем информацию о размере БД
+          let databaseSize = {};
+          try {
+            const sizeQuery = await client.query(`
+              SELECT 
+                pg_size_pretty(pg_database_size(current_database())) as size_pretty,
+                pg_database_size(current_database()) as size_bytes
+            `);
+            
+            databaseSize = sizeQuery.rows[0] || {};
+          } catch (sizeError) {
+            databaseSize.error = sizeError.message;
+          }
+          
           const response = {
             success: true,
             timestamp: new Date().toISOString(),
@@ -219,7 +317,9 @@ export default async function handler(req, res) {
               has_database_url: true,
               node_env: process.env.NODE_ENV || 'development',
               vercel_env: process.env.VERCEL_ENV || 'development',
-              database_url_present: !!process.env.DATABASE_URL
+              database_url_preview: maskedUrl.substring(0, 100),
+              is_neon: dbUrl.includes('neon.tech'),
+              is_vercel: !!process.env.VERCEL
             },
             database_info: {
               tables: tablesInfo,
@@ -229,24 +329,61 @@ export default async function handler(req, res) {
               missing_tables: missingTables,
               all_tables_present: missingTables.length === 0,
               game_stats: gameStats,
-              id_structure: idStructureInfo
+              id_structure: idStructureInfo,
+              indexes: indexesInfo,
+              connections: connectionsInfo,
+              size: databaseSize
+            },
+            diagnostics: {
+              pool_status: pool.totalCount && pool.idleCount ? {
+                total_connections: pool.totalCount,
+                idle_connections: pool.idleCount,
+                waiting_connections: pool.waitingCount
+              } : 'pool_not_initialized',
+              ssl_enabled: dbUrl.includes('sslmode=require') || dbUrl.includes('ssl=true')
             },
             system_status: {
               database: missingTables.length === 0 ? 'ok' : 'warning',
               structure: gameStats?.error ? 'error' : 'ok',
-              data_integrity: gameStats?.total_games > 0 ? 'has_data' : 'no_data'
+              data_integrity: gameStats?.total_games > 0 ? 'has_data' : 'no_data',
+              connection_pool: pool.totalCount > 0 ? 'healthy' : 'unknown'
             },
             recommendations: missingTables.length > 0 
-              ? `Отсутствуют таблицы: ${missingTables.join(', ')}. Требуется создание таблиц.`
-              : 'Все таблицы присутствуют.',
+              ? [`Отсутствуют таблицы: ${missingTables.join(', ')}. Запустите инициализацию БД.`]
+              : ['✅ Все таблицы присутствуют.'],
             
             // 🔴 ДОБАВЛЕНО: Конкретные рекомендации по структуре
             structure_check: {
               game_scores_has_username: tablesInfo.find(t => t.name === 'game_scores')?.has_username || false,
               game_scores_has_is_win: tablesInfo.find(t => t.name === 'game_scores')?.has_is_win || false,
-              user_sessions_has_username: tablesInfo.find(t => t.name === 'user_sessions')?.has_username || false,
-              suggestion: 'Для новой системы убедитесь, что все таблицы имеют поля username и user_id как VARCHAR'
-            }
+              game_scores_has_game_type: tablesInfo.find(t => t.name === 'game_scores')?.has_game_type || false,
+              user_sessions_has_city: tablesInfo.find(t => t.name === 'user_sessions')?.columns?.some(c => c.name === 'selected_city') || false,
+              suggestion: gameStats?.has_is_win === false ? 
+                'Добавьте поле is_win в таблицу game_scores для отслеживания побед' : 
+                'Структура таблиц соответствует требованиям'
+            },
+            
+            // 🔴 ДОБАВЛЕНО: Ссылки для действий
+            actions: [
+              missingTables.length > 0 ? {
+                type: 'create_tables',
+                url: '/api/db/init',
+                method: 'POST',
+                description: 'Создать отсутствующие таблицы'
+              } : null,
+              {
+                type: 'view_stats',
+                url: '/api/user-stats?userId=test&gameType=tetris',
+                method: 'GET',
+                description: 'Проверить API статистики'
+              },
+              {
+                type: 'view_top',
+                url: '/api/top-players?gameType=tetris&limit=10',
+                method: 'GET',
+                description: 'Посмотреть топ игроков'
+              }
+            ].filter(Boolean)
           };
           
           console.log('✅ Проверка завершена успешно');
@@ -254,14 +391,15 @@ export default async function handler(req, res) {
             tables: response.database_info.total_tables,
             missing_tables: response.database_info.missing_tables.length,
             total_games: response.database_info.game_stats?.total_games || 0,
-            has_username_column: response.structure_check.game_scores_has_username
+            unique_players: response.database_info.game_stats?.unique_players || 0,
+            database_size: response.database_info.size?.size_pretty || 'unknown'
           });
           
           return res.status(200).json(response);
           
         } finally {
           client.release();
-          await tempPool.end();
+          console.log('🔌 Клиент подключения освобожден');
         }
         
       } catch (infoError) {
@@ -277,7 +415,8 @@ export default async function handler(req, res) {
             message: 'База данных подключена, но не удалось получить полную информацию'
           },
           warning: infoError.message,
-          recommendation: 'Проверьте права доступа к таблицам информации схемы'
+          diagnostics: await diagnoseConnection(),
+          recommendation: 'Проверьте права доступа к таблицам информации схемы или обновите структуру БД'
         });
       }
       
@@ -294,14 +433,17 @@ export default async function handler(req, res) {
           details: {
             has_database_url: hasDbUrl,
             masked_url: maskedUrl,
-            node_env: process.env.NODE_ENV || 'development'
+            node_env: process.env.NODE_ENV || 'development',
+            is_neon: dbUrl?.includes('neon.tech') || false
           }
         },
+        diagnostics: await diagnoseConnection(),
         troubleshooting: [
-          '1. Проверьте переменную окружения DATABASE_URL в Vercel',
-          '2. Убедитесь, что база данных PostgreSQL запущена и доступна',
-          '3. Проверьте, не истек ли срок действия базы данных (если используется бесплатный план)',
-          '4. Проверьте логи Vercel для подробной информации об ошибке'
+          '1. Проверьте переменную окружения DATABASE_URL в Vercel Dashboard',
+          '2. Убедитесь, что база данных Neon активна и не приостановлена',
+          '3. Проверьте SSL параметры: Neon требует sslmode=require или verify-full',
+          '4. Для разработки добавьте ?sslmode=no-verify в конец DATABASE_URL',
+          '5. Проверьте логи Neon на наличие ошибок подключения'
         ]
       };
       
@@ -324,11 +466,13 @@ export default async function handler(req, res) {
         } : undefined
       },
       message: 'Критическая ошибка при проверке базы данных',
+      diagnostics: await diagnoseConnection().catch(e => ({ diagnostic_error: e.message })),
       troubleshooting: [
         '1. Проверьте логи Vercel для деталей',
         '2. Убедитесь, что все зависимости установлены',
-        '3. Проверьте конфигурацию PostgreSQL',
-        '4. Свяжитесь с поддержкой Vercel'
+        '3. Проверьте конфигурацию PostgreSQL в Neon',
+        '4. Перезапустите приложение в Vercel',
+        '5. Свяжитесь с поддержкой Vercel/Neon'
       ]
     };
     
@@ -349,11 +493,21 @@ export const testDatabaseConnection = async () => {
   }
 };
 
+// 🔴 ИСПРАВЛЕНИЕ: Убрали создание нового Pool
+// Теперь используем только pool из db.js
+
 // Если файл запущен напрямую, выполнить тест
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('🧪 Запуск теста check-db.js');
-  testDatabaseConnection().then((result) => {
-    console.log('🧪 Тест завершен:', result.success ? 'Успешно' : 'Ошибка');
+  console.log('⚠️ Внимание: Этот файл должен запускаться через API route, не напрямую');
+  
+  // Для тестирования напрямую
+  import('../db.js').then(async (db) => {
+    const result = await db.checkDatabaseConnection();
+    console.log('🧪 Результат теста:', result);
     process.exit(result.success ? 0 : 1);
+  }).catch(error => {
+    console.error('🧪 Ошибка импорта db.js:', error);
+    process.exit(1);
   });
 }
