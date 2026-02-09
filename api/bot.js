@@ -463,37 +463,6 @@ async function getUserGameStats(userId) {
   }
 }
 
-async function getGameStatsMessage(telegramUserId) {
-  try {
-    // ✅ Создаем Web App ID из Telegram ID для поиска в БД
-    const webAppUserId = `web_${telegramUserId}`;
-    
-    console.log(`📊 Получение статистики для Telegram пользователя: ${telegramUserId} (Web App ID: ${webAppUserId})`);
-    
-    // ✅ Используем Web App ID для поиска в БД
-    const stats = await getGameStats(webAppUserId, 'tetris');
-    
-    console.log(`📊 Статистика получена:`, stats);
-async function getTopPlayersList(limit = 10) {
-  try {
-    console.log(`🏆 Получение топа игроков, лимит: ${limit}`);
-    
-    // 🔴 ПРОБЛЕМА: Используется fetchTopPlayers, но такой функции нет в db.js
-    // Вместо этого нужно использовать getTopPlayers
-    // const topPlayers = await fetchTopPlayers('tetris', limit); // ❌ Неправильно
-    
-    // ✅ Правильно:
-    const topPlayers = await getTopPlayers('tetris', limit); // Используем функцию из db.js
-    
-    console.log(`🏆 Игроков в топе: ${topPlayers ? topPlayers.length : 0}`);
-    
-    return topPlayers || [];
-  } catch (error) {
-    console.error('❌ Ошибка получения топа игроков:', error);
-    return [];
-  }
-}
-
 async function getTopPlayersMessage(limit = 10, ctx = null) {
   try {
     const topPlayers = await getTopPlayersList(limit);
@@ -537,7 +506,6 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       const wins = player.wins || 0;
       const winRate = player.win_rate || '0.0';
       
-     
       // Форматируем имя пользователя
       let username;
       if (player.username && !player.username.startsWith('Игрок #')) {
@@ -569,21 +537,14 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       message += `\n`;
     });
     
-    // Добавляем информацию о текущем пользователе
+    // ✅ ОБНОВЛЕНИЕ: Добавляем информацию о текущем пользователе с Web App ID
     if (ctx && ctx.from) {
-      const currentUserId = ctx.from.id;
+      const telegramUserId = ctx.from.id;
+      const webAppUserId = `web_${telegramUserId}`; // Конвертируем Telegram ID → Web App ID
       
-      // 🔴 ВАЖНО: Для Web App пользователей ID будет другим!
-      // Нужно преобразовать ID для поиска в топе
-      let searchUserId;
-      if (ctx.from && ctx.from.username && ctx.from.username.startsWith('web_')) {
-        searchUserId = ctx.from.username; // Для Web App
-      } else {
-        searchUserId = currentUserId; // Для Telegram
-      }
-      
+      // ✅ Ищем в топе по Web App ID
       const currentPlayerIndex = validPlayers.findIndex(p => 
-        String(p.user_id) === String(searchUserId)
+        String(p.user_id) === String(webAppUserId)
       );
       
       if (currentPlayerIndex !== -1) {
@@ -591,8 +552,8 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
         message += `👤 *Ваше место:* ${currentPlayerIndex + 1}\n`;
         message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n\n`;
       } else {
-        // Проверяем, есть ли вообще статистика у пользователя
-        const userStats = await getUserGameStats(searchUserId);
+        // ✅ Используем Web App ID для получения статистики
+        const userStats = await getGameStats(webAppUserId, 'tetris');
         if (userStats && userStats.games_played > 0) {
           message += `👤 *Вы набрали:* ${userStats.best_score} очков\n`;
           message += `🎯 Продолжайте играть, чтобы попасть в топ!\n\n`;
@@ -622,7 +583,6 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
            `Попробуйте позже или станьте первым игроком!`;
   }
 }
-
 
 // ===================== ОДЕЖДА И СОВЕТЫ =====================
 function getWardrobeAdvice(weatherData) {
