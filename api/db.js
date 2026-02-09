@@ -8,16 +8,6 @@ const pool = new Pool({
   }
 });
 
-// ============ СОЗДАНИЕ ТАБЛИЦ ============
-const { Pool } = pg;
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-
 // 🔴 ДОБАВИТЬ ЭТУ ФУНКЦИЮ СРАЗУ ПОСЛЕ ПУЛА
 function convertUserIdForDb(userId) {
   const userIdStr = String(userId);
