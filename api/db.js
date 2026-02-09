@@ -536,73 +536,108 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   try {
     console.log(`🏆 Запрос топа игроков для: ${gameType}, лимит: ${limit}`);
     
-    // УЛУЧШЕННЫЙ ЗАПРОС С ГОРОДОМ
+    // 🔴 ИСПРАВЛЕННЫЙ ЗАПРОС - ПРАВИЛЬНО АГРЕГИРУЕМ ДАННЫЕ
     const query = `
+      WITH player_stats AS (
+        SELECT 
+          user_id,
+          -- 🔴 ЛУЧШИЙ РЕЗУЛЬТАТ игрока
+          MAX(score) as best_score,
+          -- 🔴 УРОВЕНЬ И ЛИНИИ ИЗ ЛУЧШЕЙ ИГРЫ
+          (
+            SELECT level 
+            FROM game_scores gs2 
+            WHERE gs2.user_id = gs1.user_id 
+              AND gs2.game_type = gs1.game_type 
+              AND gs2.score = MAX(gs1.score)
+            ORDER BY created_at DESC 
+            LIMIT 1
+          ) as best_level,
+          (
+            SELECT lines 
+            FROM game_scores gs2 
+            WHERE gs2.user_id = gs1.user_id 
+              AND gs2.game_type = gs1.game_type 
+              AND gs2.score = MAX(gs1.score)
+            ORDER BY created_at DESC 
+            LIMIT 1
+          ) as best_lines,
+          -- 🔴 КОЛИЧЕСТВО ВСЕХ ИГР
+          COUNT(*) as games_played,
+          -- 🔴 КОЛИЧЕСТВО ПОБЕД
+          COUNT(CASE WHEN is_win THEN 1 END) as wins,
+          MAX(created_at) as last_played
+        FROM game_scores gs1
+        WHERE game_type = $1 AND score > 0
+        GROUP BY user_id
+      )
       SELECT 
-        gs.user_id,
-        -- Имя пользователя
+        ps.user_id,
+        -- 🔴 ИМЯ И ГОРОД ИЗ user_sessions
         COALESCE(
-          NULLIF(gs.username, ''),  -- Игнорируем пустые строки
-          us.username, 
-          'Игрок #' || SUBSTRING(gs.user_id from '.{4}$')
+          NULLIF(us.username, ''),
+          'Игрок #' || SUBSTRING(ps.user_id from '.{4}$')
         ) as username,
-        -- 🔴 ГОРОД ПОЛЬЗОВАТЕЛЯ
         us.selected_city as city,
-        -- Статистика игры
-        MAX(gs.score) as score,
-        MAX(gs.level) as level,
-        MAX(gs.lines) as lines,
-        COUNT(*) as games_played,
-        COUNT(CASE WHEN gs.is_win THEN 1 END) as wins,
-        MAX(gs.created_at) as last_played
-      FROM game_scores gs
-      LEFT JOIN user_sessions us ON gs.user_id = us.user_id
-      WHERE gs.game_type = $1 
-        AND gs.score > 0  -- Только игры с положительным счетом
-      GROUP BY gs.user_id, gs.username, us.username, us.selected_city
-      HAVING MAX(gs.score) > 0  -- Игнорируем нулевые результаты
-      ORDER BY MAX(gs.score) DESC, wins DESC, games_played DESC
+        ps.best_score as score,
+        ps.best_level as level,
+        ps.best_lines as lines,
+        ps.games_played,
+        ps.wins,
+        ps.last_played
+      FROM player_stats ps
+      LEFT JOIN user_sessions us ON ps.user_id = us.user_id
+      WHERE ps.best_score > 0
+      ORDER BY ps.best_score DESC, ps.wins DESC, ps.games_played DESC
       LIMIT $2
     `;
     
     const result = await client.query(query, [gameType, limit]);
     console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
     
+    // 🔴 ДЛЯ ОТЛАДКИ: ВЫВОДИМ СЫРЫЕ ДАННЫЕ
+    if (result.rows.length > 0) {
+      console.log('🔍 Первые 3 записи из БД:');
+      result.rows.slice(0, 3).forEach((row, i) => {
+        console.log(`${i+1}. ${row.username}: ${row.score} очков, ${row.games_played} игр, город: ${row.city || 'нет'}`);
+      });
+    }
+    
     // Форматируем результат
     return result.rows.map((row, index) => {
       let username = row.username;
       const userIdStr = String(row.user_id || '0000');
       
-      // Улучшаем формат username
-      if (!username || username === `Игрок #${userIdStr.slice(-4)}`) {
+      // 🔴 УЛУЧШАЕМ ФОРМАТ ИМЕНИ
+      if (!username || username.startsWith('Игрок #')) {
         if (userIdStr.startsWith('web_')) {
-          username = `🌐 Web #${userIdStr.slice(-4)}`;
-        } else if (userIdStr.startsWith('tg_') || /^\d+$/.test(userIdStr)) {
-          username = `👤 Telegram #${userIdStr.slice(-4)}`;
-        } else {
-          username = `🎮 Игрок #${userIdStr.slice(-4)}`;
+          username = `🌐 Игрок #${userIdStr.slice(-4)}`;
+        } else if (/^\d+$/.test(userIdStr)) {
+          username = `👤 Игрок #${userIdStr.slice(-4)}`;
         }
       }
+      
+      const gamesPlayed = parseInt(row.games_played) || 1;
       
       return {
         rank: index + 1,
         user_id: row.user_id,
         username: username,
-        city: row.city || 'Город не указан', // 🔴 ДОБАВЛЕНО: ГОРОД
+        city: row.city || 'Город не указан',
         score: parseInt(row.score) || 0,
         level: parseInt(row.level) || 1,
         lines: parseInt(row.lines) || 0,
-        games_played: parseInt(row.games_played) || 0,
+        games_played: gamesPlayed,
         wins: parseInt(row.wins) || 0,
-        win_rate: row.games_played > 0 ? 
-          ((parseInt(row.wins) / parseInt(row.games_played)) * 100).toFixed(1) : '0.0',
-        last_played: row.last_played,
-        _source: 'game_scores'
+        win_rate: gamesPlayed > 0 ? 
+          ((parseInt(row.wins) / gamesPlayed) * 100).toFixed(1) : '0.0',
+        last_played: row.last_played
       };
     });
     
   } catch (error) {
     console.error('❌ Ошибка получения топа игроков:', error);
+    console.error('❌ Stack trace:', error.stack);
     
     return [];
   } finally {
