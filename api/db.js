@@ -300,45 +300,50 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   try {
     console.log(`🏆 Запрос топа игроков для: ${gameType}, лимит: ${limit}`);
     
-    // Улучшенный запрос для лидерборда
+    // Улучшенный запрос - включаем все необходимые поля
     const query = `
       SELECT 
         user_id,
-        MAX(score) as best_score,
-        MAX(level) as best_level,
-        MAX(lines) as best_lines,
+        MAX(score) as score,           // Важно: назвать 'score', а не 'best_score'
+        MAX(level) as level,           // Важно: назвать 'level', а не 'best_level'
+        MAX(lines) as lines,           // Важно: назвать 'lines', а не 'best_lines'
         COUNT(*) as games_played,
         MAX(created_at) as last_played
       FROM game_scores 
       WHERE game_type = $1 
-        AND score > 0  -- Исключаем нулевые результаты
+        AND score > 0
       GROUP BY user_id
-      HAVING COUNT(*) > 0
-      ORDER BY MAX(score) DESC, MAX(level) DESC, MAX(lines) DESC
+      ORDER BY MAX(score) DESC
       LIMIT $2
     `;
     
     const result = await client.query(query, [gameType, limit]);
     console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
     
-    // Форматируем результат
-    const topPlayers = result.rows.map((player, index) => {
-      const userId = player.user_id;
-      const lastDigits = userId ? String(userId).slice(-4) : '0000';
+    // Возвращаем данные в ТОЧНОМ формате, который ожидает фронтенд
+    return result.rows.map((row, index) => {
+      // Форматируем для отображения
+      const username = `Игрок #${String(row.user_id).slice(-4)}`;
       
       return {
+        // Основные поля, которые ожидает API
+        user_id: row.user_id,
+        score: parseInt(row.score) || 0,
+        level: parseInt(row.level) || 1,
+        lines: parseInt(row.lines) || 0,
+        games_played: parseInt(row.games_played) || 0,
+        
+        // Дополнительные поля для совместимости
+        best_score: parseInt(row.score) || 0,    // для обратной совместимости
+        best_level: parseInt(row.level) || 1,    // для обратной совместимости
+        best_lines: parseInt(row.lines) || 0,    // для обратной совместимости
+        
+        // Для отображения
+        username: username,
         rank: index + 1,
-        user_id: userId,
-        score: parseInt(player.best_score) || 0,
-        level: parseInt(player.best_level) || 1,
-        lines: parseInt(player.best_lines) || 0,
-        games_played: parseInt(player.games_played) || 0,
-        last_played: player.last_played,
-        username: `Игрок #${lastDigits}`
+        last_played: row.last_played
       };
     });
-    
-    return topPlayers;
     
   } catch (error) {
     console.error('❌ Ошибка получения топа игроков:', error);
@@ -348,7 +353,6 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     client.release();
   }
 }
-
 // ============ ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ============
 export async function checkDatabaseConnection() {
   const client = await pool.connect();
