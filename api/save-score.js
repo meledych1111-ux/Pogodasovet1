@@ -14,74 +14,66 @@ export default async function handler(req, res) {
   try {
     console.log('📊 Тело запроса:', req.body);
     
-    let userId, score, level, lines, gameType, gameOver, isWebApp;
+    // Извлекаем все возможные поля
+    const {
+      userId,
+      user_id,
+      score,
+      level = 1,
+      lines = 0,
+      gameType = 'tetris',
+      game_type,
+      gameOver = false,
+      action,
+      username,
+      first_name,
+      last_name
+    } = req.body;
     
-    // Обработка данных из Telegram Web App
-    if (req.body.userId && req.body.userId.startsWith('web_')) {
-      // Извлекаем числовую часть из web_1770548758686
-      userId = req.body.userId.replace('web_', '');
-      score = req.body.score;
-      level = req.body.level;
-      lines = req.body.lines;
-      gameType = req.body.gameType || 'tetris';
-      gameOver = req.body.gameOver || false;
-      isWebApp = true;
-    }
-    // Данные из обычной игры тетриса
-    else if (req.body.userId) {
-      userId = req.body.userId;
-      score = req.body.score;
-      level = req.body.level;
-      lines = req.body.lines;
-      gameType = req.body.gameType || 'tetris';
-      gameOver = req.body.gameOver || false;
-      isWebApp = false;
-    }
-    // Telegram Web App с action
-    else if (req.body.action === 'tetris_score') {
-      const rawUserId = req.body.user_id || req.body.userId;
-      if (rawUserId && rawUserId.startsWith('web_')) {
-        userId = rawUserId.replace('web_', '');
-      } else {
-        userId = rawUserId;
-      }
-      score = req.body.score;
-      level = req.body.level;
-      lines = req.body.lines;
-      gameType = 'tetris';
-      gameOver = req.body.gameOver || false;
-      isWebApp = true;
-    }
-    // Прямые параметры
-    else {
-      const rawUserId = req.body.user_id || req.body.userId;
-      if (rawUserId && rawUserId.startsWith('web_')) {
-        userId = rawUserId.replace('web_', '');
+    // Определяем ID пользователя
+    let finalUserId;
+    let isWebApp = false;
+    
+    // Приоритет 1: userId из запроса
+    if (userId) {
+      if (userId.startsWith('web_')) {
+        finalUserId = userId; // Оставляем как есть: "web_123456"
         isWebApp = true;
       } else {
-        userId = rawUserId;
+        finalUserId = userId.toString(); // Telegram ID
         isWebApp = false;
       }
-      score = req.body.score;
-      level = req.body.level || 1;
-      lines = req.body.lines || 0;
-      gameType = req.body.game_type || req.body.gameType || 'tetris';
-      gameOver = req.body.gameOver || false;
+    }
+    // Приоритет 2: user_id из запроса
+    else if (user_id) {
+      if (user_id.startsWith('web_')) {
+        finalUserId = user_id;
+        isWebApp = true;
+      } else {
+        finalUserId = user_id.toString();
+        isWebApp = false;
+      }
+    }
+    // Приоритет 3: action tetris_score
+    else if (action === 'tetris_score') {
+      const rawId = req.body.user_id || req.body.userId;
+      if (rawId) {
+        finalUserId = rawId.startsWith('web_') ? rawId : rawId.toString();
+        isWebApp = rawId.startsWith('web_');
+      }
     }
     
-    console.log('📊 Обработанные данные:', {
-      userId,
-      score,
-      level,
-      lines,
-      gameType,
-      gameOver,
-      isWebApp,
-      originalUserId: req.body.userId || req.body.user_id
-    });
+    // Определяем gameType
+    const finalGameType = game_type || gameType || 'tetris';
     
-    // Валидация данных
-    if (!userId) {
+    // Определяем имя пользователя
+    let finalUsername = username || first_name || `Игрок ${finalUserId ? finalUserId.slice(-4) : '0000'}`;
+    if (last_name && first_name) {
+      finalUsername = `${first_name} ${last_name}`;
+    }
+    
+    // Валидация
+    if (!finalUserId) {
       console.log('❌ Отсутствует userId');
       return res.status(400).json({ 
         success: false, 
@@ -97,93 +89,93 @@ export default async function handler(req, res) {
       });
     }
     
-    // Преобразуем в числа
-    const numericUserId = parseInt(userId);
-    const numericScore = parseInt(score);
-    const numericLevel = level ? parseInt(level) : 1;
-    const numericLines = lines ? parseInt(lines) : 0;
+    // Преобразуем значения
+    const numericScore = parseInt(score) || 0;
+    const numericLevel = parseInt(level) || 1;
+    const numericLines = parseInt(lines) || 0;
+    const isWin = numericScore > 0; // Простая логика: если есть очки - победа
     
-    if (isNaN(numericUserId)) {
-      console.log('❌ Неверный формат userId после обработки:', userId);
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid userId format after processing' 
-      });
-    }
-    
-    if (isNaN(numericScore)) {
-      console.log('❌ Неверный score:', score);
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid score format' 
-      });
-    }
-    
-    // Для Web App добавляем смещение, чтобы не пересекаться с реальными Telegram ID
-    const dbUserId = isWebApp ? numericUserId + 1000000000 : numericUserId;
-    
-    console.log('💾 Сохраняем результат в базу данных...', {
-      originalUserId: userId,
-      dbUserId: dbUserId,
-      isWebApp: isWebApp
+    console.log('📊 Обработанные данные:', {
+      finalUserId,
+      finalUsername,
+      numericScore,
+      numericLevel,
+      numericLines,
+      finalGameType,
+      gameOver,
+      isWebApp,
+      isWin
     });
     
     let resultId;
     
     if (gameOver) {
-      // Если игра завершена, сохраняем финальный результат
+      // Если игра завершена, сохраняем финальный результат (ВСЕГДА, даже 0 очков)
       resultId = await saveGameScore(
-        dbUserId, 
-        gameType, 
+        finalUserId,        // Оригинальный ID: "web_123" или "123456"
+        finalGameType, 
         numericScore, 
         numericLevel, 
-        numericLines
+        numericLines,
+        finalUsername,      // Передаем имя пользователя
+        isWin               // Победа или проигрыш
       );
       
       // Удаляем прогресс, так как игра завершена
-      await deleteGameProgress(dbUserId, gameType);
+      await deleteGameProgress(finalUserId, finalGameType);
       console.log('🎮 Игра завершена, прогресс удален');
     } else {
       // Если игра продолжается, сохраняем прогресс
       resultId = await saveGameProgress(
-        dbUserId, 
-        gameType, 
+        finalUserId, 
+        finalGameType, 
         numericScore, 
         numericLevel, 
-        numericLines
+        numericLines,
+        finalUsername       // Передаем имя для user_sessions
       );
       console.log('💾 Прогресс игры сохранен');
     }
     
     if (resultId) {
       // Получаем обновленную статистику
-      const stats = await getGameStats(dbUserId, gameType);
+      const stats = await getGameStats(finalUserId, finalGameType);
       const bestScore = stats?.best_score || 0;
+      const gamesPlayed = stats?.games_played || 0;
+      const wins = stats?.wins || 0;
       
       console.log('✅ Результат сохранен успешно!', {
         savedId: resultId,
-        originalUserId: userId,
-        dbUserId: dbUserId,
+        userId: finalUserId,
+        username: finalUsername,
         score: numericScore,
         bestScore: bestScore,
+        gamesPlayed: gamesPlayed,
+        wins: wins,
         gameOver: gameOver,
-        isWebApp: isWebApp
+        isWebApp: isWebApp,
+        isWin: isWin
       });
       
       const response = {
         success: true,
         id: resultId,
-        userId: isWebApp ? `web_${userId}` : numericUserId, // Возвращаем оригинальный формат
-        dbUserId: dbUserId,
+        userId: finalUserId,           // Оригинальный ID
+        username: finalUsername,       // Имя пользователя
         score: numericScore,
         level: numericLevel,
         lines: numericLines,
-        gameType: gameType,
+        gameType: finalGameType,
         gameOver: gameOver,
+        isWin: isWin,
+        isWebApp: isWebApp,
         bestScore: bestScore,
+        gamesPlayed: gamesPlayed,
+        wins: wins,
         newRecord: numericScore > bestScore,
-        message: gameOver ? 'Final score saved successfully' : 'Game progress saved',
-        isWebApp: isWebApp
+        message: gameOver ? 
+          `Final ${isWin ? 'win' : 'loss'} saved (${numericScore} points)` : 
+          'Game progress saved'
       };
       
       console.log('📤 Отправляем ответ:', response);
