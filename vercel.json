@@ -1,44 +1,45 @@
 {
   "version": 2,
+  "functions": {
+    "api/bot.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/save-score.js": {
+      "maxDuration": 10
+    },
+    "api/save-progress.js": {
+      "maxDuration": 10
+    },
+    "api/get-progress.js": {
+      "maxDuration": 10
+    },
+    "api/user-stats.js": {
+      "maxDuration": 10
+    },
+    "api/top-players.js": {
+      "maxDuration": 10
+    },
+    "api/check-db.js": {
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
     {
       "source": "/",
-      "destination": "/public/index.html"
+      "destination": "/public/index.html"  // ← ИСПРАВЛЕНО! Корень = игра
     },
     {
       "source": "/game",
-      "destination": "/public/index.html"
-    },
-    {
-      "source": "/tetris",
-      "destination": "/public/index.html"
+      "destination": "/public/index.html"  // /game = игра
     },
     {
       "source": "/bot",
-      "destination": "/api/bot"
+      "destination": "/api/bot.js"  // /bot = Telegram бот
     },
     {
       "source": "/api/(.*)",
-      "destination": "/api/$1"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "X-Requested-With, Content-Type, Accept, Authorization"
-        }
-      ]
+      "destination": "/api/$1"  // /api/* = API функции
     }
   ]
 }
