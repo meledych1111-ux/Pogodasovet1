@@ -311,9 +311,6 @@ export async function deleteGameProgress(userId, gameType = 'tetris') {
 }
 
 
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-// ТОЛЬКО ОДНА ФУНКЦИЯ getTopPlayers!
-// ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
 export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   const client = await pool.connect();
   try {
