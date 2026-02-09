@@ -572,35 +572,35 @@
 </head>
 <body>
     <div class="game-container">
-        <!-- ГЛАВНОЕ МЕНЮ -->
-        <div class="screen active" id="menu-screen">
-            <div class="header">
-                <h1 class="game-title">ТЕТРИС PRO</h1>
-                <p class="subtitle">Telegram Mini App Edition</p>
-            </div>
-            
-            <div class="menu-buttons">
-                <button class="menu-btn new-game" onclick="startGame()">
-                    <span>🎮</span> НОВАЯ ИГРА
-                </button>
-                <button class="menu-btn stats" onclick="showStats()">
-                    <span>📊</span> СТАТИСТИКА
-                </button>
-                <button class="menu-btn levels" onclick="showLevels()">
-                    <span>⭐</span> УРОВНИ
-                </button>
-                <button class="menu-btn leaderboard" onclick="showLeaderboard()">
-                    <span>🏆</span> ЛИДЕРБОРД
-                </button>
-                <button class="menu-btn settings" onclick="showSettings()">
-                    <span>⚙️</span> НАСТРОЙКИ
-                </button>
-            </div>
-            
-            <div class="footer">
-                <p style="color: #aaccff; font-size: 0.8rem;">База данных Neon PostgreSQL</p>
-            </div>
-        </div>
+  <!-- ГЛАВНОЕ МЕНЮ -->
+<div class="screen active" id="menu-screen">
+    <div class="header">
+        <h1 class="game-title">ТЕТРИС PRO</h1>
+        <p class="subtitle">Telegram Mini App Edition</p>
+    </div>
+    
+    <div class="menu-buttons">
+        <button class="menu-btn new-game" onclick="startGame()">
+            <span>🎮</span> НОВАЯ ИГРА
+        </button>
+        <button class="menu-btn stats" onclick="showStats()">
+            <span>📊</span> СТАТИСТИКА
+        </button>
+        <button class="menu-btn levels" onclick="showLevels()">
+            <span>⭐</span> УРОВНИ
+        </button>
+        <button class="menu-btn leaderboard" onclick="showLeaderboard()">
+            <span>🏆</span> ЛИДЕРБОРД
+        </button>
+        <button class="menu-btn settings" onclick="showSettings()">
+            <span>⚙️</span> НАСТРОЙКИ
+        </button>
+    </div>
+    
+    <div class="footer">
+        <p style="color: #aaccff; font-size: 0.8rem;">База данных Neon PostgreSQL</p>
+    </div>
+</div>
         
         <!-- ИГРОВОЙ ЭКРАН -->
         <div class="screen" id="game-screen">
@@ -739,45 +739,63 @@
             </div>
         </div>
         
-        <!-- НАСТРОЙКИ -->
-        <div class="screen" id="settings-screen">
-            <div class="header">
-                <h1 class="game-title">НАСТРОЙКИ</h1>
+       <!-- НАСТРОЙКИ -->
+<div class="screen" id="settings-screen">
+    <div class="header">
+        <h1 class="game-title">НАСТРОЙКИ</h1>
+    </div>
+    
+    <div class="stats-container">
+        <div class="stat-card">
+            <h3 style="color: #6a5bff; margin-bottom: 15px;">Управление</h3>
+            <div style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="touch-controls" checked style="margin-right: 10px;">
+                    Сенсорное управление
+                </label>
+                <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <input type="checkbox" id="keyboard-controls" checked style="margin-right: 10px;">
+                    Управление клавиатурой
+                </label>
+                <label style="display: flex; align-items: center;">
+                    <input type="checkbox" id="vibration" checked style="margin-right: 10px;">
+                    Виброотклик
+                </label>
             </div>
-            
-            <div class="stats-container">
-                <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Управление</h3>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="checkbox" id="touch-controls" checked style="margin-right: 10px;">
-                            Сенсорное управление
-                        </label>
-                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="checkbox" id="keyboard-controls" checked style="margin-right: 10px;">
-                            Управление клавиатурой
-                        </label>
-                        <label style="display: flex; align-items: center;">
-                            <input type="checkbox" id="vibration" checked style="margin-right: 10px;">
-                            Виброотклик
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Графика</h3>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 10px;">Качество графики:</label>
-                        <!-- 3. Select элемент - ДОБАВЬТЕ aria-label для доступности -->
-<select id="graphics-quality" 
-        aria-label="Качество графики"
-        style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(106, 91, 255, 0.5);">
-    <option value="low">Низкое</option>
-    <option value="medium" selected>Среднее</option>
-    <option value="high">Высокое</option>
-</select>
-                    </div>
-                </div>
+        </div>
+        
+        <div class="stat-card">
+            <h3 style="color: #6a5bff; margin-bottom: 15px;">Графика</h3>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px;">Качество графики:</label>
+                <select id="graphics-quality" 
+                        aria-label="Качество графики"
+                        style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(106, 91, 255, 0.5);">
+                    <option value="low">Низкое</option>
+                    <option value="medium" selected>Среднее</option>
+                    <option value="high">Высокое</option>
+                </select>
+            </div>
+        </div>
+        
+            <div class="stat-card">
+            <h3 style="color: #6a5bff; margin-bottom: 15px;">База данных</h3>
+            <div id="db-status" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(106, 91, 255, 0.3);">
+                Статус: <span id="db-status-text">Проверка...</span>
+            </div>
+            <button class="back-btn" style="width: 100%; margin-bottom: 10px;" onclick="testDatabase()">
+                🔍 Тест соединения с БД
+            </button>
+            <button class="back-btn" style="width: 100%;" onclick="syncLocalGames()">
+                🔄 Синхронизировать локальные игры
+            </button>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+    </div>
+</div>
                 
                 <div class="stat-card">
                     <h3 style="color: #6a5bff; margin-bottom: 15px;">База данных</h3>
@@ -1684,7 +1702,295 @@ function adaptCanvasSize() {
     canvas.style.width = newWidth + 'px';
     canvas.style.height = newHeight + 'px';
 }
+// ==================== ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ БАЗЫ ДАННЫХ ====================
 
+// 🔴 ФУНКЦИЯ 1: Сохранение прогресса (не финального результата)
+async function saveGameProgressToDB() {
+    try {
+        const gameData = {
+            userId: userId,
+            score: score,
+            level: level,
+            lines: lines,
+            gameOver: false,
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('💾 Сохранение прогресса:', gameData);
+        
+        // Сохраняем в localStorage
+        saveGameToLocalStorage();
+        
+        // Пытаемся сохранить в БД
+        const response = await fetch(API_ENDPOINTS.saveScore, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(gameData)
+        });
+        
+        if (response.ok) {
+            console.log('✅ Прогресс сохранен в БД');
+            return { success: true };
+        }
+        return { success: false };
+    } catch (error) {
+        console.error('❌ Ошибка сохранения прогресса:', error);
+        return { success: false };
+    }
+}
+
+// 🔴 ФУНКЦИЯ 2: Улучшенное автосохранение
+function setupAutoSave() {
+    let lastAutoSaveScore = 0;
+    
+    setInterval(() => {
+        if (gameActive && !gamePaused && !gameOver && score > 0) {
+            // Сохраняем только если счет изменился
+            if (score !== lastAutoSaveScore) {
+                console.log('💾 Автосохранение прогресса...');
+                lastAutoSaveScore = score;
+                
+                saveGameProgressToDB().then(result => {
+                    if (result.success) {
+                        console.log('✅ Автосохранение успешно');
+                    }
+                });
+            }
+        }
+    }, 30000); // 30 секунд
+}
+
+// 🔴 ФУНКЦИЯ 3: Синхронизация локальных игр с БД
+async function syncLocalGames() {
+    try {
+        const games = JSON.parse(localStorage.getItem('tetris_games') || '[]');
+        const userGames = games.filter(g => g.userId === userId);
+        
+        if (userGames.length === 0) {
+            showNotification('📂 Нет локальных игр для синхронизации');
+            return;
+        }
+        
+        showNotification(`🔄 Синхронизация ${userGames.length} игр...`);
+        
+        let synced = 0;
+        let errors = 0;
+        
+        for (const game of userGames) {
+            try {
+                const response = await fetch(API_ENDPOINTS.saveScore, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: game.userId,
+                        gameType: 'tetris',
+                        score: game.score,
+                        level: game.level,
+                        lines: game.lines,
+                        gameOver: true,
+                        sync: true
+                    })
+                });
+                
+                if (response.ok) {
+                    synced++;
+                } else {
+                    errors++;
+                }
+            } catch (error) {
+                errors++;
+            }
+        }
+        
+        showNotification(`✅ Синхронизировано: ${synced} игр, ошибок: ${errors}`);
+        
+        // Обновляем статистику после синхронизации
+        if (synced > 0) {
+            setTimeout(loadUserStats, 1000);
+        }
+        
+    } catch (error) {
+        console.error('❌ Ошибка синхронизации:', error);
+        showNotification('❌ Ошибка синхронизации');
+    }
+}
+
+// 🔴 ФУНКЦИЯ 4: Проверка и восстановление игры
+async function checkAndRestoreGame() {
+    try {
+        // Проверяем, есть ли сохраненный прогресс
+        const savedGames = JSON.parse(localStorage.getItem('tetris_games') || '[]');
+        const lastGame = savedGames
+            .filter(g => g.userId === userId && !g.gameOver)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+        
+        if (lastGame && !gameActive) {
+            const shouldRestore = confirm(
+                `Найден сохраненный прогресс (${lastGame.score} очков). Восстановить игру?`
+            );
+            
+            if (shouldRestore) {
+                // Восстанавливаем игру
+                score = lastGame.score || 0;
+                level = lastGame.level || 1;
+                lines = lastGame.lines || 0;
+                
+                // Начинаем игру с паузы
+                initGame();
+                pauseGame();
+                showNotification('🎮 Игра восстановлена');
+            }
+        }
+    } catch (error) {
+        console.error('❌ Ошибка восстановления:', error);
+    }
+}
+
+// 🔴 ФУНКЦИЯ 5: Улучшенная проверка БД
+async function testDatabase() {
+    const statusEl = document.getElementById('db-status-text');
+    statusEl.textContent = 'Проверка...';
+    statusEl.style.color = '#ffcc66';
+    
+    try {
+        const response = await fetch(API_ENDPOINTS.checkDB);
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success) {
+                let statusText = 'База данных подключена ✓';
+                
+                // Добавляем информацию о БД если есть
+                if (data.database_info) {
+                    const info = data.database_info;
+                    if (info.total_tables) {
+                        statusText += ` (${info.total_tables} таблиц)`;
+                    }
+                    if (info.game_stats?.total_games) {
+                        statusText += `, ${info.game_stats.total_games} игр`;
+                    }
+                }
+                
+                statusEl.textContent = statusText;
+                statusEl.style.color = '#66ffaa';
+                showNotification('✅ База данных подключена');
+            } else {
+                statusEl.textContent = 'Ошибка БД ✗';
+                statusEl.style.color = '#ff6666';
+                showNotification('⚠️ Ошибка базы данных');
+            }
+        } else {
+            statusEl.textContent = 'Сервер БД недоступен';
+            statusEl.style.color = '#ff6666';
+            showNotification('🌐 Сервер базы данных недоступен');
+        }
+    } catch (error) {
+        statusEl.textContent = 'Сеть недоступна';
+        statusEl.style.color = '#ff6666';
+        showNotification('🔌 Проблемы с сетью');
+    }
+}
+
+// 🔴 ФУНКЦИЯ 6: Улучшенное сохранение игры
+async function saveGameScore() {
+    console.log('💾 Сохранение игры...');
+    
+    // Анимация кнопки
+    const saveBtn = document.getElementById('save-btn');
+    if (saveBtn) {
+        saveBtn.classList.add('pulsing');
+        setTimeout(() => saveBtn.classList.remove('pulsing'), 1000);
+    }
+    
+    if (gameActive && !gameOver) {
+        pauseGame();
+    }
+    
+    showNotification('💾 Сохраняем результат...');
+    
+    // Определяем тип сохранения
+    const isFinalSave = gameOver;
+    
+    // Сохраняем в БД
+    const result = await saveGameToDB(isFinalSave);
+    
+    // Отправляем в Telegram бот
+    try {
+        const gameData = {
+            action: 'tetris_score',
+            score: score,
+            level: level,
+            lines: lines,
+            gameOver: isFinalSave,
+            manualSave: true,
+            userId: userId
+        };
+        
+        if (tg && tg.sendData) {
+            tg.sendData(JSON.stringify(gameData));
+            console.log('✅ Данные отправлены в Telegram бот');
+        }
+    } catch (error) {
+        console.error('❌ Ошибка отправки в Telegram:', error);
+    }
+    
+    if (result.success) {
+        showNotification(`✅ ${isFinalSave ? 'Игра сохранена' : 'Прогресс сохранен'} в БД!`);
+        loadUserStats();
+        
+        // Если игра завершена, показываем лидерборд
+        if (isFinalSave) {
+            setTimeout(() => {
+                showLeaderboard();
+                showScreen('leaderboard');
+            }, 1000);
+        }
+    } else {
+        showNotification('✅ Результат сохранен локально');
+    }
+    
+    return result;
+}
+
+// 🔴 ФУНКЦИЯ 7: Улучшенная инициализация
+function init() {
+    console.log('🎮 Игра инициализирована. User ID:', userId);
+    
+    // Проверка БД
+    setTimeout(testDatabase, 500);
+    
+    // Начальная сложность
+    selectDifficulty('medium');
+    
+    // Загрузка статистики
+    setTimeout(loadUserStats, 1000);
+    
+    // Инициализация игры
+    initGame();
+    pauseGame();
+    
+    // Настройка автосохранения
+    setupAutoSave(); // Используем новую версию!
+    
+    // Проверка сохраненной игры
+    setTimeout(checkAndRestoreGame, 1500);
+    
+    // Telegram WebApp
+    if (tg) {
+        tg.ready();
+        tg.MainButton.setText('Открыть меню').show();
+        tg.MainButton.onClick(showMenu);
+        tg.BackButton.onClick(showMenu);
+    }
+    
+    // Адаптация размера
+    adaptCanvasSize();
+    window.addEventListener('resize', adaptCanvasSize);
+}
+
+
+        
 // Запуск игры
 window.addEventListener('load', init);
 </script>
