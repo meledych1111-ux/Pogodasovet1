@@ -1,186 +1,181 @@
-import { saveGameScore, saveGameProgress, deleteGameProgress, getGameStats } from './db.js';
+import { Bot, Keyboard } from 'grammy';
+import { 
+  saveUserCity, 
+  getUserCity, 
+  saveGameScore, 
+  getGameStats,
+  getTopPlayers,
+  checkDatabaseConnection,
+  deleteGameProgress
+} from './db.js';
 
-// Вспомогательная функция для конвертации ID
-function convertUserIdForDb(userId) {
-  const userIdStr = String(userId);
-  
-  if (userIdStr.startsWith('web_')) {
-    return userIdStr; // Web App пользователи - строка
-  } else if (/^\d+$/.test(userIdStr)) {
-    // Telegram ID - может быть bigint в базе
-    const num = parseInt(userIdStr);
-    return isNaN(num) ? userIdStr : num;
-  }
-  return userIdStr; // Остальные - как есть
+// ===================== КОНФИГУРАЦИЯ =====================
+const BOT_TOKEN = process.env.BOT_TOKEN;
+if (!BOT_TOKEN) {
+  console.error('❌ BOT_TOKEN не найден! Задайте переменную BOT_TOKEN в Vercel.');
+  throw new Error('BOT_TOKEN is required');
 }
 
-export default async function handler(req, res) {
-  console.log('📨 POST /api/save-score');
-  console.log('📊 Метод:', req.method);
-  
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      success: false, 
-      error: 'Method not allowed. Use POST.' 
-    });
-  }
+console.log('🤖 Создаю бота...');
+const bot = new Bot(BOT_TOKEN);
 
+// ===================== ИНИЦИАЛИЗАЦИЯ БОТА =====================
+let botInitialized = false;
+
+async function initializeBot() {
+  if (botInitialized) return;
+  
+  console.log('🔧 Инициализирую бота...');
   try {
-    // Парсим тело запроса
-    let body;
-    if (typeof req.body === 'string') {
-      try {
-        body = JSON.parse(req.body);
-      } catch {
-        body = req.body;
-      }
+    await bot.init();
+    botInitialized = true;
+    console.log(`✅ Бот инициализирован: @${bot.botInfo.username}`);
+  } catch (error) {
+    console.error('❌ Ошибка инициализации:', error.message);
+  }
+}
+
+// Проверяем соединение с базой данных
+async function initializeDatabase() {
+  try {
+    const dbCheck = await checkDatabaseConnection();
+    if (dbCheck.success) {
+      console.log(`✅ Подключение к базе данных: OK (${dbCheck.time})`);
     } else {
-      body = req.body || {};
+      console.warn(`⚠️ База данных: ${dbCheck.error}`);
+    }
+  } catch (error) {
+    console.error('❌ Ошибка проверки БД:', error.message);
+  }
+}
+
+// Инициализируем при запуске
+initializeBot();
+initializeDatabase();
+
+// ===================== ХРАНИЛИЩЕ ДЛЯ СЕССИЙ =====================
+const userStorage = new Map();
+const rateLimit = new Map();
+
+// Очистка старых сессий
+function cleanupStorage() {
+  const hourAgo = Date.now() - 3600000;
+  for (const [userId, data] of userStorage.entries()) {
+    if (data.lastActivity && data.lastActivity < hourAgo) {
+      userStorage.delete(userId);
+    }
+  }
+}
+
+setInterval(cleanupStorage, 300000);
+
+// Проверка ограничения запросов
+function isRateLimited(userId) {
+  const now = Date.now();
+  const userLimit = rateLimit.get(userId) || { count: 0, lastRequest: 0 };
+  
+  if (now - userLimit.lastRequest > 60000) {
+    userLimit.count = 0;
+  }
+  
+  userLimit.count++;
+  userLimit.lastRequest = now;
+  rateLimit.set(userId, userLimit);
+  
+  if (userLimit.count > 20) {
+    console.log(`⚠️ Ограничение запросов для ${userId}: ${userLimit.count}/мин`);
+    return true;
+  }
+  
+  return false;
+}
+
+// ===================== КЭШ ПОГОДЫ =====================
+const weatherCache = new Map();
+
+// ===================== ФУНКЦИИ ПОГОДЫ =====================
+async function getWeatherData(cityName, forceRefresh = false) {
+  const cacheKey = `current_${cityName.toLowerCase()}`;
+  const now = Date.now();
+  
+  // Проверяем кэш (актуален 10 минут)
+  if (!forceRefresh && weatherCache.has(cacheKey)) {
+    const cached = weatherCache.get(cacheKey);
+    if (now - cached.timestamp < 600000) {
+      console.log(`🌤️ Использую кэшированную погоду для ${cityName}`);
+      return cached.data;
+    }
+  }
+  
+  console.log(`🌤️ Запрашиваю погоду для: "${cityName}"`);
+  
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+    const geoResponse = await fetch(geoUrl);
+    const geoData = await geoResponse.json();
+    
+    if (!geoData.results || geoData.results.length === 0) {
+      throw new Error('Город не найден');
     }
     
-    console.log('📊 Тело запроса:', JSON.stringify(body, null, 2));
+    const { latitude, longitude, name } = geoData.results[0];
     
-    // Упрощаем: принимаем только два формата
-    let userId = body.userId || body.user_id || body.data?.userId || body.data?.user_id;
-    let username = body.username || body.first_name || `Игрок`;
+    // Запрос для текущей погоды
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&daily=precipitation_sum&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
     
-    if (body.last_name && body.first_name) {
-      username = `${body.first_name} ${body.last_name}`;
+    const weatherResponse = await fetch(weatherUrl);
+    const weatherData = await weatherResponse.json();
+    
+    if (!weatherData.current) {
+      throw new Error('Нет данных о погоде');
     }
     
-    // ВАЖНО: Конвертируем ID для базы данных
-    const dbUserId = convertUserIdForDb(userId);
+    const current = weatherData.current;
+    const todayPrecipitation = weatherData.daily?.precipitation_sum[0] || 0;
     
-    const score = parseInt(body.score) || 0;
-    const level = parseInt(body.level) || 1;
-    const lines = parseInt(body.lines) || 0;
-    const gameType = body.gameType || body.game_type || 'tetris';
+    const weatherResult = {
+      temp: Math.round(current.temperature_2m),
+      feels_like: Math.round(current.apparent_temperature),
+      humidity: current.relative_humidity_2m,
+      wind: current.wind_speed_10m.toFixed(1),
+      precipitation: todayPrecipitation > 0 ? `${todayPrecipitation.toFixed(1)} мм` : 'Без осадков',
+      precipitation_value: todayPrecipitation,
+      description: getDetailedWeatherDescription(current.weather_code, todayPrecipitation),
+      city: name,
+      timestamp: new Date().toLocaleTimeString('ru-RU')
+    };
     
-    // Определяем завершение игры
-    const gameOver = Boolean(
-      body.gameOver || 
-      body.game_over || 
-      body.isGameOver || 
-      body.action === 'tetris_final_score'
-    );
-    
-    const isWin = score > 0;
-    const isWebApp = String(userId).startsWith('web_');
-    
-    console.log('📊 Данные для сохранения:', {
-      originalUserId: userId,
-      dbUserId,
-      username,
-      score,
-      level,
-      lines,
-      gameType,
-      gameOver,
-      isWin,
-      isWebApp
+    // Сохраняем в кэш
+    weatherCache.set(cacheKey, {
+      data: weatherResult,
+      timestamp: now
     });
     
-    // Валидация
-    if (!userId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing userId/user_id' 
-      });
-    }
-    
-    if (score === undefined || score === null) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing score field' 
-      });
-    }
-    
-    let resultId;
-    
-    if (gameOver) {
-      // Сохраняем финальный результат
-      console.log(`💾 Сохраняем финальный результат...`);
-      
-      // ✅ ПРАВИЛЬНО: передаем dbUserId только один раз
-      resultId = await saveGameScore(
-        dbUserId,        // Конвертированный ID
-        gameType, 
-        score, 
-        level, 
-        lines,
-        username,
-        isWin
-      );
-      
-      // Удаляем прогресс
-      if (resultId) {
-        await deleteGameProgress(dbUserId, gameType);
-      }
-    } else {
-      // Сохраняем прогресс
-      console.log(`💾 Сохраняем прогресс...`);
-      
-      // ✅ ПРАВИЛЬНО: передаем dbUserId только один раз
-      resultId = await saveGameProgress(
-        dbUserId,        // Конвертированный ID
-        gameType, 
-        score, 
-        level, 
-        lines,
-        username
-      );
-    }
-    
-    if (resultId) {
-      // Получаем статистику с конвертированным ID
-      const stats = await getGameStats(dbUserId, gameType);
-      
-      const response = {
-        success: true,
-        id: resultId,
-        userId: userId,           // Оригинальный ID для клиента
-        dbUserId: dbUserId,       // Конвертированный ID для отладки
-        username,
-        score,
-        level,
-        lines,
-        gameType,
-        gameOver,
-        isWin,
-        isWebApp,
-        bestScore: stats?.best_score || 0,
-        gamesPlayed: stats?.games_played || 0,
-        wins: stats?.wins || 0,
-        newRecord: score > (stats?.best_score || 0),
-        message: gameOver ? 
-          (isWin ? `Победа! ${score} очков` : `Игра завершена: ${score} очков`) : 
-          `Прогресс сохранен`,
-        timestamp: new Date().toISOString()
-      };
-      
-      console.log('✅ Успешно сохранено:', response);
-      
-      return res.status(200).json(response);
-    } else {
-      console.log('❌ Не удалось сохранить в БД');
-      return res.status(500).json({ 
-        success: false,
-        error: 'Database save failed.',
-        savedData: { userId, score, gameOver }
-      });
-    }
+    return weatherResult;
     
   } catch (error) {
-    console.error('🔥 Ошибка сохранения:', error);
+    console.error('❌ Ошибка получения погоды:', error.message);
     
-    return res.status(500).json({ 
-      success: false,
-      error: `Internal server error: ${error.message}`,
-      timestamp: new Date().toISOString()
-    });
+    // Если есть кэшированные данные, возвращаем их даже если устарели
+    if (weatherCache.has(cacheKey)) {
+      console.log('🔄 Использую устаревшие кэшированные данные');
+      return weatherCache.get(cacheKey).data;
+    }
+    
+    // Fallback данные
+    return {
+      temp: 20,
+      feels_like: 19,
+      humidity: 65,
+      wind: '3.0',
+      precipitation: 'Без осадков',
+      precipitation_value: 0,
+      description: 'Ясно ☀️',
+      city: cityName,
+      timestamp: new Date().toLocaleTimeString('ru-RU')
+    };
   }
 }
-
 // ===================== КОНФИГУРАЦИЯ =====================
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
