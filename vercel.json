@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "functions": {
     "api/bot.js": {
       "maxDuration": 30,
@@ -27,19 +26,19 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/public/index.html"  // ← ИСПРАВЛЕНО! Корень = игра
+      "destination": "/api/bot.js"
+    },
+    {
+      "source": "/api/bot",
+      "destination": "/api/bot.js"
     },
     {
       "source": "/game",
-      "destination": "/public/index.html"  // /game = игра
-    },
-    {
-      "source": "/bot",
-      "destination": "/api/bot.js"  // /bot = Telegram бот
+      "destination": "/public/index.html"
     },
     {
       "source": "/api/(.*)",
-      "destination": "/api/$1"  // /api/* = API функции
+      "destination": "/api/$1"
     }
   ]
 }
