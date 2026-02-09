@@ -2467,26 +2467,7 @@ bot.on('message:text', async (ctx) => {
 bot.catch((err) => {
   console.error('🔥 Критическая ошибка бота:', err);
 });
-// ===================== ЛОКАЛЬНЫЙ ЗАПУСК (POLLING) =====================
-console.log('🚀 Запускаю бота в режиме polling для локального тестирования...');
 
-// Запускаем бота с опросом
-
-bot.start({
-    drop_pending_updates: true,
-    allowed_updates: ['message', 'callback_query']
-}).then(() => {
-    console.log('🤖 Бот запущен и готов принимать команды!');
-    console.log('📱 Отправьте /start в Telegram боту');
-}).catch(err => {
-    console.error('❌ Ошибка запуска бота:', err.message);
-});
-
-// Элегантная остановка
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
-
-console.log('✅ Код бота загружен. Ждем команды...');
 // ===================== ЭКСПОРТ ДЛЯ VERCEL =====================
 export default async function handler(req, res) {
   console.log(`🌐 ${req.method} запрос к /api/bot в ${new Date().toISOString()}`);
