@@ -17,16 +17,30 @@ export default async function handler(req, res) {
     const { 
       action, 
       userId, 
+      user_id,
       gameType = 'tetris', 
       score, 
       level, 
       lines,
-      gameOver = false
+      gameOver = false,
+      username,
+      first_name,
+      last_name
     } = req.body;
+    
+    // Определяем ID пользователя
+    const finalUserId = userId || user_id;
+    
+    // Определяем имя пользователя
+    let finalUsername = username || first_name || `Игрок`;
+    if (last_name && first_name) {
+      finalUsername = `${first_name} ${last_name}`;
+    }
     
     console.log('💾 Данные для обработки:', { 
       action, 
-      userId, 
+      finalUserId, 
+      finalUsername,
       gameType, 
       score, 
       level, 
@@ -35,7 +49,7 @@ export default async function handler(req, res) {
     });
     
     // Валидация параметров
-    if (!userId) {
+    if (!finalUserId) {
       console.log('❌ Отсутствует userId');
       return res.status(400).json({ 
         success: false,
@@ -53,16 +67,8 @@ export default async function handler(req, res) {
       });
     }
     
-    const numericUserId = parseInt(userId);
-    
-    if (isNaN(numericUserId)) {
-      console.log('❌ Неверный формат userId:', userId);
-      return res.status(400).json({ 
-        success: false,
-        error: 'Invalid userId format. Must be a number.',
-        code: 'INVALID_USER_ID'
-      });
-    }
+    // 🔴 УБРАТЬ ПРЕОБРАЗОВАНИЕ В ЧИСЛО!
+    // ID передаем как есть: "123456" или "web_123456789"
     
     // Обработка действий
     if (action === 'save') {
@@ -71,7 +77,8 @@ export default async function handler(req, res) {
       const numericLevel = parseInt(level || 1);
       const numericLines = parseInt(lines || 0);
       
-      console.log(`💾 Сохранение прогресса для пользователя ${numericUserId}:`, {
+      console.log(`💾 Сохранение прогресса для пользователя ${finalUserId}:`, {
+        username: finalUsername,
         score: numericScore,
         level: numericLevel,
         lines: numericLines,
@@ -79,20 +86,23 @@ export default async function handler(req, res) {
       });
       
       // Получаем текущий прогресс перед сохранением (для сравнения)
-      const currentProgress = await getGameProgress(numericUserId, gameType);
+      const currentProgress = await getGameProgress(finalUserId, gameType);
       const previousScore = currentProgress ? parseInt(currentProgress.score) : 0;
       
+      // ✅ ИСПОЛЬЗУЕМ НОВУЮ ВЕРСИЮ saveGameProgress С USERNAME
       const result = await saveGameProgress(
-        numericUserId, 
+        finalUserId,            // ID как строка
         gameType, 
         numericScore, 
         numericLevel, 
-        numericLines
+        numericLines,
+        finalUsername           // Передаем имя пользователя
       );
       
       if (result) {
         const savedData = {
-          userId: numericUserId,
+          userId: finalUserId,
+          username: finalUsername,
           gameType: gameType,
           score: numericScore,
           level: numericLevel,
@@ -100,7 +110,8 @@ export default async function handler(req, res) {
           previousScore: previousScore,
           isNewRecord: numericScore > previousScore,
           gameOver: gameOver,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          isWebApp: finalUserId.startsWith('web_')
         };
         
         console.log('✅ Прогресс успешно сохранен:', savedData);
@@ -125,9 +136,10 @@ export default async function handler(req, res) {
       
     } else if (action === 'delete') {
       // Удаляем прогресс (после завершения игры)
-      console.log(`🗑️ Удаление прогресса для пользователя ${numericUserId}, игра: ${gameType}`);
+      console.log(`🗑️ Удаление прогресса для пользователя ${finalUserId}, игра: ${gameType}`);
       
-      const result = await deleteGameProgress(numericUserId, gameType);
+      // ✅ deleteGameProgress принимает ID как строку
+      const result = await deleteGameProgress(finalUserId, gameType);
       
       if (result) {
         console.log('✅ Прогресс успешно удален');
@@ -136,8 +148,9 @@ export default async function handler(req, res) {
           success: true,
           action: 'delete',
           deleted: true,
-          userId: numericUserId,
+          userId: finalUserId,
           gameType: gameType,
+          isWebApp: finalUserId.startsWith('web_'),
           message: 'Прогресс игры удален'
         });
       } else {
@@ -147,7 +160,7 @@ export default async function handler(req, res) {
           success: true,
           action: 'delete',
           deleted: false,
-          userId: numericUserId,
+          userId: finalUserId,
           gameType: gameType,
           message: 'Прогресс не найден или уже удален'
         });
@@ -178,7 +191,7 @@ export default async function handler(req, res) {
 }
 
 // Функция для симуляции сохранения прогресса (для тестов)
-export const simulateSaveProgress = async (userId, score, level = 1, lines = 0) => {
+export const simulateSaveProgress = async (userId, score, level = 1, lines = 0, username = null) => {
   try {
     console.log(`🧪 Тест сохранения прогресса для user ${userId}`);
     
@@ -188,18 +201,20 @@ export const simulateSaveProgress = async (userId, score, level = 1, lines = 0) 
       score: score,
       level: level,
       lines: lines,
-      gameType: 'tetris'
+      gameType: 'tetris',
+      username: username
     };
     
     console.log('🧪 Тестовые данные:', mockData);
     
-    // Пытаемся сохранить прогресс
+    // ✅ Обновляем вызов функции
     const result = await saveGameProgress(
-      parseInt(userId),
+      userId,          // ID как строка
       'tetris',
       parseInt(score),
       parseInt(level),
-      parseInt(lines)
+      parseInt(lines),
+      username         // Передаем имя
     );
     
     console.log('🧪 Результат сохранения:', result ? 'Успешно' : 'Не удалось');
@@ -215,27 +230,19 @@ export const simulateSaveProgress = async (userId, score, level = 1, lines = 0) 
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('🧪 Запуск теста save-progress.js');
   
-  // Тестируем сохранение прогресса
-  const testUserId = 123456789;
-  const testScore = Math.floor(Math.random() * 10000);
+  // Тестируем сохранение прогресса для разных типов пользователей
+  const testUsers = [
+    { id: '123456789', username: 'Telegram User', type: 'telegram' },
+    { id: 'web_1770548758686', username: 'Web App User', type: 'web' }
+  ];
   
-  simulateSaveProgress(testUserId, testScore).then((result) => {
-    console.log(`🧪 Тест завершен. Результат: ${result ? 'Успешно' : 'Ошибка'}`);
+  for (const user of testUsers) {
+    const testScore = Math.floor(Math.random() * 10000);
     
-    // Тестируем удаление прогресса
-    if (result) {
-      console.log('🧪 Тестируем удаление прогресса...');
-      deleteGameProgress(testUserId, 'tetris')
-        .then(() => {
-          console.log('🧪 Удаление теста завершено');
-          process.exit(0);
-        })
-        .catch(err => {
-          console.error('🧪 Ошибка удаления:', err);
-          process.exit(1);
-        });
-    } else {
-      process.exit(0);
-    }
-  });
+    console.log(`🧪 Тест для ${user.type}: ${user.id}`);
+    
+    simulateSaveProgress(user.id, testScore, 3, 12, user.username).then((result) => {
+      console.log(`🧪 Результат для ${user.type}: ${result ? 'Успешно' : 'Ошибка'}`);
+    });
+  }
 }
