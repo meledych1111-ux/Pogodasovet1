@@ -1,4 +1,4 @@
-import { checkDatabaseConnection } from './db.js';
+import { checkDatabaseConnection } from '../lib/db.js';
 import pg from 'pg';
 const { Pool } = pg;
 
