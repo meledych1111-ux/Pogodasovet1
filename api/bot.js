@@ -463,98 +463,17 @@ async function getUserGameStats(userId) {
   }
 }
 
-async function getGameStatsMessage(userId) {
+async function getGameStatsMessage(telegramUserId) {
   try {
-    const stats = await getUserGameStats(userId);
+    // ✅ Создаем Web App ID из Telegram ID для поиска в БД
+    const webAppUserId = `web_${telegramUserId}`;
     
-    // Проверяем, есть ли вообще какие-то данные в stats
-    if (!stats) {
-      return `📊 *Статистика игры*\n\n` +
-             `🎮 Данные не найдены или произошла ошибка.\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!`;
-    }
+    console.log(`📊 Получение статистики для Telegram пользователя: ${telegramUserId} (Web App ID: ${webAppUserId})`);
     
-        
-    // Проверяем, играл ли пользователь
-    const hasPlayed = stats.games_played > 0;
-    const hasScore = stats.best_score > 0;
+    // ✅ Используем Web App ID для поиска в БД
+    const stats = await getGameStats(webAppUserId, 'tetris');
     
-    if (!hasPlayed && !hasScore) {
-      return `📊 *Статистика игры*\n\n` +
-             `🎮 Вы ещё не играли в тетрис!\n\n` +
-             `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!`;
-    }
-    
-    // Форматируем дату последней игры
-    let lastPlayedFormatted = 'ещё не играл';
-    if (stats.last_played) {
-      try {
-        const lastPlayedDate = new Date(stats.last_played);
-        if (!isNaN(lastPlayedDate.getTime())) {
-          lastPlayedFormatted = lastPlayedDate.toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-        }
-      } catch (dateError) {
-        console.error('❌ Ошибка форматирования даты:', dateError);
-      }
-    }
-    
-    // Собираем сообщение с новыми полями
-    let message = `📊 *Ваша статистика в тетрисе*\n\n`;
-    message += `🎮 Игр сыграно: *${stats.games_played || 0}*\n`;
-    
-    // Добавляем статистику побед/поражений
-    if (stats.games_played > 0) {
-      message += `✅ Побед: *${stats.wins || 0}* (`;
-      message += `${stats.win_rate || 0}%)\n`;
-      message += `❌ Поражений: *${stats.losses || 0}*\n`;
-    }
-    
-    message += `🏆 Лучший счёт: *${stats.best_score || 0}*\n`;
-    
-    // Добавляем худший счет (новое поле)
-    if (stats.worst_score !== undefined && stats.games_played > 1) {
-      message += `📉 Худший счёт: *${stats.worst_score || 0}*\n`;
-    }
-    
-    message += `📈 Лучший уровень: *${stats.best_level || 1}*\n`;
-    message += `📊 Лучшие линии: *${stats.best_lines || 0}*\n`;
-    
-    if (stats.games_played > 0) {
-      message += `📊 Средний счёт: *${Math.round(stats.avg_score || 0)}*\n`;
-    }
-    
-    message += `⏰ Последняя игра: ${lastPlayedFormatted}\n\n`;
-    
-    // Проверяем, есть ли незавершенная игра
-    if (stats.current_progress) {
-      const progress = stats.current_progress;
-      message += `🔄 *Незавершенная игра:*\n`;
-      message += `• Текущий счёт: ${progress.score || 0}\n`;
-      message += `• Текущий уровень: ${progress.level || 1}\n`;
-      message += `• Текущие линии: ${progress.lines || 0}\n`;
-      message += `• Сохранено: ${progress.last_saved ? new Date(progress.last_saved).toLocaleTimeString('ru-RU') : 'недавно'}\n\n`;
-    }
-    
-    message += `💪 Продолжайте играть и улучшайте свои рекорды!`;
-    
-    return message;
-  } catch (error) {
-    console.error('❌ Ошибка формирования сообщения статистики:', error);
-    
-    return `❌ Не удалось получить статистику.\n\n` +
-           `*Возможные причины:*\n` +
-           `• Проблема с подключением к базе данных\n` +
-           `• Вы ещё не играли в тетрис\n` +
-           `• Технические работы\n\n` +
-           `Попробуйте позже или начните новую игру!`;
-  }
-}
-
+    console.log(`📊 Статистика получена:`, stats);
 async function getTopPlayersList(limit = 10) {
   try {
     console.log(`🏆 Получение топа игроков, лимит: ${limit}`);
