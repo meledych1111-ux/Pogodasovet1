@@ -791,30 +791,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   }
 }
 
-// Функция для сохранения города пользователя
-export async function saveUserCity(userId, city) {
-  const client = await pool.connect();
-  try {
-    const dbUserId = convertUserIdForDb(userId);
-    
-    await client.query(`
-      INSERT INTO user_sessions (user_id, city) 
-      VALUES ($1, $2) 
-      ON CONFLICT (user_id) 
-      DO UPDATE SET 
-        city = COALESCE(NULLIF($2, ''), user_sessions.city),
-        updated_at = NOW()
-    `, [dbUserId, city]);
-    
-    console.log(`📍 Город сохранен: ${dbUserId} -> ${city}`);
-    return true;
-  } catch (error) {
-    console.error('❌ Ошибка сохранения города:', error);
-    return false;
-  } finally {
-    client.release();
-  }
-}
+
 
 // ============ ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ============
 export async function checkDatabaseConnection() {
