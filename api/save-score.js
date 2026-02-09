@@ -1,5 +1,136 @@
 import { saveGameScore, saveGameProgress, deleteGameProgress, getGameStats } from './db.js';
 
+function getAchievements(score, level, lines, previousBestScore) {
+  const achievements = [];
+  
+  // Достижения по очкам
+  if (score >= 50000) {
+    achievements.push({
+      title: '🏆 Легенда Тетриса',
+      message: '50,000 очков! Ты в пантеоне легенд!',
+      type: 'legendary',
+      badge: '🏆'
+    });
+  } else if (score >= 25000) {
+    achievements.push({
+      title: '🥇 Мастер Игры',
+      message: '25,000 очков! Невероятный результат!',
+      type: 'master',
+      badge: '🥇'
+    });
+  } else if (score >= 10000) {
+    achievements.push({
+      title: '🥈 Эксперт Тетриса',
+      message: '10,000 очков! Ты в топе игроков!',
+      type: 'expert',
+      badge: '🥈'
+    });
+  } else if (score >= 5000) {
+    achievements.push({
+      title: '🥉 Продвинутый Игрок',
+      message: '5,000 очков! Отличный результат!',
+      type: 'advanced',
+      badge: '🥉'
+    });
+  } else if (score >= 1000) {
+    achievements.push({
+      title: '⭐ Начинающий Профи',
+      message: '1,000 очков! Хороший старт!',
+      type: 'beginner',
+      badge: '⭐'
+    });
+  }
+  
+  // Достижения по уровню
+  if (level >= 20) {
+    achievements.push({
+      title: '🚀 Сверхзвуковой Уровень',
+      message: `Уровень ${level}! Невероятная скорость!`,
+      type: 'speed',
+      badge: '🚀'
+    });
+  } else if (level >= 15) {
+    achievements.push({
+      title: '⚡ Высокая Сложность',
+      message: `Уровень ${level}! Ты справляешься!`,
+      type: 'hard',
+      badge: '⚡'
+    });
+  } else if (level >= 10) {
+    achievements.push({
+      title: '🎯 Профессиональный Уровень',
+      message: `Уровень ${level}! Отличный прогресс!`,
+      type: 'pro',
+      badge: '🎯'
+    });
+  }
+  
+  // Достижения по линиям
+  if (lines >= 100) {
+    achievements.push({
+      title: '🧱 Строитель Монолит',
+      message: `${lines} линий! Фундаментальная работа!`,
+      type: 'builder',
+      badge: '🧱'
+    });
+  } else if (lines >= 50) {
+    achievements.push({
+      title: '🔨 Мастер Сборки',
+      message: `${lines} линий! Отличная сборка!`,
+      type: 'assembler',
+      badge: '🔨'
+    });
+  } else if (lines >= 25) {
+    achievements.push({
+      title: '🧩 Умелый Сборщик',
+      message: `${lines} линий! Хорошая работа!`,
+      type: 'skillful',
+      badge: '🧩'
+    });
+  }
+  
+  // Новый рекорд
+  if (previousBestScore > 0 && score > previousBestScore) {
+    const improvement = score - previousBestScore;
+    achievements.push({
+      title: '📈 Новый Рекорд!',
+      message: `Побит предыдущий рекорд на ${improvement} очков!`,
+      type: 'record',
+      badge: '📈'
+    });
+  }
+  
+  return achievements;
+}
+
+// 🔴 ДОБАВЬ ЭТУ ФУНКЦИЮ
+function generateTips(score, level, lines, isNewRecord) {
+  const tips = [];
+  
+  if (score < 1000) {
+    tips.push('💡 Совет: Старайтесь собирать по 4 линии за раз для бонуса x4!');
+    tips.push('💡 Совет: Используйте клавиши ← → ↓ и пробел для быстрого падения!');
+  } else if (score < 5000) {
+    tips.push('💡 Совет: Планируйте расположение фигур на 2-3 шага вперед!');
+    tips.push('💡 Совет: Не оставляйте "дырок" - они усложняют игру на высоких уровнях!');
+  } else if (score < 10000) {
+    tips.push('💡 Про-совет: Сохраняйте I-фигуры (палочки) для очистки 4 линий!');
+    tips.push('💡 Про-совет: На высоких уровнях используйте быстрый дроп (пробел) чаще!');
+  }
+  
+  if (level < 5) {
+    tips.push('🎯 Цель: Достигните 5 уровня для получения бронзовой медали!');
+  } else if (level < 10) {
+    tips.push('🎯 Цель: 10 уровень откроет серебряную медаль!');
+  }
+  
+  if (isNewRecord) {
+    tips.push('🔥 Отлично! Продолжайте в том же духе!');
+  }
+  
+  return tips.slice(0, 3);
+}
+
 export default async function handler(req, res) {
   console.log('📨 POST /api/save-score');
   console.log('📊 Метод:', req.method);
@@ -238,6 +369,14 @@ export default async function handler(req, res) {
       const bestScore = stats?.best_score || 0;
       const gamesPlayed = stats?.games_played || 0;
       const wins = stats?.wins || 0;
+      const isNewRecord = numericScore > bestScore;
+      
+      // 🔴 ПОЛУЧАЕМ ДОСТИЖЕНИЯ
+      const achievements = getAchievements(numericScore, numericLevel, numericLines, bestScore);
+      const hasAchievements = achievements.length > 0;
+      
+      // 🔴 ГЕНЕРИРУЕМ СОВЕТЫ
+      const tips = generateTips(numericScore, numericLevel, numericLines, isNewRecord);
       
       console.log('✅ Успешно сохранено!', {
         savedId: resultId,
@@ -249,9 +388,12 @@ export default async function handler(req, res) {
         wins: wins,
         gameOver: finalGameOver,
         isWebApp: isWebApp,
-        isWin: isWin
+        isWin: isWin,
+        achievementsCount: achievements.length,
+        isNewRecord: isNewRecord
       });
       
+      // 🔴 ОБНОВЛЕННЫЙ ОТВЕТ С ДОСТИЖЕНИЯМИ
       const response = {
         success: true,
         id: resultId,
@@ -267,10 +409,30 @@ export default async function handler(req, res) {
         bestScore: bestScore,
         gamesPlayed: gamesPlayed,
         wins: wins,
-        newRecord: numericScore > bestScore,
+        newRecord: isNewRecord,
+        
+        // 🔴 ДОБАВЛЕНО: Система достижений
+        achievements: {
+          count: achievements.length,
+          unlocked: achievements,
+          notificationBadge: achievements.length > 0 ? achievements[0].badge : '🎮',
+          summary: achievements.length > 0 ? 
+            `Разблокировано ${achievements.length} достижений!` : 
+            'Продолжайте играть для получения достижений!'
+        },
+        
+        // 🔴 ДОБАВЛЕНО: Советы
+        tips: tips,
+        
+        // 🔴 УЛУЧШЕННОЕ СООБЩЕНИЕ
         message: finalGameOver ? 
-          (isWin ? `Победа! Сохранено ${numericScore} очков` : `Игра завершена: ${numericScore} очков`) : 
+          (isWin ? 
+            (isNewRecord ? 
+              `🏆 НОВЫЙ РЕКОРД! ${numericScore} очков!` : 
+              `Победа! Сохранено ${numericScore} очков`) : 
+            `Игра завершена: ${numericScore} очков`) : 
           `Прогресс сохранен: ${numericScore} очков`,
+        
         timestamp: new Date().toISOString()
       };
       
