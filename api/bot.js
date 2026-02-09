@@ -3,8 +3,8 @@ import {
   saveUserCity, 
   getUserCity, 
   saveGameScore, 
-  getGameStats as fetchGameStats,
-  getTopPlayers as fetchTopPlayers,
+  getGameStats,  // 🔴 УБРАТЬ "as fetchGameStats"
+  getTopPlayers, // 🔴 УБРАТЬ "as fetchTopPlayers"
   checkDatabaseConnection 
 } from './db.js';
 
@@ -447,11 +447,12 @@ function getDetailedWeatherDescription(code, precipitationMm = 0) {
 }
 
 // ===================== ФУНКЦИИ СТАТИСТИКИ И ТОПА =====================
+
 async function getUserGameStats(userId) {
   try {
     console.log(`📊 Получение статистики для пользователя: ${userId}`);
-    
-    const stats = await fetchGameStats(userId, 'tetris');
+         
+     const stats = await getGameStats(userId, 'tetris'); // Используем функцию из db.js
     
     console.log(`📊 Статистика получена:`, stats);
     
@@ -473,6 +474,7 @@ async function getGameStatsMessage(userId) {
              `Нажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!`;
     }
     
+        
     // Проверяем, играл ли пользователь
     const hasPlayed = stats.games_played > 0;
     const hasScore = stats.best_score > 0;
@@ -501,15 +503,29 @@ async function getGameStatsMessage(userId) {
       }
     }
     
-    // Собираем сообщение
+    // Собираем сообщение с новыми полями
     let message = `📊 *Ваша статистика в тетрисе*\n\n`;
     message += `🎮 Игр сыграно: *${stats.games_played || 0}*\n`;
+    
+    // Добавляем статистику побед/поражений
+    if (stats.games_played > 0) {
+      message += `✅ Побед: *${stats.wins || 0}* (`;
+      message += `${stats.win_rate || 0}%)\n`;
+      message += `❌ Поражений: *${stats.losses || 0}*\n`;
+    }
+    
     message += `🏆 Лучший счёт: *${stats.best_score || 0}*\n`;
+    
+    // Добавляем худший счет (новое поле)
+    if (stats.worst_score !== undefined && stats.games_played > 1) {
+      message += `📉 Худший счёт: *${stats.worst_score || 0}*\n`;
+    }
+    
     message += `📈 Лучший уровень: *${stats.best_level || 1}*\n`;
     message += `📊 Лучшие линии: *${stats.best_lines || 0}*\n`;
     
     if (stats.games_played > 0) {
-      message += `📉 Средний счёт: *${Math.round(stats.avg_score || 0)}*\n`;
+      message += `📊 Средний счёт: *${Math.round(stats.avg_score || 0)}*\n`;
     }
     
     message += `⏰ Последняя игра: ${lastPlayedFormatted}\n\n`;
@@ -543,7 +559,12 @@ async function getTopPlayersList(limit = 10) {
   try {
     console.log(`🏆 Получение топа игроков, лимит: ${limit}`);
     
-    const topPlayers = await fetchTopPlayers('tetris', limit);
+    // 🔴 ПРОБЛЕМА: Используется fetchTopPlayers, но такой функции нет в db.js
+    // Вместо этого нужно использовать getTopPlayers
+    // const topPlayers = await fetchTopPlayers('tetris', limit); // ❌ Неправильно
+    
+    // ✅ Правильно:
+    const topPlayers = await getTopPlayers('tetris', limit); // Используем функцию из db.js
     
     console.log(`🏆 Игроков в топе: ${topPlayers ? topPlayers.length : 0}`);
     
@@ -594,13 +615,23 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       const level = player.level || 1;
       const lines = player.lines || 0;
       const gamesPlayed = player.games_played || 1;
+      const wins = player.wins || 0;
+      const winRate = player.win_rate || '0.0';
       
+     
       // Форматируем имя пользователя
       let username;
-      if (player.username && player.username !== `Игрок ${index + 1}`) {
+      if (player.username && !player.username.startsWith('Игрок #')) {
+        // Используем реальное имя из базы
         username = player.username;
       } else if (player.user_id) {
-        username = `Игрок #${String(player.user_id).slice(-4)}`;
+        // Если имя не указано, создаем по ID
+        const userIdStr = String(player.user_id);
+        if (userIdStr.startsWith('web_')) {
+          username = `🌐 Web #${userIdStr.slice(-4)}`;
+        } else {
+          username = `👤 Игрок #${userIdStr.slice(-4)}`;
+        }
       } else {
         username = `Игрок ${index + 1}`;
       }
@@ -608,21 +639,48 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       message += `${medal} *${username}*\n`;
       message += `   🎯 Очки: *${score}*\n`;
       message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
-      message += `   🕹️ Игр: ${gamesPlayed}\n\n`;
+      
+      // Добавляем статистику побед (если есть)
+      if (gamesPlayed > 1) {
+        message += `   ✅ Побед: ${wins}/${gamesPlayed} (${winRate}%)\n`;
+      } else {
+        message += `   🕹️ Игр: ${gamesPlayed}\n`;
+      }
+      
+      message += `\n`;
     });
     
     // Добавляем информацию о текущем пользователе
     if (ctx && ctx.from) {
       const currentUserId = ctx.from.id;
-      const currentPlayerIndex = validPlayers.findIndex(p => p.user_id === currentUserId);
+      
+      // 🔴 ВАЖНО: Для Web App пользователей ID будет другим!
+      // Нужно преобразовать ID для поиска в топе
+      let searchUserId;
+      if (ctx.from && ctx.from.username && ctx.from.username.startsWith('web_')) {
+        searchUserId = ctx.from.username; // Для Web App
+      } else {
+        searchUserId = currentUserId; // Для Telegram
+      }
+      
+      const currentPlayerIndex = validPlayers.findIndex(p => 
+        String(p.user_id) === String(searchUserId)
+      );
       
       if (currentPlayerIndex !== -1) {
         const currentPlayer = validPlayers[currentPlayerIndex];
         message += `👤 *Ваше место:* ${currentPlayerIndex + 1}\n`;
         message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n\n`;
       } else {
-        message += `👤 *Вы пока не в топе*\n`;
-        message += `🎯 Играйте больше, чтобы попасть в рейтинг!\n\n`;
+        // Проверяем, есть ли вообще статистика у пользователя
+        const userStats = await getUserGameStats(searchUserId);
+        if (userStats && userStats.games_played > 0) {
+          message += `👤 *Вы набрали:* ${userStats.best_score} очков\n`;
+          message += `🎯 Продолжайте играть, чтобы попасть в топ!\n\n`;
+        } else {
+          message += `👤 *Вы пока не играли*\n`;
+          message += `🎯 Начните игру, чтобы попасть в рейтинг!\n\n`;
+        }
       }
     }
     
@@ -645,6 +703,7 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
            `Попробуйте позже или станьте первым игроком!`;
   }
 }
+
 
 // ===================== ОДЕЖДА И СОВЕТЫ =====================
 function getWardrobeAdvice(weatherData) {
@@ -1749,32 +1808,49 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
       const level = parseInt(data.level) || 1;
       const lines = parseInt(data.lines) || 0;
       const gameOver = Boolean(data.gameOver);
+      const isWin = score > 0; // Определяем победу/поражение
       
-      if (score === 0) {
-        console.log(`⚠️ Нулевой счёт от ${userId}, пропускаем сохранение`);
-        await ctx.reply(`🎮 Игра начата! Удачи! 🍀`, {
-          parse_mode: 'Markdown',
-          reply_markup: mainMenuKeyboard
-        });
-        return;
-      }
+      // 🔴 УБРАТЬ ЭТО - теперь сохраняем ВСЕ игры!
+      // if (score === 0) {
+      //   console.log(`⚠️ Нулевой счёт от ${userId}, пропускаем сохранение`);
+      //   await ctx.reply(`🎮 Игра начата! Удачи! 🍀`, {
+      //     parse_mode: 'Markdown',
+      //     reply_markup: mainMenuKeyboard
+      //   });
+      //   return;
+      // }
       
       // Сохраняем результат в базу данных
       try {
-        const saved = await saveGameScore(userId, 'tetris', score, level, lines);
+        // ✅ ИСПОЛЬЗУЕМ НОВУЮ ВЕРСИЮ ФУНКЦИИ С username И isWin
+        const savedId = await saveGameScore(
+          userId.toString(),  // ID как строка
+          'tetris', 
+          score, 
+          level, 
+          lines,
+          userName,           // Передаём имя пользователя
+          isWin               // Передаём результат (победа/поражение)
+        );
         
-        if (saved) {
-          console.log(`✅ Рекорд пользователя ${userId} сохранён в БД`);
+        if (savedId) {
+          console.log(`✅ Результат пользователя ${userId} сохранён (ID: ${savedId})`);
           
           // Получаем обновленную статистику
-          const stats = await getUserGameStats(userId);
+          const stats = await getGameStats(userId.toString(), 'tetris'); // ✅ Используем getGameStats
           const bestScore = stats?.best_score || 0;
+          const gamesPlayed = stats?.games_played || 0;
+          const wins = stats?.wins || 0;
           
           let message = '';
           if (gameOver) {
-            message = `🎮 *Игра окончена!*\n\n`;
+            if (isWin) {
+              message = `🎮 *Победа! Игра окончена!* 🏆\n\n`;
+            } else {
+              message = `🎮 *Игра окончена!* 📉\n\n`;
+            }
           } else {
-            message = `🎮 *Прогресс сохранён!*\n\n`;
+            message = `🎮 *Прогресс сохранён!* 💾\n\n`;
           }
           
           message += `👤 *Игрок:* ${userName}\n`;
@@ -1782,12 +1858,26 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
           message += `📊 *Уровень:* ${level}\n`;
           message += `📈 *Линии:* ${lines}\n\n`;
           
+          // Добавляем общую статистику
+          if (gamesPlayed > 0) {
+            message += `📊 *Общая статистика:*\n`;
+            message += `• Игр сыграно: ${gamesPlayed}\n`;
+            message += `• Побед: ${wins}\n`;
+            if (gamesPlayed > 1) {
+              const winRate = stats.win_rate || 0;
+              message += `• Процент побед: ${winRate}%\n`;
+            }
+            message += `\n`;
+          }
+          
           // Проверяем, побит ли рекорд
-          if (score > bestScore) {
+          if (score > bestScore && score > 0) {
             message += `🎉 *НОВЫЙ РЕКОРД!* 🎉\n`;
             message += `🏆 Предыдущий лучший: ${bestScore}\n\n`;
           } else if (bestScore > 0) {
             message += `🏆 *Ваш лучший результат:* ${bestScore}\n\n`;
+          } else if (score === 0) {
+            message += `📉 *Попытка завершена!* Попробуйте ещё раз!\n\n`;
           }
           
           message += `📊 *Теперь вы можете:*\n`;
@@ -1796,7 +1886,11 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
           message += `• Продолжить играть 🎮\n\n`;
           
           if (gameOver) {
-            message += `🔄 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой игры!`;
+            if (isWin) {
+              message += `🎉 Отличная игра! Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой попытки!`;
+            } else {
+              message += `🔄 Не сдавайтесь! Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой попытки!`;
+            }
           } else {
             message += `💪 Продолжайте в том же духе!`;
           }
@@ -1806,6 +1900,12 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
             reply_markup: mainMenuKeyboard 
           });
           
+          // 🔴 ДОПОЛНИТЕЛЬНО: Если игра завершена, удаляем прогресс
+          if (gameOver) {
+            await deleteGameProgress(userId.toString(), 'tetris');
+            console.log(`🗑️ Прогресс игры удалён для пользователя ${userId}`);
+          }
+          
         } else {
           console.error(`❌ Не удалось сохранить результат для пользователя ${userId}`);
           await ctx.reply(`❌ Не удалось сохранить ваш результат в базу данных. Попробуйте ещё раз.`, {
@@ -1814,6 +1914,7 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
         }
       } catch (dbError) {
         console.error('❌ Ошибка сохранения в БД:', dbError);
+        console.error('❌ Stack trace:', dbError.stack);
         await ctx.reply(`❌ Ошибка базы данных. Ваш результат не сохранён. Попробуйте позже.`, {
           reply_markup: mainMenuKeyboard
         });
@@ -1834,7 +1935,6 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
     });
   }
 });
-
 // ===================== ЧТО НАДЕТЬ =====================
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   const userId = ctx.from.id;
