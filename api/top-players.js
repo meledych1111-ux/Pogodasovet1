@@ -1,4 +1,4 @@
-import { getTopPlayers } from '../lib/db.js';
+import { getTopPlayers } from './db.js';
 
 
 export default async function handler(req, res) {
