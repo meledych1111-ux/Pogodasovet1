@@ -281,11 +281,25 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
     const finalUsername = username || `Игрок_${String(userId).slice(-4)}`;
     console.log(`👤 Имя пользователя: ${finalUsername}`);
     
-    // 🔴 3. НАЧИНАЕМ ТРАНЗАКЦИЮ
+    // 🔴 3. Получаем город пользователя перед сохранением
+    let userCity = 'Не указан';
+    try {
+      const cityResult = await client.query(
+        'SELECT selected_city FROM user_sessions WHERE user_id = $1',
+        [dbUserId]
+      );
+      if (cityResult.rows[0]) {
+        userCity = cityResult.rows[0].selected_city || 'Не указан';
+      }
+    } catch (cityError) {
+      console.log('⚠️ Не удалось получить город:', cityError.message);
+    }
+    
+    // 🔴 4. НАЧИНАЕМ ТРАНЗАКЦИЮ
     await client.query('BEGIN');
     
-    // 🔴 4. Создаем/обновляем пользователя
-    console.log(`📝 Обновление данных пользователя...`);
+    // 🔴 5. Создаем/обновляем пользователя С ГОРОДОМ
+    console.log(`📝 Обновление данных пользователя с городом "${userCity}"...`);
     try {
       await client.query(`
         INSERT INTO user_sessions (user_id, username, selected_city) 
@@ -293,16 +307,17 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
         ON CONFLICT (user_id) 
         DO UPDATE SET 
           username = COALESCE($2, user_sessions.username),
+          selected_city = COALESCE($3, user_sessions.selected_city),
           updated_at = NOW()
         RETURNING user_id
-      `, [dbUserId, finalUsername, 'Не указан']);
-      console.log(`✅ Данные пользователя обновлены`);
+      `, [dbUserId, finalUsername, userCity]);
+      console.log(`✅ Данные пользователя обновлены (город: ${userCity})`);
     } catch (userError) {
       console.error(`❌ Ошибка обновления пользователя:`, userError.message);
       // Продолжаем - пользователь может уже существовать
     }
     
-    // 🔴 5. Сохраняем результат игры
+    // 🔴 6. Сохраняем результат игры
     console.log(`🎮 Сохранение результата игры...`);
     const gameQuery = `
       INSERT INTO game_scores (user_id, username, game_type, score, level, lines, is_win) 
@@ -325,7 +340,7 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
     
     console.log(`✅ Результат игры сохранен! ID: ${savedId}, время: ${createdAt}`);
     
-    // 🔴 6. Обновляем статистику в tetris_stats
+    // 🔴 7. Обновляем статистику в tetris_stats
     console.log(`📊 Обновление статистики...`);
     try {
       // Сначала получаем текущую статистику
@@ -385,7 +400,7 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
       // Не прерываем выполнение, если статистика не обновилась
     }
     
-    // 🔴 7. Удаляем прогресс (если был)
+    // 🔴 8. Удаляем прогресс (если был)
     try {
       await client.query(`
         DELETE FROM game_progress 
@@ -396,7 +411,7 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
       console.log(`ℹ️ Прогресс не найден или уже удален`);
     }
     
-    // 🔴 8. КОММИТИМ ТРАНЗАКЦИЮ
+    // 🔴 9. КОММИТИМ ТРАНЗАКЦИЮ
     await client.query('COMMIT');
     console.log(`✅ Транзакция завершена успешно`);
     
@@ -408,7 +423,7 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
     };
     
   } catch (error) {
-    // 🔴 9. ОТКАТЫВАЕМ ТРАНЗАКЦИЮ ПРИ ОШИБКЕ
+    // 🔴 10. ОТКАТЫВАЕМ ТРАНЗАКЦИЮ ПРИ ОШИБКЕ
     try {
       await client.query('ROLLBACK');
       console.log(`🔄 Транзакция откачена`);
@@ -606,6 +621,19 @@ export async function saveUserCity(userId, city, username = null) {
     const savedCity = result.rows[0]?.selected_city;
     console.log(`✅ Город сохранен: "${savedCity}" для пользователя ${dbUserId}`);
     
+    // 🔴 ДОПОЛНИТЕЛЬНО: Обновляем имя пользователя в tetris_stats, если пользователь там есть
+    if (username) {
+      try {
+        await client.query(`
+          UPDATE tetris_stats 
+          SET username = COALESCE($2, tetris_stats.username)
+          WHERE user_id = $1
+        `, [dbUserId, username]);
+      } catch (updateError) {
+        console.log('ℹ️ tetris_stats не обновлена:', updateError.message);
+      }
+    }
+    
     return { 
       success: true, 
       user_id: result.rows[0]?.user_id,
@@ -675,6 +703,86 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   try {
     console.log(`🏆 Запрос топа игроков: type=${gameType}, limit=${limit}`);
     
+    // 🔴 ВАРИАНТ 1: Пробуем получить топ из tetris_stats (если есть данные)
+    try {
+      console.log('🏆 Пробуем получить топ из tetris_stats...');
+      
+      // Используем CAST для правильного сравнения типов данных
+      const tetrisTopQuery = `
+        SELECT 
+          ts.user_id,
+          COALESCE(NULLIF(us.username, ''), ts.username, 'Игрок') as username,
+          COALESCE(NULLIF(us.selected_city, ''), 'Не указан') as city,
+          ts.best_score as score,
+          ts.best_level as level,
+          ts.best_lines as lines,
+          ts.games_played,
+          ts.last_played
+        FROM tetris_stats ts
+        LEFT JOIN user_sessions us ON CAST(ts.user_id AS VARCHAR) = us.user_id
+        WHERE ts.best_score > 0
+        ORDER BY ts.best_score DESC, ts.games_played DESC
+        LIMIT $1
+      `;
+      
+      const tetrisResult = await client.query(tetrisTopQuery, [limit]);
+      
+      if (tetrisResult.rows.length > 0) {
+        console.log(`🏆 Топ из tetris_stats: ${tetrisResult.rows.length} игроков`);
+        
+        const topPlayers = tetrisResult.rows.map((row, index) => {
+          const gamesPlayed = parseInt(row.games_played) || 1;
+          
+          // Правильное формирование имени пользователя
+          let username = row.username || '';
+          const userIdStr = String(row.user_id || '');
+          
+          if (!username || username === 'Игрок' || username.trim() === '') {
+            if (userIdStr.startsWith('web_')) {
+              username = `🌐 Игрок ${userIdStr.slice(-4)}`;
+            } else if (/^\d+$/.test(userIdStr)) {
+              username = `👤 Игрок ${userIdStr.slice(-4)}`;
+            } else {
+              username = `🎮 Игрок ${userIdStr.slice(0, 4)}`;
+            }
+          }
+          
+          // Правильное формирование города
+          let city = row.city || 'Не указан';
+          if (!city || city === 'Не указан' || city.trim() === '') {
+            city = 'Не указан';
+          }
+          
+          return {
+            rank: index + 1,
+            user_id: row.user_id,
+            username: username,
+            city: city,
+            score: parseInt(row.score) || 0,
+            level: parseInt(row.level) || 0,
+            lines: parseInt(row.lines) || 0,
+            games_played: gamesPlayed,
+            wins: gamesPlayed, // Для tetris_stats предполагаем все игры - победы
+            win_rate: '100.0',
+            last_played: row.last_played,
+            source: 'tetris_stats'
+          };
+        });
+        
+        return { 
+          success: true, 
+          players: topPlayers, 
+          count: topPlayers.length,
+          source: 'tetris_stats' 
+        };
+      }
+    } catch (tetrisError) {
+      console.log('⚠️ tetris_stats не доступна или пуста:', tetrisError.message);
+    }
+    
+    // 🔴 ВАРИАНТ 2: Используем game_scores как fallback
+    console.log(`🏆 Используем game_scores для топа...`);
+    
     // 🔴 ИСПРАВЛЕННЫЙ SQL ЗАПРОС (без ошибки GROUP BY)
     const query = `
       SELECT 
@@ -698,18 +806,36 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     const result = await client.query(query, [gameType, limit]);
     console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
     
+    if (result.rows.length === 0) {
+      console.log(`🏆 Нет игроков в топе`);
+      return { 
+        success: true, 
+        players: [], 
+        count: 0,
+        source: 'game_scores_empty',
+        message: 'Пока никто не играл в тетрис!'
+      };
+    }
+    
     const topPlayers = result.rows.map((row, index) => {
-      let username = row.username;
-      const userIdStr = String(row.user_id || '0000');
+      // Правильное формирование имени пользователя
+      let username = row.username || '';
+      const userIdStr = String(row.user_id || '');
       
-      if (!username || username === 'Игрок') {
+      if (!username || username === 'Игрок' || username.trim() === '') {
         if (userIdStr.startsWith('web_')) {
-          username = `🌐 Игрок #${userIdStr.slice(-4)}`;
+          username = `🌐 Игрок ${userIdStr.slice(-4)}`;
         } else if (/^\d+$/.test(userIdStr)) {
-          username = `👤 Игрок #${userIdStr.slice(-4)}`;
+          username = `👤 Игрок ${userIdStr.slice(-4)}`;
         } else {
-          username = `🎮 Игрок #${userIdStr.slice(-4)}`;
+          username = `🎮 Игрок ${userIdStr.slice(0, 4)}`;
         }
+      }
+      
+      // Правильное формирование города
+      let city = row.city || 'Не указан';
+      if (!city || city === 'Не указан' || city.trim() === '') {
+        city = 'Не указан';
       }
       
       const gamesPlayed = parseInt(row.games_played) || 1;
@@ -720,7 +846,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
         rank: index + 1,
         user_id: row.user_id,
         username: username,
-        city: row.city || 'Не указан',
+        city: city,
         score: parseInt(row.best_score) || 0,
         level: parseInt(row.best_level) || 1,
         lines: parseInt(row.best_lines) || 0,
@@ -730,6 +856,12 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
         last_played: row.last_played,
         source: 'game_scores'
       };
+    });
+    
+    // 🔴 ДЕБАГ: Показываем, что получаем
+    console.log('🔍 Дебаг топа игроков:');
+    topPlayers.forEach((player, i) => {
+      console.log(`  ${i + 1}. ${player.username} (${player.score}) - ${player.city}`);
     });
     
     return { 
@@ -747,12 +879,14 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
       success: false, 
       error: error.message,
       players: [], 
-      count: 0 
+      count: 0,
+      message: `Ошибка получения топа: ${error.message}`
     };
   } finally {
     client.release();
   }
 }
+
 // ============ ФУНКЦИЯ ПОЛУЧЕНИЯ СТАТИСТИКИ ИГРОКА ==========
 
 /**
