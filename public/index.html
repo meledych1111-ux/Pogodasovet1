@@ -1319,6 +1319,94 @@ async function saveGameToDB(gameOverFlag = false) {
             gameOver: gameOverFlag
         });
         
+        // ✅ ВАЖНО: Преобразуем web_ ID в числовой ID для базы данных
+        let dbUserId = userId;
+        if (userId.startsWith('web_')) {
+            // Извлекаем Telegram ID из web_ ID
+            const match = userId.match(/web_(\d+)/);
+            if (match && match[1]) {
+                dbUserId = match[1]; // Преобразуем "web_123456" в "123456"
+                console.log(`🔄 Преобразовали ID: ${userId} → ${dbUserId}`);
+            }
+        }
+        
+        // ✅ ВАЖНОЕ ИСПРАВЛЕНИЕ: Добавляем все необходимые поля
+        const requestData = {
+            // 🔴 КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Используем преобразованный ID
+            userId: dbUserId, // Теперь будет числовой ID!
+            user_id: dbUserId, // Для совместимости
+            gameType: 'tetris',
+            game_type: 'tetris', // Для совместимости
+            score: score,
+            level: level,
+            lines: lines,
+            gameOver: gameOverFlag,
+            // ✅ ВАЖНО: Добавляем имя пользователя из Telegram
+            username: tg?.initDataUnsafe?.user?.first_name || 'Telegram Player',
+            first_name: tg?.initDataUnsafe?.user?.first_name || '',
+            last_name: tg?.initDataUnsafe?.user?.last_name || '',
+            // ✅ Для совместимости с save-score.js
+            action: 'tetris_score',
+            isWin: gameOverFlag ? true : false,
+            isWebApp: true
+        };
+        
+        console.log('📤 Отправка данных в API:', requestData);
+        
+        const response = await fetch('/api/save-score', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const responseText = await response.text();
+        console.log('📋 Ответ сервера:', responseText);
+        
+        if (response.ok) {
+            const result = JSON.parse(responseText);
+            console.log('✅ Результат сохранен в БД:', result);
+            
+            // ✅ ТОЛЬКО ПОСЛЕ успешного сохранения в API отправляем в Telegram
+            if (tg && tg.sendData) {
+                const telegramData = {
+                    action: 'tetris_score',
+                    score: score,
+                    level: level,
+                    lines: lines,
+                    gameOver: gameOverFlag,
+                    // 🔴 КЛЮЧЕВОЕ: Отправляем тот же user_id в бота
+                    userId: dbUserId, // Числовой ID!
+                    gameType: 'tetris',
+                    username: tg?.initDataUnsafe?.user?.first_name || 'Telegram Player'
+                };
+                console.log('📤 Отправка данных в Telegram бот:', telegramData);
+                tg.sendData(JSON.stringify(telegramData));
+            }
+            
+            return { success: true, data: result };
+        } else {
+            console.error('❌ Ошибка сохранения:', response.status, responseText);
+            saveGameToLocalStorage(gameOverFlag);
+            return { success: false, error: 'Server error: ' + response.status };
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сети при сохранении:', error);
+        saveGameToLocalStorage(gameOverFlag);
+        return { success: false, error: 'Network error: ' + error.message };
+    }
+}
+    try {
+        console.log('💾 Сохранение в БД:', {
+            userId: userId,
+            score: score,
+            level: level,
+            lines: lines,
+            gameOver: gameOverFlag
+        });
+        
         // ✅ ИСПРАВЛЕННЫЙ ЗАПРОС: Добавляем все необходимые поля
         const response = await fetch(API_ENDPOINTS.saveScore, {
             method: 'POST',
@@ -1375,7 +1463,7 @@ async function saveGameToDB(gameOverFlag = false) {
         saveGameToLocalStorage(gameOverFlag);
         return { success: false, error: 'Network error: ' + error.message };
     }
-}
+
 
 function saveGameToLocalStorage(gameOverFlag = false) {
     try {
