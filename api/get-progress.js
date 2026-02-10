@@ -3,17 +3,10 @@ import { getGameProgress } from './db.js';
 export default async function handler(req, res) {
   console.log('📋 API: /api/get-progress - запрос прогресса игры');
   console.log('📋 Метод:', req.method);
+  console.log('📋 Query параметры:', req.query);
+  console.log('📋 Body параметры:', req.body);
   
-  // CORS заголовки
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  // Обработка предварительного запроса OPTIONS
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
+  // Разрешаем GET и POST для удобства
   if (req.method !== 'GET' && req.method !== 'POST') {
     console.log('❌ Метод не разрешен:', req.method);
     return res.status(405).json({ 
@@ -46,58 +39,30 @@ export default async function handler(req, res) {
       });
     }
     
+    // 🔴 УБРАТЬ ПРЕОБРАЗОВАНИЕ В ЧИСЛО!
+    // getGameProgress ожидает ID как строку
+    
     console.log(`📋 Получение прогресса пользователя ${userId}, игра: ${gameType}`);
     
-    // ✅ ИСПРАВЛЕНО: Обработка результата getGameProgress
-    const result = await getGameProgress(userId, gameType);
+    // ✅ ПРАВИЛЬНО: Передаем ID как есть
+    const progress = await getGameProgress(userId, gameType);
     
-    console.log('📋 Результат из БД:', { 
-      success: result?.success, 
-      found: result?.found,
-      error: result?.error 
-    });
+    console.log('📋 Прогресс из БД:', progress);
     
-    // Проверяем успешность выполнения
-    if (!result || !result.success) {
-      console.error('❌ Ошибка получения прогресса:', result?.error);
-      
-      const emptyProgress = {
-        score: 0,
-        level: 1,
-        lines: 0,
-        last_saved: null,
-        last_saved_formatted: null,
-        has_progress: false,
-        timestamp: new Date().toISOString()
-      };
-      
-      return res.status(200).json({ 
-        success: true, // API успешно отработало, даже если прогресса нет
-        userId: userId,
-        gameType: gameType,
-        isWebApp: userId.startsWith('web_'),
-        progress: emptyProgress,
-        message: 'Нет сохраненного прогресса или ошибка получения',
-        db_error: result?.error,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    // Проверяем, найден ли прогресс
-    if (result.found && result.progress) {
-      const progress = result.progress;
-      
+    if (progress) {
       // Форматируем данные прогресса
       const formattedProgress = {
         score: parseInt(progress.score) || 0,
         level: parseInt(progress.level) || 1,
         lines: parseInt(progress.lines) || 0,
         last_saved: progress.last_saved,
+        has_progress: true,
+        timestamp: progress.last_saved || new Date().toISOString(),
+        
+        // 🔴 ДОБАВЛЕНО: Время в читаемом формате
         last_saved_formatted: progress.last_saved 
           ? new Date(progress.last_saved).toLocaleString('ru-RU') 
-          : null,
-        has_progress: true,
-        timestamp: progress.last_saved || new Date().toISOString()
+          : null
       };
       
       console.log('✅ Прогресс найден:', {
@@ -111,14 +76,14 @@ export default async function handler(req, res) {
         success: true,
         userId: userId,
         gameType: gameType,
-        isWebApp: userId.startsWith('web_'),
+        isWebApp: userId.startsWith('web_'), // Добавляем тип пользователя
         progress: formattedProgress,
         message: 'Прогресс игры найден',
         timestamp: new Date().toISOString()
       });
     } else {
       // Нет сохраненного прогресса
-      console.log('📋 Прогресс не найден');
+      console.log('📋 Прогресс не найден, возвращаем пустые данные');
       
       const emptyProgress = {
         score: 0,
@@ -134,10 +99,12 @@ export default async function handler(req, res) {
         success: true,
         userId: userId,
         gameType: gameType,
-        isWebApp: userId.startsWith('web_'),
+        isWebApp: userId.startsWith('web_'), // Добавляем тип пользователя
         progress: emptyProgress,
         message: 'Сохраненного прогресса не найдено',
         timestamp: new Date().toISOString(),
+        
+        // 🔴 ДОБАВЛЕНО: Возможность начать новую игру
         suggestions: [
           'Начните новую игру',
           'Ваш прогресс будет автоматически сохраняться'
@@ -149,15 +116,26 @@ export default async function handler(req, res) {
     console.error('🔥 Критическая ошибка получения прогресса:', error);
     console.error('🔥 Stack trace:', error.stack);
     
-    return res.status(500).json({
+    // Более информативный ответ об ошибке
+    const errorResponse = {
       success: false,
       error: {
         message: error.message,
         code: 'PROGRESS_FETCH_ERROR',
         timestamp: new Date().toISOString(),
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
+      fallback_progress: {
+        score: 0,
+        level: 1,
+        lines: 0,
+        last_saved: null,
+        has_progress: false,
+        message: 'Используются данные по умолчанию из-за ошибки БД'
       }
-    });
+    };
+    
+    return res.status(500).json(errorResponse);
   }
 }
 
@@ -165,11 +143,32 @@ export default async function handler(req, res) {
 export const testGetProgress = async (testUserId = '123456789') => {
   try {
     console.log(`🧪 Тест получения прогресса для user ${testUserId}`);
-    const result = await getGameProgress(testUserId, 'tetris');
-    console.log(`🧪 Результат:`, result);
-    return result;
+    const progress = await getGameProgress(testUserId, 'tetris');
+    console.log(`🧪 Прогресс:`, progress);
+    return progress;
   } catch (error) {
     console.error('🧪 Ошибка теста:', error);
-    return { success: false, error: error.message };
+    return null;
   }
 };
+
+// Если файл запущен напрямую, выполнить тест
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log('🧪 Запуск теста get-progress.js');
+  
+  // Тестируем оба типа пользователей
+  const testUsers = [
+    { id: '123456789', type: 'telegram' },
+    { id: 'web_1770548758686', type: 'web' }
+  ];
+  
+  Promise.all(testUsers.map(user => 
+    testGetProgress(user.id).then(progress => {
+      console.log(`🧪 Результат для ${user.type} (${user.id}):`, 
+        progress ? 'Прогресс найден' : 'Нет прогресса');
+    })
+  )).then(() => {
+    console.log('🧪 Все тесты завершены');
+    process.exit(0);
+  });
+}
