@@ -59,30 +59,42 @@ const parseDatabaseUrl = () => {
 const poolConfig = parseDatabaseUrl();
 const pool = poolConfig ? new Pool(poolConfig) : null;
 
-// 🔴 УНИВЕРСАЛЬНАЯ ФУНКЦИЯ КОНВЕРТАЦИИ USER_ID
+// 🔴 УНИВЕРСАЛЬНАЯ ФУНКЦИЯ КОНВЕРТАЦИИ USER_ID (улучшенная)
 function convertUserIdForDb(userId) {
-  console.log(`🔧 convertUserIdForDb input:`, userId, typeof userId);
+  console.log(`🔧 convertUserIdForDb вызвана с:`, {
+    значение: userId,
+    тип: typeof userId,
+    длина: userId ? String(userId).length : 0
+  });
   
   if (userId === undefined || userId === null) {
-    console.error('❌ convertUserIdForDb: userId не определен');
-    return 'unknown_' + Date.now(); // Возвращаем уникальное значение вместо 'unknown'
+    console.error('❌ convertUserIdForDb: userId не определен (undefined/null)');
+    const fallbackId = 'unknown_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    console.log(`🔄 Возвращаем fallback ID: ${fallbackId}`);
+    return fallbackId;
   }
   
   const userIdStr = String(userId).trim();
   
   if (userIdStr === '') {
     console.error('❌ convertUserIdForDb: userId пустая строка');
-    return 'empty_' + Date.now();
+    const fallbackId = 'empty_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    console.log(`🔄 Возвращаем fallback ID: ${fallbackId}`);
+    return fallbackId;
   }
   
-  console.log(`🔧 convertUserIdForDb output: "${userIdStr}"`);
+  console.log(`🔧 Обработанный userId: "${userIdStr}"`);
   
   if (userIdStr.startsWith('web_')) {
+    console.log(`🔧 Определен как web-пользователь`);
     return userIdStr;
   } else if (/^\d+$/.test(userIdStr)) {
+    console.log(`🔧 Определен как Telegram ID (числовой)`);
+    return userIdStr;
+  } else {
+    console.log(`🔧 Определен как другой тип ID`);
     return userIdStr;
   }
-  return userIdStr;
 }
 
 // 🔴 ФУНКЦИЯ ДЛЯ ТЕСТИРОВАНИЯ ПОДКЛЮЧЕНИЯ
@@ -127,7 +139,7 @@ async function testConnection() {
   }
 }
 
-// 🔴 ФУНКЦИЯ СОЗДАНИЯ ВСЕХ НЕОБХОДИМЫХ ТАБЛИЦ (ИСПРАВЛЕННАЯ)
+// 🔴 ФУНКЦИЯ СОЗДАНИЯ ВСЕХ НЕОБХОДИМЫХ ТАБЛИЦ
 async function createTables() {
   if (!pool) {
     console.error('❌ Пул подключения не инициализирован');
@@ -143,7 +155,7 @@ async function createTables() {
       throw new Error(`Не удалось подключиться к БД: ${testResult.error}`);
     }
     
-    // 🔴 1. Таблица users (ИСПРАВЛЕНА - chat_id может быть NULL)
+    // 🔴 1. Таблица users (исправленная)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -160,35 +172,7 @@ async function createTables() {
     `);
     console.log('✅ Таблица users создана/проверена');
     
-    // 🔴 2. Проверяем и исправляем структуру таблицы users
-    console.log('🔍 Проверяем структуру таблицы users...');
-    
-    // Проверяем наличие столбцов и их nullable статус
-    const columnsCheck = await client.query(`
-      SELECT column_name, is_nullable, data_type, column_default
-      FROM information_schema.columns 
-      WHERE table_name = 'users'
-      ORDER BY ordinal_position
-    `);
-    
-    console.log('📊 Структура таблицы users:');
-    columnsCheck.rows.forEach(col => {
-      console.log(`   ${col.column_name}: ${col.data_type} ${col.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'}`);
-    });
-    
-    // Если chat_id имеет ограничение NOT NULL, меняем его
-    const chatIdColumn = columnsCheck.rows.find(col => col.column_name === 'chat_id');
-    if (chatIdColumn && chatIdColumn.is_nullable === 'NO') {
-      console.log('⚠️ Столбец chat_id имеет ограничение NOT NULL, меняем на NULLABLE...');
-      try {
-        await client.query(`ALTER TABLE users ALTER COLUMN chat_id DROP NOT NULL`);
-        console.log('✅ Столбец chat_id теперь может быть NULL');
-      } catch (alterError) {
-        console.error('❌ Не удалось изменить столбец chat_id:', alterError.message);
-      }
-    }
-    
-    // 🔴 3. Таблица user_sessions (для совместимости)
+    // 🔴 2. Таблица user_sessions (для совместимости)
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
         user_id VARCHAR(50) PRIMARY KEY,
@@ -201,7 +185,7 @@ async function createTables() {
     `);
     console.log('✅ Таблица user_sessions создана/проверена');
     
-    // 🔴 4. Таблица game_scores (основная таблица результатов)
+    // 🔴 3. Таблица game_scores (основная таблица результатов)
     await client.query(`
       CREATE TABLE IF NOT EXISTS game_scores (
         id SERIAL PRIMARY KEY,
@@ -212,6 +196,7 @@ async function createTables() {
         lines INTEGER NOT NULL DEFAULT 0,
         is_win BOOLEAN DEFAULT TRUE,
         username VARCHAR(100),
+        city VARCHAR(100) DEFAULT 'Не указан',
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW(),
         
@@ -220,7 +205,7 @@ async function createTables() {
     `);
     console.log('✅ Таблица game_scores создана/проверена');
     
-    // 🔴 5. Таблица game_progress
+    // 🔴 4. Таблица game_progress
     await client.query(`
       CREATE TABLE IF NOT EXISTS game_progress (
         user_id VARCHAR(50) NOT NULL,
@@ -234,7 +219,7 @@ async function createTables() {
     `);
     console.log('✅ Таблица game_progress создана/проверена');
     
-    // 🔴 6. Создаем индексы
+    // 🔴 5. Создаем индексы
     console.log('📊 Создание индексов...');
     
     // Индексы для game_scores
@@ -254,6 +239,10 @@ async function createTables() {
       CREATE INDEX IF NOT EXISTS idx_game_scores_user_game ON game_scores(user_id, game_type)
     `);
     
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_game_scores_city ON game_scores(city)
+    `);
+    
     // Индексы для users
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_user_id ON users(user_id)
@@ -262,6 +251,11 @@ async function createTables() {
     // Индексы для user_sessions
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_user_sessions_city ON user_sessions(selected_city)
+    `);
+    
+    // Индексы для game_progress
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_game_progress_user ON game_progress(user_id)
     `);
     
     console.log('✅ Все таблицы и индексы созданы или уже существуют');
@@ -308,12 +302,15 @@ if (process.env.DATABASE_URL) {
   console.warn('⚠️ DATABASE_URL не установлен, база данных не будет инициализирована');
 }
 
-// ============ ФУНКЦИИ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ (ИСПРАВЛЕННЫЕ) ============
+// ============ ФУНКЦИИ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ============
 
 /**
  * Сохраняет или обновляет профиль пользователя в таблице users
  */
 export async function saveOrUpdateUser(userData) {
+  console.log('👤🔄 ========== СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ НАЧАЛО ==========');
+  console.log('📥 Входные данные:', userData);
+  
   if (!pool) {
     console.error('❌ saveOrUpdateUser: Пул подключения не инициализирован');
     return null;
@@ -321,7 +318,7 @@ export async function saveOrUpdateUser(userData) {
   
   const {
     user_id,
-    chat_id = null, // 🔴 ПО УМОЛЧАНИЮ NULL
+    chat_id = null,
     username = '',
     first_name = '',
     city = 'Не указан',
@@ -330,11 +327,10 @@ export async function saveOrUpdateUser(userData) {
 
   const dbUserId = convertUserIdForDb(user_id);
   
-  console.log(`👤 Сохранение профиля: user_id=${dbUserId}, city="${city}", chat_id=${chat_id || 'NULL'}`);
+  console.log(`👤 Сохранение профиля: user_id="${dbUserId}", city="${city}", chat_id=${chat_id || 'NULL'}`);
   
   const client = await pool.connect();
   try {
-    // 🔴 ОБНОВЛЕННЫЙ ЗАПРОС С ПРАВИЛЬНОЙ ОБРАБОТКОЙ NULL
     const query = `
       INSERT INTO users (
         user_id, 
@@ -356,20 +352,20 @@ export async function saveOrUpdateUser(userData) {
     
     const values = [
       dbUserId, 
-      chat_id, // 🔴 МОЖЕТ БЫТЬ NULL
+      chat_id,
       username || `Игрок_${dbUserId.slice(-4)}`, 
       first_name || 'Игрок', 
       city || 'Не указан'
     ];
     
-    console.log(`📊 Параметры запроса:`, values);
+    console.log('📝 Параметры запроса:', values);
     
     const result = await client.query(query, values);
     const userId = result.rows[0]?.id;
     
     console.log(`✅ Профиль сохранен/обновлен: ID=${userId}`);
     
-    // 🔴 Также сохраняем в user_sessions для совместимости
+    // Также сохраняем в user_sessions для совместимости
     try {
       await client.query(`
         INSERT INTO user_sessions (user_id, username, selected_city, user_type)
@@ -385,53 +381,51 @@ export async function saveOrUpdateUser(userData) {
       console.error('⚠️ Ошибка сохранения в user_sessions:', sessionError.message);
     }
     
+    console.log('👤✅ ========== СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ УСПЕШНО ==========');
+    
     return userId;
   } catch (error) {
     console.error('❌ Ошибка сохранения профиля:', error.message);
     console.error('❌ Код ошибки:', error.code);
     console.error('❌ Данные:', userData);
-    console.error('❌ Stack trace:', error.stack);
     
-    // 🔴 ПЫТАЕМСЯ ИСПРАВИТЬ ПРОБЛЕМУ С CHAT_ID
-    if (error.message.includes('chat_id') && error.message.includes('null value')) {
-      console.log('🔄 Пробую исправить проблему с chat_id...');
+    // Пробуем упрощенный запрос
+    if (error.code === '23505' || error.message.includes('unique')) {
+      console.log('🔄 Пробую упрощенный запрос...');
       try {
-        // Пробуем исправить структуру таблицы
-        await client.query(`ALTER TABLE users ALTER COLUMN chat_id DROP NOT NULL`);
-        console.log('✅ Структура таблицы исправлена');
-        
-        // Пробуем снова сохранить
-        const retryQuery = `
-          INSERT INTO users (user_id, username, first_name, city, created_at, last_active)
-          VALUES ($1, $2, $3, $4, NOW(), NOW())
-          ON CONFLICT (user_id) 
-          DO UPDATE SET 
-            username = COALESCE(EXCLUDED.username, users.username),
-            first_name = COALESCE(EXCLUDED.first_name, users.first_name),
-            city = COALESCE(EXCLUDED.city, users.city),
-            last_active = NOW()
+        const simpleQuery = `
+          INSERT INTO users (user_id, username, first_name, city)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (user_id) DO NOTHING
           RETURNING id
         `;
-        
-        const retryValues = [
+        const simpleResult = await client.query(simpleQuery, [
           dbUserId, 
           username || `Игрок_${dbUserId.slice(-4)}`, 
           first_name || 'Игрок', 
           city || 'Не указан'
-        ];
+        ]);
         
-        const retryResult = await client.query(retryQuery, retryValues);
-        const retryId = retryResult.rows[0]?.id;
-        console.log(`✅ Профиль сохранен после исправления: ID=${retryId}`);
-        return retryId;
-      } catch (retryError) {
-        console.error('❌ Не удалось исправить проблему:', retryError.message);
+        if (simpleResult.rows[0]) {
+          console.log(`✅ Профиль сохранен через упрощенный запрос: ID=${simpleResult.rows[0].id}`);
+          return simpleResult.rows[0].id;
+        } else {
+          // Пользователь уже существует, получаем его ID
+          const existingUser = await client.query('SELECT id FROM users WHERE user_id = $1', [dbUserId]);
+          if (existingUser.rows[0]) {
+            console.log(`✅ Пользователь уже существует: ID=${existingUser.rows[0].id}`);
+            return existingUser.rows[0].id;
+          }
+        }
+      } catch (simpleError) {
+        console.error('❌ Упрощенный запрос тоже не удался:', simpleError.message);
       }
     }
     
     return null;
   } finally {
     client.release();
+    console.log('👤🔄 ========== СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ КОНЕЦ ==========\n');
   }
 }
 
@@ -439,13 +433,15 @@ export async function saveOrUpdateUser(userData) {
  * Получает профиль пользователя
  */
 export async function getUserProfile(userId) {
+  console.log('👤📥 ========== ПОЛУЧЕНИЕ ПРОФИЛЯ НАЧАЛО ==========');
+  
   if (!pool) {
     console.error('❌ getUserProfile: Пул подключения не инициализирован');
     return null;
   }
   
   const dbUserId = convertUserIdForDb(userId);
-  console.log(`👤 Запрос профиля: ${dbUserId}`);
+  console.log(`👤 Запрос профиля: "${dbUserId}"`);
   
   const client = await pool.connect();
   try {
@@ -454,9 +450,11 @@ export async function getUserProfile(userId) {
     
     if (result.rows[0]) {
       console.log(`✅ Профиль найден: ${result.rows[0].username || 'без имени'}`);
+      console.log('👤✅ ========== ПОЛУЧЕНИЕ ПРОФИЛЯ УСПЕШНО ==========');
       return result.rows[0];
     } else {
       console.log(`ℹ️ Профиль не найден для ${dbUserId}`);
+      console.log('👤✅ ========== ПОЛУЧЕНИЕ ПРОФИЛЯ ЗАВЕРШЕНО ==========');
       return null;
     }
   } catch (error) {
@@ -464,26 +462,26 @@ export async function getUserProfile(userId) {
     return null;
   } finally {
     client.release();
+    console.log('👤📥 ========== ПОЛУЧЕНИЕ ПРОФИЛЯ КОНЕЦ ==========\n');
   }
 }
 
-// ============ ФУНКЦИИ ДЛЯ ГОРОДОВ (для совместимости) ============
+// ============ ФУНКЦИИ ДЛЯ ГОРОДОВ ============
 
 /**
- * Сохраняет город пользователя (улучшенная версия)
+ * Сохраняет город пользователя
  */
 export async function saveUserCity(userId, city, username = null) {
   const dbUserId = convertUserIdForDb(userId);
   console.log(`📍 Сохранение города: ${dbUserId} -> "${city}"`);
   
   try {
-    // Используем основную функцию с chat_id = null
     const result = await saveOrUpdateUser({
       user_id: dbUserId,
       username: username || '',
       first_name: username || 'Игрок',
       city: city || 'Не указан',
-      chat_id: null // 🔴 ЯВНО УКАЗЫВАЕМ NULL
+      chat_id: null
     });
     
     return { 
@@ -495,7 +493,6 @@ export async function saveUserCity(userId, city, username = null) {
   } catch (error) {
     console.error('❌ Ошибка saveUserCity:', error.message);
     
-    // 🔴 РЕЗЕРВНЫЙ ВАРИАНТ: Пробуем напрямую
     if (pool) {
       const client = await pool.connect();
       try {
@@ -558,7 +555,6 @@ export async function getUserCity(userId) {
   
   const client = await pool.connect();
   try {
-    // Сначала пробуем из users
     const query = 'SELECT city FROM users WHERE user_id = $1';
     const result = await client.query(query, [dbUserId]);
     
@@ -573,7 +569,6 @@ export async function getUserCity(userId) {
       };
     }
     
-    // Если нет в users, пробуем user_sessions
     const sessionQuery = 'SELECT selected_city FROM user_sessions WHERE user_id = $1';
     const sessionResult = await client.query(sessionQuery, [dbUserId]);
     
@@ -612,54 +607,492 @@ export async function getUserCity(userId) {
 // ============ ФУНКЦИИ ДЛЯ ИГР ============
 
 /**
- * Сохраняет финальный результат игры в game_scores
+ * Сохраняет финальный результат игры в game_scores (с расширенной отладкой)
  */
-// Упрощенная версия без транзакции:
-/**
- * Тестовая функция для проверки сохранения игры
- */
-export async function testGameSave(userId = 'test_user_' + Date.now()) {
-  console.log('🧪 ========== ТЕСТ СОХРАНЕНИЯ ИГРЫ ==========');
-  
-  const testData = {
-    userId: userId,
-    gameType: 'tetris',
-    score: Math.floor(Math.random() * 10000) + 1000,
-    level: Math.floor(Math.random() * 10) + 1,
-    lines: Math.floor(Math.random() * 100) + 10,
-    username: 'Тестовый игрок',
-    isWin: true
-  };
-  
-  console.log('🧪 Тестовые данные:', testData);
-  
-  const result = await saveGameScore(
-    testData.userId,
-    testData.gameType,
-    testData.score,
-    testData.level,
-    testData.lines,
-    testData.username,
-    testData.isWin
-  );
-  
-  console.log('🧪 Результат теста:', {
-    успех: result.success,
-    id: result.id,
-    ошибка: result.error,
-    код_ошибки: result.code
+export async function saveGameScore(userId, gameType, score, level, lines, username = null, isWin = true) {
+  console.log('🎮🔄 ========== СОХРАНЕНИЕ ИГРЫ НАЧАЛО ==========');
+  console.log('📥 Входные параметры:', {
+    userId,
+    gameType,
+    score,
+    level,
+    lines,
+    username,
+    isWin,
+    timestamp: new Date().toISOString()
   });
   
-  if (result.success) {
-    console.log('✅ ТЕСТ ПРОЙДЕН УСПЕШНО');
-  } else {
-    console.log('❌ ТЕСТ ПРОВАЛЕН');
+  if (!pool) {
+    console.error('❌ saveGameScore: Пул подключения не инициализирован');
+    return { 
+      success: false, 
+      error: 'Нет подключения к БД',
+      id: null 
+    };
   }
   
-  console.log('🧪 ========== КОНЕЦ ТЕСТА ==========\n');
+  const dbUserId = convertUserIdForDb(userId);
+  console.log(`🔧 Преобразованный user_id: "${dbUserId}" (оригинал: "${userId}")`);
   
-  return result;
+  const finalUsername = username || `Игрок_${String(dbUserId).slice(-4)}`;
+  console.log(`👤 Имя для сохранения: "${finalUsername}"`);
+  
+  console.log(`🎮 Попытка сохранения: ${dbUserId} - ${score} очков (${gameType})`);
+  
+  const client = await pool.connect();
+  console.log('🔗 Подключение к БД получено');
+  
+  try {
+    // 1. Получаем или создаем пользователя с сохранением города
+    console.log('👤 Шаг 1: Получаем/создаем профиль пользователя...');
+    const userProfile = await getUserProfile(dbUserId);
+    console.log('📊 Профиль пользователя:', userProfile ? 'найден' : 'не найден');
+    
+    const currentCity = userProfile?.city || 'Не указан';
+    console.log(`📍 Текущий город из профиля: "${currentCity}"`);
+    
+    console.log('💾 Сохраняем/обновляем пользователя...');
+    const userSaveResult = await saveOrUpdateUser({
+      user_id: dbUserId,
+      username: finalUsername,
+      first_name: finalUsername,
+      city: currentCity,
+      chat_id: null
+    });
+    console.log(`✅ Пользователь сохранен/обновлен. ID в БД: ${userSaveResult}`);
+    
+    // 2. Сохраняем результат игры
+    console.log('🎮 Шаг 2: Сохраняем результат игры в game_scores...');
+    const gameQuery = `
+      INSERT INTO game_scores (
+        user_id, 
+        username, 
+        game_type, 
+        score, 
+        level, 
+        lines, 
+        is_win,
+        city
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      RETURNING id, created_at
+    `;
+    
+    const queryParams = [
+      dbUserId, 
+      finalUsername, 
+      gameType || 'tetris', 
+      parseInt(score) || 0, 
+      parseInt(level) || 1, 
+      parseInt(lines) || 0,
+      isWin,
+      currentCity
+    ];
+    
+    console.log('📝 Параметры SQL запроса:', {
+      query: 'INSERT INTO game_scores ...',
+      params: queryParams
+    });
+    
+    const result = await client.query(gameQuery, queryParams);
+    
+    const savedId = result.rows[0]?.id;
+    const createdAt = result.rows[0]?.created_at;
+    
+    console.log(`✅ Результат игры сохранен!`, {
+      id: savedId,
+      created_at: createdAt,
+      rows_affected: result.rowCount
+    });
+    
+    // 3. Удаляем прогресс (если был)
+    console.log('🗑️ Шаг 3: Удаляем сохраненный прогресс...');
+    const deleteResult = await client.query(
+      'DELETE FROM game_progress WHERE user_id = $1 AND game_type = $2 RETURNING score',
+      [dbUserId, gameType || 'tetris']
+    );
+    
+    if (deleteResult.rowCount > 0) {
+      console.log(`✅ Прогресс удален. Было сохранено очков: ${deleteResult.rows[0]?.score || 0}`);
+    } else {
+      console.log('ℹ️ Прогресс для удаления не найден');
+    }
+    
+    // 4. Проверяем, что запись действительно сохранена
+    console.log('🔍 Шаг 4: Проверяем сохраненную запись...');
+    const verifyQuery = await client.query(
+      'SELECT id, user_id, score, city, created_at FROM game_scores WHERE id = $1',
+      [savedId]
+    );
+    
+    if (verifyQuery.rows[0]) {
+      console.log('✅ Запись верифицирована:', verifyQuery.rows[0]);
+    } else {
+      console.warn('⚠️ Запись не найдена при верификации!');
+    }
+    
+    console.log('🎮✅ ========== СОХРАНЕНИЕ ИГРЫ УСПЕШНО ==========');
+    
+    return { 
+      success: true, 
+      id: savedId,
+      user_id: dbUserId,
+      username: finalUsername,
+      score: parseInt(score) || 0,
+      city: currentCity,
+      created_at: createdAt
+    };
+    
+  } catch (error) {
+    console.error('💥❌ ========== ОШИБКА СОХРАНЕНИЯ ИГРЫ ==========');
+    console.error('📛 Ошибка:', error.message);
+    console.error('🔢 Код ошибки:', error.code);
+    console.error('📌 Детали ошибки:', {
+      name: error.name,
+      constraint: error.constraint,
+      table: error.table,
+      column: error.column,
+      dataType: error.dataType
+    });
+    console.error('📍 Stack trace:');
+    console.error(error.stack);
+    
+    if (error.code === '23505') { // unique violation
+      console.error('⚠️ Нарушение уникальности. Проверяем дубликаты...');
+      try {
+        const duplicates = await client.query(
+          'SELECT id, user_id, score, created_at FROM game_scores WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5',
+          [dbUserId]
+        );
+        console.error('📋 Последние записи этого пользователя:', duplicates.rows);
+      } catch (e) {
+        console.error('Не удалось проверить дубликаты:', e.message);
+      }
+    }
+    
+    if (error.code === '23502') { // not null violation
+      console.error('⚠️ Нарушение NOT NULL. Проверяем параметры:');
+      console.error('   user_id:', dbUserId);
+      console.error('   username:', finalUsername);
+      console.error('   score:', score);
+    }
+    
+    if (error.code === '22P02') { // invalid text representation
+      console.error('⚠️ Ошибка преобразования типа данных. Проверьте числовые значения.');
+    }
+    
+    console.error('💥❌ ========== КОНЕЦ ОШИБКИ ==========');
+    
+    return { 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      details: {
+        constraint: error.constraint,
+        table: error.table,
+        column: error.column
+      },
+      id: null 
+    };
+  } finally {
+    console.log('🔌 Освобождаем подключение к БД...');
+    client.release();
+    console.log('🎮🔄 ========== СОХРАНЕНИЕ ИГРЫ КОНЕЦ ==========\n');
+  }
 }
+
+/**
+ * Сохраняет прогресс игры (автосохранение) с расширенной отладкой
+ */
+export async function saveGameProgress(userId, gameType, score, level, lines, username = null) {
+  console.log('💾🔄 ========== СОХРАНЕНИЕ ПРОГРЕССА НАЧАЛО ==========');
+  console.log('📥 Входные параметры:', {
+    userId,
+    gameType,
+    score,
+    level,
+    lines,
+    username,
+    timestamp: new Date().toISOString()
+  });
+  
+  if (!pool) {
+    console.error('❌ saveGameProgress: Пул подключения не инициализирован');
+    return { 
+      success: false, 
+      error: 'Нет подключения к БД' 
+    };
+  }
+  
+  const dbUserId = convertUserIdForDb(userId);
+  console.log(`🔧 Преобразованный user_id: "${dbUserId}"`);
+  
+  console.log(`💾 Сохранение прогресса: user=${dbUserId}, score=${score}, game=${gameType}`);
+  
+  const client = await pool.connect();
+  console.log('🔗 Подключение к БД получено');
+  
+  try {
+    // Сохраняем/обновляем информацию о пользователе с chat_id = null
+    if (username) {
+      console.log('👤 Обновляем данные пользователя...');
+      try {
+        const userResult = await saveOrUpdateUser({
+          user_id: dbUserId,
+          username: username,
+          first_name: username || 'Игрок',
+          city: 'Не указан',
+          chat_id: null
+        });
+        console.log(`✅ Данные пользователя обновлены. ID: ${userResult}`);
+      } catch (userError) {
+        console.log('⚠️ Ошибка обновления пользователя:', userError.message);
+        console.log('Продолжаем без обновления пользователя...');
+      }
+    }
+    
+    // Сохраняем прогресс игры
+    console.log('💾 Сохраняем прогресс в game_progress...');
+    const query = `
+      INSERT INTO game_progress (user_id, game_type, score, level, lines, last_saved) 
+      VALUES ($1, $2, $3, $4, $5, NOW()) 
+      ON CONFLICT (user_id, game_type) 
+      DO UPDATE SET 
+        score = EXCLUDED.score,
+        level = EXCLUDED.level,
+        lines = EXCLUDED.lines,
+        last_saved = NOW()
+      RETURNING user_id, last_saved, score, level
+    `;
+    
+    const queryParams = [
+      dbUserId, 
+      gameType || 'tetris', 
+      parseInt(score) || 0, 
+      parseInt(level) || 1, 
+      parseInt(lines) || 0
+    ];
+    
+    console.log('📝 Параметры SQL запроса:', {
+      query: 'INSERT INTO game_progress ... ON CONFLICT ...',
+      params: queryParams
+    });
+    
+    const result = await client.query(query, queryParams);
+    
+    const savedTime = result.rows[0]?.last_saved;
+    const savedScore = result.rows[0]?.score;
+    const savedLevel = result.rows[0]?.level;
+    
+    console.log(`✅ Прогресс сохранен:`, {
+      score: savedScore,
+      level: savedLevel,
+      время: savedTime,
+      конфликт_обработан: result.rowCount > 0 ? 'да' : 'нет',
+      rows_affected: result.rowCount
+    });
+    
+    // Проверяем сохраненный прогресс
+    console.log('🔍 Проверяем сохраненный прогресс...');
+    const verifyQuery = await client.query(
+      'SELECT user_id, score, level, lines, last_saved FROM game_progress WHERE user_id = $1 AND game_type = $2',
+      [dbUserId, gameType || 'tetris']
+    );
+    
+    if (verifyQuery.rows[0]) {
+      console.log('✅ Прогресс верифицирован:', verifyQuery.rows[0]);
+    }
+    
+    console.log('💾✅ ========== СОХРАНЕНИЕ ПРОГРЕССА УСПЕШНО ==========');
+    
+    return { 
+      success: true, 
+      user_id: result.rows[0]?.user_id, 
+      last_saved: savedTime,
+      score: savedScore,
+      level: savedLevel
+    };
+    
+  } catch (error) {
+    console.error('💥❌ ========== ОШИБКА СОХРАНЕНИЯ ПРОГРЕССА ==========');
+    console.error('📛 Ошибка:', error.message);
+    console.error('🔢 Код ошибки:', error.code);
+    console.error('📌 Stack trace:');
+    console.error(error.stack);
+    
+    console.error('📊 Параметры запроса:', { 
+      userId: dbUserId, 
+      gameType, 
+      score,
+      level,
+      lines
+    });
+    
+    if (error.code === '42P01') { // table does not exist
+      console.error('⚠️ Таблица game_progress не существует!');
+      try {
+        const tables = await client.query(
+          "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+        );
+        console.error('📋 Существующие таблицы:', tables.rows.map(t => t.table_name));
+      } catch (e) {
+        console.error('Не удалось получить список таблиц:', e.message);
+      }
+    }
+    
+    console.error('💥❌ ========== КОНЕЦ ОШИБКИ ==========');
+    
+    return { 
+      success: false, 
+      error: error.message,
+      code: error.code 
+    };
+  } finally {
+    console.log('🔌 Освобождаем подключение к БД...');
+    client.release();
+    console.log('💾🔄 ========== СОХРАНЕНИЕ ПРОГРЕССА КОНЕЦ ==========\n');
+  }
+}
+
+/**
+ * Получает сохраненный прогресс игры с расширенной отладкой
+ */
+export async function getGameProgress(userId, gameType = 'tetris') {
+  console.log('📥🔄 ========== ПОЛУЧЕНИЕ ПРОГРЕССА НАЧАЛО ==========');
+  console.log('📥 Входные параметры:', {
+    userId,
+    gameType,
+    timestamp: new Date().toISOString()
+  });
+  
+  if (!pool) {
+    console.error('❌ getGameProgress: Пул подключения не инициализирован');
+    return { 
+      success: false, 
+      error: 'Нет подключения к БД',
+      found: false 
+    };
+  }
+  
+  const dbUserId = convertUserIdForDb(userId);
+  console.log(`🔧 Преобразованный user_id: "${dbUserId}"`);
+  
+  console.log(`📥 Запрос прогресса: user=${dbUserId}, type=${gameType}`);
+  
+  const client = await pool.connect();
+  console.log('🔗 Подключение к БД получено');
+  
+  try {
+    const query = `
+      SELECT score, level, lines, last_saved 
+      FROM game_progress 
+      WHERE user_id = $1 AND game_type = $2
+    `;
+    
+    console.log('📝 SQL запрос:', query);
+    console.log('📋 Параметры:', [dbUserId, gameType]);
+    
+    const startTime = Date.now();
+    const result = await client.query(query, [dbUserId, gameType]);
+    const queryTime = Date.now() - startTime;
+    
+    console.log(`⏱️ Время выполнения запроса: ${queryTime}ms`);
+    console.log(`📊 Найдено записей: ${result.rows.length}`);
+    
+    if (result.rows[0]) {
+      const progress = result.rows[0];
+      const progressData = {
+        score: parseInt(progress.score) || 0,
+        level: parseInt(progress.level) || 1,
+        lines: parseInt(progress.lines) || 0,
+        last_saved: progress.last_saved
+      };
+      
+      console.log(`✅ Прогресс найден:`, {
+        score: progressData.score,
+        level: progressData.level,
+        lines: progressData.lines,
+        last_saved: progressData.last_saved,
+        сырые_данные: progress
+      });
+      
+      console.log('📥✅ ========== ПОЛУЧЕНИЕ ПРОГРЕССА УСПЕШНО ==========');
+      
+      return { 
+        success: true, 
+        found: true, 
+        progress: progressData,
+        query_time_ms: queryTime
+      };
+    }
+    
+    console.log(`ℹ️ Прогресс не найден для пользователя ${dbUserId}`);
+    
+    // Проверяем, существует ли пользователь
+    console.log('🔍 Проверяем существование пользователя...');
+    const userCheck = await client.query(
+      'SELECT user_id FROM users WHERE user_id = $1',
+      [dbUserId]
+    );
+    
+    if (userCheck.rows[0]) {
+      console.log(`✅ Пользователь ${dbUserId} существует в таблице users`);
+    } else {
+      console.log(`ℹ️ Пользователь ${dbUserId} не найден в таблице users`);
+    }
+    
+    console.log('📥✅ ========== ПОЛУЧЕНИЕ ПРОГРЕССА ЗАВЕРШЕНО ==========');
+    
+    return { 
+      success: true, 
+      found: false, 
+      progress: null,
+      user_exists: userCheck.rows.length > 0,
+      query_time_ms: queryTime
+    };
+    
+  } catch (error) {
+    console.error('💥❌ ========== ОШИБКА ПОЛУЧЕНИЯ ПРОГРЕССА ==========');
+    console.error('📛 Ошибка:', error.message);
+    console.error('🔢 Код ошибки:', error.code);
+    console.error('📌 Stack trace:');
+    console.error(error.stack);
+    
+    if (error.code === '42P01') { // table does not exist
+      console.error('⚠️ Таблица game_progress не существует!');
+      console.error('🔄 Попробуем создать таблицу...');
+      try {
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS game_progress (
+            user_id VARCHAR(50) NOT NULL,
+            game_type VARCHAR(50) NOT NULL DEFAULT 'tetris',
+            score INTEGER DEFAULT 0,
+            level INTEGER DEFAULT 1,
+            lines INTEGER DEFAULT 0,
+            last_saved TIMESTAMP DEFAULT NOW(),
+            PRIMARY KEY (user_id, game_type)
+          )
+        `);
+        console.log('✅ Таблица game_progress создана');
+      } catch (createError) {
+        console.error('❌ Не удалось создать таблицу:', createError.message);
+      }
+    }
+    
+    console.error('💥❌ ========== КОНЕЦ ОШИБКИ ==========');
+    
+    return { 
+      success: false, 
+      error: error.message,
+      code: error.code,
+      found: false 
+    };
+  } finally {
+    console.log('🔌 Освобождаем подключение к БД...');
+    client.release();
+    console.log('📥🔄 ========== ПОЛУЧЕНИЕ ПРОГРЕССА КОНЕЦ ==========\n');
+  }
+}
+
 // ============ ФУНКЦИЯ ПОЛУЧЕНИЯ СТАТИСТИКИ ИГРОКА ==========
 
 /**
@@ -676,7 +1109,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
   const client = await pool.connect();
   
   try {
-    // 🔴 1. Считаем ТОЛЬКО ЗАВЕРШЕННЫЕ ИГРЫ (game_scores)
     const statsQuery = `
       SELECT 
         COUNT(*) as games_played,
@@ -690,7 +1122,7 @@ export async function getGameStats(userId, gameType = 'tetris') {
       FROM game_scores 
       WHERE user_id = $1 
         AND game_type = $2
-        AND is_win = true  -- 🔴 ТОЛЬКО победы (завершенные игры)
+        AND is_win = true
     `;
     
     const statsResult = await client.query(statsQuery, [dbUserId, gameType]);
@@ -711,7 +1143,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
       avg: stats.avg_score
     });
     
-    // 🔴 2. Получаем город из users
     let city = 'Не указан';
     try {
       const cityResult = await client.query(
@@ -725,7 +1156,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
       console.log('⚠️ Город не получен:', cityError.message);
     }
     
-    // 🔴 3. Проверяем, есть ли НЕЗАВЕРШЕННАЯ игра (прогресс)
     const progressResult = await client.query(`
       SELECT score, level, lines, last_saved 
       FROM game_progress 
@@ -735,7 +1165,6 @@ export async function getGameStats(userId, gameType = 'tetris') {
     const progress = progressResult.rows[0];
     const hasUnfinishedGame = !!progress;
     
-    // 🔴 4. Формируем понятные данные
     const gamesPlayed = parseInt(stats.games_played) || 0;
     const hasAnyGames = gamesPlayed > 0 || hasUnfinishedGame;
     
@@ -756,7 +1185,7 @@ export async function getGameStats(userId, gameType = 'tetris') {
         last_saved: progress.last_saved
       } : null,
       has_unfinished_game: hasUnfinishedGame,
-      has_any_games: hasAnyGames,  // 🔴 НОВОЕ ПОЛЕ
+      has_any_games: hasAnyGames,
       city: city,
       user_id: dbUserId,
       isWebApp: dbUserId.startsWith('web_')
@@ -802,46 +1231,43 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   const client = await pool.connect();
   
   try {
-    // 🔴 ПРОСТОЙ И НАДЕЖНЫЙ ЗАПРОС: только ЛУЧШИЕ завершенные игры
-    // ИСПРАВЛЕННЫЙ SQL ЗАПРОС:
-const query = `
-  SELECT 
-    gs.user_id,
-    COALESCE(
-      u.username, 
-      gs.username, 
-      CASE 
-        WHEN gs.user_id LIKE 'web_%' THEN CONCAT('🌐 Игрок ', SUBSTRING(gs.user_id FROM LENGTH(gs.user_id)-3))
-        ELSE CONCAT('👤 Игрок ', SUBSTRING(gs.user_id FROM LENGTH(gs.user_id)-3))
-      END
-    ) as display_name,
-    COALESCE(u.city, 'Не указан') as city,
-    MAX(gs.score) as best_score,
-    COUNT(*) as games_played,
-    MAX(gs.level) as best_level,
-    MAX(gs.lines) as best_lines,
-    MAX(gs.created_at) as last_played,
-    u.first_name
-  FROM game_scores gs
-  LEFT JOIN users u ON gs.user_id = u.user_id
-  WHERE gs.game_type = $1 
-    AND gs.score > 0
-    AND gs.user_id IS NOT NULL
-    AND gs.user_id != ''
-  GROUP BY gs.user_id, u.username, gs.username, u.city, u.first_name
-  HAVING MAX(gs.score) > 0
-  ORDER BY MAX(gs.score) DESC, COUNT(*) DESC, MAX(gs.created_at) DESC
-  LIMIT $2
-`;
+    const query = `
+      SELECT 
+        gs.user_id,
+        COALESCE(
+          u.username, 
+          gs.username, 
+          CASE 
+            WHEN gs.user_id LIKE 'web_%' THEN CONCAT('🌐 Игрок ', SUBSTRING(gs.user_id FROM LENGTH(gs.user_id)-3))
+            ELSE CONCAT('👤 Игрок ', SUBSTRING(gs.user_id FROM LENGTH(gs.user_id)-3))
+          END
+        ) as display_name,
+        COALESCE(u.city, gs.city, 'Не указан') as city,
+        MAX(gs.score) as best_score,
+        COUNT(*) as games_played,
+        MAX(gs.level) as best_level,
+        MAX(gs.lines) as best_lines,
+        MAX(gs.created_at) as last_played,
+        u.first_name
+      FROM game_scores gs
+      LEFT JOIN users u ON gs.user_id = u.user_id
+      WHERE gs.game_type = $1 
+        AND gs.score > 0
+        AND gs.user_id IS NOT NULL
+        AND gs.user_id != ''
+      GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city, u.first_name
+      HAVING MAX(gs.score) > 0
+      ORDER BY MAX(gs.score) DESC, COUNT(*) DESC, MAX(gs.created_at) DESC
+      LIMIT $2
+    `;
     
-    console.log('🏆 SQL: Ищем только завершенные игры (мин. 1000 очков)');
+    console.log('🏆 SQL: Ищем только завершенные игры');
     
     const result = await client.query(query, [gameType, limit]);
     console.log(`🏆 Найдено завершенных игр в топе: ${result.rows.length}`);
     
-    // 🔴 ЕСЛИ НЕТ ЗАВЕРШЕННЫХ ИГР - ВОЗВРАЩАЕМ ПУСТОЙ ТОП
     if (result.rows.length === 0) {
-      console.log('ℹ️ Нет завершенных игр с результатом > 1000 очков');
+      console.log('ℹ️ Нет завершенных игр с результатом > 0 очков');
       return { 
         success: true, 
         players: [], 
@@ -850,17 +1276,13 @@ const query = `
       };
     }
     
-    // 🔴 УПРОЩЕННОЕ ФОРМИРОВАНИЕ ИМЕН
     const topPlayers = result.rows.map((row, index) => {
-      // Простое имя: или first_name, или game_username, или Игрок + ID
       let displayName = 'Игрок';
       
       if (row.first_name && row.first_name.trim() && row.first_name !== 'Игрок') {
         displayName = row.first_name.trim();
       } else if (row.display_name && row.display_name.trim() && row.display_name !== 'Игрок') {
         displayName = row.display_name.trim();
-      } else if (row.game_username && row.game_username.trim() && row.game_username !== 'Игрок') {
-        displayName = row.game_username.trim();
       } else if (row.user_id) {
         const cleanId = String(row.user_id).slice(-4);
         displayName = `Игрок ${cleanId}`;
@@ -876,11 +1298,10 @@ const query = `
         lines: parseInt(row.lines) || 0,
         games_played: parseInt(row.games_played) || 1,
         last_played: row.last_played,
-        is_completed_game: true // 🔴 ФЛАГ ЧТО ЭТО ЗАВЕРШЕННАЯ ИГРА
+        is_completed_game: true
       };
     });
     
-    // 🔴 ЛОГИРОВАНИЕ
     console.log('🏆 ТОП (только завершенные игры):');
     topPlayers.forEach((p, i) => {
       console.log(`${i+1}. ${p.username} - ${p.score} очков (${p.city})`);
@@ -993,7 +1414,6 @@ export async function debugDatabase() {
     const client = await pool.connect();
     
     try {
-      // Сводная информация по всем таблицам
       const tablesInfo = await client.query(`
         SELECT 
           table_name,
@@ -1010,32 +1430,6 @@ export async function debugDatabase() {
       console.log('📊 Структура базы данных:');
       for (const table of tablesInfo.rows) {
         console.log(`   ${table.table_name}: ${table.columns_count} колонок, ${table.rows_count} записей`);
-      }
-      
-      // Проверяем основные таблицы
-      const tables = ['users', 'game_scores', 'game_progress', 'user_sessions'];
-      
-      for (const table of tables) {
-        try {
-          const sample = await client.query(`SELECT COUNT(*) as count FROM ${table}`);
-          const count = sample.rows[0]?.count || 0;
-          console.log(`📋 ${table}: ${count} записей`);
-          
-          if (count > 0) {
-            const columns = await client.query(`
-              SELECT column_name, data_type, is_nullable 
-              FROM information_schema.columns 
-              WHERE table_name = '${table}' 
-              ORDER BY ordinal_position
-            `);
-            console.log(`   Колонки:`);
-            columns.rows.forEach(c => {
-              console.log(`     ${c.column_name}: ${c.data_type} ${c.is_nullable === 'YES' ? '(NULL)' : '(NOT NULL)'}`);
-            });
-          }
-        } catch (e) {
-          console.log(`⚠️ ${table}: ${e.message}`);
-        }
       }
       
       return { 
@@ -1056,158 +1450,51 @@ export async function debugDatabase() {
     };
   }
 }
+
 /**
- * Функция для отладки сохранения данных
+ * Тестовая функция для проверки сохранения игры
  */
-export async function debugGameSave(userId, gameData) {
-  console.log('🔍 ОТЛАДКА СОХРАНЕНИЯ ИГРЫ:');
-  console.log('📋 Входные данные:');
-  console.log('   User ID:', userId);
-  console.log('   Данные игры:', gameData);
+export async function testGameSave(userId = 'test_user_' + Date.now()) {
+  console.log('🧪 ========== ТЕСТ СОХРАНЕНИЯ ИГРЫ ==========');
   
-  const dbUserId = convertUserIdForDb(userId);
-  console.log('   Преобразованный ID:', dbUserId);
-  
-  const client = await pool.connect();
-  try {
-    // Проверяем существование пользователя
-    const userCheck = await client.query(
-      'SELECT user_id, username, city FROM users WHERE user_id = $1',
-      [dbUserId]
-    );
-    console.log('👤 Существующий пользователь:', userCheck.rows[0] || 'Не найден');
-    
-    // Проверяем существующие записи в game_scores
-    const scoresCheck = await client.query(
-      'SELECT COUNT(*) as count, MAX(score) as max_score FROM game_scores WHERE user_id = $1',
-      [dbUserId]
-    );
-    console.log('🎮 Существующие записи:', scoresCheck.rows[0]);
-    
-    // Пробуем сохранить
-    const saveResult = await saveGameScore(userId, 
-      gameData.gameType || 'tetris',
-      gameData.score || 0,
-      gameData.level || 1,
-      gameData.lines || 0,
-      gameData.username
-    );
-    
-    console.log('💾 Результат сохранения:', saveResult);
-    
-    // Проверяем сохраненное
-    const verify = await client.query(
-      'SELECT id, score, created_at FROM game_scores WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
-      [dbUserId]
-    );
-    console.log('✅ Проверка сохраненного:', verify.rows[0] || 'Не найдено');
-    
-    return {
-      user_exists: !!userCheck.rows[0],
-      previous_scores: scoresCheck.rows[0],
-      save_result: saveResult,
-      verified: verify.rows[0]
-    };
-    
-  } finally {
-    client.release();
-  }
-}
-/**
- * Проверяет целостность данных в базе
- */
-export async function verifyDataIntegrity() {
-  const client = await pool.connect();
-  try {
-    console.log('🔍 ПРОВЕРКА ЦЕЛОСТНОСТИ ДАННЫХ');
-    
-    // Проверяем пользователей без игр
-    const usersWithoutGames = await client.query(`
-      SELECT u.user_id, u.username, u.created_at
-      FROM users u
-      LEFT JOIN game_scores gs ON u.user_id = gs.user_id
-      WHERE gs.id IS NULL
-      LIMIT 10
-    `);
-    console.log('👤 Пользователи без игр:', usersWithoutGames.rows.length);
-    
-    // Проверяем игры без пользователей
-    const gamesWithoutUsers = await client.query(`
-      SELECT gs.id, gs.user_id, gs.score, gs.created_at
-      FROM game_scores gs
-      LEFT JOIN users u ON gs.user_id = u.user_id
-      WHERE u.id IS NULL
-      LIMIT 10
-    `);
-    console.log('🎮 Игры без пользователей:', gamesWithoutUsers.rows.length);
-    
-    // Самый высокий счет
-    const topScore = await client.query(`
-      SELECT gs.user_id, gs.username, gs.score, u.city, gs.created_at
-      FROM game_scores gs
-      LEFT JOIN users u ON gs.user_id = u.user_id
-      ORDER BY gs.score DESC
-      LIMIT 1
-    `);
-    console.log('🏆 Самый высокий счет:', topScore.rows[0]);
-    
-    // Статистика по таблицам
-    const stats = {
-      users: await client.query('SELECT COUNT(*) FROM users'),
-      game_scores: await client.query('SELECT COUNT(*) FROM game_scores'),
-      game_progress: await client.query('SELECT COUNT(*) FROM game_progress'),
-      user_sessions: await client.query('SELECT COUNT(*) FROM user_sessions')
-    };
-    
-    console.log('📊 Статистика таблиц:');
-    console.log('   users:', stats.users.rows[0].count);
-    console.log('   game_scores:', stats.game_scores.rows[0].count);
-    console.log('   game_progress:', stats.game_progress.rows[0].count);
-    console.log('   user_sessions:', stats.user_sessions.rows[0].count);
-    
-    return {
-      users_count: parseInt(stats.users.rows[0].count),
-      games_count: parseInt(stats.game_scores.rows[0].count),
-      top_score: topScore.rows[0],
-      orphaned_users: usersWithoutGames.rows,
-      orphaned_games: gamesWithoutUsers.rows
-    };
-    
-  } finally {
-    client.release();
-  }
-}
-/**
- * Диагностика подключения
- */
-export async function diagnoseConnection() {
-  const results = {
-    timestamp: new Date().toISOString(),
-    hasDatabaseUrl: !!process.env.DATABASE_URL,
-    databaseUrlType: process.env.DATABASE_URL?.includes('neon.tech') ? 'Neon' : 'Unknown',
-    databaseUrlLength: process.env.DATABASE_URL?.length || 0,
-    nodeEnv: process.env.NODE_ENV || 'development',
-    connectionTest: await testConnection()
+  const testData = {
+    userId: userId,
+    gameType: 'tetris',
+    score: Math.floor(Math.random() * 10000) + 1000,
+    level: Math.floor(Math.random() * 10) + 1,
+    lines: Math.floor(Math.random() * 100) + 10,
+    username: 'Тестовый игрок',
+    isWin: true
   };
   
-  console.log('🔍 Диагностика подключения к БД:', results);
-  return results;
-}
-
-// 🔴 АВТОМАТИЧЕСКАЯ ОТЛАДКА ПРИ ЗАПУСКЕ
-if (process.env.NODE_ENV !== 'production' && process.env.DATABASE_URL) {
-  setTimeout(() => {
-    console.log('🔧 Запуск автоотладки БД...');
-    debugDatabase().then(result => {
-      if (result.success) {
-        console.log('✅ Отладка БД завершена успешно');
-      } else {
-        console.error('❌ Отладка БД завершена с ошибкой:', result.error);
-      }
-    }).catch(error => {
-      console.error('💥 Ошибка при автоотладке:', error);
-    });
-  }, 3000);
+  console.log('🧪 Тестовые данные:', testData);
+  
+  const result = await saveGameScore(
+    testData.userId,
+    testData.gameType,
+    testData.score,
+    testData.level,
+    testData.lines,
+    testData.username,
+    testData.isWin
+  );
+  
+  console.log('🧪 Результат теста:', {
+    успех: result.success,
+    id: result.id,
+    ошибка: result.error,
+    код_ошибки: result.code
+  });
+  
+  if (result.success) {
+    console.log('✅ ТЕСТ ПРОЙДЕН УСПЕШНО');
+  } else {
+    console.log('❌ ТЕСТ ПРОВАЛЕН');
+  }
+  
+  console.log('🧪 ========== КОНЕЦ ТЕСТА ==========\n');
+  
+  return result;
 }
 
 // Экспортируем pool для использования в других частях приложения
