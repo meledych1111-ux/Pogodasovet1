@@ -61,12 +61,21 @@ const pool = poolConfig ? new Pool(poolConfig) : null;
 
 // 🔴 УНИВЕРСАЛЬНАЯ ФУНКЦИЯ КОНВЕРТАЦИИ USER_ID
 function convertUserIdForDb(userId) {
+  console.log(`🔧 convertUserIdForDb input:`, userId, typeof userId);
+  
   if (userId === undefined || userId === null) {
     console.error('❌ convertUserIdForDb: userId не определен');
-    return 'unknown';
+    return 'unknown_' + Date.now(); // Возвращаем уникальное значение вместо 'unknown'
   }
   
-  const userIdStr = String(userId);
+  const userIdStr = String(userId).trim();
+  
+  if (userIdStr === '') {
+    console.error('❌ convertUserIdForDb: userId пустая строка');
+    return 'empty_' + Date.now();
+  }
+  
+  console.log(`🔧 convertUserIdForDb output: "${userIdStr}"`);
   
   if (userIdStr.startsWith('web_')) {
     return userIdStr;
@@ -606,237 +615,51 @@ export async function getUserCity(userId) {
  * Сохраняет финальный результат игры в game_scores
  */
 // Упрощенная версия без транзакции:
-export async function saveGameScore(userId, gameType, score, level, lines, username = null, isWin = true) {
-  if (!pool) {
-    console.error('❌ saveGameScore: Пул подключения не инициализирован');
-    return { 
-      success: false, 
-      error: 'Нет подключения к БД',
-      id: null 
-    };
-  }
-  
-  const dbUserId = convertUserIdForDb(userId);
-  const finalUsername = username || `Игрок_${String(dbUserId).slice(-4)}`;
-  
-  console.log(`🎮 СОХРАНЕНИЕ: ${dbUserId} - ${score} очков (${gameType})`);
-  
-  const client = await pool.connect();
-  
-  try {
-    // 1. Получаем или создаем пользователя с сохранением города
-    const userProfile = await getUserProfile(dbUserId);
-    const currentCity = userProfile?.city || 'Не указан';
-    
-    await saveOrUpdateUser({
-      user_id: dbUserId,
-      username: finalUsername,
-      first_name: finalUsername,
-      city: currentCity, // ← Сохраняем существующий город!
-      chat_id: null
-    });
-    
-    // 2. Сохраняем результат игры
-    const gameQuery = `
-      INSERT INTO game_scores (
-        user_id, 
-        username, 
-        game_type, 
-        score, 
-        level, 
-        lines, 
-        is_win
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7) 
-      RETURNING id
-    `;
-    
-    const result = await client.query(gameQuery, [
-      dbUserId, 
-      finalUsername, 
-      gameType || 'tetris', 
-      parseInt(score) || 0, 
-      parseInt(level) || 1, 
-      parseInt(lines) || 0,
-      isWin
-    ]);
-    
-    const savedId = result.rows[0]?.id;
-    console.log(`✅ Результат сохранен! ID: ${savedId}`);
-    
-    // 3. Удаляем прогресс
-    await client.query(
-      'DELETE FROM game_progress WHERE user_id = $1 AND game_type = $2',
-      [dbUserId, gameType || 'tetris']
-    );
-    
-    return { 
-      success: true, 
-      id: savedId,
-      user_id: dbUserId,
-      username: finalUsername,
-      score: parseInt(score) || 0
-    };
-    
-  } catch (error) {
-    console.error('💥 ОШИБКА СОХРАНЕНИЯ:', error.message);
-    console.error('📌 Stack:', error.stack);
-    
-    return { 
-      success: false, 
-      error: error.message,
-      code: error.code,
-      id: null 
-    };
-  } finally {
-    client.release();
-  }
-}
-
 /**
- * Сохраняет прогресс игры (автосохранение)
+ * Тестовая функция для проверки сохранения игры
  */
-export async function saveGameProgress(userId, gameType, score, level, lines, username = null) {
-  if (!pool) {
-    console.error('❌ saveGameProgress: Пул подключения не инициализирован');
-    return { 
-      success: false, 
-      error: 'Нет подключения к БД' 
-    };
+export async function testGameSave(userId = 'test_user_' + Date.now()) {
+  console.log('🧪 ========== ТЕСТ СОХРАНЕНИЯ ИГРЫ ==========');
+  
+  const testData = {
+    userId: userId,
+    gameType: 'tetris',
+    score: Math.floor(Math.random() * 10000) + 1000,
+    level: Math.floor(Math.random() * 10) + 1,
+    lines: Math.floor(Math.random() * 100) + 10,
+    username: 'Тестовый игрок',
+    isWin: true
+  };
+  
+  console.log('🧪 Тестовые данные:', testData);
+  
+  const result = await saveGameScore(
+    testData.userId,
+    testData.gameType,
+    testData.score,
+    testData.level,
+    testData.lines,
+    testData.username,
+    testData.isWin
+  );
+  
+  console.log('🧪 Результат теста:', {
+    успех: result.success,
+    id: result.id,
+    ошибка: result.error,
+    код_ошибки: result.code
+  });
+  
+  if (result.success) {
+    console.log('✅ ТЕСТ ПРОЙДЕН УСПЕШНО');
+  } else {
+    console.log('❌ ТЕСТ ПРОВАЛЕН');
   }
   
-  const dbUserId = convertUserIdForDb(userId);
-  console.log(`💾 Сохранение прогресса: user=${dbUserId}, score=${score}`);
+  console.log('🧪 ========== КОНЕЦ ТЕСТА ==========\n');
   
-  const client = await pool.connect();
-  
-  try {
-    // Сохраняем/обновляем информацию о пользователе с chat_id = null
-    if (username) {
-      try {
-        await saveOrUpdateUser({
-          user_id: dbUserId,
-          username: username,
-          first_name: username || 'Игрок',
-          city: 'Не указан',
-          chat_id: null // 🔴 ЯВНО УКАЗЫВАЕМ NULL
-        });
-        console.log(`👤 Данные пользователя обновлены для прогресса`);
-      } catch (userError) {
-        console.log('⚠️ Ошибка обновления пользователя:', userError.message);
-      }
-    }
-    
-    // Сохраняем прогресс игры
-    const query = `
-      INSERT INTO game_progress (user_id, game_type, score, level, lines, last_saved) 
-      VALUES ($1, $2, $3, $4, $5, NOW()) 
-      ON CONFLICT (user_id, game_type) 
-      DO UPDATE SET 
-        score = EXCLUDED.score,
-        level = EXCLUDED.level,
-        lines = EXCLUDED.lines,
-        last_saved = NOW()
-      RETURNING user_id, last_saved
-    `;
-    
-    const result = await client.query(query, [
-      dbUserId, 
-      gameType || 'tetris', 
-      parseInt(score) || 0, 
-      parseInt(level) || 1, 
-      parseInt(lines) || 0
-    ]);
-    
-    const savedTime = result.rows[0]?.last_saved;
-    console.log(`✅ Прогресс сохранен: ${score} очков (время: ${savedTime})`);
-    
-    return { 
-      success: true, 
-      user_id: result.rows[0]?.user_id, 
-      last_saved: savedTime 
-    };
-    
-  } catch (error) {
-    console.error('❌ Ошибка сохранения прогресса:', error.message);
-    console.error('❌ Параметры:', { 
-      userId: dbUserId, 
-      gameType, 
-      score 
-    });
-    
-    return { 
-      success: false, 
-      error: error.message 
-    };
-  } finally {
-    client.release();
-  }
+  return result;
 }
-
-/**
- * Получает сохраненный прогресс игры
- */
-export async function getGameProgress(userId, gameType = 'tetris') {
-  if (!pool) {
-    console.error('❌ getGameProgress: Пул подключения не инициализирован');
-    return { 
-      success: false, 
-      error: 'Нет подключения к БД',
-      found: false 
-    };
-  }
-  
-  const dbUserId = convertUserIdForDb(userId);
-  console.log(`📥 Запрос прогресса: user=${dbUserId}, type=${gameType}`);
-  
-  const client = await pool.connect();
-  
-  try {
-    const query = `
-      SELECT score, level, lines, last_saved 
-      FROM game_progress 
-      WHERE user_id = $1 AND game_type = $2
-    `;
-    
-    const result = await client.query(query, [dbUserId, gameType]);
-    
-    if (result.rows[0]) {
-      const progress = result.rows[0];
-      const progressData = {
-        score: parseInt(progress.score) || 0,
-        level: parseInt(progress.level) || 1,
-        lines: parseInt(progress.lines) || 0,
-        last_saved: progress.last_saved
-      };
-      
-      console.log(`✅ Прогресс найден: ${progressData.score} очков`);
-      return { 
-        success: true, 
-        found: true, 
-        progress: progressData 
-      };
-    }
-    
-    console.log(`ℹ️ Прогресс не найден для пользователя ${dbUserId}`);
-    return { 
-      success: true, 
-      found: false, 
-      progress: null 
-    };
-    
-  } catch (error) {
-    console.error('❌ Ошибка получения прогресса:', error.message);
-    
-    return { 
-      success: false, 
-      error: error.message,
-      found: false 
-    };
-  } finally {
-    client.release();
-  }
-}
-
 // ============ ФУНКЦИЯ ПОЛУЧЕНИЯ СТАТИСТИКИ ИГРОКА ==========
 
 /**
