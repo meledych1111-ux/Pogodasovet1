@@ -794,7 +794,7 @@
     <!-- Уведомление -->
     <div id="notification" class="notification"></div>
 
-    <script>
+  <script>
 // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
 const COLS = 10;
 const ROWS = 20;
@@ -951,40 +951,6 @@ function startGame() {
         showNotification('⚠️ Ошибка запуска игры');
     }
 }
-    
-    // ✅ Останавливаем старую анимацию если она есть
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-    }
-    
-    // ✅ Инициализируем новую игру
-    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-    score = 0;
-    level = 1;
-    lines = 0;
-    gameActive = true;
-    gamePaused = false;
-    gameOver = false;
-    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-    clearedLinesAnimation = [];
-    pieceQueue = [];
-    
-    generatePieceQueue();
-    updateDisplay();
-    spawnPiece();
-    drawBoard();
-    
-    // ✅ Показываем игровой экран
-    showScreen('game');
-    
-    // ✅ Запускаем игровой цикл
-    lastTime = 0;
-    dropCounter = 0;
-    animationId = requestAnimationFrame(gameLoop);
-    
-    showNotification('🎮 Игра началась!');
-
 
 function showStats() {
     console.log('Показать статистику');
@@ -1114,20 +1080,6 @@ function collide(piece, x, y) {
     }
     return false;
 }
-    for (let row = 0; row < piece.shape.length; row++) {
-        for (let col = 0; col < piece.shape[row].length; col++) {
-            if (piece.shape[row][col] &&
-                (board[y + row] === undefined ||
-                 board[y + row][x + col] === undefined ||
-                 board[y + row][x + col] ||
-                 x + col < 0 ||
-                 x + col >= COLS ||
-                 y + row >= ROWS)) {
-                return true;
-            }
-        }
-    }
-    return false;
 
 function mergePiece() {
     for (let y = 0; y < currentPiece.shape.length; y++) {
@@ -1779,35 +1731,6 @@ async function testDatabase() {
         showNotification('🌐 Сервер недоступен');
     }
 }
-    statusEl.style.color = '#ffcc66';
-    
-    try {
-        console.log('🔍 Тест подключения к БД');
-        const response = await fetch(API_ENDPOINTS.checkDB);
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('✅ Результат теста БД:', data);
-            
-            statusEl.textContent = 'База данных подключена ✓';
-            statusEl.style.color = '#66ffaa';
-            showNotification('✅ База данных подключена');
-        } else {
-            const errorText = await response.text();
-            console.error('❌ Ошибка подключения к БД:', errorText);
-            
-            statusEl.textContent = 'Ошибка подключения ✗';
-            statusEl.style.color = '#ff6666';
-            showNotification('⚠️ База данных временно недоступна');
-        }
-    } catch (error) {
-        console.error('❌ Ошибка теста БД:', error);
-        
-        statusEl.textContent = 'Сервер недоступен';
-        statusEl.style.color = '#ff6666';
-        showNotification('🌐 Сервер недоступен');
-    }
-
 
 // ==================== УРОВНИ СЛОЖНОСТИ ====================
 function renderLevels() {
@@ -1911,38 +1834,7 @@ function init() {
     window.addEventListener('resize', adaptCanvasSize);
     
     console.log('✅ Игра готова к запуску');
-}    
-    // Проверка БД
-    setTimeout(testDatabase, 1000);
-    
-    // Начальная сложность
-    selectDifficulty('medium');
-    
-    // Загрузка статистики
-    loadUserStats();
-    
-    // ✅ ВАЖНО: НЕ инициализируем игру здесь!
-    // Только готовим пустой холст
-    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-    drawBoard(); // Рисуем пустое поле
-    
-    // Настройка автосохранения
-    setupAutoSave();
-    
-    // Telegram WebApp
-    if (tg) {
-        tg.ready();
-        tg.MainButton.setText('Открыть меню').show();
-        tg.MainButton.onClick(showMenu);
-        tg.BackButton.onClick(showMenu);
-    }
-    
-    // Адаптация размера
-    adaptCanvasSize();
-    window.addEventListener('resize', adaptCanvasSize);
-    
-    console.log('✅ Игра готова к запуску');
-
+}
 
 function adaptCanvasSize() {
     const gameArea = document.querySelector('.game-area');
