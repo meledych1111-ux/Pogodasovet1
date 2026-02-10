@@ -1803,9 +1803,10 @@ function init() {
     // Загрузка статистики
     loadUserStats();
     
-    // Инициализация игры
-    initGame();
-    pauseGame();
+    // ✅ ИСПРАВЛЕНИЕ: НЕ вызываем initGame() и pauseGame() здесь!
+    // Только подготавливаем холст
+    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    drawBoard();
     
     // Настройка автосохранения
     setupAutoSave();
@@ -1821,6 +1822,8 @@ function init() {
     // Адаптация размера
     adaptCanvasSize();
     window.addEventListener('resize', adaptCanvasSize);
+    
+    console.log('✅ Игра готова. Нажмите "Новая игра" для старта');
 }
 
 function adaptCanvasSize() {
