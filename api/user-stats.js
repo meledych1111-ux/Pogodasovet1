@@ -3,16 +3,7 @@ import { getGameStats } from './db.js';
 export default async function handler(req, res) {
   console.log('📊 API: /api/user-stats - запрос статистики пользователя');
   
-  // CORS заголовки
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  // Обработка предварительного запроса OPTIONS
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
+  // Разрешаем оба метода для удобства
   if (req.method !== 'GET' && req.method !== 'POST') {
     console.log('❌ Метод не разрешен:', req.method);
     return res.status(405).json({ 
@@ -45,117 +36,82 @@ export default async function handler(req, res) {
       });
     }
     
+    // 🔴 УБРАТЬ ПРЕОБРАЗОВАНИЯ ID!
+    // getGameStats ожидает ID в оригинальном формате
+    
     // Определяем тип пользователя (только для логирования)
     const isWebApp = userId.startsWith('web_');
     
     console.log(`📊 Получение статистики для пользователя ${userId} (isWebApp: ${isWebApp}), игра: ${gameType}`);
     
-    // ✅ ИСПРАВЛЕНО: Обработка результата getGameStats
-    const result = await getGameStats(userId, gameType);
+    // ✅ ПРАВИЛЬНО: Передаем ID как есть в getGameStats
+    const stats = await getGameStats(userId, gameType);
     
-    console.log('📈 Результат из БД:', { 
-      success: result?.success,
-      has_stats: result?.has_stats,
-      has_progress: result?.has_progress,
-      source: result?.stats?.source
-    });
+    console.log('📈 Статистика из БД:', stats);
     
-    // Проверяем успешность выполнения
-    if (!result || !result.success) {
-      console.error('❌ Ошибка getGameStats:', result?.error);
-      
-      // Возвращаем пустую статистику при ошибке
-      const fallbackStats = {
-        user_id: userId,
-        username: `Игрок ${String(userId).slice(-4)}`,
-        games_played: 0,
-        wins: 0,
-        losses: 0,
-        win_rate: '0.0',
-        best_score: 0,
-        avg_score: 0,
-        best_level: 1,
-        best_lines: 0,
-        total_score: 0,
-        last_played: null,
-        city: '🏙️ Не указан',
-        has_unfinished_game: false,
-        source: 'error',
-        note: 'Ошибка получения статистики'
-      };
-      
-      return res.status(200).json({ 
-        success: true, // API успешно отработало
-        userId: userId,
-        gameType: gameType,
-        isWebApp: isWebApp,
-        stats: fallbackStats,
-        current_progress: null,
-        meta: {
-          has_stats: false,
-          has_progress: false,
-          has_played: false,
-          is_new_player: true,
-          next_milestone: calculateNextMilestone(0),
-          note: 'Используются данные по умолчанию'
-        },
-        timestamp: new Date().toISOString()
-      });
+    // 🔴 ВАЖНО: Теперь статистика содержит новые поля!
+    // Проверяем структуру
+    if (!stats) {
+      console.log('⚠️ Статистика не найдена или пустая');
+    } else {
+      console.log('📊 Поля статистики:', Object.keys(stats));
     }
     
-    // Получаем статистику из результата
-    const stats = result.stats || {};
-    
-    // Форматируем ответ
+    // Форматируем ответ с учетом новой структуры
     const response = {
       success: true,
-      userId: userId,
+      userId: userId, // Оригинальный ID
       gameType: gameType,
       timestamp: new Date().toISOString(),
       isWebApp: isWebApp,
-      source: stats.source || 'unknown',
       
+      // 🔴 ИСПРАВЛЕНО: Используем новые поля из getGameStats
       stats: {
-        user_id: stats.user_id || userId,
-        username: stats.username || `Игрок ${String(userId).slice(-4)}`,
-        games_played: stats.games_played || 0,
-        best_score: stats.best_score || 0,
-        best_level: stats.best_level || 1,
-        best_lines: stats.best_lines || 0,
-        avg_score: stats.avg_score ? parseFloat(stats.avg_score.toFixed(2)) : 0,
-        last_played: stats.last_played || null,
-        city: stats.city || '🏙️ Не указан',
+        // Основные поля
+        games_played: stats?.games_played || 0,
+        best_score: stats?.best_score || 0,
+        best_level: stats?.best_level || 1,
+        best_lines: stats?.best_lines || 0,
+        avg_score: stats?.avg_score ? parseFloat(stats.avg_score.toFixed(2)) : 0,
+        last_played: stats?.last_played || null,
         
-        wins: stats.wins || 0,
-        losses: stats.losses || 0,
-        win_rate: stats.win_rate || '0.0',
-        total_score: stats.total_score || 0,
-        has_unfinished_game: stats.has_unfinished_game || false
+        // 🔴 НОВЫЕ ПОЛЯ (если есть)
+        wins: stats?.wins || 0,
+        losses: stats?.losses || 0,
+        win_rate: stats?.win_rate || 0,
+        worst_score: stats?.worst_score || 0,
+        
+        // Ранк (если есть в БД)
+        rank: stats?.rank || 'Не определен'
       },
       
-      current_progress: stats.current_progress ? {
+      // Прогресс текущей игры
+      current_progress: stats?.current_progress ? {
         score: stats.current_progress.score || 0,
         level: stats.current_progress.level || 1,
         lines: stats.current_progress.lines || 0,
-        last_saved: stats.current_progress.last_saved || null
+        last_saved: stats.current_progress.last_saved || null,
+        has_unfinished_game: true
       } : null,
       
+      // 🔴 ДОБАВЛЕНО: Флаг незавершенной игры
+      has_unfinished_game: stats?.has_unfinished_game || false,
+      
+      // Дополнительная информация
       meta: {
-        has_stats: result.has_stats || false,
-        has_progress: result.has_progress || false,
-        has_played: (stats.games_played || 0) > 0,
-        is_new_player: (stats.games_played || 0) === 0,
-        next_milestone: calculateNextMilestone(stats.best_score || 0),
-        note: stats.note || 'Без заметок'
+        has_played: (stats?.games_played || 0) > 0,
+        has_unfinished_game: stats?.has_unfinished_game || false,
+        is_top_player: false,
+        next_milestone: calculateNextMilestone(stats?.best_score || 0)
       }
     };
     
     console.log('✅ Форматированный ответ:', {
-      username: response.stats.username,
       games_played: response.stats.games_played,
       best_score: response.stats.best_score,
-      city: response.stats.city,
-      has_unfinished_game: response.stats.has_unfinished_game
+      wins: response.stats.wins,
+      has_unfinished_game: response.meta.has_unfinished_game,
+      isWebApp: isWebApp
     });
     
     return res.status(200).json(response);
@@ -164,15 +120,31 @@ export default async function handler(req, res) {
     console.error('🔥 Критическая ошибка получения статистики:', error);
     console.error('🔥 Stack trace:', error.stack);
     
-    return res.status(500).json({
+    const errorResponse = {
       success: false,
       error: {
         message: error.message,
         code: 'DATABASE_ERROR',
         timestamp: new Date().toISOString(),
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? {
+          stack: error.stack,
+          fullError: error.toString()
+        } : undefined
+      },
+      fallback_stats: {
+        games_played: 0,
+        best_score: 0,
+        best_level: 1,
+        best_lines: 0,
+        avg_score: 0,
+        wins: 0,
+        losses: 0,
+        win_rate: 0,
+        message: 'Используются данные по умолчанию из-за ошибки БД'
       }
-    });
+    };
+    
+    return res.status(500).json(errorResponse);
   }
 }
 
@@ -187,7 +159,7 @@ function calculateNextMilestone(currentScore) {
       return {
         target: milestone,
         needed: milestone - currentScore,
-        progress: ((currentScore / milestone) * 100).toFixed(1) + '%',
+        progress: (currentScore / milestone * 100).toFixed(1) + '%',
         message: `Следующий рубеж: ${milestone} очков`
       };
     }
