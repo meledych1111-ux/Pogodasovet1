@@ -100,19 +100,10 @@ function getAchievements(score, level, lines, previousBestScore) {
     });
   }
   
-  // Первая игра
-  if (previousBestScore === 0 && score > 0) {
-    achievements.push({
-      title: '🎮 Первые шаги',
-      message: 'Твоя первая игра! Так держать!',
-      type: 'first_game',
-      badge: '🎮'
-    });
-  }
-  
   return achievements;
 }
 
+// 🔴 ДОБАВЬ ЭТУ ФУНКЦИЮ
 function generateTips(score, level, lines, isNewRecord) {
   const tips = [];
   
@@ -125,25 +116,16 @@ function generateTips(score, level, lines, isNewRecord) {
   } else if (score < 10000) {
     tips.push('💡 Про-совет: Сохраняйте I-фигуры (палочки) для очистки 4 линий!');
     tips.push('💡 Про-совет: На высоких уровнях используйте быстрый дроп (пробел) чаще!');
-  } else {
-    tips.push('💡 Про-совет: Экспериментируйте с T-Spin для максимального счета!');
-    tips.push('💡 Про-совет: Практикуйтесь в управлении скоростью фигур!');
   }
   
   if (level < 5) {
     tips.push('🎯 Цель: Достигните 5 уровня для получения бронзовой медали!');
   } else if (level < 10) {
     tips.push('🎯 Цель: 10 уровень откроет серебряную медаль!');
-  } else if (level < 15) {
-    tips.push('🎯 Цель: Стремитесь к 15 уровню для золотой медали!');
   }
   
   if (isNewRecord) {
     tips.push('🔥 Отлично! Продолжайте в том же духе!');
-  }
-  
-  if (lines < 10) {
-    tips.push('📈 Фокус: Собирайте больше линий для увеличения уровня!');
   }
   
   return tips.slice(0, 3);
@@ -208,12 +190,7 @@ export default async function handler(req, res) {
       
       // Web App данные
       data,
-      webAppData,
-      
-      // Дополнительные поля
-      city,
-      session_id,
-      device
+      webAppData
     } = body;
     
     // Логируем все полученные поля
@@ -235,10 +212,7 @@ export default async function handler(req, res) {
       first_name,
       last_name,
       data,
-      webAppData,
-      city,
-      session_id,
-      device
+      webAppData
     });
     
     // Определяем ID пользователя (приоритет по порядку)
@@ -322,7 +296,6 @@ export default async function handler(req, res) {
     if (isGameOver !== undefined) finalGameOver = isGameOver;
     if (game_over !== undefined) finalGameOver = game_over;
     if (action === 'tetris_final_score') finalGameOver = true;
-    if (action === 'tetris_save_progress') finalGameOver = false;
     
     // Определяем имя пользователя
     let finalUsername = username || first_name || `Игрок ${finalUserId.slice(-4)}`;
@@ -343,7 +316,7 @@ export default async function handler(req, res) {
     const numericScore = parseInt(score) || 0;
     const numericLevel = parseInt(level) || 1;
     const numericLines = parseInt(lines) || 0;
-    const isWin = numericScore > 0 && finalGameOver; // Простая логика: если игра завершена и есть очки - победа
+    const isWin = numericScore > 0; // Простая логика: если есть очки - победа
     
     console.log('📊 Финальные данные для сохранения:', {
       finalUserId,
@@ -354,55 +327,32 @@ export default async function handler(req, res) {
       finalGameType,
       finalGameOver,
       isWebApp,
-      isWin,
-      city: city || 'Не указан'
+      isWin
     });
     
     let resultId;
-    let saveType;
     
     if (finalGameOver) {
       // Если игра завершена, сохраняем финальный результат в game_scores
       console.log(`💾 Сохраняем финальный результат в game_scores...`);
-      saveType = 'final_score';
+      resultId = await saveGameScore(
+        finalUserId,        // ID: "web_123" или "123456"
+        finalGameType, 
+        numericScore, 
+        numericLevel, 
+        numericLines,
+        finalUsername,      // Имя пользователя
+        isWin               // Победа или проигрыш
+      );
       
-      try {
-        resultId = await saveGameScore(
-          finalUserId,        // ID: "web_123" или "123456"
-          finalGameType, 
-          numericScore, 
-          numericLevel, 
-          numericLines,
-          finalUsername,      // Имя пользователя
-          isWin               // Победа или проигрыш
-        );
-      } catch (error) {
-        console.error('❌ Ошибка сохранения gameScore:', error);
-        // Пробуем сохранить как progress если gameScore не удалось
-        saveType = 'progress_fallback';
-        resultId = await saveGameProgress(
-          finalUserId, 
-          finalGameType, 
-          numericScore, 
-          numericLevel, 
-          numericLines,
-          finalUsername
-        );
-      }
-      
-      // Удаляем прогресс, так как игра завершена (если resultId успешно сохранен)
+      // Удаляем прогресс, так как игра завершена
       if (resultId) {
-        try {
-          await deleteGameProgress(finalUserId, finalGameType);
-          console.log('🗑️ Прогресс удален, игра завершена');
-        } catch (deleteError) {
-          console.log('⚠️ Не удалось удалить прогресс:', deleteError.message);
-        }
+        await deleteGameProgress(finalUserId, finalGameType);
+        console.log('🗑️ Прогресс удален, игра завершена');
       }
     } else {
       // Если игра продолжается, сохраняем прогресс в game_progress
       console.log(`💾 Сохраняем прогресс в game_progress...`);
-      saveType = 'progress';
       resultId = await saveGameProgress(
         finalUserId, 
         finalGameType, 
@@ -415,20 +365,10 @@ export default async function handler(req, res) {
     
     if (resultId) {
       // Получаем обновленную статистику
-      let stats;
-      let bestScore = 0;
-      let gamesPlayed = 0;
-      let wins = 0;
-      
-      try {
-        stats = await getGameStats(finalUserId, finalGameType);
-        bestScore = stats?.best_score || 0;
-        gamesPlayed = stats?.games_played || 0;
-        wins = stats?.wins || 0;
-      } catch (statsError) {
-        console.log('⚠️ Не удалось получить статистику:', statsError.message);
-      }
-      
+      const stats = await getGameStats(finalUserId, finalGameType);
+      const bestScore = stats?.best_score || 0;
+      const gamesPlayed = stats?.games_played || 0;
+      const wins = stats?.wins || 0;
       const isNewRecord = numericScore > bestScore;
       
       // 🔴 ПОЛУЧАЕМ ДОСТИЖЕНИЯ
@@ -440,7 +380,6 @@ export default async function handler(req, res) {
       
       console.log('✅ Успешно сохранено!', {
         savedId: resultId,
-        saveType: saveType,
         userId: finalUserId,
         username: finalUsername,
         score: numericScore,
@@ -458,7 +397,6 @@ export default async function handler(req, res) {
       const response = {
         success: true,
         id: resultId,
-        saveType: saveType,
         userId: finalUserId,
         username: finalUsername,
         score: numericScore,
@@ -480,9 +418,7 @@ export default async function handler(req, res) {
           notificationBadge: achievements.length > 0 ? achievements[0].badge : '🎮',
           summary: achievements.length > 0 ? 
             `Разблокировано ${achievements.length} достижений!` : 
-            'Продолжайте играть для получения достижений!',
-          // Для отображения в игре
-          hasNewAchievements: achievements.length > 0
+            'Продолжайте играть для получения достижений!'
         },
         
         // 🔴 ДОБАВЛЕНО: Советы
@@ -497,29 +433,10 @@ export default async function handler(req, res) {
             `Игра завершена: ${numericScore} очков`) : 
           `Прогресс сохранен: ${numericScore} очков`,
         
-        // 🔴 ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ
-        nextGoal: {
-          score: Math.max(bestScore, numericScore) + 1000,
-          level: numericLevel + 1,
-          lines: Math.floor(numericLines / 10) * 10 + 10
-        },
-        
-        // 🔴 ДЛЯ ОТЛАДКИ
-        debug: {
-          receivedFields: Object.keys(body),
-          saveMethod: saveType,
-          statsAvailable: !!stats
-        },
-        
         timestamp: new Date().toISOString()
       };
       
-      console.log('📤 Отправляем ответ клиенту:', {
-        success: true,
-        score: numericScore,
-        achievements: achievements.length,
-        saveType: saveType
-      });
+      console.log('📤 Отправляем ответ клиенту');
       
       return res.status(200).json(response);
     } else {
@@ -530,8 +447,7 @@ export default async function handler(req, res) {
         savedData: {
           userId: finalUserId,
           score: numericScore,
-          gameOver: finalGameOver,
-          saveAttempt: saveType
+          gameOver: finalGameOver
         }
       });
     }
