@@ -29,7 +29,8 @@ export default async function handler(req, res) {
       level = 1,
       lines = 0,
       username = null,
-      gameOver = true
+      gameOver = true,
+      city = null // Добавляем город для сессии
     } = req.body;
     
     console.log('🎮 Данные для сохранения:', { 
@@ -39,7 +40,8 @@ export default async function handler(req, res) {
       level, 
       lines,
       username: username ? `${username.substring(0, 10)}...` : 'null',
-      gameOver 
+      gameOver,
+      city 
     });
     
     // Валидация данных
@@ -64,9 +66,20 @@ export default async function handler(req, res) {
     const numericLevel = parseInt(level) || 1;
     const numericLines = parseInt(lines) || 0;
     
+    console.log(`🎮 СОХРАНЕНИЕ ИГРЫ: user=${userId}, score=${numericScore}, type=${gameType}`);
+    console.log(`ID преобразован: ${userId} → ${userId}`);
+    
+    if (username) {
+      console.log(`👤 Имя пользователя: ${username}`);
+    }
+    
+    if (city) {
+      console.log(`📍 Город: ${city}`);
+    }
+    
     // Если счет 0, просто возвращаем успех без сохранения
-    if (numericScore === 0) {
-      console.log('🎮 Нулевой счет, пропускаем сохранение');
+    if (numericScore === 0 && numericLines === 0) {
+      console.log('🎮 Нулевой счет и линии, пропускаем сохранение');
       return res.status(200).json({
         success: true,
         message: 'Нулевой счет не сохранен',
@@ -77,6 +90,7 @@ export default async function handler(req, res) {
     
     // Сохраняем результат игры
     console.log(`🎮 Сохраняем результат: ${numericScore} очков для пользователя ${userId}`);
+    console.log(`📊 Сохранение результата игры...`);
     
     const saveResult = await saveGameScore(
       userId,
@@ -85,7 +99,8 @@ export default async function handler(req, res) {
       numericLevel,
       numericLines,
       username,
-      gameOver
+      gameOver,
+      city // Передаем город в функцию сохранения
     );
     
     if (!saveResult || !saveResult.success) {
@@ -93,12 +108,28 @@ export default async function handler(req, res) {
       return res.status(500).json({
         success: false,
         error: saveResult?.error || 'Ошибка сохранения результата',
-        code: 'SAVE_ERROR'
+        code: 'SAVE_ERROR',
+        details: saveResult?.details
       });
     }
     
+    console.log(`✅ Результат игры сохранен! ID: ${saveResult.id}, время: ${new Date().toISOString()}`);
+    console.log(`📈 Обновление статистики...`);
+    
     // Получаем обновленную статистику
-    const statsResult = await getGameStats(userId, gameType);
+    console.log(`📊 Запрос статистики: user=${userId}, type=${gameType}`);
+    
+    let statsResult;
+    try {
+      statsResult = await getGameStats(userId, gameType);
+    } catch (statsError) {
+      console.warn('⚠️ Ошибка при получении статистики:', statsError.message);
+      // Продолжаем выполнение даже если статистика не получена
+      statsResult = { success: false };
+    }
+    
+    console.log(`🔍 Проверяем game_progress для пользователя ${userId}...`);
+    console.log(`🔍 Проверяем game_scores для пользователя ${userId}...`);
     
     const response = {
       success: true,
@@ -113,25 +144,54 @@ export default async function handler(req, res) {
       level: numericLevel,
       lines: numericLines,
       gameOver: gameOver,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      user_id: userId
     };
     
+    // Добавляем информацию о сессии, если город передан
+    if (city) {
+      response.session = {
+        city: city,
+        location_logged: true
+      };
+    }
+    
     // Добавляем статистику, если она есть
-    if (statsResult && statsResult.success) {
+    if (statsResult && statsResult.success && statsResult.stats) {
+      const stats = statsResult.stats;
       response.stats = {
-        games_played: statsResult.stats?.games_played || 0,
-        best_score: statsResult.stats?.best_score || 0,
-        best_level: statsResult.stats?.best_level || 1,
-        best_lines: statsResult.stats?.best_lines || 0,
-        avg_score: statsResult.stats?.avg_score || 0
+        games_played: stats.games_played || stats.total_games || 0,
+        best_score: stats.best_score || 0,
+        best_level: stats.best_level || stats.max_level || 1,
+        best_lines: stats.best_lines || stats.max_lines || 0,
+        avg_score: stats.avg_score || 0,
+        total_score: stats.total_score || numericScore,
+        total_lines: stats.total_lines || numericLines
       };
       
       // Проверяем, является ли это новым рекордом
-      const currentBest = statsResult.stats?.best_score || 0;
-      if (numericScore > currentBest && currentBest > 0) {
+      const currentBest = response.stats.best_score || 0;
+      if (numericScore > currentBest && numericScore > 0) {
         response.is_new_record = true;
-        response.message = `🎉 НОВЫЙ РЕКОРД! ${numericScore} очков!`;
+        response.record_details = {
+          old_record: currentBest,
+          new_record: numericScore,
+          improvement: numericScore - currentBest
+        };
+        
+        if (currentBest > 0) {
+          response.message = `🎉 НОВЫЙ РЕКОРД! ${numericScore} очков!`;
+          console.log(`🏆 Новый рекорд! ${numericScore} очков (было: ${currentBest})`);
+        } else {
+          response.message = `🎮 Первая игра сохранена! ${numericScore} очков!`;
+          console.log(`📝 Первая игра для пользователя: ${numericScore} очков`);
+        }
+      } else if (currentBest > 0) {
+        response.message = `Игра сохранена! Ваш рекорд: ${currentBest} очков`;
       }
+    } else {
+      console.log(`📊 Нет данных статистики для пользователя ${userId}`);
+      response.message = `Игра сохранена! Счет: ${numericScore} очков`;
     }
     
     console.log(`✅ Результат сохранен: ${numericScore} очков, ID: ${saveResult.id}`);
@@ -141,13 +201,28 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('🔥 Критическая ошибка сохранения результата:', error);
     console.error('🔥 Stack trace:', error.stack);
+    console.error('🔥 Request body:', req.body);
+    
+    // Логируем дополнительные детали для отладки
+    if (error.code) {
+      console.error('🔥 Error code:', error.code);
+    }
+    if (error.constraint) {
+      console.error('🔥 Constraint violation:', error.constraint);
+    }
     
     return res.status(500).json({
       success: false,
       error: {
         message: error.message,
-        code: 'INTERNAL_ERROR',
+        code: error.code || 'INTERNAL_ERROR',
+        constraint: error.constraint,
         timestamp: new Date().toISOString()
+      },
+      request_info: {
+        method: req.method,
+        has_body: !!req.body,
+        body_keys: req.body ? Object.keys(req.body) : []
       }
     });
   }
