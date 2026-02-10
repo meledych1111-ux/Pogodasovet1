@@ -1,8 +1,8 @@
 import pg from 'pg';
 const { Pool } = pg;
-import { URL } from 'url'; // Используем WHATWG URL API вместо url.parse()
+import { URL } from 'url';
 
-// 🔴 ОПТИМИЗИРОВАННОЕ ПОДКЛЮЧЕНИЕ ДЛЯ NEON + VERCEL (без url.parse)
+// 🔴 ОПТИМИЗИРОВАННОЕ ПОДКЛЮЧЕНИЕ ДЛЯ NEON + VERCEL
 const parseDatabaseUrl = () => {
   const dbUrl = process.env.DATABASE_URL;
   if (!dbUrl) {
@@ -11,23 +11,18 @@ const parseDatabaseUrl = () => {
   }
 
   try {
-    // Используем WHATWG URL API вместо url.parse()
     const url = new URL(dbUrl);
     
-    // Маскируем пароль для логов
     const maskedUrl = `${url.protocol}//${url.username}:***@${url.host}${url.pathname}`;
     console.log(`🔗 Подключение к БД: ${maskedUrl}`);
     
-    // Добавляем правильные SSL параметры для Neon
     let sslConfig;
     if (url.hostname.includes('neon.tech')) {
-      // Для Neon явно указываем sslmode=require
       sslConfig = {
         rejectUnauthorized: true,
         sslmode: 'require'
       };
       
-      // Проверяем, есть ли уже sslmode в URL
       if (!url.searchParams.has('sslmode')) {
         url.searchParams.set('sslmode', 'require');
         console.log('🔒 Добавлен sslmode=require для Neon');
@@ -50,7 +45,6 @@ const parseDatabaseUrl = () => {
     };
   } catch (error) {
     console.error('❌ Ошибка парсинга DATABASE_URL:', error.message);
-    // Fallback для старых форматов URL
     return {
       connectionString: dbUrl,
       ssl: { rejectUnauthorized: false },
@@ -75,9 +69,8 @@ function convertUserIdForDb(userId) {
   const userIdStr = String(userId);
   
   if (userIdStr.startsWith('web_')) {
-    return userIdStr; // Web App пользователи - строка
+    return userIdStr;
   } else if (/^\d+$/.test(userIdStr)) {
-    // Telegram ID - оставляем как строку для единообразия
     return userIdStr;
   }
   return userIdStr;
@@ -125,7 +118,7 @@ async function testConnection() {
   }
 }
 
-// 🔴 ФУНКЦИЯ СОЗДАНИЯ ВСЕХ НЕОБХОДИМЫХ ТАБЛИЦ
+// 🔴 ФУНКЦИЯ СОЗДАНИЯ ВСЕХ НЕОБХОДИМЫХ ТАБЛИЦ (ИСПРАВЛЕННАЯ)
 async function createTables() {
   if (!pool) {
     console.error('❌ Пул подключения не инициализирован');
@@ -141,7 +134,7 @@ async function createTables() {
       throw new Error(`Не удалось подключиться к БД: ${testResult.error}`);
     }
     
-    // 🔴 1. Таблица users (если нужно изменить структуру)
+    // 🔴 1. Таблица users (ИСПРАВЛЕНА - chat_id может быть NULL)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -158,7 +151,35 @@ async function createTables() {
     `);
     console.log('✅ Таблица users создана/проверена');
     
-    // 🔴 2. Таблица user_sessions (для совместимости)
+    // 🔴 2. Проверяем и исправляем структуру таблицы users
+    console.log('🔍 Проверяем структуру таблицы users...');
+    
+    // Проверяем наличие столбцов и их nullable статус
+    const columnsCheck = await client.query(`
+      SELECT column_name, is_nullable, data_type, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'users'
+      ORDER BY ordinal_position
+    `);
+    
+    console.log('📊 Структура таблицы users:');
+    columnsCheck.rows.forEach(col => {
+      console.log(`   ${col.column_name}: ${col.data_type} ${col.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'}`);
+    });
+    
+    // Если chat_id имеет ограничение NOT NULL, меняем его
+    const chatIdColumn = columnsCheck.rows.find(col => col.column_name === 'chat_id');
+    if (chatIdColumn && chatIdColumn.is_nullable === 'NO') {
+      console.log('⚠️ Столбец chat_id имеет ограничение NOT NULL, меняем на NULLABLE...');
+      try {
+        await client.query(`ALTER TABLE users ALTER COLUMN chat_id DROP NOT NULL`);
+        console.log('✅ Столбец chat_id теперь может быть NULL');
+      } catch (alterError) {
+        console.error('❌ Не удалось изменить столбец chat_id:', alterError.message);
+      }
+    }
+    
+    // 🔴 3. Таблица user_sessions (для совместимости)
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
         user_id VARCHAR(50) PRIMARY KEY,
@@ -171,7 +192,7 @@ async function createTables() {
     `);
     console.log('✅ Таблица user_sessions создана/проверена');
     
-    // 🔴 3. Таблица game_scores (основная таблица результатов)
+    // 🔴 4. Таблица game_scores (основная таблица результатов)
     await client.query(`
       CREATE TABLE IF NOT EXISTS game_scores (
         id SERIAL PRIMARY KEY,
@@ -185,13 +206,12 @@ async function createTables() {
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW(),
         
-        -- Убедимся, что user_id правильного типа
         CONSTRAINT valid_user_id CHECK (user_id IS NOT NULL AND user_id != '')
       )
     `);
     console.log('✅ Таблица game_scores создана/проверена');
     
-    // 🔴 4. Таблица game_progress
+    // 🔴 5. Таблица game_progress
     await client.query(`
       CREATE TABLE IF NOT EXISTS game_progress (
         user_id VARCHAR(50) NOT NULL,
@@ -205,7 +225,7 @@ async function createTables() {
     `);
     console.log('✅ Таблица game_progress создана/проверена');
     
-    // 🔴 5. Создаем индексы
+    // 🔴 6. Создаем индексы
     console.log('📊 Создание индексов...');
     
     // Индексы для game_scores
@@ -236,46 +256,6 @@ async function createTables() {
     `);
     
     console.log('✅ Все таблицы и индексы созданы или уже существуют');
-    
-    // 🔴 6. ПРОВЕРЯЕМ И ИСПРАВЛЯЕМ СТРУКТУРУ
-    console.log('🔍 Проверка структуры таблиц...');
-    
-    // Проверяем наличие столбца city в users
-    const checkCityColumn = await client.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
-      AND column_name = 'city'
-    `);
-    
-    if (checkCityColumn.rows.length === 0) {
-      console.log('⚠️ В таблице users отсутствует столбец city, добавляем...');
-      await client.query(`
-        ALTER TABLE users ADD COLUMN city VARCHAR(100) DEFAULT 'Не указан'
-      `);
-      console.log('✅ Столбец city добавлен в users');
-    }
-    
-    // Проверяем наличие столбца user_id в users
-    const checkUserIdColumn = await client.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
-      AND column_name = 'user_id'
-    `);
-    
-    if (checkUserIdColumn.rows.length === 0) {
-      console.log('⚠️ В таблице users отсутствует столбец user_id, добавляем...');
-      await client.query(`
-        ALTER TABLE users ADD COLUMN user_id VARCHAR(50)
-      `);
-      await client.query(`
-        CREATE UNIQUE INDEX IF NOT EXISTS unique_user_id ON users(user_id)
-      `);
-      console.log('✅ Столбец user_id добавлен в users');
-    }
-    
-    console.log('📊 Проверка структуры завершена');
     
   } catch (error) {
     console.error('❌ Ошибка при создании таблиц:', error.message);
@@ -319,7 +299,7 @@ if (process.env.DATABASE_URL) {
   console.warn('⚠️ DATABASE_URL не установлен, база данных не будет инициализирована');
 }
 
-// ============ ФУНКЦИИ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ============
+// ============ ФУНКЦИИ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ (ИСПРАВЛЕННЫЕ) ============
 
 /**
  * Сохраняет или обновляет профиль пользователя в таблице users
@@ -332,7 +312,7 @@ export async function saveOrUpdateUser(userData) {
   
   const {
     user_id,
-    chat_id = null,
+    chat_id = null, // 🔴 ПО УМОЛЧАНИЮ NULL
     username = '',
     first_name = '',
     city = 'Не указан',
@@ -341,10 +321,11 @@ export async function saveOrUpdateUser(userData) {
 
   const dbUserId = convertUserIdForDb(user_id);
   
-  console.log(`👤 Сохранение профиля: user_id=${dbUserId}, city="${city}"`);
+  console.log(`👤 Сохранение профиля: user_id=${dbUserId}, city="${city}", chat_id=${chat_id || 'NULL'}`);
   
   const client = await pool.connect();
   try {
+    // 🔴 ОБНОВЛЕННЫЙ ЗАПРОС С ПРАВИЛЬНОЙ ОБРАБОТКОЙ NULL
     const query = `
       INSERT INTO users (
         user_id, 
@@ -366,11 +347,13 @@ export async function saveOrUpdateUser(userData) {
     
     const values = [
       dbUserId, 
-      chat_id, 
+      chat_id, // 🔴 МОЖЕТ БЫТЬ NULL
       username || `Игрок_${dbUserId.slice(-4)}`, 
       first_name || 'Игрок', 
       city || 'Не указан'
     ];
+    
+    console.log(`📊 Параметры запроса:`, values);
     
     const result = await client.query(query, values);
     const userId = result.rows[0]?.id;
@@ -396,7 +379,47 @@ export async function saveOrUpdateUser(userData) {
     return userId;
   } catch (error) {
     console.error('❌ Ошибка сохранения профиля:', error.message);
+    console.error('❌ Код ошибки:', error.code);
     console.error('❌ Данные:', userData);
+    console.error('❌ Stack trace:', error.stack);
+    
+    // 🔴 ПЫТАЕМСЯ ИСПРАВИТЬ ПРОБЛЕМУ С CHAT_ID
+    if (error.message.includes('chat_id') && error.message.includes('null value')) {
+      console.log('🔄 Пробую исправить проблему с chat_id...');
+      try {
+        // Пробуем исправить структуру таблицы
+        await client.query(`ALTER TABLE users ALTER COLUMN chat_id DROP NOT NULL`);
+        console.log('✅ Структура таблицы исправлена');
+        
+        // Пробуем снова сохранить
+        const retryQuery = `
+          INSERT INTO users (user_id, username, first_name, city, created_at, last_active)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          ON CONFLICT (user_id) 
+          DO UPDATE SET 
+            username = COALESCE(EXCLUDED.username, users.username),
+            first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+            city = COALESCE(EXCLUDED.city, users.city),
+            last_active = NOW()
+          RETURNING id
+        `;
+        
+        const retryValues = [
+          dbUserId, 
+          username || `Игрок_${dbUserId.slice(-4)}`, 
+          first_name || 'Игрок', 
+          city || 'Не указан'
+        ];
+        
+        const retryResult = await client.query(retryQuery, retryValues);
+        const retryId = retryResult.rows[0]?.id;
+        console.log(`✅ Профиль сохранен после исправления: ID=${retryId}`);
+        return retryId;
+      } catch (retryError) {
+        console.error('❌ Не удалось исправить проблему:', retryError.message);
+      }
+    }
+    
     return null;
   } finally {
     client.release();
@@ -438,24 +461,73 @@ export async function getUserProfile(userId) {
 // ============ ФУНКЦИИ ДЛЯ ГОРОДОВ (для совместимости) ============
 
 /**
- * Сохраняет город пользователя
+ * Сохраняет город пользователя (улучшенная версия)
  */
 export async function saveUserCity(userId, city, username = null) {
   const dbUserId = convertUserIdForDb(userId);
   console.log(`📍 Сохранение города: ${dbUserId} -> "${city}"`);
   
-  // Используем основную функцию
-  const result = await saveOrUpdateUser({
-    user_id: dbUserId,
-    username: username || undefined,
-    city: city || 'Не указан'
-  });
-  
-  return { 
-    success: !!result,
-    user_id: dbUserId,
-    city: city || 'Не указан'
-  };
+  try {
+    // Используем основную функцию с chat_id = null
+    const result = await saveOrUpdateUser({
+      user_id: dbUserId,
+      username: username || '',
+      first_name: username || 'Игрок',
+      city: city || 'Не указан',
+      chat_id: null // 🔴 ЯВНО УКАЗЫВАЕМ NULL
+    });
+    
+    return { 
+      success: !!result,
+      user_id: dbUserId,
+      city: city || 'Не указан',
+      db_id: result
+    };
+  } catch (error) {
+    console.error('❌ Ошибка saveUserCity:', error.message);
+    
+    // 🔴 РЕЗЕРВНЫЙ ВАРИАНТ: Пробуем напрямую
+    if (pool) {
+      const client = await pool.connect();
+      try {
+        const directQuery = `
+          INSERT INTO user_sessions (user_id, username, selected_city)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id) 
+          DO UPDATE SET 
+            selected_city = EXCLUDED.selected_city,
+            updated_at = NOW()
+          RETURNING user_id
+        `;
+        
+        const directResult = await client.query(directQuery, [
+          dbUserId,
+          username || `Игрок_${dbUserId.slice(-4)}`,
+          city || 'Не указан'
+        ]);
+        
+        if (directResult.rows[0]) {
+          console.log(`✅ Город сохранен через резервный метод`);
+          return { 
+            success: true, 
+            user_id: dbUserId,
+            city: city || 'Не указан',
+            source: 'fallback'
+          };
+        }
+      } catch (directError) {
+        console.error('❌ Ошибка резервного метода:', directError.message);
+      } finally {
+        client.release();
+      }
+    }
+    
+    return { 
+      success: false, 
+      error: error.message,
+      user_id: dbUserId 
+    };
+  }
 }
 
 /**
@@ -557,12 +629,14 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
     // НАЧИНАЕМ ТРАНЗАКЦИЮ
     await client.query('BEGIN');
     
-    // 🔴 1. Сохраняем/обновляем пользователя
+    // 🔴 1. Сохраняем/обновляем пользователя (chat_id = null)
     try {
       await saveOrUpdateUser({
         user_id: dbUserId,
         username: finalUsername,
-        city: 'Не указан' // По умолчанию
+        first_name: finalUsername,
+        city: 'Не указан',
+        chat_id: null // 🔴 ЯВНО УКАЗЫВАЕМ NULL
       });
       console.log(`✅ Пользователь обновлен`);
     } catch (userError) {
@@ -678,13 +752,15 @@ export async function saveGameProgress(userId, gameType, score, level, lines, us
   const client = await pool.connect();
   
   try {
-    // Сохраняем/обновляем информацию о пользователе
+    // Сохраняем/обновляем информацию о пользователе с chat_id = null
     if (username) {
       try {
         await saveOrUpdateUser({
           user_id: dbUserId,
           username: username,
-          city: 'Не указан'
+          first_name: username || 'Игрок',
+          city: 'Не указан',
+          chat_id: null // 🔴 ЯВНО УКАЗЫВАЕМ NULL
         });
         console.log(`👤 Данные пользователя обновлены для прогресса`);
       } catch (userError) {
@@ -970,7 +1046,6 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     const query = `
       SELECT 
         gs.user_id,
-        -- Используем данные из users, если есть, иначе из game_scores
         COALESCE(u.username, gs.username, 'Игрок') as display_name,
         COALESCE(u.city, 'Не указан') as city,
         MAX(gs.score) as best_score,
@@ -980,7 +1055,6 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
         MAX(gs.created_at) as last_played,
         u.first_name
       FROM game_scores gs
-      -- Важно: LEFT JOIN чтобы получить игроков даже без профиля в users
       LEFT JOIN users u ON gs.user_id = u.user_id
       WHERE gs.game_type = $1 AND gs.score > 0
       GROUP BY gs.user_id, u.username, gs.username, u.city, u.first_name
@@ -995,7 +1069,6 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     const topPlayers = result.rows.map((row, index) => {
       const gamesPlayed = parseInt(row.games_played) || 1;
       
-      // Определяем отображаемое имя
       let displayName = row.display_name || 'Игрок';
       if (displayName === 'Игрок' && row.user_id) {
         const userIdStr = String(row.user_id);
@@ -1037,9 +1110,8 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   } catch (error) {
     console.error('❌ Ошибка получения топа игроков:', error.message);
     
-    // Возвращаем пустой топ при ошибке
     return { 
-      success: true,  // 🔴 ВАЖНО: success: true для API
+      success: true,
       players: [], 
       count: 0,
       error: error.message,
@@ -1051,7 +1123,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
 }
 
 /**
- * Альтернативная функция для топа с городами (для использования в боте)
+ * Альтернативная функция для топа с городами
  */
 export async function getTopPlayersWithCities(limit = 10) {
   const result = await getTopPlayers('tetris', limit);
@@ -1169,12 +1241,15 @@ export async function debugDatabase() {
           
           if (count > 0) {
             const columns = await client.query(`
-              SELECT column_name, data_type 
+              SELECT column_name, data_type, is_nullable 
               FROM information_schema.columns 
               WHERE table_name = '${table}' 
               ORDER BY ordinal_position
             `);
-            console.log(`   Колонки: ${columns.rows.map(c => c.column_name).join(', ')}`);
+            console.log(`   Колонки:`);
+            columns.rows.forEach(c => {
+              console.log(`     ${c.column_name}: ${c.data_type} ${c.is_nullable === 'YES' ? '(NULL)' : '(NOT NULL)'}`);
+            });
           }
         } catch (e) {
           console.log(`⚠️ ${table}: ${e.message}`);
