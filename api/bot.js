@@ -2,7 +2,7 @@ import { Bot, Keyboard } from 'grammy';
 import dotenv from 'dotenv'; // <-- ДОБАВЬТЕ ЭТОТ ИМПОРТ
 import path from 'path';
 import { fileURLToPath } from 'url';
-// ===================== ИМПОРТ ФУНКЦИЙ ИЗ БАЗЫ ДАННЫХ =====================
+// ===================== ИИМПОРТ ФУНКЦИЙ ИЗ БАЗЫ ДАННЫХ =====================
 import {
   saveUserCity,
   getUserCity,
