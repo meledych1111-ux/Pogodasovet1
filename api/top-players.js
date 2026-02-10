@@ -1,6 +1,5 @@
 import { getTopPlayers } from './db.js';
 
-
 export default async function handler(req, res) {
   // CORS заголовки
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -36,23 +35,25 @@ export default async function handler(req, res) {
       });
     }
     
-    // Получаем топ игроков
-    const players = await getTopPlayers(gameType, numericLimit);
+    // Получаем топ игроков - функция возвращает объект {success, players, count, source}
+    const result = await getTopPlayers(gameType, numericLimit);
     
-    console.log(`🏆 Игроков из БД (${gameType}):`, players?.length || 0);
+    console.log(`🏆 Результат из БД (${gameType}):`, result?.success, 'игроков:', result?.players?.length || 0);
     
-    // Проверяем что функция вернула данные
-    if (!players) {
-      console.error('❌ getTopPlayers вернул null/undefined');
+    // Проверяем успешность выполнения
+    if (!result || !result.success) {
+      console.error('❌ Ошибка getTopPlayers:', result?.error);
       return res.status(500).json({
         success: false,
-        error: 'Ошибка получения данных из базы',
+        error: result?.error || 'Ошибка получения данных из базы',
         players: []
       });
     }
     
-    // Гарантируем что работаем с массивом
-    const playersArray = Array.isArray(players) ? players : [];
+    // Получаем массив игроков из результата
+    const playersArray = Array.isArray(result.players) ? result.players : [];
+    
+    console.log(`🏆 Подготовлено для отправки ${playersArray.length} игроков`);
     
     // Форматируем для фронтенда
     const formattedPlayers = playersArray.map((player, index) => {
@@ -63,18 +64,10 @@ export default async function handler(req, res) {
       const playerLines = Number(player.lines || player.best_lines || 0);
       const gamesPlayed = Number(player.games_played || player.total_games || 1);
       
-      // Генерация имени
+      // Используем username из результата (уже отформатирован в db.js)
       let username = player.username || `Игрок ${index + 1}`;
       
-      // Если нет username, создаем его на основе ID
-      if (!player.username && playerId) {
-        const idStr = String(playerId);
-        if (idStr.length <= 10) {
-          username = `👤 Telegram #${idStr.slice(-4)}`;
-        } else {
-          username = `🌐 Web #${idStr.slice(-4)}`;
-        }
-      }
+      // 🔴 УБИРАЕМ пересоздание username - он уже отформатирован в getTopPlayers
       
       return {
         rank: index + 1,
@@ -84,12 +77,14 @@ export default async function handler(req, res) {
         level: playerLevel,
         lines: playerLines,
         games_played: gamesPlayed,
-        // Добавляем оригинальные данные для отладки
+        city: player.city || '🏙️ Не указан',
+        win_rate: player.win_rate || '0.0',
+        last_played: player.last_played || null,
+        // Для отладки
         _original: {
-          id: player.id,
-          user_id: player.user_id,
           username: player.username,
-          score: player.score
+          city: player.city,
+          source: player.source
         }
       };
     });
@@ -101,26 +96,26 @@ export default async function handler(req, res) {
       count: formattedPlayers.length,
       players: formattedPlayers,
       timestamp: new Date().toISOString(),
+      source: result.source || 'unknown',
       // Для отладки
       debug: process.env.NODE_ENV === 'development' ? {
-        originalCount: playersArray.length,
+        resultKeys: Object.keys(result),
+        originalCount: result.count,
         query: req.query
       } : undefined
     };
     
-    console.log(`✅ Топ игроков (${gameType}): ${formattedPlayers.length} игроков`);
+    console.log(`✅ Топ игроков (${gameType}): ${formattedPlayers.length} игроков, источник: ${result.source}`);
     
     return res.status(200).json(response);
 
   } catch (error) {
     console.error('❌ Критическая ошибка получения топа:', error);
     
-    // Возвращаем 500 только для реальных ошибок сервера
     return res.status(500).json({
       success: false,
       players: [],
       error: 'Внутренняя ошибка сервера',
-      // Детали ошибки только в development
       details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       timestamp: new Date().toISOString()
     });
