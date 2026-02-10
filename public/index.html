@@ -1729,13 +1729,18 @@ async function loadLeaderboard() {
     console.log('🏆 Загрузка лидерборда');
     
     try {
-        const response = await fetch(`${API_ENDPOINTS.getTopPlayers}?gameType=tetris&limit=10`);
         const leaderboardList = document.getElementById('leaderboard-list');
-        leaderboardList.innerHTML = '';
+        leaderboardList.innerHTML = '<div style="text-align: center; padding: 20px; color: #b5aaff;">Загрузка лидерборда...</div>';
+        
+        // 🔴 ИСПРАВЛЕНИЕ 1: Прямой вызов API
+        const apiUrl = '/api/top-players?gameType=tetris&limit=10';
+        console.log('📡 Запрос к API лидерборда:', apiUrl);
+        
+        const response = await fetch(apiUrl);
         
         if (response.ok) {
             const result = await response.json();
-            console.log('🏆 Ответ сервера:', result);
+            console.log('🏆 Ответ API лидерборда:', result);
             
             // Проверяем формат ответа
             const players = result.players || result.topPlayers || result.data || [];
@@ -1763,10 +1768,13 @@ async function loadLeaderboard() {
                 return;
             }
             
+            leaderboardList.innerHTML = '';
+            
             players.forEach((player, index) => {
-                // Определяем, текущий ли это пользователь
-                const isCurrentUser = String(player.user_id) === String(telegramUserId || userId) || 
-                                     String(player.userId) === String(telegramUserId || userId);
+                // 🔴 ИСПРАВЛЕНИЕ 2: Правильное определение текущего пользователя
+                const currentUserId = telegramUserId || userId;
+                const playerId = player.user_id || player.userId;
+                const isCurrentUser = String(playerId) === String(currentUserId);
                 
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
@@ -1775,25 +1783,46 @@ async function loadLeaderboard() {
                     <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
                     <div class="player-info">
                         <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
-                            ${player.username || player.name || `Игрок ${String(player.user_id || player.userId || '??').slice(-4)}`}
+                            ${player.display_name || player.username || player.name || `Игрок ${String(playerId || '??').slice(-4)}`}
                             ${isCurrentUser ? ' (Вы)' : ''}
                         </div>
-                        <div class="player-score">${player.score || 0} очков</div>
+                        <div class="player-score">${player.best_score || player.score || 0} очков</div>
                         ${player.city && player.city !== 'Не указан' ? 
                           `<div style="color: #aaccff; font-size: 0.8rem;">📍 ${player.city}</div>` : ''}
                     </div>
-                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.level || 1}</div>
+                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.best_level || player.level || 1}</div>
                 `;
                 leaderboardList.appendChild(item);
             });
+            
+            // 🔴 ИСПРАВЛЕНИЕ 3: Показываем уведомление об успехе
+            showNotification('🏆 Лидерборд загружен из базы данных!');
+            
         } else {
-            console.warn('⚠️ Не удалось загрузить лидерборд с сервера');
+            console.warn('⚠️ Не удалось загрузить лидерборд с API');
+            showNotification('⚠️ API лидерборда недоступен');
             showLocalLeaderboard();
         }
     } catch (error) {
         console.error('❌ Ошибка загрузки лидерборда:', error);
+        showNotification('❌ Ошибка загрузки лидерборда');
         showLocalLeaderboard();
     }
+}
+
+function showLocalLeaderboard() {
+    const leaderboardList = document.getElementById('leaderboard-list');
+    leaderboardList.innerHTML = `
+        <div style="text-align: center; padding: 30px; color: #b5aaff;">
+            <p>Сервер недоступен</p>
+            <p style="font-size: 0.9rem;">Лидерборд временно не работает</p>
+            <p style="font-size: 0.8rem; margin-top: 15px; color: #ffcc66;">
+                Проверьте:
+                <br>1. API endpoint /api/top-players
+                <br>2. Соединение с базой данных
+            </p>
+        </div>
+    `;
 }
 
 function showLocalLeaderboard() {
