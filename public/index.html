@@ -869,14 +869,66 @@ let userId = null;
 let clearedLinesAnimation = [];
 let pieceQueue = [];
 
-// Telegram WebApp данные
+// ==================== TELEGRAM WEBAPP ДАННЫЕ ====================
 let tg = null;
-if (window.Telegram && window.Telegram.WebApp) {
-    tg = window.Telegram.WebApp;
-    tg.expand();
-    userId = tg.initDataUnsafe.user?.id || Math.floor(Math.random() * 1000000);
+let telegramUserData = null;
+let telegramUserId = null;
+let telegramUsername = null;
+let telegramCity = null;
+
+// Инициализация Telegram WebApp
+function initTelegramWebApp() {
+    if (window.Telegram && window.Telegram.WebApp) {
+        tg = window.Telegram.WebApp;
+        
+        // Расширяем на весь экран
+        tg.expand();
+        
+        // Получаем данные пользователя
+        const initData = tg.initDataUnsafe;
+        console.log('📱 Telegram WebApp данные:', initData);
+        
+        if (initData.user) {
+            telegramUserData = initData.user;
+            telegramUserId = String(initData.user.id);
+            telegramUsername = initData.user.username || 
+                              initData.user.first_name || 
+                              'Telegram Player';
+            
+            console.log('👤 Telegram данные пользователя:', {
+                id: telegramUserId,
+                username: telegramUsername,
+                first_name: initData.user.first_name,
+                last_name: initData.user.last_name
+            });
+        }
+        
+        // Включаем кнопку "Назад"
+        tg.BackButton.show();
+        tg.BackButton.onClick(() => {
+            if (document.getElementById('game-screen').classList.contains('active')) {
+                pauseGame();
+                showNotification('⏸ Игра приостановлена');
+            }
+            showMenu();
+        });
+        
+        // Устанавливаем основную кнопку
+        tg.MainButton.setText('Главное меню').show();
+        tg.MainButton.onClick(showMenu);
+        
+        return true;
+    }
+    return false;
+}
+
+// Обновляем userId
+if (initTelegramWebApp()) {
+    userId = telegramUserId || 'web_' + Date.now();
+    console.log('✅ Используем Telegram ID:', userId);
 } else {
     userId = 'web_' + Date.now();
+    console.log('⚠️ Telegram WebApp не обнаружен, используем web ID:', userId);
 }
 
 // ==================== ФУНКЦИИ ЭКРАНОВ ====================
@@ -1388,39 +1440,44 @@ function showNotification(message) {
 // ==================== РАБОТА С БАЗОЙ ДАННЫХ ====================
 async function saveGameToDB(gameOverFlag = false) {
     try {
-        console.log('💾 Сохранение в БД:', {
-            userId: userId,
-            score: score,
-            level: level,
-            lines: lines,
-            gameOver: gameOverFlag
-        });
+        console.log('💾 Сохранение в БД - DEBUG');
+        console.log('📱 Telegram данные:', telegramUserData);
         
-        // Преобразуем web_ ID в числовой ID для базы данных
+        // ✅ Подготавливаем данные для отправки
         let dbUserId = userId;
-        if (userId.startsWith('web_')) {
+        let username = 'Web Player';
+        let isWebAppUser = true;
+        
+        // Если есть Telegram данные
+        if (telegramUserData) {
+            dbUserId = telegramUserId;
+            username = telegramUsername;
+            isWebAppUser = false; // Это Telegram пользователь, не веб-пользователь
+        } else if (userId.startsWith('web_')) {
             const match = userId.match(/web_(\d+)/);
             if (match && match[1]) {
                 dbUserId = match[1];
-                console.log(`🔄 Преобразовали ID: ${userId} → ${dbUserId}`);
+                console.log(`🔄 Преобразовали web ID: ${userId} → ${dbUserId}`);
             }
         }
         
         const requestData = {
-            userId: dbUserId,
-            user_id: dbUserId,
+            action: 'tetris_score',
             gameType: 'tetris',
             game_type: 'tetris',
             score: score,
             level: level,
             lines: lines,
             gameOver: gameOverFlag,
-            username: tg?.initDataUnsafe?.user?.first_name || 'Telegram Player',
-            first_name: tg?.initDataUnsafe?.user?.first_name || '',
-            last_name: tg?.initDataUnsafe?.user?.last_name || '',
-            action: 'tetris_score',
-            isWin: gameOverFlag ? true : false,
-            isWebApp: true
+            isWin: gameOverFlag,
+            userId: dbUserId,
+            user_id: dbUserId,
+            username: username,
+            first_name: telegramUserData?.first_name || '',
+            last_name: telegramUserData?.last_name || '',
+            city: telegramCity || 'Не указан',
+            isWebApp: isWebAppUser,
+            telegramData: telegramUserData || null
         };
         
         console.log('📤 Отправка данных в API:', requestData);
@@ -1437,11 +1494,18 @@ async function saveGameToDB(gameOverFlag = false) {
         const responseText = await response.text();
         console.log('📋 Ответ сервера:', responseText);
         
-        if (response.ok) {
-            const result = JSON.parse(responseText);
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error('❌ Ошибка парсинга JSON:', e);
+            result = { success: false, error: 'Invalid JSON response' };
+        }
+        
+        if (response.ok && result.success) {
             console.log('✅ Результат сохранен в БД:', result);
             
-            // Отправляем данные в Telegram
+            // Отправляем данные в Telegram через WebApp
             if (tg && tg.sendData) {
                 const telegramData = {
                     action: 'tetris_score',
@@ -1451,22 +1515,40 @@ async function saveGameToDB(gameOverFlag = false) {
                     gameOver: gameOverFlag,
                     userId: dbUserId,
                     gameType: 'tetris',
-                    username: tg?.initDataUnsafe?.user?.first_name || 'Telegram Player'
+                    username: username,
+                    timestamp: new Date().toISOString(),
+                    source: 'webapp',
+                    telegramUserId: telegramUserId // Добавляем Telegram ID для идентификации
                 };
                 console.log('📤 Отправка данных в Telegram бот:', telegramData);
-                tg.sendData(JSON.stringify(telegramData));
+                try {
+                    tg.sendData(JSON.stringify(telegramData));
+                } catch (sendError) {
+                    console.error('❌ Ошибка отправки в Telegram:', sendError);
+                }
             }
             
-            return { success: true, data: result };
+            return { 
+                success: true, 
+                data: result,
+                savedToTelegram: !!tg 
+            };
         } else {
-            console.error('❌ Ошибка сохранения:', response.status, responseText);
+            console.error('❌ Ошибка сохранения на сервере:', result?.error || response.status);
             saveGameToLocalStorage(gameOverFlag);
-            return { success: false, error: 'Server error: ' + response.status };
+            return { 
+                success: false, 
+                error: result?.error || 'Server error: ' + response.status 
+            };
         }
     } catch (error) {
-        console.error('❌ Ошибка сети при сохранении:', error);
+        console.error('❌ Критическая ошибка сети:', error);
         saveGameToLocalStorage(gameOverFlag);
-        return { success: false, error: 'Network error: ' + error.message };
+        return { 
+            success: false, 
+            error: 'Network error: ' + error.message,
+            savedLocally: true
+        };
     }
 }
 
@@ -1474,11 +1556,13 @@ function saveGameToLocalStorage(gameOverFlag = false) {
     try {
         const gameData = {
             userId: userId,
+            telegramUserId: telegramUserId,
             score: score,
             level: level,
             lines: lines,
             gameOver: gameOverFlag,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            isTelegramUser: !!telegramUserData
         };
         
         let existing = JSON.parse(localStorage.getItem('tetris_games') || '[]');
@@ -1538,7 +1622,7 @@ function setupAutoSave() {
                         lines: lines,
                         gameOver: false,
                         autoSave: true,
-                        userId: userId
+                        userId: telegramUserId || userId
                     };
                     tg.sendData(JSON.stringify(gameData));
                 }
@@ -1553,19 +1637,45 @@ function setupAutoSave() {
 
 async function loadUserStats() {
     console.log('📊 Загрузка статистики пользователя:', userId);
+    console.log('📊 Telegram ID:', telegramUserId);
     
     try {
-        const response = await fetch(`${API_ENDPOINTS.getUserStats}?userId=${userId}&gameType=tetris`);
+        // Используем Telegram ID если есть, иначе обычный ID
+        const statsUserId = telegramUserId || userId;
+        
+        const response = await fetch(`${API_ENDPOINTS.getUserStats}?userId=${statsUserId}&gameType=tetris`);
         
         if (response.ok) {
-            const stats = await response.json();
-            console.log('📊 Статистика получена:', stats);
+            const result = await response.json();
+            console.log('📊 Статистика получена:', result);
             
-            document.getElementById('best-score').textContent = stats.best_score || 0;
-            document.getElementById('best-level').textContent = stats.best_level || 1;
-            document.getElementById('total-lines').textContent = stats.best_lines || 0;
-            document.getElementById('games-played').textContent = stats.games_played || 0;
-            document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
+            if (result.success && result.stats) {
+                const stats = result.stats;
+                
+                document.getElementById('best-score').textContent = stats.best_score || 0;
+                document.getElementById('best-level').textContent = stats.best_level || 1;
+                document.getElementById('total-lines').textContent = stats.best_lines || 0;
+                document.getElementById('games-played').textContent = stats.games_played || 0;
+                document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
+                
+                // Добавляем информацию о городе если есть
+                if (stats.city && stats.city !== 'Не указан') {
+                    // Проверяем, есть ли уже строка с городом
+                    let cityElement = document.querySelector('.city-stat');
+                    if (!cityElement) {
+                        cityElement = document.createElement('div');
+                        cityElement.className = 'stat-row city-stat';
+                        document.getElementById('user-stats').appendChild(cityElement);
+                    }
+                    cityElement.innerHTML = `
+                        <span class="stat-label">Город:</span>
+                        <span class="stat-value">${stats.city}</span>
+                    `;
+                }
+            } else {
+                console.warn('⚠️ Нет статистики в ответе');
+                loadLocalStats();
+            }
             
             document.getElementById('current-score').textContent = score;
             document.getElementById('current-level').textContent = level;
@@ -1583,7 +1693,14 @@ async function loadUserStats() {
 function loadLocalStats() {
     try {
         const games = JSON.parse(localStorage.getItem('tetris_games') || '[]');
-        const userGames = games.filter(g => g.userId === userId);
+        
+        // Фильтруем игры по текущему пользователю (учитывая Telegram ID)
+        const userGames = games.filter(g => {
+            if (telegramUserId) {
+                return g.telegramUserId === telegramUserId || g.userId === userId;
+            }
+            return g.userId === userId;
+        });
         
         if (userGames.length > 0) {
             const bestScore = Math.max(...userGames.map(g => g.score));
@@ -1617,11 +1734,11 @@ async function loadLeaderboard() {
         leaderboardList.innerHTML = '';
         
         if (response.ok) {
-            const data = await response.json();
-            console.log('🏆 Ответ сервера:', data);
+            const result = await response.json();
+            console.log('🏆 Ответ сервера:', result);
             
-            // ✅ Проверяем, что data.players существует и это массив
-            const players = data.players || data.topPlayers || data.data || [];
+            // Проверяем формат ответа
+            const players = result.players || result.topPlayers || result.data || [];
             
             if (!Array.isArray(players)) {
                 console.error('❌ Ошибка: players не является массивом:', players);
@@ -1647,8 +1764,10 @@ async function loadLeaderboard() {
             }
             
             players.forEach((player, index) => {
-                const isCurrentUser = String(player.user_id) === String(userId) || 
-                                     String(player.userId) === String(userId);
+                // Определяем, текущий ли это пользователь
+                const isCurrentUser = String(player.user_id) === String(telegramUserId || userId) || 
+                                     String(player.userId) === String(telegramUserId || userId);
+                
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
                 
@@ -1660,6 +1779,8 @@ async function loadLeaderboard() {
                             ${isCurrentUser ? ' (Вы)' : ''}
                         </div>
                         <div class="player-score">${player.score || 0} очков</div>
+                        ${player.city && player.city !== 'Не указан' ? 
+                          `<div style="color: #aaccff; font-size: 0.8rem;">📍 ${player.city}</div>` : ''}
                     </div>
                     <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.level || 1}</div>
                 `;
