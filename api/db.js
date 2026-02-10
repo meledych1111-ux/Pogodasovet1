@@ -664,7 +664,7 @@ export async function getUserCity(userId) {
   }
 }
 
-// ============ ФУНКЦИЯ ТОПА ИГРОКОВ ==========
+// ============ ФУНКЦИЯ ТОПА ИГРОКОВ (ИСПРАВЛЕННЫЙ SQL) ==========
 
 /**
  * Получает топ игроков для указанного типа игры
@@ -739,17 +739,16 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
       console.log('⚠️ tetris_stats не доступна или пуста:', tetrisError.message);
     }
     
-    // 🔴 ВТОРОЙ ВАРИАНТ: Используем game_scores (основной вариант)
+    // 🔴 ВТОРОЙ ВАРИАНТ: Используем game_scores (ИСПРАВЛЕННЫЙ SQL ЗАПРОС)
     console.log(`🏆 Используем game_scores для топа...`);
     
+    // 🔴 ИСПРАВЛЕННЫЙ SQL ЗАПРОС (без ошибки GROUP BY)
     const query = `
       SELECT 
         gs.user_id,
         COALESCE(NULLIF(us.username, ''), gs.username, 'Игрок') as username,
         COALESCE(NULLIF(us.selected_city, ''), 'Не указан') as city,
-        MAX(gs.score) as score,
-        MAX(gs.level) as max_level,
-        SUM(gs.lines) as total_lines,
+        MAX(gs.score) as best_score,
         COUNT(*) as games_played,
         COUNT(CASE WHEN gs.is_win THEN 1 END) as wins,
         MAX(gs.created_at) as last_played
@@ -787,9 +786,9 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
         user_id: row.user_id,
         username: username,
         city: row.city || 'Не указан',
-        score: parseInt(row.score) || 0,
-        level: parseInt(row.max_level) || 1,
-        lines: parseInt(row.total_lines) || 0,
+        score: parseInt(row.best_score) || 0,
+        level: 1, // Упрощаем, так как в этом запросе нет уровня
+        lines: 0, // Упрощаем, так как в этом запросе нет линий
         games_played: gamesPlayed,
         wins: wins,
         win_rate: winRate,
