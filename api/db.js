@@ -675,87 +675,22 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   try {
     console.log(`🏆 Запрос топа игроков: type=${gameType}, limit=${limit}`);
     
-    // 🔴 ПЕРВЫЙ ВАРИАНТ: Используем tetris_stats (если есть данные)
-    try {
-      const tetrisTopQuery = `
-        SELECT 
-          ts.user_id,
-          COALESCE(NULLIF(us.username, ''), ts.username, 'Игрок') as username,
-          COALESCE(NULLIF(us.selected_city, ''), 'Не указан') as city,
-          ts.best_score as score,
-          ts.best_level as level,
-          ts.best_lines as lines,
-          ts.games_played,
-          ts.last_played
-        FROM tetris_stats ts
-        LEFT JOIN user_sessions us ON ts.user_id = us.user_id
-        WHERE ts.best_score > 0
-        ORDER BY ts.best_score DESC, ts.games_played DESC
-        LIMIT $1
-      `;
-      
-      const tetrisResult = await client.query(tetrisTopQuery, [limit]);
-      
-      if (tetrisResult.rows.length > 0) {
-        console.log(`🏆 Топ из tetris_stats: ${tetrisResult.rows.length} игроков`);
-        
-        const topPlayers = tetrisResult.rows.map((row, index) => {
-          const gamesPlayed = parseInt(row.games_played) || 1;
-          
-          let username = row.username;
-          if (!username || username === 'Игрок') {
-            const userIdStr = String(row.user_id || '0000');
-            if (userIdStr.startsWith('web_')) {
-              username = `🌐 Игрок #${userIdStr.slice(-4)}`;
-            } else {
-              username = `👤 Игрок #${userIdStr.slice(-4)}`;
-            }
-          }
-          
-          return {
-            rank: index + 1,
-            user_id: row.user_id,
-            username: username,
-            city: row.city || 'Не указан',
-            score: parseInt(row.score) || 0,
-            level: parseInt(row.level) || 0,
-            lines: parseInt(row.lines) || 0,
-            games_played: gamesPlayed,
-            wins: gamesPlayed, // Для tetris_stats предполагаем все игры - победы
-            win_rate: '100.0',
-            last_played: row.last_played,
-            source: 'tetris_stats'
-          };
-        });
-        
-        return { 
-          success: true, 
-          players: topPlayers, 
-          count: topPlayers.length,
-          source: 'tetris_stats' 
-        };
-      }
-    } catch (tetrisError) {
-      console.log('⚠️ tetris_stats не доступна или пуста:', tetrisError.message);
-    }
-    
-    // 🔴 ВТОРОЙ ВАРИАНТ: Используем game_scores (ИСПРАВЛЕННЫЙ SQL ЗАПРОС)
-    console.log(`🏆 Используем game_scores для топа...`);
-    
     // 🔴 ИСПРАВЛЕННЫЙ SQL ЗАПРОС (без ошибки GROUP BY)
     const query = `
       SELECT 
         gs.user_id,
-        COALESCE(NULLIF(us.username, ''), gs.username, 'Игрок') as username,
-        COALESCE(NULLIF(us.selected_city, ''), 'Не указан') as city,
+        MAX(COALESCE(NULLIF(us.username, ''), gs.username, 'Игрок')) as username,
+        MAX(COALESCE(NULLIF(us.selected_city, ''), 'Не указан')) as city,
         MAX(gs.score) as best_score,
         COUNT(*) as games_played,
         COUNT(CASE WHEN gs.is_win THEN 1 END) as wins,
-        MAX(gs.created_at) as last_played
+        MAX(gs.created_at) as last_played,
+        MAX(gs.level) as best_level,
+        MAX(gs.lines) as best_lines
       FROM game_scores gs
       LEFT JOIN user_sessions us ON gs.user_id = us.user_id
       WHERE gs.game_type = $1 AND gs.score > 0
-      GROUP BY gs.user_id, us.username, us.selected_city
+      GROUP BY gs.user_id
       ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
       LIMIT $2
     `;
@@ -787,8 +722,8 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
         username: username,
         city: row.city || 'Не указан',
         score: parseInt(row.best_score) || 0,
-        level: 1, // Упрощаем, так как в этом запросе нет уровня
-        lines: 0, // Упрощаем, так как в этом запросе нет линий
+        level: parseInt(row.best_level) || 1,
+        lines: parseInt(row.best_lines) || 0,
         games_played: gamesPlayed,
         wins: wins,
         win_rate: winRate,
@@ -818,7 +753,6 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     client.release();
   }
 }
-
 // ============ ФУНКЦИЯ ПОЛУЧЕНИЯ СТАТИСТИКИ ИГРОКА ==========
 
 /**
