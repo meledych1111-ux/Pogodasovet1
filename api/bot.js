@@ -1,5 +1,7 @@
 import { Bot, Keyboard } from 'grammy';
-
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // ===================== ИМПОРТ ФУНКЦИЙ ИЗ БАЗЫ ДАННЫХ =====================
 import {
