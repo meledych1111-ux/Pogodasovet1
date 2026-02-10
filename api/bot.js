@@ -1666,7 +1666,121 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
     });
   }
 });
+// 🔴 ДОБАВЬТЕ В bot.js ПОСЛЕ обработчика bot.filter
 
+// Команда для тестирования API endpoints
+bot.command('test_api_endpoints', async (ctx) => {
+  try {
+    const userId = ctx.from.id;
+    const testData = {
+      userId: userId.toString(),
+      score: 3500,
+      level: 4,
+      lines: 28,
+      gameType: 'tetris',
+      username: ctx.from.username || ctx.from.first_name || 'ТестИгрок',
+      gameOver: true
+    };
+    
+    await ctx.reply(`🔍 *Тестирую API endpoints...*\n\n`, { parse_mode: 'Markdown' });
+    
+    // Тестируем каждый endpoint
+    const endpoints = [
+      {
+        name: '/api/save-score',
+        url: '/api/save-score',
+        method: 'POST',
+        data: testData
+      },
+      {
+        name: '/api/save-progress',
+        url: '/api/save-progress',
+        method: 'POST',
+        data: { ...testData, gameOver: false }
+      },
+      {
+        name: '/api/user-stats',
+        url: `/api/user-stats?userId=${userId}`,
+        method: 'GET'
+      },
+      {
+        name: '/api/top-players',
+        url: '/api/top-players?limit=5',
+        method: 'GET'
+      }
+    ];
+    
+    let results = '';
+    
+    for (const endpoint of endpoints) {
+      try {
+        const startTime = Date.now();
+        
+        const response = await fetch(`https://${process.env.VERCEL_URL || 'your-domain.vercel.app'}${endpoint.url}`, {
+          method: endpoint.method,
+          headers: { 'Content-Type': 'application/json' },
+          body: endpoint.data ? JSON.stringify(endpoint.data) : undefined
+        });
+        
+        const responseTime = Date.now() - startTime;
+        const result = await response.json();
+        
+        results += `**${endpoint.name}**:\n`;
+        results += `  Статус: ${response.status} (${responseTime}ms)\n`;
+        results += `  Успех: ${result.success ? '✅' : '❌'}\n`;
+        
+        if (result.error) {
+          results += `  Ошибка: ${result.error}\n`;
+        }
+        
+        if (endpoint.name === '/api/user-stats' && result.success) {
+          results += `  Игр: ${result.stats?.games_played || 0}\n`;
+          results += `  Лучший: ${result.stats?.best_score || 0}\n`;
+        }
+        
+        results += '\n';
+        
+      } catch (error) {
+        results += `**${endpoint.name}**: ❌ ${error.message}\n\n`;
+      }
+    }
+    
+    await ctx.reply(results, { parse_mode: 'Markdown' });
+    
+    // Тест с данными из WebApp формата
+    await ctx.reply(`🎮 *Тест WebApp формата:*`, { parse_mode: 'Markdown' });
+    
+    const webAppData = {
+      data: JSON.stringify({
+        action: 'tetris_score',
+        gameType: 'tetris',
+        score: 4200,
+        level: 5,
+        lines: 35,
+        gameOver: true,
+        userId: userId.toString()
+      })
+    };
+    
+    try {
+      const webAppResponse = await fetch('/api/save-score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(webAppData)
+      });
+      
+      const webAppResult = await webAppResponse.json();
+      await ctx.reply(`WebApp format: ${webAppResult.success ? '✅' : '❌'}`, { parse_mode: 'Markdown' });
+      
+    } catch (webAppError) {
+      await ctx.reply(`WebApp format: ❌ ${webAppError.message}`, { parse_mode: 'Markdown' });
+    }
+    
+  } catch (error) {
+    console.error('❌ test_api_endpoints error:', error);
+    await ctx.reply(`❌ Ошибка: ${error.message}`);
+  }
+});
 // ===================== ЧТО НАДЕТЬ =====================
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   const userId = ctx.from.id;
