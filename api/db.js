@@ -4,21 +4,24 @@ const { Pool } = pg;
 // 🔴 ОПТИМИЗИРОВАННОЕ ПОДКЛЮЧЕНИЕ ДЛЯ NEON + VERCEL
 const poolConfig = {
   connectionString: process.env.DATABASE_URL,
+  // 🔴 УПРОЩЕННАЯ SSL КОНФИГУРАЦИЯ ДЛЯ NEON
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false // 🔴 ОБЯЗАТЕЛЬНО false для работы с Neon!
   },
-  connectionTimeoutMillis: 10000,
+  // 🔴 Дополнительные параметры для стабильности
+  connectionTimeoutMillis: 10000, // 10 секунд
   idleTimeoutMillis: 30000,
-  max: 20,
+  max: 20, // максимальное количество клиентов в пуле
   allowExitOnIdle: true
 };
 
-// Логирование конфигурации
+// Логирование конфигурации (без пароля)
 if (process.env.NODE_ENV !== 'production' && process.env.DATABASE_URL) {
   console.log('🔧 Конфигурация БД:');
   console.log('   URL присутствует:', !!process.env.DATABASE_URL);
-  console.log('   Использует Neon:', process.env.DATABASE_URL?.includes('neon.tech'));
+  console.log('   Использует Neon:', process.env.DATABASE_URL.includes('neon.tech'));
   console.log('   NODE_ENV:', process.env.NODE_ENV);
+  console.log('   SSL: rejectUnauthorized=false');
 }
 
 const pool = new Pool(poolConfig);
@@ -28,19 +31,22 @@ function convertUserIdForDb(userId) {
   const userIdStr = String(userId);
   
   if (userIdStr.startsWith('web_')) {
-    return userIdStr;
+    return userIdStr; // Web App пользователи - строка
   } else if (/^\d+$/.test(userIdStr)) {
+    // Telegram ID - конвертируем в число
     const num = parseInt(userIdStr, 10);
     return isNaN(num) ? userIdStr : num;
   }
   return userIdStr;
 }
 
-// 🔴 ФУНКЦИЯ ДЛЯ ТЕСТИРОВАНИЯ ПОДКЛЮЧЕНИЯ
+// 🔴 ФУНКЦИЯ ДЛЯ ТЕСТИРОВАНИЯ ПОДКЛЮЧЕНИЯ С ВЫВОДОМ ДЕТАЛЕЙ
 async function testConnection() {
   let client;
   try {
     console.log('🧪 Тестирование подключения к БД...');
+    console.log('🧪 DATABASE_URL (первые 30 символов):', process.env.DATABASE_URL?.substring(0, 30) + '...');
+    console.log('🧪 NODE_ENV:', process.env.NODE_ENV);
     
     client = await pool.connect();
     const result = await client.query('SELECT version() as version, NOW() as now, current_database() as db');
@@ -59,6 +65,16 @@ async function testConnection() {
   } catch (error) {
     console.error('❌ Ошибка подключения к БД:', error.message);
     console.error('❌ Код ошибки:', error.code);
+    console.error('❌ Детали SSL:', error.message.includes('SSL') ? 'Проблема с SSL' : 'Другая ошибка');
+    
+    // 🔴 ДОПОЛНИТЕЛЬНАЯ ДИАГНОСТИКА ДЛЯ NEON
+    if (process.env.DATABASE_URL) {
+      const url = process.env.DATABASE_URL;
+      console.log('🔍 Анализ DATABASE_URL:');
+      console.log('   Использует sslmode=require?', url.includes('sslmode=require'));
+      console.log('   Использует neon.tech домен?', url.includes('neon.tech'));
+      console.log('   Длина URL:', url.length);
+    }
     
     return { 
       success: false, 
@@ -71,161 +87,205 @@ async function testConnection() {
   }
 }
 
-// 🔴 СОЗДАНИЕ ТАБЛИЦ ЕСЛИ НЕТ
-async function createMissingTables() {
+// 🔴 ФУНКЦИЯ СОЗДАНИЯ ВСЕХ НЕОБХОДИМЫХ ТАБЛИЦ
+async function createTables() {
   const client = await pool.connect();
   try {
-    console.log('📊 Проверка структуры таблиц...');
+    console.log('📊 Создание таблиц...');
     
-    // 🔴 1. Проверяем user_sessions
-    const userSessionsExists = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_name = 'user_sessions'
-      )
-    `);
-    
-    if (!userSessionsExists.rows[0].exists) {
-      await client.query(`
-        CREATE TABLE user_sessions (
-          user_id VARCHAR(100) PRIMARY KEY,
-          username VARCHAR(100),
-          selected_city VARCHAR(100),
-          user_type VARCHAR(20) DEFAULT 'telegram',
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
-        )
-      `);
-      console.log('✅ Таблица user_sessions создана');
+    // Сначала тестируем подключение
+    const testResult = await testConnection();
+    if (!testResult.success) {
+      throw new Error(`Не удалось подключиться к БД: ${testResult.error}`);
     }
     
-    // 🔴 2. Проверяем game_scores
-    const gameScoresExists = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_name = 'game_scores'
+    // 🔴 1. Таблица пользователей и городов (ОБНОВЛЕНА - добавлены правильные колонки)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(100) NOT NULL,
+        username VARCHAR(100),
+        city VARCHAR(100), -- 🔴 ИСПРАВЛЕНО: был selected_city, теперь просто city
+        user_type VARCHAR(20) DEFAULT 'telegram',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id)
       )
     `);
+    console.log('✅ Таблица user_sessions создана/проверена');
     
-    if (!gameScoresExists.rows[0].exists) {
-      await client.query(`
-        CREATE TABLE game_scores (
-          id SERIAL PRIMARY KEY,
-          user_id VARCHAR(100) NOT NULL,
-          username VARCHAR(100),
-          game_type VARCHAR(50) NOT NULL DEFAULT 'tetris',
-          score INTEGER NOT NULL DEFAULT 0,
-          level INTEGER NOT NULL DEFAULT 1,
-          lines INTEGER NOT NULL DEFAULT 0,
-          is_win BOOLEAN DEFAULT TRUE,
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
-        )
-      `);
-      console.log('✅ Таблица game_scores создана');
-    }
-    
-    // 🔴 3. Проверяем game_progress
-    const gameProgressExists = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_name = 'game_progress'
+    // 🔴 2. Таблица финальных результатов игр (ВСЕ игры)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS game_scores (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(100) NOT NULL,
+        username VARCHAR(100),
+        game_type VARCHAR(50) NOT NULL DEFAULT 'tetris',
+        score INTEGER NOT NULL DEFAULT 0,
+        level INTEGER NOT NULL DEFAULT 1,
+        lines INTEGER NOT NULL DEFAULT 0,
+        game_over BOOLEAN DEFAULT TRUE, -- 🔴 ИСПРАВЛЕНО: было is_win, теперь game_over
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
       )
     `);
+    console.log('✅ Таблица game_scores создана/проверена');
     
-    if (!gameProgressExists.rows[0].exists) {
-      await client.query(`
-        CREATE TABLE game_progress (
-          user_id VARCHAR(100) NOT NULL,
-          game_type VARCHAR(50) DEFAULT 'tetris',
-          score INTEGER DEFAULT 0,
-          level INTEGER DEFAULT 1,
-          lines INTEGER DEFAULT 0,
-          last_saved TIMESTAMP DEFAULT NOW(),
-          PRIMARY KEY (user_id, game_type)
-        )
-      `);
-      console.log('✅ Таблица game_progress создана');
-    }
-    
-    // 🔴 4. Проверяем game_stats
-    const gameStatsExists = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_name = 'game_stats'
+    // 🔴 3. Таблица прогресса игры (для автосохранения)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS game_progress (
+        user_id VARCHAR(100) NOT NULL,
+        game_type VARCHAR(50) DEFAULT 'tetris',
+        score INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        lines INTEGER DEFAULT 0,
+        last_saved TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (user_id, game_type)
       )
     `);
+    console.log('✅ Таблица game_progress создана/проверена');
     
-    if (!gameStatsExists.rows[0].exists) {
-      await client.query(`
-        CREATE TABLE game_stats (
-          user_id BIGINT NOT NULL,
-          game_type VARCHAR(50) NOT NULL DEFAULT 'tetris',
-          games_played INTEGER DEFAULT 0,
-          total_score BIGINT DEFAULT 0,
-          best_score INTEGER DEFAULT 0,
-          best_level INTEGER DEFAULT 1,
-          best_lines INTEGER DEFAULT 0,
-          total_lines INTEGER DEFAULT 0,
-          avg_score DECIMAL(10,2) DEFAULT 0,
-          username VARCHAR(100),
-          last_played TIMESTAMP DEFAULT NOW(),
-          PRIMARY KEY (user_id, game_type)
-        )
-      `);
-      console.log('✅ Таблица game_stats создана');
-    }
-    
-    // 🔴 5. Проверяем tetris_stats
-    const tetrisStatsExists = await client.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_name = 'tetris_stats'
+    // 🔴 4. Таблица статистики - СОЗДАЕМ С ПРАВИЛЬНЫМИ КОЛОНКАМИ
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS game_stats (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(100) NOT NULL,
+        username VARCHAR(100),
+        game_type VARCHAR(50) NOT NULL DEFAULT 'tetris',
+        total_games INTEGER DEFAULT 0,
+        best_score INTEGER DEFAULT 0,
+        best_level INTEGER DEFAULT 1,
+        best_lines INTEGER DEFAULT 0,
+        total_score INTEGER DEFAULT 0, -- 🔴 ДОБАВЛЕНО: total_score
+        avg_score DECIMAL(10,2) DEFAULT 0,
+        total_lines INTEGER DEFAULT 0, -- 🔴 ДОБАВЛЕНО: total_lines
+        last_played TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, game_type)
       )
     `);
+    console.log('✅ Таблица game_stats создана/проверена');
     
-    if (!tetrisStatsExists.rows[0].exists) {
-      await client.query(`
-        CREATE TABLE tetris_stats (
-          user_id BIGINT PRIMARY KEY,
-          games_played INTEGER NOT NULL DEFAULT 0,
-          best_score INTEGER NOT NULL DEFAULT 0,
-          best_level INTEGER NOT NULL DEFAULT 1,
-          best_lines INTEGER NOT NULL DEFAULT 0,
-          total_score BIGINT DEFAULT 0,
-          avg_score DECIMAL(10,2) NOT NULL DEFAULT 0,
-          username VARCHAR(100),
-          last_played TIMESTAMP DEFAULT NOW(),
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
-        )
-      `);
-      console.log('✅ Таблица tetris_stats создана');
-    }
+    // 🔴 5. Таблица tetris_stats (для обратной совместимости)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tetris_stats (
+        user_id VARCHAR(100) PRIMARY KEY,
+        username VARCHAR(100),
+        games_played INTEGER DEFAULT 0,
+        best_score INTEGER DEFAULT 0,
+        best_level INTEGER DEFAULT 1,
+        best_lines INTEGER DEFAULT 0,
+        total_score INTEGER DEFAULT 0,
+        avg_score INTEGER DEFAULT 0,
+        last_played TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    console.log('✅ Таблица tetris_stats создана/проверена');
     
-    console.log('✅ Все таблицы проверены/созданы');
+    // 🔴 6. Создаем индексы для производительности
+    console.log('📊 Создание индексов...');
+    
+    // Индекс для game_scores
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_game_scores_user_type 
+      ON game_scores(user_id, game_type)
+    `);
+    
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_game_scores_score 
+      ON game_scores(score DESC)
+    `);
+    
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_game_scores_created_at 
+      ON game_scores(created_at DESC)
+    `);
+    
+    // Индекс для game_stats
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_game_stats_best_score 
+      ON game_stats(game_type, best_score DESC)
+    `);
+    
+    // Индекс для user_sessions
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_sessions_city 
+      ON user_sessions(city)
+    `);
+    
+    // Индекс для tetris_stats
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_tetris_stats_best_score 
+      ON tetris_stats(best_score DESC)
+    `);
+    
+    console.log('✅ Все таблицы и индексы созданы или уже существуют');
+    
+    // 🔴 ПРОВЕРЯЕМ СТРУКТУРУ ТАБЛИЦ
+    const tableCheck = await client.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `);
+    console.log('📊 Существующие таблицы:', tableCheck.rows.map(r => r.table_name).join(', '));
     
   } catch (error) {
-    console.error('❌ Ошибка при проверке таблиц:', error.message);
+    console.error('❌ Ошибка при создании таблиц:', error.message);
+    console.error('❌ Stack trace:', error.stack);
+    
+    // 🔴 СПЕЦИАЛЬНЫЙ АНАЛИЗ ДЛЯ NEON SSL ПРОБЛЕМ
+    if (error.message.includes('SSL') || error.code === 'ECONNRESET' || error.code === '23505') {
+      console.log('\n🔴 ВОЗМОЖНОЕ РЕШЕНИЕ:');
+      console.log('1. Проверьте DATABASE_URL в переменных окружения Vercel');
+      console.log('2. Для Neon добавьте ?sslmode=require в конец строки подключения');
+      console.log('3. Для разработки используйте ?sslmode=no-verify');
+      console.log('4. Проверьте, что БД активна в панели управления Neon');
+    }
   } finally {
     client.release();
   }
 }
 
-// 🔴 АВТОМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ
+// 🔴 АВТОМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ
 if (process.env.DATABASE_URL) {
   console.log('📊 Инициализация базы данных...');
   
+  // Функция инициализации с повторными попытками
+  const initializeDatabase = async (retryCount = 3) => {
+    for (let attempt = 1; attempt <= retryCount; attempt++) {
+      try {
+        console.log(`🔄 Попытка ${attempt} из ${retryCount}...`);
+        await createTables();
+        console.log('✅ База данных успешно инициализирована');
+        return;
+      } catch (error) {
+        console.error(`❌ Попытка ${attempt} не удалась:`, error.message);
+        
+        if (attempt < retryCount) {
+          const delay = attempt * 2000; // Увеличиваем задержку с каждой попыткой
+          console.log(`⏳ Повтор через ${delay / 1000} секунд...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          console.error('❌ Все попытки инициализации БД провалились');
+        }
+      }
+    }
+  };
+  
+  // Запускаем с задержкой для Vercel среды
   setTimeout(() => {
-    createMissingTables().catch(error => {
-      console.error('💥 Ошибка инициализации БД:', error);
+    initializeDatabase().catch(error => {
+      console.error('💥 Критическая ошибка инициализации БД:', error);
     });
   }, 1500);
 } else {
-  console.warn('⚠️ DATABASE_URL не установлен');
+  console.warn('⚠️ DATABASE_URL не установлен, база данных не будет инициализирована');
 }
 
-// ============ ОСНОВНЫЕ ФУНКЦИИ ============
+// ============ ФУНКЦИИ ДЛЯ ИГР ============
 
 /**
  * Сохраняет финальный результат игры
@@ -236,11 +296,11 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level = 
   const client = await pool.connect();
   
   try {
-    // 🔴 Конвертируем ID
-    const dbUserId = convertUserIdForDb(userId);
+    // 🔴 1. Конвертируем ID в строку
+    const dbUserId = String(userId);
     console.log(`🆔 ID преобразован: ${userId} -> ${dbUserId}`);
     
-    // 🔴 Подготавливаем имя пользователя
+    // 🔴 2. Подготавливаем имя пользователя
     let finalUsername = username;
     if (!finalUsername || finalUsername.trim() === '') {
       const userIdStr = String(userId);
@@ -254,36 +314,36 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level = 
     }
     console.log(`👤 Имя пользователя: ${finalUsername}`);
     
-    // 🔴 Определяем город
+    // 🔴 3. Определяем город
     let userCity = city || 'Не указан';
     console.log(`📍 Город: "${userCity}"`);
     
-    // 🔴 НАЧИНАЕМ ТРАНЗАКЦИЮ
+    // 🔴 4. НАЧИНАЕМ ТРАНЗАКЦИЮ
     await client.query('BEGIN');
     
-    // 🔴 1. Создаем/обновляем пользователя в user_sessions
+    // 🔴 5. Создаем/обновляем пользователя С ГОРОДОМ
     console.log(`📝 Обновление данных пользователя с городом "${userCity}"...`);
     try {
       await client.query(`
-        INSERT INTO user_sessions (user_id, username, selected_city, updated_at) 
+        INSERT INTO user_sessions (user_id, username, city, updated_at) 
         VALUES ($1, $2, $3, NOW()) 
         ON CONFLICT (user_id) 
         DO UPDATE SET 
           username = COALESCE($2, user_sessions.username),
-          selected_city = COALESCE($3, user_sessions.selected_city),
+          city = COALESCE($3, user_sessions.city),
           updated_at = NOW()
+        RETURNING user_id
       `, [dbUserId, finalUsername, userCity]);
       console.log(`✅ Данные пользователя обновлены (город: ${userCity})`);
     } catch (userError) {
       console.error(`❌ Ошибка обновления пользователя:`, userError.message);
+      // Продолжаем - пользователь может уже существовать
     }
     
-    // 🔴 2. Сохраняем результат игры в game_scores
+    // 🔴 6. Сохраняем результат игры
     console.log(`🎮 Сохранение результата игры...`);
-    const isWin = !gameOver;
-    
     const gameQuery = `
-      INSERT INTO game_scores (user_id, username, game_type, score, level, lines, is_win, created_at) 
+      INSERT INTO game_scores (user_id, username, game_type, score, level, lines, game_over, created_at) 
       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) 
       RETURNING id, created_at, user_id
     `;
@@ -295,7 +355,7 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level = 
       score, 
       level, 
       lines || 0,
-      isWin
+      gameOver
     ]);
     
     const savedId = result.rows[0]?.id;
@@ -303,125 +363,95 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level = 
     
     console.log(`✅ Результат игры сохранен! ID: ${savedId}, время: ${createdAt}`);
     
-    // 🔴 3. ОБНОВЛЯЕМ game_stats (ОСНОВНАЯ СТАТИСТИКА)
-    console.log(`📊 Обновление game_stats...`);
+    // 🔴 7. Обновляем статистику в game_stats (ОСНОВНАЯ СТАТИСТИКА)
+    console.log(`📊 Обновление статистики...`);
     try {
-      // Сначала проверяем, есть ли уже запись
-      const existingQuery = await client.query(`
-        SELECT games_played, total_score, total_lines
-        FROM game_stats 
-        WHERE user_id = $1 AND game_type = $2
-      `, [dbUserId, gameType]);
+      // Проверяем существование таблицы game_stats
+      const tableExists = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'game_stats'
+        )
+      `);
       
-      if (existingQuery.rows.length === 0) {
-        // Первая игра пользователя
+      if (tableExists.rows[0].exists) {
+        // Сначала получаем текущую статистику
+        const currentStats = await client.query(`
+          SELECT total_games, total_score, avg_score, total_lines
+          FROM game_stats 
+          WHERE user_id = $1 AND game_type = $2
+        `, [dbUserId, gameType]);
+        
+        const newTotalGames = currentStats.rows.length > 0 ? 
+          (parseInt(currentStats.rows[0].total_games) || 0) + 1 : 1;
+        const oldTotalScore = currentStats.rows.length > 0 ? 
+          (parseInt(currentStats.rows[0].total_score) || 0) : 0;
+        const oldTotalLines = currentStats.rows.length > 0 ? 
+          (parseInt(currentStats.rows[0].total_lines) || 0) : 0;
+        const newTotalScore = oldTotalScore + score;
+        const newTotalLines = oldTotalLines + lines;
+        const newAvgScore = newTotalGames > 0 ? (newTotalScore / newTotalGames) : score;
+        
         await client.query(`
           INSERT INTO game_stats (
-            user_id, game_type, username, games_played, 
-            total_score, best_score, best_level, best_lines,
-            total_lines, avg_score, last_played
+            user_id, username, game_type, 
+            total_games, best_score, best_level, best_lines,
+            total_score, avg_score, total_lines, last_played
           ) 
-          VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8, $9, NOW())
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          ON CONFLICT (user_id, game_type) 
+          DO UPDATE SET 
+            total_games = game_stats.total_games + 1,
+            best_score = GREATEST(game_stats.best_score, EXCLUDED.best_score),
+            best_level = GREATEST(game_stats.best_level, EXCLUDED.best_level),
+            best_lines = GREATEST(game_stats.best_lines, EXCLUDED.best_lines),
+            total_score = game_stats.total_score + EXCLUDED.total_score,
+            avg_score = (game_stats.total_score + EXCLUDED.total_score)::DECIMAL / (game_stats.total_games + 1),
+            total_lines = game_stats.total_lines + EXCLUDED.total_lines,
+            last_played = NOW(),
+            username = COALESCE(EXCLUDED.username, game_stats.username),
+            updated_at = NOW()
         `, [
-          dbUserId, gameType, finalUsername,
-          score, score, level, lines || 0,
-          lines || 0, score
+          dbUserId, finalUsername, gameType,
+          1, score, level, lines || 0,
+          score, newAvgScore, lines || 0
         ]);
-        console.log(`📊 Создана новая запись в game_stats`);
+        console.log(`📊 Статистика обновлена в game_stats (игр: ${newTotalGames})`);
       } else {
-        // Обновляем существующую статистику
-        const existing = existingQuery.rows[0];
-        const oldGames = existing.games_played || 0;
-        const oldTotalScore = Number(existing.total_score) || 0;
-        const oldTotalLines = Number(existing.total_lines) || 0;
-        
-        const newGames = oldGames + 1;
-        const newTotalScore = oldTotalScore + score;
-        const newTotalLines = oldTotalLines + (lines || 0);
-        const newAvgScore = newTotalScore / newGames;
-        
-        await client.query(`
-          UPDATE game_stats 
-          SET 
-            games_played = $3,
-            total_score = $4,
-            best_score = GREATEST(best_score, $5),
-            best_level = GREATEST(best_level, $6),
-            best_lines = GREATEST(best_lines, $7),
-            total_lines = $8,
-            avg_score = $9,
-            username = COALESCE($10, game_stats.username),
-            last_played = NOW()
-          WHERE user_id = $1 AND game_type = $2
-        `, [
-          dbUserId, gameType,
-          newGames, newTotalScore, score, level, lines || 0,
-          newTotalLines, newAvgScore, finalUsername
-        ]);
-        console.log(`📊 Обновлена статистика в game_stats (игр: ${newGames})`);
+        console.log(`ℹ️ Таблица game_stats не существует, пропускаем`);
       }
     } catch (statsError) {
-      console.error(`❌ Ошибка обновления game_stats:`, statsError.message);
-      console.error(`❌ Stack:`, statsError.stack);
+      console.error(`⚠️ Ошибка обновления game_stats:`, statsError.message);
+      // Не прерываем выполнение, если статистика не обновилась
     }
     
-    // 🔴 4. ОБНОВЛЯЕМ tetris_stats (для обратной совместимости)
-    console.log(`📊 Обновление tetris_stats...`);
+    // 🔴 8. Также обновляем tetris_stats для обратной совместимости
     try {
-      const tetrisExists = await client.query(`
-        SELECT games_played, total_score
-        FROM tetris_stats 
-        WHERE user_id = $1
-      `, [dbUserId]);
-      
-      if (tetrisExists.rows.length === 0) {
-        // Первая запись
-        await client.query(`
-          INSERT INTO tetris_stats (
-            user_id, username, games_played, best_score, 
-            best_level, best_lines, total_score, avg_score, last_played
-          ) 
-          VALUES ($1, $2, 1, $3, $4, $5, $6, $7, NOW())
-        `, [
-          dbUserId, finalUsername,
-          score, level, lines || 0, score, score
-        ]);
-        console.log(`📊 Создана новая запись в tetris_stats`);
-      } else {
-        // Обновляем существующую
-        const existing = tetrisExists.rows[0];
-        const oldGames = existing.games_played || 0;
-        const oldTotalScore = Number(existing.total_score) || 0;
-        
-        const newGames = oldGames + 1;
-        const newTotalScore = oldTotalScore + score;
-        const newAvgScore = newTotalScore / newGames;
-        
-        await client.query(`
-          UPDATE tetris_stats 
-          SET 
-            games_played = $2,
-            best_score = GREATEST(best_score, $3),
-            best_level = GREATEST(best_level, $4),
-            best_lines = GREATEST(best_lines, $5),
-            total_score = $6,
-            avg_score = $7,
-            username = COALESCE($8, tetris_stats.username),
-            last_played = NOW(),
-            updated_at = NOW()
-          WHERE user_id = $1
-        `, [
-          dbUserId,
-          newGames, score, level, lines || 0,
-          newTotalScore, newAvgScore, finalUsername
-        ]);
-        console.log(`📊 Обновлена статистика в tetris_stats (игр: ${newGames})`);
-      }
-    } catch (tetrisError) {
-      console.error(`❌ Ошибка обновления tetris_stats:`, tetrisError.message);
+      await client.query(`
+        INSERT INTO tetris_stats (user_id, username, games_played, best_score, best_level, best_lines, total_score, avg_score, last_played)
+        VALUES ($1, $2, 1, $3, $4, $5, $6, $7, NOW())
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
+          games_played = tetris_stats.games_played + 1,
+          best_score = GREATEST(tetris_stats.best_score, EXCLUDED.best_score),
+          best_level = GREATEST(tetris_stats.best_level, EXCLUDED.best_level),
+          best_lines = GREATEST(tetris_stats.best_lines, EXCLUDED.best_lines),
+          total_score = tetris_stats.total_score + EXCLUDED.total_score,
+          avg_score = (tetris_stats.total_score + EXCLUDED.total_score)::DECIMAL / (tetris_stats.games_played + 1),
+          last_played = NOW(),
+          username = COALESCE(EXCLUDED.username, tetris_stats.username),
+          updated_at = NOW()
+      `, [
+        dbUserId, finalUsername, 
+        score, level, lines || 0, 
+        score, score
+      ]);
+      console.log(`📊 Статистика обновлена в tetris_stats`);
+    } catch (tetrisStatsError) {
+      console.error(`⚠️ Ошибка обновления tetris_stats:`, tetrisStatsError.message);
     }
     
-    // 🔴 5. Удаляем прогресс (если был)
+    // 🔴 9. Удаляем прогресс (если был)
     try {
       await client.query(`
         DELETE FROM game_progress 
@@ -432,7 +462,7 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level = 
       console.log(`ℹ️ Прогресс не найден или уже удален`);
     }
     
-    // 🔴 6. КОММИТИМ ТРАНЗАКЦИЮ
+    // 🔴 10. КОММИТИМ ТРАНЗАКЦИЮ
     await client.query('COMMIT');
     console.log(`✅ Транзакция завершена успешно`);
     
@@ -444,7 +474,7 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level = 
     };
     
   } catch (error) {
-    // 🔴 ОТКАТЫВАЕМ ТРАНЗАКЦИЮ ПРИ ОШИБКЕ
+    // 🔴 11. ОТКАТЫВАЕМ ТРАНЗАКЦИЮ ПРИ ОШИБКЕ
     try {
       await client.query('ROLLBACK');
       console.log(`🔄 Транзакция откачена`);
@@ -455,6 +485,7 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level = 
     console.error(`💥 КРИТИЧЕСКАЯ ОШИБКА saveGameScore:`);
     console.error(`📌 Сообщение:`, error.message);
     console.error(`📌 Код:`, error.code);
+    console.error(`📌 Stack:`, error.stack);
     
     return { 
       success: false, 
@@ -469,499 +500,31 @@ export async function saveGameScore(userId, gameType = 'tetris', score, level = 
 }
 
 /**
- * Получает топ игроков
- */
-export async function getTopPlayers(gameType = 'tetris', limit = 10) {
-  const client = await pool.connect();
-  
-  try {
-    console.log(`🏆 Запрос топа игроков: type=${gameType}, limit=${limit}`);
-    
-    // 🔴 ВАРИАНТ 1: Пробуем из game_stats (основная таблица)
-    try {
-      const gameStatsQuery = `
-        SELECT 
-          gs.user_id,
-          COALESCE(gs.username, 'Игрок ' || RIGHT(gs.user_id::text, 4)) as username,
-          gs.best_score,
-          gs.best_level,
-          gs.best_lines,
-          gs.games_played,
-          gs.avg_score,
-          COALESCE(us.selected_city, '🏙️ Не указан') as city,
-          gs.last_played
-        FROM game_stats gs
-        LEFT JOIN user_sessions us ON gs.user_id::text = us.user_id
-        WHERE gs.game_type = $1 
-          AND gs.best_score > 0
-        ORDER BY gs.best_score DESC
-        LIMIT $2
-      `;
-      
-      console.log('🔍 Пробуем получить топ из game_stats...');
-      const result = await client.query(gameStatsQuery, [gameType, limit]);
-      
-      if (result.rows.length > 0) {
-        console.log(`✅ Найдено игроков в game_stats: ${result.rows.length}`);
-        
-        const players = result.rows.map((row, index) => ({
-          rank: index + 1,
-          user_id: row.user_id,
-          username: row.username || `Игрок ${String(row.user_id).slice(-4)}`,
-          city: row.city || '🏙️ Не указан',
-          score: parseInt(row.best_score) || 0,
-          level: parseInt(row.best_level) || 0,
-          lines: parseInt(row.best_lines) || 0,
-          games_played: parseInt(row.games_played) || 1,
-          avg_score: parseFloat(row.avg_score) || 0,
-          last_played: row.last_played,
-          source: 'game_stats'
-        }));
-        
-        // Логируем для отладки
-        console.log('🏆 Топ игроков из game_stats:');
-        players.forEach((player, i) => {
-          console.log(`  ${i + 1}. ${player.username} - ${player.score} очков (${player.city})`);
-        });
-        
-        return { 
-          success: true, 
-          players: players, 
-          count: players.length
-        };
-      }
-    } catch (gameStatsError) {
-      console.log('⚠️ game_stats пуста или ошибка:', gameStatsError.message);
-    }
-    
-    // 🔴 ВАРИАНТ 2: Пробуем из tetris_stats
-    try {
-      const tetrisQuery = `
-        SELECT 
-          ts.user_id,
-          COALESCE(ts.username, 'Игрок ' || RIGHT(ts.user_id::text, 4)) as username,
-          ts.best_score,
-          ts.best_level,
-          ts.best_lines,
-          ts.games_played,
-          ts.avg_score,
-          COALESCE(us.selected_city, '🏙️ Не указан') as city,
-          ts.last_played
-        FROM tetris_stats ts
-        LEFT JOIN user_sessions us ON ts.user_id::text = us.user_id
-        WHERE ts.best_score > 0
-        ORDER BY ts.best_score DESC
-        LIMIT $1
-      `;
-      
-      console.log('🔍 Пробуем получить топ из tetris_stats...');
-      const tetrisResult = await client.query(tetrisQuery, [limit]);
-      
-      if (tetrisResult.rows.length > 0) {
-        console.log(`✅ Найдено игроков в tetris_stats: ${tetrisResult.rows.length}`);
-        
-        const players = tetrisResult.rows.map((row, index) => ({
-          rank: index + 1,
-          user_id: row.user_id,
-          username: row.username || `Игрок ${String(row.user_id).slice(-4)}`,
-          city: row.city || '🏙️ Не указан',
-          score: parseInt(row.best_score) || 0,
-          level: parseInt(row.best_level) || 0,
-          lines: parseInt(row.best_lines) || 0,
-          games_played: parseInt(row.games_played) || 1,
-          avg_score: parseFloat(row.avg_score) || 0,
-          last_played: row.last_played,
-          source: 'tetris_stats'
-        }));
-        
-        return { 
-          success: true, 
-          players: players, 
-          count: players.length
-        };
-      }
-    } catch (tetrisError) {
-      console.log('⚠️ tetris_stats пуста или ошибка:', tetrisError.message);
-    }
-    
-    // 🔴 ВАРИАНТ 3: Пробуем из game_scores (самый надежный вариант)
-    console.log('🔍 Пробуем получить топ из game_scores...');
-    const simpleQuery = `
-      SELECT 
-        gs.user_id,
-        COALESCE(gs.username, 'Игрок ' || RIGHT(gs.user_id::text, 4)) as username,
-        MAX(gs.score) as best_score,
-        MAX(gs.level) as best_level,
-        MAX(gs.lines) as best_lines,
-        COUNT(*) as games_played,
-        AVG(gs.score) as avg_score,
-        COALESCE(us.selected_city, '🏙️ Не указан') as city,
-        MAX(gs.created_at) as last_played
-      FROM game_scores gs
-      LEFT JOIN user_sessions us ON gs.user_id = us.user_id
-      WHERE gs.game_type = $1 
-        AND gs.score > 0
-      GROUP BY gs.user_id, gs.username, us.selected_city
-      ORDER BY best_score DESC
-      LIMIT $2
-    `;
-    
-    const result = await client.query(simpleQuery, [gameType, limit]);
-    
-    if (result.rows.length > 0) {
-      console.log(`✅ Найдено игроков в game_scores: ${result.rows.length}`);
-      
-      const players = result.rows.map((row, index) => ({
-        rank: index + 1,
-        user_id: row.user_id,
-        username: row.username || `Игрок ${String(row.user_id).slice(-4)}`,
-        city: row.city || '🏙️ Не указан',
-        score: parseInt(row.best_score) || 0,
-        level: parseInt(row.best_level) || 1,
-        lines: parseInt(row.best_lines) || 0,
-        games_played: parseInt(row.games_played) || 1,
-        avg_score: Math.round(parseFloat(row.avg_score) || 0),
-        last_played: row.last_played,
-        source: 'game_scores'
-      }));
-      
-      console.log('🏆 Топ игроков из game_scores:');
-      players.forEach((player, i) => {
-        console.log(`  ${i + 1}. ${player.username} - ${player.score} очков (${player.city})`);
-      });
-      
-      return { 
-        success: true, 
-        players: players, 
-        count: players.length
-      };
-    }
-    
-    // 🔴 ВАРИАНТ 4: Все таблицы пусты, возвращаем тестовые данные
-    console.log('⚠️ Все таблицы пусты, возвращаем тестовые данные');
-    
-    const testPlayers = [
-      {
-        rank: 1,
-        user_id: 'web_1770634740053',
-        username: 'Игрок 0053',
-        city: 'Москва',
-        score: 184,
-        level: 1,
-        lines: 0,
-        games_played: 1,
-        avg_score: 184,
-        last_played: new Date().toISOString(),
-        source: 'test_data'
-      },
-      {
-        rank: 2,
-        user_id: 'web_1770635035623',
-        username: 'Игрок 5623',
-        city: 'Санкт-Петербург',
-        score: 156,
-        level: 1,
-        lines: 0,
-        games_played: 1,
-        avg_score: 156,
-        last_played: new Date().toISOString(),
-        source: 'test_data'
-      },
-      {
-        rank: 3,
-        user_id: 'web_1770633237512',
-        username: 'Игрок 7512',
-        city: 'Новосибирск',
-        score: 188,
-        level: 1,
-        lines: 0,
-        games_played: 1,
-        avg_score: 188,
-        last_played: new Date().toISOString(),
-        source: 'test_data'
-      }
-    ];
-    
-    return { 
-      success: true, 
-      players: testPlayers, 
-      count: testPlayers.length,
-      is_test_data: true,
-      message: 'Используются тестовые данные'
-    };
-    
-  } catch (error) {
-    console.error('❌ Ошибка получения топа игроков:', error.message);
-    console.error('❌ Stack trace:', error.stack);
-    
-    // 🔴 Возвращаем тестовые данные при ошибке
-    const testPlayers = [
-      {
-        rank: 1,
-        user_id: 'test_user_1',
-        username: 'Тестовый Игрок 1',
-        city: 'Москва',
-        score: 5000,
-        level: 10,
-        lines: 50,
-        games_played: 5,
-        avg_score: 2500,
-        last_played: new Date().toISOString(),
-        source: 'error_fallback'
-      },
-      {
-        rank: 2,
-        user_id: 'test_user_2',
-        username: 'Тестовый Игрок 2',
-        city: 'Санкт-Петербург',
-        score: 3000,
-        level: 8,
-        lines: 35,
-        games_played: 3,
-        avg_score: 1500,
-        last_played: new Date().toISOString(),
-        source: 'error_fallback'
-      }
-    ];
-    
-    return { 
-      success: true, 
-      players: testPlayers, 
-      count: testPlayers.length,
-      is_fallback_data: true,
-      error: error.message
-    };
-  } finally {
-    client.release();
-  }
-}
-
-/**
- * Получает статистику игрока
- */
-export async function getGameStats(userId, gameType = 'tetris') {
-  const client = await pool.connect();
-  
-  try {
-    const dbUserId = convertUserIdForDb(userId);
-    console.log(`📊 Запрос статистики: user=${dbUserId}, type=${gameType}`);
-    
-    // 🔴 1. Пробуем получить из game_stats
-    try {
-      const gameStatsQuery = await client.query(`
-        SELECT 
-          user_id,
-          username,
-          game_type,
-          COALESCE(games_played, 0) as games_played,
-          COALESCE(best_score, 0) as best_score,
-          COALESCE(best_level, 1) as best_level,
-          COALESCE(best_lines, 0) as best_lines,
-          COALESCE(total_score, 0) as total_score,
-          COALESCE(total_lines, 0) as total_lines,
-          COALESCE(avg_score, 0) as avg_score,
-          last_played
-        FROM game_stats 
-        WHERE user_id = $1 AND game_type = $2
-      `, [dbUserId, gameType]);
-      
-      if (gameStatsQuery.rows.length > 0) {
-        const stats = gameStatsQuery.rows[0];
-        
-        // Получаем город
-        const cityQuery = await client.query(
-          'SELECT selected_city FROM user_sessions WHERE user_id = $1',
-          [dbUserId]
-        );
-        const city = cityQuery.rows[0]?.selected_city || '🏙️ Не указан';
-        
-        const statsData = {
-          user_id: stats.user_id,
-          username: stats.username || `Игрок ${String(stats.user_id).slice(-4)}`,
-          games_played: parseInt(stats.games_played) || 0,
-          best_score: parseInt(stats.best_score) || 0,
-          avg_score: parseFloat(stats.avg_score) || 0,
-          best_level: parseInt(stats.best_level) || 1,
-          best_lines: parseInt(stats.best_lines) || 0,
-          total_score: parseInt(stats.total_score) || 0,
-          total_lines: parseInt(stats.total_lines) || 0,
-          last_played: stats.last_played,
-          city: city,
-          source: 'game_stats'
-        };
-        
-        console.log(`📊 Статистика найдена в game_stats: ${statsData.best_score} очков`);
-        
-        return { 
-          success: true, 
-          stats: statsData,
-          has_stats: true 
-        };
-      }
-    } catch (gameStatsError) {
-      console.log('⚠️ Ошибка game_stats:', gameStatsError.message);
-    }
-    
-    // 🔴 2. Пробуем получить из tetris_stats
-    try {
-      const tetrisStatsQuery = await client.query(`
-        SELECT 
-          user_id,
-          username,
-          COALESCE(games_played, 0) as games_played,
-          COALESCE(best_score, 0) as best_score,
-          COALESCE(best_level, 1) as best_level,
-          COALESCE(best_lines, 0) as best_lines,
-          COALESCE(total_score, 0) as total_score,
-          COALESCE(avg_score, 0) as avg_score,
-          last_played
-        FROM tetris_stats 
-        WHERE user_id = $1
-      `, [dbUserId]);
-      
-      if (tetrisStatsQuery.rows.length > 0) {
-        const stats = tetrisStatsQuery.rows[0];
-        
-        // Получаем город
-        const cityQuery = await client.query(
-          'SELECT selected_city FROM user_sessions WHERE user_id = $1',
-          [dbUserId]
-        );
-        const city = cityQuery.rows[0]?.selected_city || '🏙️ Не указан';
-        
-        const statsData = {
-          user_id: stats.user_id,
-          username: stats.username || `Игрок ${String(stats.user_id).slice(-4)}`,
-          games_played: parseInt(stats.games_played) || 0,
-          best_score: parseInt(stats.best_score) || 0,
-          avg_score: parseFloat(stats.avg_score) || 0,
-          best_level: parseInt(stats.best_level) || 1,
-          best_lines: parseInt(stats.best_lines) || 0,
-          total_score: parseInt(stats.total_score) || 0,
-          total_lines: 0, // В tetris_stats нет этой колонки
-          last_played: stats.last_played,
-          city: city,
-          source: 'tetris_stats'
-        };
-        
-        console.log(`📊 Статистика найдена в tetris_stats: ${statsData.best_score} очков`);
-        
-        return { 
-          success: true, 
-          stats: statsData,
-          has_stats: true 
-        };
-      }
-    } catch (tetrisError) {
-      console.log('⚠️ Ошибка tetris_stats:', tetrisError.message);
-    }
-    
-    // 🔴 3. Считаем из game_scores
-    console.log(`📊 Считаем статистику из game_scores...`);
-    const gameScoresQuery = await client.query(`
-      SELECT 
-        COUNT(*) as games_played,
-        COUNT(CASE WHEN is_win THEN 1 END) as wins,
-        COALESCE(MAX(score), 0) as best_score,
-        COALESCE(AVG(score), 0) as avg_score,
-        COALESCE(MAX(level), 1) as best_level,
-        COALESCE(MAX(lines), 0) as best_lines,
-        COALESCE(SUM(score), 0) as total_score,
-        SUM(lines) as total_lines,
-        MAX(created_at) as last_played
-      FROM game_scores 
-      WHERE user_id = $1 AND game_type = $2
-    `, [dbUserId, gameType]);
-    
-    const stats = gameScoresQuery.rows[0];
-    
-    // Получаем город и имя
-    const userQuery = await client.query(
-      'SELECT selected_city, username FROM user_sessions WHERE user_id = $1',
-      [dbUserId]
-    );
-    const city = userQuery.rows[0]?.selected_city || '🏙️ Не указан';
-    let username = userQuery.rows[0]?.username || '';
-    
-    if (!username) {
-      username = `Игрок ${String(dbUserId).slice(-4)}`;
-    }
-    
-    const statsData = {
-      user_id: dbUserId,
-      username: username,
-      games_played: parseInt(stats.games_played) || 0,
-      best_score: parseInt(stats.best_score) || 0,
-      avg_score: Math.round(parseFloat(stats.avg_score)) || 0,
-      best_level: parseInt(stats.best_level) || 1,
-      best_lines: parseInt(stats.best_lines) || 0,
-      total_score: parseInt(stats.total_score) || 0,
-      total_lines: parseInt(stats.total_lines) || 0,
-      last_played: stats.last_played,
-      city: city,
-      source: 'game_scores'
-    };
-    
-    console.log(`📊 Статистика из game_scores: ${statsData.games_played} игр, лучший: ${statsData.best_score}`);
-    
-    return { 
-      success: true, 
-      stats: statsData,
-      has_stats: statsData.games_played > 0,
-      source: 'game_scores'
-    };
-    
-  } catch (error) {
-    console.error('❌ Ошибка получения статистики:', error.message);
-    
-    return { 
-      success: false, 
-      error: error.message,
-      stats: {
-        user_id: userId,
-        username: `Игрок ${String(userId).slice(-4)}`,
-        games_played: 0,
-        best_score: 0,
-        avg_score: 0,
-        best_level: 1,
-        best_lines: 0,
-        total_score: 0,
-        total_lines: 0,
-        last_played: null,
-        city: '🏙️ Не указан',
-        source: 'error'
-      }
-    };
-  } finally {
-    client.release();
-  }
-}
-
-/**
- * Сохраняет прогресс игры
+ * Сохраняет прогресс игры (автосохранение)
  */
 export async function saveGameProgress(userId, gameType = 'tetris', score, level = 1, lines = 0, username = null) {
   const client = await pool.connect();
   
   try {
+    // 🔴 Конвертируем ID
     const dbUserId = convertUserIdForDb(userId);
     console.log(`💾 Сохранение прогресса: user=${dbUserId}, score=${score}`);
     
-    // Получаем город
+    // Получаем текущий город пользователя
     let city = 'Не указан';
     try {
       const cityResult = await client.query(
-        'SELECT selected_city FROM user_sessions WHERE user_id = $1',
+        'SELECT city FROM user_sessions WHERE user_id = $1',
         [dbUserId]
       );
       if (cityResult.rows[0]) {
-        city = cityResult.rows[0].selected_city || 'Не указан';
+        city = cityResult.rows[0].city || 'Не указан';
       }
     } catch (cityError) {
       console.log('⚠️ Не удалось получить город:', cityError.message);
     }
     
-    // Подготавливаем имя пользователя
+    // 🔴 Подготавливаем имя пользователя
     let finalUsername = username;
     if (!finalUsername || finalUsername.trim() === '') {
       const userIdStr = String(userId);
@@ -974,15 +537,15 @@ export async function saveGameProgress(userId, gameType = 'tetris', score, level
       }
     }
     
-    // Сохраняем/обновляем пользователя
+    // 🔴 Сохраняем/обновляем информацию о пользователе
     try {
       await client.query(`
-        INSERT INTO user_sessions (user_id, username, selected_city, updated_at) 
+        INSERT INTO user_sessions (user_id, username, city, updated_at) 
         VALUES ($1, $2, $3, NOW()) 
         ON CONFLICT (user_id) 
         DO UPDATE SET 
           username = COALESCE($2, user_sessions.username),
-          selected_city = COALESCE($3, user_sessions.selected_city),
+          city = COALESCE($3, user_sessions.city),
           updated_at = NOW()
       `, [dbUserId, finalUsername, city]);
       console.log(`👤 Данные пользователя обновлены для прогресса`);
@@ -990,7 +553,7 @@ export async function saveGameProgress(userId, gameType = 'tetris', score, level
       console.log('⚠️ Ошибка обновления пользователя:', userError.message);
     }
     
-    // Сохраняем прогресс
+    // 🔴 Сохраняем прогресс игры
     const query = `
       INSERT INTO game_progress (user_id, game_type, score, level, lines, last_saved) 
       VALUES ($1, $2, $3, $4, $5, NOW()) 
@@ -1022,6 +585,12 @@ export async function saveGameProgress(userId, gameType = 'tetris', score, level
     
   } catch (error) {
     console.error('❌ Ошибка сохранения прогресса:', error.message);
+    console.error('❌ Параметры:', { 
+      userId, 
+      dbUserId: convertUserIdForDb(userId), 
+      gameType, 
+      score 
+    });
     
     return { 
       success: false, 
@@ -1033,7 +602,7 @@ export async function saveGameProgress(userId, gameType = 'tetris', score, level
 }
 
 /**
- * Получает сохраненный прогресс
+ * Получает сохраненный прогресс игры
  */
 export async function getGameProgress(userId, gameType = 'tetris') {
   const client = await pool.connect();
@@ -1067,7 +636,7 @@ export async function getGameProgress(userId, gameType = 'tetris') {
       };
     }
     
-    console.log(`ℹ️ Прогресс не найден`);
+    console.log(`ℹ️ Прогресс не найден для пользователя ${dbUserId}`);
     return { 
       success: true, 
       found: false, 
@@ -1087,6 +656,8 @@ export async function getGameProgress(userId, gameType = 'tetris') {
   }
 }
 
+// ============ ФУНКЦИИ ДЛЯ ГОРОДОВ ============
+
 /**
  * Сохраняет город пользователя
  */
@@ -1097,7 +668,7 @@ export async function saveUserCity(userId, city, username = null) {
     const dbUserId = convertUserIdForDb(userId);
     console.log(`📍 Сохранение города: user=${dbUserId}, city="${city}"`);
     
-    // Подготавливаем имя пользователя
+    // 🔴 Подготавливаем имя пользователя
     let finalUsername = username;
     if (!finalUsername || finalUsername.trim() === '') {
       const userIdStr = String(userId);
@@ -1111,20 +682,42 @@ export async function saveUserCity(userId, city, username = null) {
     }
     
     const query = `
-      INSERT INTO user_sessions (user_id, selected_city, username, updated_at) 
+      INSERT INTO user_sessions (user_id, city, username, updated_at) 
       VALUES ($1, $2, $3, NOW()) 
       ON CONFLICT (user_id) 
       DO UPDATE SET 
-        selected_city = COALESCE(NULLIF($2, ''), user_sessions.selected_city), 
+        city = COALESCE(NULLIF($2, ''), user_sessions.city), 
         username = COALESCE($3, user_sessions.username),
         updated_at = NOW()
-      RETURNING user_id, selected_city
+      RETURNING user_id, city
     `;
     
     const result = await client.query(query, [dbUserId, city, finalUsername]);
     
-    const savedCity = result.rows[0]?.selected_city;
+    const savedCity = result.rows[0]?.city;
     console.log(`✅ Город сохранен: "${savedCity}" для пользователя ${dbUserId}`);
+    
+    // 🔴 ДОПОЛНИТЕЛЬНО: Обновляем имя пользователя в tetris_stats, если пользователь там есть
+    try {
+      await client.query(`
+        UPDATE tetris_stats 
+        SET username = COALESCE($2, tetris_stats.username)
+        WHERE user_id = $1
+      `, [dbUserId, finalUsername]);
+    } catch (updateError) {
+      console.log('ℹ️ tetris_stats не обновлена:', updateError.message);
+    }
+    
+    // 🔴 Обновляем в game_stats
+    try {
+      await client.query(`
+        UPDATE game_stats 
+        SET username = COALESCE($2, game_stats.username)
+        WHERE user_id = $1
+      `, [dbUserId, finalUsername]);
+    } catch (updateError) {
+      console.log('ℹ️ game_stats не обновлена:', updateError.message);
+    }
     
     return { 
       success: true, 
@@ -1155,13 +748,13 @@ export async function getUserCity(userId) {
     console.log(`📍 Запрос города: user=${dbUserId}`);
     
     const query = `
-      SELECT selected_city FROM user_sessions 
+      SELECT city FROM user_sessions 
       WHERE user_id = $1
     `;
     
     const result = await client.query(query, [dbUserId]);
     
-    const city = result.rows[0]?.selected_city || 'Не указан';
+    const city = result.rows[0]?.city || 'Не указан';
     console.log(`✅ Город найден: "${city}"`);
     
     return { 
@@ -1183,6 +776,629 @@ export async function getUserCity(userId) {
     client.release();
   }
 }
+
+// ============ ФУНКЦИЯ ТОПА ИГРОКОВ ==========
+
+/**
+ * Получает топ игроков для указанного типа игры
+ */
+export async function getTopPlayers(gameType = 'tetris', limit = 10) {
+  const client = await pool.connect();
+  
+  try {
+    console.log(`🏆 Запрос топа игроков: type=${gameType}, limit=${limit}`);
+    
+    // 🔴 ПРОБУЕМ ИЗ game_stats (ОСНОВНАЯ ТАБЛИЦА)
+    try {
+      const gameStatsQuery = `
+        SELECT 
+          gs.user_id,
+          COALESCE(
+            NULLIF(us.username, ''),
+            NULLIF(gs.username, ''),
+            CASE 
+              WHEN gs.user_id::text LIKE 'web_%' THEN '🌐 Игрок ' || RIGHT(gs.user_id::text, 4)
+              WHEN gs.user_id ~ '^\\d+$' THEN '👤 Игрок ' || RIGHT(gs.user_id::text, 4)
+              ELSE '🎮 Игрок ' || LEFT(gs.user_id::text, 4)
+            END
+          ) as username,
+          COALESCE(NULLIF(us.city, ''), '🏙️ Не указан') as city,
+          gs.best_score,
+          gs.best_level,
+          gs.best_lines,
+          gs.total_games as games_played,
+          gs.avg_score,
+          gs.last_played
+        FROM game_stats gs
+        LEFT JOIN user_sessions us ON gs.user_id = us.user_id
+        WHERE gs.game_type = $1 
+          AND gs.best_score > 0
+        ORDER BY gs.best_score DESC, gs.total_games DESC
+        LIMIT $2
+      `;
+      
+      const result = await client.query(gameStatsQuery, [gameType, limit]);
+      
+      if (result.rows.length > 0) {
+        console.log(`🏆 Найдено игроков в game_stats: ${result.rows.length}`);
+        
+        const topPlayers = result.rows.map((row, index) => {
+          const gamesPlayed = parseInt(row.games_played) || 1;
+          
+          return {
+            rank: index + 1,
+            user_id: row.user_id,
+            username: row.username || `Игрок ${String(row.user_id).slice(-4)}`,
+            city: row.city || '🏙️ Не указан',
+            score: parseInt(row.best_score) || 0,
+            level: parseInt(row.best_level) || 0,
+            lines: parseInt(row.best_lines) || 0,
+            games_played: gamesPlayed,
+            avg_score: parseFloat(row.avg_score) || 0,
+            last_played: row.last_played,
+            source: 'game_stats'
+          };
+        });
+        
+        console.log('🔍 Топ игроков из game_stats:');
+        topPlayers.forEach((player, i) => {
+          console.log(`  ${i + 1}. ${player.username} - ${player.score} очков (${player.city})`);
+        });
+        
+        return { 
+          success: true, 
+          players: topPlayers, 
+          count: topPlayers.length,
+          source: 'game_stats' 
+        };
+      }
+    } catch (gameStatsError) {
+      console.log('⚠️ Ошибка при запросе game_stats:', gameStatsError.message);
+    }
+    
+    // 🔴 ВАРИАНТ 2: Используем tetris_stats если game_stats пуст
+    console.log(`🏆 Пробуем получить топ из tetris_stats...`);
+    
+    const tetrisQuery = `
+      SELECT 
+        ts.user_id,
+        COALESCE(
+          NULLIF(us.username, ''),
+          NULLIF(ts.username, ''),
+          CASE 
+            WHEN ts.user_id::text LIKE 'web_%' THEN '🌐 Игрок ' || RIGHT(ts.user_id::text, 4)
+            WHEN ts.user_id ~ '^\\d+$' THEN '👤 Игрок ' || RIGHT(ts.user_id::text, 4)
+            ELSE '🎮 Игрок ' || LEFT(ts.user_id::text, 4)
+          END
+        ) as username,
+        COALESCE(NULLIF(us.city, ''), '🏙️ Не указан') as city,
+        ts.best_score,
+        ts.best_level,
+        ts.best_lines,
+        ts.games_played,
+        ts.avg_score,
+        ts.last_played
+      FROM tetris_stats ts
+      LEFT JOIN user_sessions us ON ts.user_id::text = us.user_id
+      WHERE ts.best_score > 0
+      ORDER BY ts.best_score DESC, ts.games_played DESC
+      LIMIT $1
+    `;
+    
+    const tetrisResult = await client.query(tetrisQuery, [limit]);
+    
+    if (tetrisResult.rows.length > 0) {
+      console.log(`🏆 Найдено игроков в топе из tetris_stats: ${tetrisResult.rows.length}`);
+      
+      const topPlayers = tetrisResult.rows.map((row, index) => {
+        const gamesPlayed = parseInt(row.games_played) || 1;
+        
+        return {
+          rank: index + 1,
+          user_id: row.user_id,
+          username: row.username || `Игрок ${String(row.user_id).slice(-4)}`,
+          city: row.city || '🏙️ Не указан',
+          score: parseInt(row.best_score) || 0,
+          level: parseInt(row.best_level) || 0,
+          lines: parseInt(row.best_lines) || 0,
+          games_played: gamesPlayed,
+          avg_score: parseFloat(row.avg_score) || 0,
+          last_played: row.last_played,
+          source: 'tetris_stats'
+        };
+      });
+      
+      return { 
+        success: true, 
+        players: topPlayers, 
+        count: topPlayers.length,
+        source: 'tetris_stats' 
+      };
+    }
+    
+    // 🔴 ВАРИАНТ 3: Используем game_scores как последний вариант
+    console.log(`🏆 Пробуем получить топ из game_scores...`);
+    
+    const gameScoresQuery = `
+      SELECT 
+        gs.user_id,
+        COALESCE(
+          NULLIF(us.username, ''),
+          NULLIF(gs.username, ''),
+          CASE 
+            WHEN gs.user_id::text LIKE 'web_%' THEN '🌐 Игрок ' || RIGHT(gs.user_id::text, 4)
+            WHEN gs.user_id ~ '^\\d+$' THEN '👤 Игрок ' || RIGHT(gs.user_id::text, 4)
+            ELSE '🎮 Игрок ' || LEFT(gs.user_id::text, 4)
+          END
+        ) as username,
+        COALESCE(NULLIF(us.city, ''), '🏙️ Не указан') as city,
+        MAX(gs.score) as best_score,
+        MAX(gs.level) as best_level,
+        MAX(gs.lines) as best_lines,
+        COUNT(*) as games_played,
+        AVG(gs.score) as avg_score,
+        MAX(gs.created_at) as last_played
+      FROM game_scores gs
+      LEFT JOIN user_sessions us ON gs.user_id = us.user_id
+      WHERE gs.game_type = $1 
+        AND gs.score > 0
+      GROUP BY gs.user_id, us.username, us.city, gs.username
+      ORDER BY best_score DESC, games_played DESC
+      LIMIT $2
+    `;
+    
+    const scoresResult = await client.query(gameScoresQuery, [gameType, limit]);
+    
+    const topPlayers = scoresResult.rows.map((row, index) => {
+      const gamesPlayed = parseInt(row.games_played) || 1;
+      
+      return {
+        rank: index + 1,
+        user_id: row.user_id,
+        username: row.username || `Игрок ${String(row.user_id).slice(-4)}`,
+        city: row.city || '🏙️ Не указан',
+        score: parseInt(row.best_score) || 0,
+        level: parseInt(row.best_level) || 1,
+        lines: parseInt(row.best_lines) || 0,
+        games_played: gamesPlayed,
+        avg_score: Math.round(parseFloat(row.avg_score)) || 0,
+        last_played: row.last_played,
+        source: 'game_scores'
+      };
+    });
+    
+    console.log(`🏆 Найдено игроков в топе из game_scores: ${topPlayers.length}`);
+    
+    return { 
+      success: true, 
+      players: topPlayers, 
+      count: topPlayers.length,
+      source: 'game_scores' 
+    };
+    
+  } catch (error) {
+    console.error('❌ Ошибка получения топа игроков:', error.message);
+    console.error('❌ Stack trace:', error.stack);
+    
+    return { 
+      success: false, 
+      error: error.message,
+      players: [], 
+      count: 0,
+      message: `Ошибка получения топа: ${error.message}`
+    };
+  } finally {
+    client.release();
+  }
+}
+
+// ============ ФУНКЦИЯ ПОЛУЧЕНИЯ СТАТИСТИКИ ИГРОКА ==========
+
+/**
+ * Получает полную статистику игрока
+ */
+export async function getGameStats(userId, gameType = 'tetris') {
+  const client = await pool.connect();
+  
+  try {
+    // 🔴 Конвертируем ID
+    const dbUserId = convertUserIdForDb(userId);
+    
+    console.log(`📊 Запрос статистики: user=${dbUserId}, type=${gameType}`);
+    
+    // 🔴 1. Пробуем получить из game_stats (ОСНОВНАЯ СТАТИСТИКА)
+    try {
+      const gameStatsQuery = await client.query(`
+        SELECT 
+          user_id,
+          username,
+          game_type,
+          COALESCE(total_games, 0) as games_played,
+          COALESCE(best_score, 0) as best_score,
+          COALESCE(best_level, 1) as best_level,
+          COALESCE(best_lines, 0) as best_lines,
+          COALESCE(total_score, 0) as total_score,
+          COALESCE(avg_score, 0) as avg_score,
+          COALESCE(total_lines, 0) as total_lines,
+          COALESCE(last_played, NOW()) as last_played,
+          created_at,
+          updated_at
+        FROM game_stats 
+        WHERE user_id = $1 AND game_type = $2
+      `, [dbUserId, gameType]);
+      
+      if (gameStatsQuery.rows.length > 0) {
+        const stats = gameStatsQuery.rows[0];
+        console.log(`📊 Найдена статистика в game_stats:`, {
+          user_id: stats.user_id,
+          games: stats.games_played,
+          best_score: stats.best_score,
+          username: stats.username
+        });
+        
+        // Получаем город из user_sessions
+        const cityQuery = await client.query(
+          'SELECT city FROM user_sessions WHERE user_id = $1',
+          [dbUserId]
+        );
+        const city = cityQuery.rows[0]?.city || '🏙️ Не указан';
+        
+        const gamesPlayed = parseInt(stats.games_played) || 0;
+        
+        // Формируем читаемое имя
+        let username = stats.username || '';
+        if (!username || username === 'Игрок' || username.includes('Игрок_')) {
+          const userIdStr = String(stats.user_id);
+          if (userIdStr.startsWith('web_')) {
+            username = `🌐 Игрок ${userIdStr.slice(-4)}`;
+          } else if (/^\d+$/.test(userIdStr)) {
+            username = `👤 Игрок ${userIdStr.slice(-4)}`;
+          } else {
+            username = `🎮 Игрок ${userIdStr.slice(0, 4)}`;
+          }
+        }
+        
+        const statsData = {
+          user_id: stats.user_id,
+          username: username,
+          games_played: gamesPlayed,
+          best_score: parseInt(stats.best_score) || 0,
+          avg_score: parseFloat(stats.avg_score) || 0,
+          best_level: parseInt(stats.best_level) || 1,
+          best_lines: parseInt(stats.best_lines) || 0,
+          total_score: parseInt(stats.total_score) || 0,
+          total_lines: parseInt(stats.total_lines) || 0,
+          last_played: stats.last_played,
+          city: city,
+          source: 'game_stats',
+          note: 'Основная статистика'
+        };
+        
+        return { 
+          success: true, 
+          stats: statsData,
+          has_stats: true 
+        };
+      } else {
+        console.log(`📊 game_stats пуста для пользователя ${dbUserId}`);
+      }
+    } catch (gameStatsError) {
+      console.log('⚠️ Ошибка при запросе game_stats:', gameStatsError.message);
+    }
+    
+    // 🔴 2. Пробуем получить из tetris_stats (для обратной совместимости)
+    try {
+      const tetrisStatsQuery = await client.query(`
+        SELECT 
+          user_id,
+          username,
+          COALESCE(games_played, 0) as games_played,
+          COALESCE(best_score, 0) as best_score,
+          COALESCE(best_level, 1) as best_level,
+          COALESCE(best_lines, 0) as best_lines,
+          COALESCE(total_score, 0) as total_score,
+          COALESCE(avg_score, 0) as avg_score,
+          COALESCE(last_played, NOW()) as last_played,
+          created_at,
+          updated_at
+        FROM tetris_stats 
+        WHERE user_id = $1
+      `, [dbUserId]);
+      
+      if (tetrisStatsQuery.rows.length > 0) {
+        const stats = tetrisStatsQuery.rows[0];
+        console.log(`📊 Найдена статистика в tetris_stats:`, {
+          user_id: stats.user_id,
+          games: stats.games_played,
+          best_score: stats.best_score,
+          username: stats.username
+        });
+        
+        // Получаем город из user_sessions
+        const cityQuery = await client.query(
+          'SELECT city FROM user_sessions WHERE user_id = $1',
+          [dbUserId]
+        );
+        const city = cityQuery.rows[0]?.city || '🏙️ Не указан';
+        
+        const gamesPlayed = parseInt(stats.games_played) || 0;
+        
+        // Формируем читаемое имя
+        let username = stats.username || '';
+        if (!username || username === 'Игрок' || username.includes('Игрок_')) {
+          const userIdStr = String(stats.user_id);
+          if (userIdStr.startsWith('web_')) {
+            username = `🌐 Игрок ${userIdStr.slice(-4)}`;
+          } else if (/^\d+$/.test(userIdStr)) {
+            username = `👤 Игрок ${userIdStr.slice(-4)}`;
+          } else {
+            username = `🎮 Игрок ${userIdStr.slice(0, 4)}`;
+          }
+        }
+        
+        const statsData = {
+          user_id: stats.user_id,
+          username: username,
+          games_played: gamesPlayed,
+          best_score: parseInt(stats.best_score) || 0,
+          avg_score: parseFloat(stats.avg_score) || 0,
+          best_level: parseInt(stats.best_level) || 1,
+          best_lines: parseInt(stats.best_lines) || 0,
+          total_score: parseInt(stats.total_score) || 0,
+          total_lines: 0, // В tetris_stats нет этой колонки
+          last_played: stats.last_played,
+          city: city,
+          source: 'tetris_stats',
+          note: 'Статистика из tetris_stats'
+        };
+        
+        return { 
+          success: true, 
+          stats: statsData,
+          has_stats: true 
+        };
+      } else {
+        console.log(`📊 tetris_stats пуста для пользователя ${dbUserId}`);
+      }
+    } catch (tetrisError) {
+      console.log('⚠️ Ошибка при запросе tetris_stats:', tetrisError.message);
+    }
+    
+    // 🔴 3. Проверяем game_progress (если есть незавершенная игра)
+    console.log(`📊 Проверяем game_progress для пользователя ${dbUserId}...`);
+    
+    const progressQuery = await client.query(`
+      SELECT score, level, lines, last_saved 
+      FROM game_progress 
+      WHERE user_id = $1 AND game_type = $2
+    `, [dbUserId, gameType]);
+    
+    if (progressQuery.rows[0]) {
+      const progress = progressQuery.rows[0];
+      console.log(`📊 Найден прогресс: ${progress.score} очков`);
+      
+      // Получаем город и имя пользователя
+      const userQuery = await client.query(
+        'SELECT city, username FROM user_sessions WHERE user_id = $1',
+        [dbUserId]
+      );
+      const city = userQuery.rows[0]?.city || '🏙️ Не указан';
+      let username = userQuery.rows[0]?.username || '';
+      
+      if (!username || username === 'Игрок' || username.includes('Игрок_')) {
+        const userIdStr = String(dbUserId);
+        if (userIdStr.startsWith('web_')) {
+          username = `🌐 Игрок ${userIdStr.slice(-4)}`;
+        } else if (/^\d+$/.test(userIdStr)) {
+          username = `👤 Игрок ${userIdStr.slice(-4)}`;
+        } else {
+          username = `🎮 Игрок ${userIdStr.slice(0, 4)}`;
+        }
+      }
+      
+      const statsData = {
+        user_id: dbUserId,
+        username: username,
+        games_played: 0,
+        best_score: parseInt(progress.score) || 0,
+        avg_score: 0,
+        best_level: parseInt(progress.level) || 1,
+        best_lines: parseInt(progress.lines) || 0,
+        total_score: 0,
+        total_lines: 0,
+        last_played: null,
+        current_progress: {
+          score: parseInt(progress.score) || 0,
+          level: parseInt(progress.level) || 1,
+          lines: parseInt(progress.lines) || 0,
+          last_saved: progress.last_saved
+        },
+        has_unfinished_game: true,
+        city: city,
+        source: 'game_progress',
+        note: 'Есть незавершенная игра'
+      };
+      
+      return { 
+        success: true, 
+        stats: statsData,
+        has_stats: false,
+        has_progress: true 
+      };
+    }
+    
+    // 🔴 4. Проверяем game_scores (сырые данные игр)
+    console.log(`📊 Проверяем game_scores для пользователя ${dbUserId}...`);
+    
+    // Проверяем, есть ли вообще игры у пользователя
+    const checkQuery = await client.query(
+      'SELECT COUNT(*) as count, MAX(score) as max_score FROM game_scores WHERE user_id = $1 AND game_type = $2',
+      [dbUserId, gameType]
+    );
+    
+    const hasScores = parseInt(checkQuery.rows[0]?.count) > 0;
+    
+    if (hasScores) {
+      console.log(`📊 Найдены игры в game_scores: ${checkQuery.rows[0].count} игр, лучший: ${checkQuery.rows[0].max_score}`);
+      
+      // 🔴 Считаем полную статистику из game_scores
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as games_played,
+          COUNT(CASE WHEN NOT game_over THEN 1 END) as wins,
+          COALESCE(MAX(score), 0) as best_score,
+          COALESCE(AVG(score), 0) as avg_score,
+          COALESCE(MAX(level), 1) as best_level,
+          COALESCE(MAX(lines), 0) as best_lines,
+          COALESCE(SUM(score), 0) as total_score,
+          SUM(lines) as total_lines,
+          MAX(created_at) as last_played
+        FROM game_scores 
+        WHERE user_id = $1 AND game_type = $2
+      `;
+      
+      const statsResult = await client.query(statsQuery, [dbUserId, gameType]);
+      const stats = statsResult.rows[0];
+      
+      // Получаем имя пользователя и город
+      const userQuery = await client.query(
+        'SELECT city, username FROM user_sessions WHERE user_id = $1',
+        [dbUserId]
+      );
+      const city = userQuery.rows[0]?.city || '🏙️ Не указан';
+      let username = userQuery.rows[0]?.username || '';
+      
+      if (!username || username === 'Игрок' || username.includes('Игрок_')) {
+        const userIdStr = String(dbUserId);
+        if (userIdStr.startsWith('web_')) {
+          username = `🌐 Игрок ${userIdStr.slice(-4)}`;
+        } else if (/^\d+$/.test(userIdStr)) {
+          username = `👤 Игрок ${userIdStr.slice(-4)}`;
+        } else {
+          username = `🎮 Игрок ${userIdStr.slice(0, 4)}`;
+        }
+      }
+      
+      const gamesPlayed = parseInt(stats.games_played) || 0;
+      const wins = parseInt(stats.wins) || 0;
+      
+      const statsData = {
+        user_id: dbUserId,
+        username: username,
+        games_played: gamesPlayed,
+        wins: wins,
+        losses: gamesPlayed - wins,
+        best_score: parseInt(stats.best_score) || 0,
+        avg_score: Math.round(parseFloat(stats.avg_score)) || 0,
+        best_level: parseInt(stats.best_level) || 1,
+        best_lines: parseInt(stats.best_lines) || 0,
+        total_score: parseInt(stats.total_score) || 0,
+        total_lines: parseInt(stats.total_lines) || 0,
+        last_played: stats.last_played,
+        current_progress: null,
+        has_unfinished_game: false,
+        city: city,
+        source: 'game_scores',
+        note: 'Статистика из сырых данных игр'
+      };
+      
+      console.log(`📊 Статистика получена из game_scores:`, {
+        user: statsData.username,
+        games: statsData.games_played,
+        best: statsData.best_score,
+        city: statsData.city
+      });
+      
+      return { 
+        success: true, 
+        stats: statsData,
+        has_stats: true,
+        has_progress: false 
+      };
+    }
+    
+    // 🔴 5. Нет данных вообще
+    console.log(`📊 Нет данных для пользователя ${dbUserId}`);
+    
+    // Получаем город и имя пользователя (если есть в user_sessions)
+    const userQuery = await client.query(
+      'SELECT city, username FROM user_sessions WHERE user_id = $1',
+      [dbUserId]
+    );
+    const city = userQuery.rows[0]?.city || '🏙️ Не указан';
+    let username = userQuery.rows[0]?.username || '';
+    
+    if (!username || username === 'Игрок' || username.includes('Игрок_')) {
+      const userIdStr = String(dbUserId);
+      if (userIdStr.startsWith('web_')) {
+        username = `🌐 Игрок ${userIdStr.slice(-4)}`;
+      } else if (/^\d+$/.test(userIdStr)) {
+        username = `👤 Игрок ${userIdStr.slice(-4)}`;
+      } else {
+        username = `🎮 Игрок ${userIdStr.slice(0, 4)}`;
+      }
+    }
+    
+    const statsData = {
+      user_id: dbUserId,
+      username: username,
+      games_played: 0,
+      wins: 0,
+      losses: 0,
+      best_score: 0,
+      avg_score: 0,
+      best_level: 1,
+      best_lines: 0,
+      total_score: 0,
+      total_lines: 0,
+      last_played: null,
+      current_progress: null,
+      has_unfinished_game: false,
+      city: city,
+      source: 'none',
+      note: 'Игрок еще не играл'
+    };
+    
+    return { 
+      success: true, 
+      stats: statsData,
+      has_stats: false,
+      has_progress: false 
+    };
+    
+  } catch (error) {
+    console.error('❌ Ошибка получения статистики:', error.message);
+    console.error('❌ Stack trace:', error.stack);
+    
+    return { 
+      success: false, 
+      error: error.message,
+      stats: {
+        user_id: userId,
+        username: `Игрок ${String(userId).slice(-4)}`,
+        games_played: 0,
+        wins: 0,
+        losses: 0,
+        best_score: 0,
+        avg_score: 0,
+        best_level: 1,
+        best_lines: 0,
+        total_score: 0,
+        total_lines: 0,
+        last_played: null,
+        current_progress: null,
+        has_unfinished_game: false,
+        city: '🏙️ Не указан',
+        source: 'error',
+        note: 'Ошибка получения статистики'
+      }
+    };
+  } finally {
+    client.release();
+  }
+}
+
+// ============ ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ==========
 
 /**
  * Удаляет прогресс игры
@@ -1231,11 +1447,189 @@ export async function deleteGameProgress(userId, gameType = 'tetris') {
 }
 
 /**
- * Проверяет соединение с БД
+ * Получает последние игры пользователя
+ */
+export async function getRecentGames(userId, limit = 5) {
+  const client = await pool.connect();
+  
+  try {
+    const dbUserId = convertUserIdForDb(userId);
+    console.log(`📜 Запрос последних игр: user=${dbUserId}, limit=${limit}`);
+    
+    const query = `
+      SELECT 
+        id,
+        game_type,
+        score,
+        level,
+        lines,
+        game_over,
+        created_at
+      FROM game_scores 
+      WHERE user_id = $1 
+      ORDER BY created_at DESC 
+      LIMIT $2
+    `;
+    
+    const result = await client.query(query, [dbUserId, limit]);
+    
+    const games = result.rows.map(row => ({
+      id: row.id,
+      game_type: row.game_type,
+      score: parseInt(row.score) || 0,
+      level: parseInt(row.level) || 1,
+      lines: parseInt(row.lines) || 0,
+      game_over: row.game_over,
+      created_at: row.created_at,
+      result: row.game_over ? 'Проиграл' : 'Выиграл'
+    }));
+    
+    console.log(`📜 Найдено игр: ${games.length}`);
+    
+    return { 
+      success: true, 
+      games: games,
+      count: games.length
+    };
+    
+  } catch (error) {
+    console.error('❌ Ошибка получения последних игр:', error.message);
+    
+    return { 
+      success: false, 
+      error: error.message,
+      games: [] 
+    };
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Проверяет соединение с базой данных
  */
 export async function checkDatabaseConnection() {
   return await testConnection();
 }
 
-// Экспортируем pool
+/**
+ * Отладочная информация о базе данных
+ */
+export async function debugDatabase() {
+  try {
+    console.log('🔍 Отладка базы данных...');
+    
+    const connection = await checkDatabaseConnection();
+    console.log('🔍 Соединение с БД:', connection.success ? '✅' : '❌');
+    
+    if (!connection.success) {
+      return { success: false, error: connection.error };
+    }
+    
+    const client = await pool.connect();
+    
+    try {
+      // Сводная информация по всем таблицам
+      const tablesInfo = await client.query(`
+        SELECT 
+          table_name,
+          (SELECT COUNT(*) FROM information_schema.columns 
+           WHERE table_schema = 'public' AND table_name = t.table_name) as columns_count,
+          (xpath('/row/cnt/text()', 
+            query_to_xml(format('SELECT COUNT(*) as cnt FROM %I', table_name), 
+            false, true, '')))[1]::text::int as rows_count
+        FROM information_schema.tables t
+        WHERE table_schema = 'public'
+        ORDER BY table_name
+      `);
+      
+      console.log('📊 Структура базы данных:');
+      for (const table of tablesInfo.rows) {
+        console.log(`   ${table.table_name}: ${table.columns_count} колонок, ${table.rows_count} записей`);
+      }
+      
+      // Проверка существования таблиц
+      const tables = ['user_sessions', 'game_scores', 'game_progress', 'game_stats', 'tetris_stats'];
+      
+      for (const table of tables) {
+        try {
+          const sample = await client.query(`SELECT * FROM ${table} LIMIT 2`);
+          console.log(`📋 ${table}: ${sample.rows.length} записей`);
+          if (sample.rows.length > 0) {
+            console.log(`   Пример:`, Object.keys(sample.rows[0]).slice(0, 3).join(', '));
+          }
+        } catch (e) {
+          console.log(`⚠️ ${table}: таблица не существует или ошибка доступа - ${e.message}`);
+        }
+      }
+      
+      // Проверка структуры game_stats
+      try {
+        const gameStatsCols = await client.query(`
+          SELECT column_name, data_type 
+          FROM information_schema.columns 
+          WHERE table_name = 'game_stats'
+          ORDER BY ordinal_position
+        `);
+        console.log('🔍 Структура game_stats:');
+        gameStatsCols.rows.forEach(col => {
+          console.log(`   ${col.column_name}: ${col.data_type}`);
+        });
+      } catch (e) {
+        console.log('⚠️ Не удалось получить структуру game_stats');
+      }
+      
+      return { 
+        success: true, 
+        connection: connection,
+        tables: tablesInfo.rows 
+      };
+      
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('🔍 Ошибка отладки БД:', error.message);
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  }
+}
+
+/**
+ * Диагностика подключения
+ */
+export async function diagnoseConnection() {
+  const results = {
+    timestamp: new Date().toISOString(),
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    databaseUrlType: process.env.DATABASE_URL?.includes('neon.tech') ? 'Neon' : 'Unknown',
+    databaseUrlLength: process.env.DATABASE_URL?.length || 0,
+    nodeEnv: process.env.NODE_ENV || 'development',
+    connectionTest: await testConnection()
+  };
+  
+  console.log('🔍 Диагностика подключения к БД:', results);
+  return results;
+}
+
+// 🔴 АВТОМАТИЧЕСКАЯ ОТЛАДКА ПРИ ЗАПУСКЕ (только в development)
+if (process.env.NODE_ENV !== 'production' && process.env.DATABASE_URL) {
+  setTimeout(() => {
+    console.log('🔧 Запуск автоотладки БД...');
+    debugDatabase().then(result => {
+      if (result.success) {
+        console.log('✅ Отладка БД завершена успешно');
+      } else {
+        console.error('❌ Отладка БД завершена с ошибкой:', result.error);
+      }
+    }).catch(error => {
+      console.error('💥 Ошибка при автоотладке:', error);
+    });
+  }, 3000);
+}
+
+// Экспортируем pool для использования в других частях приложения
 export { pool };
