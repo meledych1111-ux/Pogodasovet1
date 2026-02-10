@@ -3,425 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тетрис Telegram</title>
     <style>
-        /* ==================== СБРОС И ОСНОВНЫЕ СТИЛИ ==================== */
-        * { 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box; 
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent; 
-            touch-action: manipulation; 
-        }
-        
-        html, body { 
-            height: 100%; width: 100%; overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%);
-            color: #ffffff;
-        }
-        
+        /* ОСНОВНЫЕ СТИЛИ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            padding: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
         
-        /* ==================== ОСНОВНОЙ КОНТЕЙНЕР ==================== */
-        .game-container {
-            width: 100%;
-            max-width: 480px;
-            height: 95vh;
-            max-height: 820px;
-            position: relative;
-            overflow: hidden;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            background: linear-gradient(145deg, #0f1430, #1a1f40);
-            border: 2px solid #4455cc;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        /* ==================== ЭКРАНЫ ==================== */
-        .screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
+        .container {
+            max-width: 100%;
             padding: 15px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            background: inherit;
         }
         
-        .screen.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-        
-        /* ==================== ЗАГОЛОВОК ==================== */
+        /* HEADER */
         .header {
             text-align: center;
-            margin-bottom: 15px;
-            padding: 15px 10px;
-            flex-shrink: 0;
+            padding: 20px 0;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .game-title {
+        .header h1 {
             font-size: 2rem;
-            font-weight: bold;
-            background: linear-gradient(90deg, #9d7aff, #6a5bff);
+            margin-bottom: 5px;
+            background: linear-gradient(90deg, #00b4db, #0083b0);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(106, 91, 255, 0.5);
-            margin-bottom: 5px;
-            line-height: 1.2;
+            font-weight: 800;
         }
         
-        .subtitle {
-            color: #b5aaff;
-            font-size: 0.85rem;
+        .user-info {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px auto;
+            max-width: 400px;
         }
         
-        /* ==================== КНОПКИ МЕНЮ ==================== */
-        .menu-buttons {
-            flex: 1;
+        .user-row {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 15px 0;
-            overflow-y: auto;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
-        .menu-btn {
-            background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2));
+        .user-label {
+            color: #8b9dc3;
+            font-size: 0.9rem;
+        }
+        
+        .user-value {
+            font-weight: 600;
+            color: #00b4db;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .user-value.city {
+            color: #4CAF50;
+        }
+        
+        /* КНОПКИ */
+        .btn-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
+            padding: 15px;
             border-radius: 12px;
-            padding: 16px 12px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            min-height: 55px;
-            flex-shrink: 0;
-            border: 1px solid rgba(68, 85, 204, 0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         
-        .menu-btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
         }
         
-        .menu-btn.new-game { 
-            background: linear-gradient(145deg, rgba(102, 204, 153, 0.3), rgba(77, 179, 128, 0.2));
-            border-color: rgba(102, 204, 153, 0.4);
-        }
-        .menu-btn.stats { 
-            background: linear-gradient(145deg, rgba(106, 91, 255, 0.3), rgba(86, 71, 235, 0.2));
-            border-color: rgba(106, 91, 255, 0.4);
-        }
-        .menu-btn.levels { 
-            background: linear-gradient(145deg, rgba(255, 153, 102, 0.3), rgba(235, 133, 82, 0.2));
-            border-color: rgba(255, 153, 102, 0.4);
-        }
-        .menu-btn.leaderboard { 
-            background: linear-gradient(145deg, rgba(255, 102, 204, 0.3), rgba(235, 82, 182, 0.2));
-            border-color: rgba(255, 102, 204, 0.4);
-        }
-        .menu-btn.settings { 
-            background: linear-gradient(145deg, rgba(102, 204, 204, 0.3), rgba(77, 179, 179, 0.2));
-            border-color: rgba(102, 204, 204, 0.4);
+        .btn:active {
+            transform: translateY(0);
         }
         
-        /* ==================== ИГРОВОЙ ЭКРАН ==================== */
-        #game-screen {
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
+        .btn-primary {
+            background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
         }
         
+        .btn-warning {
+            background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+        }
+        
+        .btn-large {
+            grid-column: span 2;
+            padding: 18px;
+            font-size: 1.1rem;
+        }
+        
+        /* ЭКРАНЫ */
+        .screen {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* ИГРОВОЙ ЭКРАН */
         .game-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 15px;
-            background: rgba(20, 30, 80, 0.5);
-            border-radius: 10px;
-            margin-bottom: 12px;
-            flex-shrink: 0;
-            border: 1px solid rgba(68, 85, 204, 0.3);
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
         }
         
-        .game-info {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-        
-        .info-box {
-            background: rgba(10, 20, 60, 0.7);
-            padding: 8px 10px;
-            border-radius: 8px;
-            text-align: center;
-            min-width: 65px;
-            flex: 1;
-            max-width: 85px;
-            border: 1px solid rgba(68, 85, 204, 0.2);
-        }
-        
-        .info-label {
-            font-size: 0.7rem;
-            color: #aaccff;
-            margin-bottom: 4px;
-        }
-        
-        .info-value {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #66ffaa;
-        }
-        
-        .game-area {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 320px;
-            padding: 10px 0;
-        }
-        
-        #tetris-canvas {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 6px;
-            border: 2px solid rgba(68, 85, 204, 0.5);
-            box-shadow: 0 0 20px rgba(68, 85, 204, 0.2);
-            max-width: 100%;
-            max-height: 100%;
-        }
-        
-        /* ==================== ПАНЕЛЬ УПРАВЛЕНИЯ ИГРОЙ ==================== */
-        .game-controls-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 10px;
-            flex-shrink: 0;
-        }
-        
-        .game-buttons {
+        .stats-panel {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            padding: 10px;
-            background: rgba(20, 30, 80, 0.5);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-box {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
             border-radius: 10px;
-            border: 1px solid rgba(68, 85, 204, 0.3);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .game-btn {
-            background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2));
-            border: 1px solid rgba(68, 85, 204, 0.3);
-            border-radius: 8px;
-            padding: 12px 5px;
-            color: white;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.1s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            min-height: 44px;
+        .stat-label {
+            font-size: 0.8rem;
+            color: #8b9dc3;
+            margin-bottom: 5px;
         }
         
-        .game-btn:active {
-            transform: scale(0.95);
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #00b4db;
         }
         
-        .game-btn.save-btn {
-            background: linear-gradient(145deg, rgba(102, 204, 153, 0.4), rgba(77, 179, 128, 0.3));
-            border-color: rgba(102, 204, 153, 0.6);
-            position: relative;
-            overflow: hidden;
+        /* CANVAS */
+        #game-canvas {
+            display: block;
+            margin: 0 auto 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.5);
+            max-width: 100%;
         }
         
-        .game-btn.save-btn:after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-        
-        .game-btn.save-btn:active:after {
-            left: 100%;
-        }
-        
-        .game-btn.save-btn.pulsing {
-            animation: pulse 1s infinite;
-        }
-        
-        .game-btn.pause-btn {
-            background: linear-gradient(145deg, rgba(255, 153, 102, 0.3), rgba(235, 133, 82, 0.2));
-        }
-        
+        /* УПРАВЛЕНИЕ */
         .controls {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 8px;
-            padding: 12px;
-            background: rgba(20, 30, 80, 0.5);
-            border-radius: 10px;
-            border: 1px solid rgba(68, 85, 204, 0.3);
+            margin-bottom: 20px;
         }
         
         .control-btn {
-            background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2));
-            border: 1px solid rgba(68, 85, 204, 0.3);
-            border-radius: 10px;
-            padding: 15px 5px;
+            background: rgba(0,180,219,0.2);
+            border: 1px solid rgba(0,180,219,0.3);
             color: white;
-            font-size: 1.4rem;
+            padding: 15px 5px;
+            border-radius: 8px;
+            font-size: 1.2rem;
             cursor: pointer;
-            transition: all 0.1s;
-            min-height: 50px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .control-btn:active {
+            background: rgba(0,180,219,0.4);
             transform: scale(0.95);
         }
         
-        /* ==================== СТАТИСТИКА ==================== */
+        /* СТАТИСТИКА */
         .stats-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 10px;
-            background: rgba(20, 30, 80, 0.3);
-            border-radius: 10px;
-            margin: 10px 0;
-            border: 1px solid rgba(68, 85, 204, 0.2);
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
         }
         
         .stat-card {
-            background: rgba(30, 40, 100, 0.5);
+            background: rgba(0,0,0,0.3);
             padding: 15px;
             border-radius: 10px;
-            margin-bottom: 15px;
-            border-left: 4px solid #6a5bff;
-            border: 1px solid rgba(68, 85, 204, 0.2);
+            border-left: 4px solid #00b4db;
         }
         
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .stat-label {
-            color: #aaccff;
-        }
-        
-        .stat-value {
-            font-weight: bold;
-            color: #66ffaa;
-        }
-        
-        /* ==================== УРОВНИ ==================== */
-        .levels-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            padding: 15px 0;
-            overflow-y: auto;
-        }
-        
-        .level-card {
-            background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2));
-            border-radius: 12px;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
-            min-height: 110px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            border: 1px solid rgba(68, 85, 204, 0.3);
-        }
-        
-        .level-card:hover {
-            transform: translateY(-2px);
-        }
-        
-        .level-card.active {
-            background: linear-gradient(145deg, rgba(102, 204, 153, 0.3), rgba(77, 179, 128, 0.2));
-            border-color: rgba(102, 204, 153, 0.4);
-        }
-        
-        .level-icon {
-            font-size: 1.8rem;
-            margin-bottom: 8px;
-        }
-        
-        .level-name {
-            font-size: 1rem;
-            font-weight: bold;
+        .stat-card .stat-label {
+            color: #8b9dc3;
+            font-size: 0.9rem;
             margin-bottom: 5px;
         }
         
-        .level-desc {
-            font-size: 0.75rem;
-            color: #aaccff;
+        .stat-card .stat-value {
+            font-size: 1.5rem;
+            color: #4CAF50;
         }
         
-        /* ==================== ЛИДЕРБОРД ==================== */
-        .leaderboard-list {
-            flex: 1;
+        /* ЛИДЕРБОРД */
+        .leaderboard {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-height: 400px;
             overflow-y: auto;
-            margin: 10px 0;
         }
         
         .leaderboard-item {
             display: flex;
             align-items: center;
-            padding: 12px;
-            background: rgba(30, 40, 100, 0.4);
-            border-radius: 10px;
+            padding: 12px 15px;
             margin-bottom: 8px;
-            border: 1px solid rgba(68, 85, 204, 0.2);
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            border-left: 4px solid #00b4db;
+            transition: all 0.2s;
+        }
+        
+        .leaderboard-item:hover {
+            background: rgba(0,0,0,0.4);
+            transform: translateX(5px);
+        }
+        
+        .leaderboard-item.current {
+            background: rgba(0,180,219,0.2);
+            border-left-color: #4CAF50;
         }
         
         .rank {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: bold;
-            width: 45px;
+            color: #f0c420;
+            min-width: 40px;
             text-align: center;
-            color: #ffcc66;
         }
         
         .player-info {
             flex: 1;
+            margin: 0 15px;
         }
         
         .player-name {
@@ -429,1555 +294,1199 @@
             margin-bottom: 3px;
         }
         
+        .player-city {
+            font-size: 0.8rem;
+            color: #8b9dc3;
+        }
+        
         .player-score {
-            color: #66ffaa;
-            font-size: 1rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #00b4db;
         }
         
-        /* ==================== ФУТЕР ==================== */
-        .footer {
-            padding: 12px 10px;
-            text-align: center;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            margin-top: auto;
-            flex-shrink: 0;
-        }
-        
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: background 0.3s;
-            font-size: 0.85rem;
-            min-width: 100px;
-            min-height: 40px;
-        }
-        
-        .back-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .back-btn:active {
-            transform: scale(0.98);
-        }
-        
-        /* ==================== УВЕДОМЛЕНИЯ ==================== */
+        /* УВЕДОМЛЕНИЯ */
         .notification {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(42, 153, 68, 0.9);
+            background: rgba(33, 150, 83, 0.95);
             color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            z-index: 10000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            opacity: 0;
-            transition: opacity 0.3s;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
             max-width: 300px;
+            backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.2);
         }
         
         .notification.show {
-            opacity: 1;
+            display: block;
+            animation: slideIn 0.3s ease;
         }
         
-        /* ==================== АНИМАЦИИ ==================== */
-        @keyframes lineClear {
-            0% { opacity: 1; transform: scaleY(1); }
-            50% { opacity: 0.5; transform: scaleY(1.1); background: rgba(255, 255, 255, 0.6); }
-            100% { opacity: 0; transform: scaleY(1); }
+        .notification.error {
+            background: rgba(220, 53, 69, 0.95);
         }
         
-        @keyframes pieceLand {
-            0% { transform: translateY(0); }
-            50% { transform: translateY(-3px); }
-            100% { transform: translateY(0); }
+        .notification.warning {
+            background: rgba(255, 193, 7, 0.95);
         }
         
-        @keyframes pieceSpawn {
-            0% { opacity: 0; transform: scale(0.8); }
-            100% { opacity: 1; transform: scale(1); }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
         
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(102, 204, 153, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(102, 204, 153, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(102, 204, 153, 0); }
+        /* DEBUG INFO */
+        .debug-panel {
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: #8b9dc3;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
-        .line-clearing {
-            animation: lineClear 0.4s ease-out;
+        .debug-title {
+            color: #f0c420;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
         }
         
-        .piece-landing {
-            animation: pieceLand 0.2s ease;
+        .debug-entry {
+            margin-bottom: 3px;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         
-        .piece-spawning {
-            animation: pieceSpawn 0.2s ease;
+        .debug-time {
+            color: #8b9dc3;
+            margin-right: 10px;
         }
         
-        /* ==================== АДАПТИВНОСТЬ ==================== */
-        @media (max-width: 400px) {
-            .game-title { font-size: 1.6rem; }
-            .menu-btn { padding: 14px 10px; font-size: 0.9rem; }
-            .info-value { font-size: 1.1rem; }
-            .control-btn { font-size: 1.2rem; padding: 12px 5px; }
-            .game-btn { font-size: 0.8rem; padding: 10px 3px; }
-            .level-name { font-size: 0.9rem; }
-            .level-card { padding: 12px; min-height: 100px; }
+        .debug-message {
+            color: white;
         }
         
-        @media (max-height: 700px) {
-            .game-container {
-                max-height: 650px;
-                min-height: 500px;
-            }
-            
-            .game-area {
-                min-height: 250px;
-            }
-            
-            .menu-btn {
-                padding: 12px 10px;
-                min-height: 50px;
-            }
-            
-            .controls {
-                padding: 8px;
-            }
-        }
-        
-        /* ==================== SCROLLBAR ==================== */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.2);
-            border-radius: 3px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: rgba(106, 91, 255, 0.5);
-            border-radius: 3px;
+        /* АДАПТИВНОСТЬ */
+        @media (max-width: 600px) {
+            .btn-container { grid-template-columns: 1fr; }
+            .btn-large { grid-column: span 1; }
+            .controls { grid-template-columns: repeat(2, 1fr); }
+            .stats-panel { grid-template-columns: repeat(3, 1fr); }
+            .stats-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.8rem; }
         }
     </style>
 </head>
 <body>
-    <div class="game-container">
+    <div class="container">
         <!-- ГЛАВНОЕ МЕНЮ -->
         <div class="screen active" id="menu-screen">
             <div class="header">
-                <h1 class="game-title">ТЕТРИС PRO</h1>
-                <p class="subtitle">Telegram Mini App Edition</p>
+                <h1>🎮 ТЕТРИС TELEGRAM</h1>
+                <p>База данных Neon PostgreSQL</p>
+                
+                <div class="user-info">
+                    <div class="user-row">
+                        <span class="user-label">Имя:</span>
+                        <span class="user-value" id="user-name">Загрузка...</span>
+                    </div>
+                    <div class="user-row">
+                        <span class="user-label">ID:</span>
+                        <span class="user-value" id="user-id">...</span>
+                    </div>
+                    <div class="user-row">
+                        <span class="user-label">Город:</span>
+                        <span class="user-value city" id="user-city">Не указан</span>
+                    </div>
+                    <div class="user-row">
+                        <span class="user-label">Платформа:</span>
+                        <span class="user-value" id="user-platform">...</span>
+                    </div>
+                </div>
             </div>
             
-            <div class="menu-buttons">
-                <button class="menu-btn new-game" onclick="startGame()">
-                    <span>🎮</span> НОВАЯ ИГРА
+            <div class="btn-container">
+                <button class="btn btn-primary btn-large" onclick="startGame()">
+                    🎮 НОВАЯ ИГРА
                 </button>
-                <button class="menu-btn stats" onclick="showStats()">
-                    <span>📊</span> СТАТИСТИКА
+                
+                <button class="btn" onclick="loadUserStats(true)">
+                    📊 МОЯ СТАТИСТИКА
                 </button>
-                <button class="menu-btn levels" onclick="showLevels()">
-                    <span>⭐</span> УРОВНИ
+                
+                <button class="btn" onclick="loadLeaderboard()">
+                    🏆 ЛИДЕРБОРД
                 </button>
-                <button class="menu-btn leaderboard" onclick="showLeaderboard()">
-                    <span>🏆</span> ЛИДЕРБОРД
+                
+                <button class="btn" onclick="showCityInput()">
+                    🏙️ УКАЗАТЬ ГОРОД
                 </button>
-                <button class="menu-btn settings" onclick="showSettings()">
-                    <span>⚙️</span> НАСТРОЙКИ
+                
+                <button class="btn btn-warning" onclick="testDatabase()">
+                    🔗 ТЕСТ БАЗЫ ДАННЫХ
+                </button>
+                
+                <button class="btn btn-danger" onclick="testTelegramBot()">
+                    🤖 ТЕСТ БОТА TELEGRAM
                 </button>
             </div>
             
-            <div class="footer">
-                <p style="color: #aaccff; font-size: 0.8rem;">База данных Neon PostgreSQL</p>
+            <div class="debug-panel">
+                <div class="debug-title">ЛОГ:</div>
+                <div id="debug-log"></div>
             </div>
         </div>
         
         <!-- ИГРОВОЙ ЭКРАН -->
         <div class="screen" id="game-screen">
             <div class="game-header">
-                <div>
-                    <button class="back-btn" onclick="showMenu()">← МЕНЮ</button>
+                <button class="btn" onclick="backToMenu()" style="padding: 8px 15px;">
+                    ← МЕНЮ
+                </button>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.2rem; font-weight: bold;">Счет: <span id="current-score">0</span></div>
+                    <div style="font-size: 0.9rem; color: #8b9dc3;">Уровень: <span id="current-level">1</span></div>
                 </div>
-                <div class="game-info">
-                    <div class="info-box">
-                        <div class="info-label">УРОВЕНЬ</div>
-                        <div class="info-value" id="level-display">1</div>
-                    </div>
-                    <div class="info-box">
-                        <div class="info-label">ОЧКИ</div>
-                        <div class="info-value" id="score-display">0</div>
-                    </div>
-                    <div class="info-box">
-                        <div class="info-label">ЛИНИИ</div>
-                        <div class="info-value" id="lines-display">0</div>
-                    </div>
+                <button class="btn" onclick="saveGameScore()" style="padding: 8px 15px;">
+                    💾 СОХРАНИТЬ
+                </button>
+            </div>
+            
+            <div class="stats-panel">
+                <div class="stat-box">
+                    <div class="stat-label">УРОВЕНЬ</div>
+                    <div class="stat-value" id="level">1</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">ОЧКИ</div>
+                    <div class="stat-value" id="score">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">ЛИНИИ</div>
+                    <div class="stat-value" id="lines">0</div>
                 </div>
             </div>
             
-            <div class="game-area">
-                <canvas id="tetris-canvas" width="240" height="480"></canvas>
-            </div>
+            <canvas id="game-canvas" width="300" height="600"></canvas>
             
-            <div class="game-controls-panel">
-                <div class="game-buttons">
-                    <button class="game-btn pause-btn" onclick="pauseGame()">
-                        <span>⏸</span> ПАУЗА
-                    </button>
-                    <button class="game-btn" onclick="restartGame()">
-                        <span>🔄</span> ЗАНОВО
-                    </button>
-                    <button class="game-btn save-btn" onclick="saveGameScore()" id="save-btn">
-                        <span>💾</span> СОХРАНИТЬ
-                    </button>
-                </div>
-                
-                <div class="controls">
-                    <button class="control-btn" onclick="moveLeft()">←</button>
-                    <button class="control-btn" onclick="rotatePiece()">↻</button>
-                    <button class="control-btn" onclick="moveRight()">→</button>
-                    <button class="control-btn" onclick="hardDrop()">↓</button>
-                </div>
+            <div class="controls">
+                <button class="control-btn" onclick="moveLeft()">←</button>
+                <button class="control-btn" onclick="rotatePiece()">↻</button>
+                <button class="control-btn" onclick="moveRight()">→</button>
+                <button class="control-btn" onclick="hardDrop()">↓</button>
+                <button class="control-btn" onclick="pauseGame()" style="grid-column: span 2;">⏸ ПАУЗА</button>
+                <button class="control-btn" onclick="restartGame()" style="grid-column: span 2;">🔄 ЗАНОВО</button>
             </div>
         </div>
         
         <!-- СТАТИСТИКА -->
         <div class="screen" id="stats-screen">
             <div class="header">
-                <h1 class="game-title">СТАТИСТИКА</h1>
+                <h1>📊 МОЯ СТАТИСТИКА</h1>
+                <button class="btn" onclick="backToMenu()" style="margin-top: 10px; padding: 8px 20px;">
+                    ← НАЗАД
+                </button>
             </div>
             
             <div class="stats-container">
-                <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Ваша статистика</h3>
-                    <div id="user-stats">
-                        <div class="stat-row">
-                            <span class="stat-label">Лучший счет:</span>
-                            <span class="stat-value" id="best-score">0</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">Рекордный уровень:</span>
-                            <span class="stat-value" id="best-level">1</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">Всего линий:</span>
-                            <span class="stat-value" id="total-lines">0</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">Сыграно игр:</span>
-                            <span class="stat-value" id="games-played">0</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">Средний счет:</span>
-                            <span class="stat-value" id="avg-score">0</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Текущая сессия</h3>
-                    <div id="session-stats">
-                        <div class="stat-row">
-                            <span class="stat-label">Текущий уровень:</span>
-                            <span class="stat-value" id="current-level">1</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">Текущий счет:</span>
-                            <span class="stat-value" id="current-score">0</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">Линии в сессии:</span>
-                            <span class="stat-value" id="session-lines">0</span>
-                        </div>
-                    </div>
+                <div class="stats-grid" id="user-stats">
+                    <!-- Статистика загружается динамически -->
                 </div>
             </div>
             
-            <div class="footer">
-                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
-            </div>
-        </div>
-        
-        <!-- УРОВНИ СЛОЖНОСТИ -->
-        <div class="screen" id="levels-screen">
-            <div class="header">
-                <h1 class="game-title">УРОВНИ</h1>
-                <p class="subtitle">Выберите сложность игры</p>
-            </div>
-            
-            <div class="levels-grid" id="levels-grid">
-                <!-- Уровни будут добавлены через JS -->
-            </div>
-            
-            <div class="footer">
-                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+            <div class="btn-container">
+                <button class="btn" onclick="loadUserStats(true)">
+                    🔄 ОБНОВИТЬ
+                </button>
+                <button class="btn" onclick="clearLocalStats()">
+                    🗑️ ОЧИСТИТЬ КЭШ
+                </button>
             </div>
         </div>
         
         <!-- ЛИДЕРБОРД -->
         <div class="screen" id="leaderboard-screen">
             <div class="header">
-                <h1 class="game-title">ЛИДЕРБОРД</h1>
-                <p class="subtitle">Топ-10 игроков</p>
+                <h1>🏆 ЛИДЕРБОРД</h1>
+                <button class="btn" onclick="backToMenu()" style="margin-top: 10px; padding: 8px 20px;">
+                    ← НАЗАД
+                </button>
             </div>
             
-            <div class="leaderboard-list" id="leaderboard-list">
-                <!-- Лидерборд будет загружен через JS -->
-            </div>
-            
-            <div class="footer">
-                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
-            </div>
-        </div>
-        
-        <!-- НАСТРОЙКИ -->
-        <div class="screen" id="settings-screen">
-            <div class="header">
-                <h1 class="game-title">НАСТРОЙКИ</h1>
-            </div>
-            
-            <div class="stats-container">
-                <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Управление</h3>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="checkbox" id="touch-controls" checked style="margin-right: 10px;">
-                            Сенсорное управление
-                        </label>
-                        <label style="display: flex; align-items: center; margin-bottom: 10px;">
-                            <input type="checkbox" id="keyboard-controls" checked style="margin-right: 10px;">
-                            Управление клавиатурой
-                        </label>
-                        <label style="display: flex; align-items: center;">
-                            <input type="checkbox" id="vibration" checked style="margin-right: 10px;">
-                            Виброотклик
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Графика</h3>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 10px;">Качество графики:</label>
-                        <select id="graphics-quality" 
-                                aria-label="Качество графики"
-                                style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(106, 91, 255, 0.5);">
-                            <option value="low">Низкое</option>
-                            <option value="medium" selected>Среднее</option>
-                            <option value="high">Высокое</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">База данных</h3>
-                    <div id="db-status" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px; border: 1px solid rgba(106, 91, 255, 0.3);">
-                        Статус: <span id="db-status-text">Проверка...</span>
-                    </div>
-                    <button class="back-btn" style="width: 100%;" onclick="testDatabase()">Тест соединения с БД</button>
-                </div>
-            </div>
-            
-            <div class="footer">
-                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+            <div class="leaderboard" id="leaderboard-content">
+                <!-- Лидерборд загружается динамически -->
             </div>
         </div>
     </div>
 
-    <!-- Уведомление -->
-    <div id="notification" class="notification"></div>
+    <!-- УВЕДОМЛЕНИЕ -->
+    <div class="notification" id="notification"></div>
 
-  <script>
-// ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
-const COLS = 10;
-const ROWS = 20;
-const BLOCK_SIZE = 24;
-const COLORS = [
-    '#FF6B6B', // Терракотовый/коралловый
-    '#4ECDC4', // Бирюзовый
-    '#45B7D1', // Голубой
-    '#96CEB4', // Мятный
-    '#FFEAA7', // Песочный
-    '#DDA0DD', // Сиреневый
-    '#98D8C8', // Изумрудный
-    '#F7DC6F'  // Золотистый
-];
-const SHAPES = [
-    [[1,1,1,1]],
-    [[1,1],[1,1]],
-    [[0,1,0],[1,1,1]],
-    [[1,1,0],[0,1,1]],
-    [[0,1,1],[1,1,0]],
-    [[1,0,0],[1,1,1]],
-    [[0,0,1],[1,1,1]]
-];
+    <script>
+        // ==================== КОНСТАНТЫ ====================
+        const COLS = 10;
+        const ROWS = 20;
+        const BLOCK_SIZE = 30;
+        const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'];
+        const SHAPES = [
+            [[1,1,1,1]],
+            [[1,1],[1,1]],
+            [[0,1,0],[1,1,1]],
+            [[1,1,0],[0,1,1]],
+            [[0,1,1],[1,1,0]],
+            [[1,0,0],[1,1,1]],
+            [[0,0,1],[1,1,1]]
+        ];
 
-// Уровни сложности
-const DIFFICULTY_LEVELS = [
-    { id: 'easy', name: 'Легкий', speed: 1000, desc: 'Медленно, для новичков' },
-    { id: 'medium', name: 'Средний', speed: 700, desc: 'Стандартная скорость' },
-    { id: 'hard', name: 'Сложный', speed: 450, desc: 'Быстро, для профи' },
-    { id: 'expert', name: 'Эксперт', speed: 250, desc: 'Максимальная скорость' },
-    { id: 'insane', name: 'Безумие', speed: 150, desc: 'Только для мастеров' }
-];
+        // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+        let tg = null;
+        let telegramUser = null;
+        let userId = null;
+        let username = 'Игрок';
+        let userCity = 'Не указан';
+        let board = [];
+        let currentPiece = null;
+        let currentX = 0;
+        let currentY = 0;
+        let score = 0;
+        let level = 1;
+        let lines = 0;
+        let gameActive = false;
+        let gamePaused = false;
+        let gameOver = false;
+        let dropInterval = 1000;
+        let lastTime = 0;
+        let dropCounter = 0;
+        let animationId = null;
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
 
-// ==================== API ENDPOINTS ====================
-const API_ENDPOINTS = {
-    saveScore: '/api/save-score',
-    getUserStats: '/api/user-stats',
-    getTopPlayers: '/api/top-players',
-    checkDB: '/api/check-db'
-};
-
-// DOM элементы
-const screens = {
-    menu: document.getElementById('menu-screen'),
-    game: document.getElementById('game-screen'),
-    stats: document.getElementById('stats-screen'),
-    levels: document.getElementById('levels-screen'),
-    leaderboard: document.getElementById('leaderboard-screen'),
-    settings: document.getElementById('settings-screen')
-};
-
-const canvas = document.getElementById('tetris-canvas');
-const ctx = canvas.getContext('2d');
-
-// Игровые переменные
-let board = [];
-let currentPiece = null;
-let currentX = 0;
-let currentY = 0;
-let score = 0;
-let level = 1;
-let lines = 0;
-let gameActive = false;
-let gamePaused = false;
-let gameOver = false;
-let dropCounter = 0;
-let dropInterval = 1000;
-let lastTime = 0;
-let animationId = null;
-let currentDifficulty = 'medium';
-let userId = null;
-let clearedLinesAnimation = [];
-let pieceQueue = [];
-
-// ==================== TELEGRAM WEBAPP ДАННЫЕ ====================
-let tg = null;
-let telegramUserData = null;
-let telegramUserId = null;
-let telegramUsername = null;
-let telegramCity = null;
-
-// Инициализация Telegram WebApp
-function initTelegramWebApp() {
-    if (window.Telegram && window.Telegram.WebApp) {
-        tg = window.Telegram.WebApp;
-        
-        // Расширяем на весь экран
-        tg.expand();
-        
-        // Получаем данные пользователя
-        const initData = tg.initDataUnsafe;
-        console.log('📱 Telegram WebApp данные:', initData);
-        
-        if (initData.user) {
-            telegramUserData = initData.user;
-            telegramUserId = String(initData.user.id);
-            telegramUsername = initData.user.username || 
-                              initData.user.first_name || 
-                              'Telegram Player';
+        // ==================== ИНИЦИАЛИЗАЦИЯ TELEGRAM ====================
+        function initTelegram() {
+            addDebug('🔍 Инициализация Telegram WebApp...');
             
-            console.log('👤 Telegram данные пользователя:', {
-                id: telegramUserId,
-                username: telegramUsername,
-                first_name: initData.user.first_name,
-                last_name: initData.user.last_name
+            if (window.Telegram && window.Telegram.WebApp) {
+                tg = window.Telegram.WebApp;
+                addDebug('✅ Telegram WebApp обнаружен');
+                
+                // Расширяем на весь экран
+                tg.expand();
+                addDebug('📱 WebApp расширен');
+                
+                // Получаем данные пользователя
+                const initData = tg.initDataUnsafe || {};
+                addDebug('📊 InitData получены', initData);
+                
+                if (initData.user) {
+                    telegramUser = initData.user;
+                    userId = String(telegramUser.id);
+                    username = telegramUser.username || 
+                              telegramUser.first_name || 
+                              'Telegram Player';
+                    
+                    // Получаем город если есть
+                    if (initData.user.city) {
+                        userCity = initData.user.city;
+                    }
+                    
+                    addDebug('👤 Пользователь Telegram:', {
+                        id: userId,
+                        username: username,
+                        firstName: telegramUser.first_name,
+                        city: userCity
+                    });
+                    
+                    // Обновляем UI
+                    updateUserUI();
+                    
+                    // Настраиваем кнопки Telegram
+                    setupTelegramButtons();
+                    
+                    // Отправляем данные боту при запуске
+                    sendStartDataToBot();
+                    
+                    // Загружаем статистику пользователя
+                    setTimeout(() => loadUserStats(), 1000);
+                    
+                    return true;
+                } else {
+                    addDebug('⚠️ Нет данных пользователя в initData');
+                    userId = 'web_' + Date.now();
+                    username = 'Web Player';
+                    updateUserUI();
+                }
+            } else {
+                addDebug('❌ Telegram WebApp не обнаружен, работаем в браузере');
+                userId = 'web_' + Date.now();
+                username = 'Web Player';
+                updateUserUI();
+            }
+            return false;
+        }
+
+        function updateUserUI() {
+            document.getElementById('user-name').textContent = username;
+            document.getElementById('user-id').textContent = userId;
+            document.getElementById('user-city').textContent = userCity;
+            document.getElementById('user-platform').textContent = tg ? tg.platform : 'Browser';
+            
+            // Сохраняем город в localStorage
+            if (userCity && userCity !== 'Не указан') {
+                localStorage.setItem('tetris_city', userCity);
+            }
+        }
+
+        function setupTelegramButtons() {
+            if (!tg) return;
+            
+            // Кнопка Назад
+            tg.BackButton.show();
+            tg.BackButton.onClick(() => {
+                addDebug('← Нажата кнопка Назад');
+                if (gameActive && !gamePaused) {
+                    pauseGame();
+                    showNotification('⏸ Игра приостановлена');
+                }
+                backToMenu();
+            });
+            
+            addDebug('✅ Кнопки Telegram настроены');
+        }
+
+        // ==================== ОТПРАВКА ДАННЫХ В БОТА TELEGRAM ====================
+        async function sendDataToTelegramBot(data) {
+            if (!tg || !tg.sendData) {
+                addDebug('⚠️ tg.sendData недоступен', data);
+                return { success: false, error: 'Telegram API недоступен' };
+            }
+            
+            try {
+                addDebug('📤 Отправляем данные в Telegram бота:', data);
+                
+                // Отправляем через Telegram WebApp
+                tg.sendData(JSON.stringify(data));
+                
+                addDebug('✅ Данные отправлены в Telegram бота');
+                return { success: true };
+            } catch (error) {
+                addDebug('❌ Ошибка отправки в Telegram:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function sendGameDataToBot(gameData) {
+            // Формируем данные для бота
+            const botData = {
+                action: 'game_result',
+                source: 'tetris_webapp',
+                userId: userId,
+                user_id: userId,
+                username: username,
+                userCity: userCity,
+                gameType: 'tetris',
+                score: gameData.score,
+                level: gameData.level,
+                lines: gameData.lines,
+                gameOver: gameData.gameOver || false,
+                timestamp: new Date().toISOString(),
+                platform: tg ? tg.platform : 'web',
+                version: tg ? tg.version : '1.0'
+            };
+            
+            // 1. Отправляем в Telegram бота
+            const telegramResult = await sendDataToTelegramBot(botData);
+            
+            // 2. Сохраняем в базу данных через API
+            const dbResult = await saveToDatabase(botData);
+            
+            // 3. Сохраняем локально
+            saveToLocalStorage(botData);
+            
+            return {
+                telegram: telegramResult,
+                database: dbResult,
+                localStorage: true
+            };
+        }
+
+        async function saveToDatabase(gameData) {
+            try {
+                addDebug('💾 Сохраняем в базу данных...', gameData);
+                
+                const response = await fetch('/api/save-game', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(gameData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                addDebug('✅ Данные сохранены в БД:', result);
+                
+                return { success: true, data: result };
+            } catch (error) {
+                addDebug('❌ Ошибка сохранения в БД:', error.message);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // ==================== РАБОТА С БАЗОЙ ДАННЫХ ====================
+        async function loadUserStats(showScreen = false) {
+            try {
+                addDebug('📊 Загружаем статистику пользователя...');
+                
+                const response = await fetch(`/api/user-stats?userId=${encodeURIComponent(userId)}&gameType=tetris`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                addDebug('📊 Статистика получена:', result);
+                
+                if (result.success && result.stats) {
+                    displayUserStats(result.stats);
+                    
+                    // Обновляем город если есть в БД
+                    if (result.stats.city && result.stats.city !== 'Не указан') {
+                        userCity = result.stats.city;
+                        localStorage.setItem('tetris_city', userCity);
+                        updateUserUI();
+                    }
+                    
+                    if (showScreen) {
+                        showScreenById('stats-screen');
+                    }
+                } else {
+                    showNotification('Статистика не найдена', 'warning');
+                    displayDefaultStats();
+                }
+            } catch (error) {
+                addDebug('❌ Ошибка загрузки статистики:', error.message);
+                showNotification('Не удалось загрузить статистику', 'error');
+                loadLocalStats();
+            }
+        }
+
+        function displayUserStats(stats) {
+            const statsGrid = document.getElementById('user-stats');
+            if (!statsGrid) return;
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Лучший счет</div>
+                    <div class="stat-value">${stats.best_score || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Макс. уровень</div>
+                    <div class="stat-value">${stats.best_level || 1}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Всего линий</div>
+                    <div class="stat-value">${stats.total_lines || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Игр сыграно</div>
+                    <div class="stat-value">${stats.games_played || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Средний счет</div>
+                    <div class="stat-value">${Math.round(stats.avg_score || 0)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Город</div>
+                    <div class="stat-value">${stats.city || 'Не указан'}</div>
+                </div>
+            `;
+        }
+
+        async function loadLeaderboard() {
+            try {
+                addDebug('🏆 Загружаем лидерборд...');
+                
+                const response = await fetch('/api/leaderboard?gameType=tetris&limit=10');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                addDebug('🏆 Лидерборд получен:', result);
+                
+                if (result.success && result.players) {
+                    displayLeaderboard(result.players);
+                    showScreenById('leaderboard-screen');
+                } else {
+                    showNotification('Лидерборд пуст', 'warning');
+                }
+            } catch (error) {
+                addDebug('❌ Ошибка загрузки лидерборда:', error.message);
+                showNotification('Не удалось загрузить лидерборд', 'error');
+            }
+        }
+
+        function displayLeaderboard(players) {
+            const leaderboard = document.getElementById('leaderboard-content');
+            if (!leaderboard) return;
+            
+            if (!players || players.length === 0) {
+                leaderboard.innerHTML = '<div style="text-align: center; padding: 40px; color: #8b9dc3;">Лидерборд пуст</div>';
+                return;
+            }
+            
+            leaderboard.innerHTML = '';
+            
+            players.forEach((player, index) => {
+                const isCurrentUser = String(player.user_id) === userId;
+                const item = document.createElement('div');
+                item.className = `leaderboard-item ${isCurrentUser ? 'current' : ''}`;
+                
+                item.innerHTML = `
+                    <div class="rank">${index + 1}</div>
+                    <div class="player-info">
+                        <div class="player-name">
+                            ${player.username || `Игрок ${player.user_id?.slice(-4) || '??'}`}
+                            ${isCurrentUser ? ' (Вы)' : ''}
+                        </div>
+                        <div class="player-city">${player.city || 'Город не указан'}</div>
+                    </div>
+                    <div class="player-score">${player.score || 0}</div>
+                `;
+                
+                leaderboard.appendChild(item);
             });
         }
-        
-        // Включаем кнопку "Назад"
-        tg.BackButton.show();
-        tg.BackButton.onClick(() => {
-            if (document.getElementById('game-screen').classList.contains('active')) {
-                pauseGame();
-                showNotification('⏸ Игра приостановлена');
+
+        // ==================== ИГРОВАЯ ЛОГИКА ====================
+        function initGame() {
+            addDebug('🎮 Инициализация новой игры');
+            
+            board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+            score = 0;
+            level = 1;
+            lines = 0;
+            gameActive = true;
+            gamePaused = false;
+            gameOver = false;
+            dropInterval = 1000;
+            
+            updateDisplay();
+            spawnPiece();
+            drawBoard();
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
             }
-            showMenu();
-        });
-        
-        // Устанавливаем основную кнопку
-        tg.MainButton.setText('Главное меню').show();
-        tg.MainButton.onClick(showMenu);
-        
-        return true;
-    }
-    return false;
-}
+            
+            lastTime = 0;
+            dropCounter = 0;
+            animationId = requestAnimationFrame(gameLoop);
+            
+            // Отправляем событие начала игры
+            sendGameDataToBot({
+                action: 'game_start',
+                score: 0,
+                level: 1,
+                lines: 0,
+                gameOver: false
+            });
+            
+            showScreenById('game-screen');
+            showNotification('🎮 Игра началась!');
+        }
 
-// Обновляем userId
-if (initTelegramWebApp()) {
-    userId = telegramUserId || 'web_' + Date.now();
-    console.log('✅ Используем Telegram ID:', userId);
-} else {
-    userId = 'web_' + Date.now();
-    console.log('⚠️ Telegram WebApp не обнаружен, используем web ID:', userId);
-}
-
-// ==================== ФУНКЦИИ ЭКРАНОВ ====================
-function showScreen(screenName) {
-    Object.keys(screens).forEach(key => {
-        screens[key].classList.remove('active');
-    });
-    screens[screenName].classList.add('active');
-    
-    if (screenName !== 'game' && gameActive && !gamePaused) {
-        pauseGame();
-    }
-}
-
-function showMenu() {
-    showScreen('menu');
-}
-
-function startGame() {
-    console.log('🚀 Начало новой игры - DEBUG');
-    
-    // ✅ Останавливаем старую анимацию если она есть
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-    }
-    
-    // ✅ Инициализируем новую игру
-    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-    score = 0;
-    level = 1;
-    lines = 0;
-    gameActive = true;
-    gamePaused = false;
-    gameOver = false;
-    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-    clearedLinesAnimation = [];
-    pieceQueue = [];
-    
-    console.log('🔄 Генерация начальной фигуры...');
-    generatePieceQueue();
-    updateDisplay();
-    
-    // ✅ СПЕЦИАЛЬНАЯ ПРОВЕРКА перед spawnPiece
-    console.log('🔍 Проверка начального состояния:');
-    console.log(' - Доска пустая?', board.flat().every(cell => cell === 0));
-    console.log(' - pieceQueue:', pieceQueue);
-    
-    spawnPiece();
-    
-    // ✅ ПРОВЕРКА после spawnPiece
-    console.log('🔍 Состояние после spawnPiece:');
-    console.log(' - gameOver:', gameOver);
-    console.log(' - currentPiece:', currentPiece);
-    console.log(' - currentX, currentY:', currentX, currentY);
-    
-    // Если игра не окончена, продолжаем
-    if (!gameOver) {
-        drawBoard();
-        
-        // ✅ Показываем игровой экран
-        showScreen('game');
-        
-        // ✅ Запускаем игровой цикл
-        lastTime = 0;
-        dropCounter = 0;
-        animationId = requestAnimationFrame(gameLoop);
-        
-        showNotification('🎮 Игра началась!');
-    } else {
-        console.error('❌ Игра сразу завершилась! Проверьте collide() функцию');
-        showNotification('⚠️ Ошибка запуска игры');
-    }
-}
-
-function showStats() {
-    console.log('Показать статистику');
-    loadUserStats();
-    showScreen('stats');
-}
-
-function showLevels() {
-    console.log('Показать уровни');
-    renderLevels();
-    showScreen('levels');
-}
-
-function showLeaderboard() {
-    console.log('Показать лидерборд');
-    loadLeaderboard();
-    showScreen('leaderboard');
-}
-
-function showSettings() {
-    console.log('Показать настройки');
-    showScreen('settings');
-}
-
-// ==================== ИГРОВАЯ ЛОГИКА ====================
-function initGame() {
-    console.log('Инициализация игры');
-    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-    score = 0;
-    level = 1;
-    lines = 0;
-    gameActive = true;
-    gamePaused = false;
-    gameOver = false;
-    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-    clearedLinesAnimation = [];
-    pieceQueue = [];
-    
-    generatePieceQueue();
-    
-    updateDisplay();
-    spawnPiece();
-    drawBoard();
-    
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-    }
-    
-    lastTime = 0;
-    dropCounter = 0;
-    animationId = requestAnimationFrame(gameLoop);
-}
-
-function generatePieceQueue() {
-    pieceQueue = [];
-    for (let i = 0; i < 3; i++) {
-        const shapeId = Math.floor(Math.random() * SHAPES.length);
-        pieceQueue.push(shapeId);
-    }
-}
-
-function spawnPiece() {
-    if (pieceQueue.length === 0) {
-        generatePieceQueue();
-    }
-    
-    const shapeId = pieceQueue.shift();
-    pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
-    
-    currentPiece = {
-        shape: SHAPES[shapeId],
-        color: COLORS[shapeId]
-    };
-    currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
-    currentY = 0;
-    
-    // 🔴 ПРОСТАЯ ВЕРСИЯ С СОХРАНЕНИЕМ
-    if (collide(currentPiece, currentX, currentY)) {
-        gameOver = true;
-        
-        // ✅ НЕМЕДЛЕННОЕ СОХРАНЕНИЕ
-        saveGameToDB(true).then(result => {
-            if (result.success) {
-                showNotification('✅ Результат сохранен: ' + score);
+        function spawnPiece() {
+            const shapeId = Math.floor(Math.random() * SHAPES.length);
+            currentPiece = {
+                shape: SHAPES[shapeId],
+                color: COLORS[shapeId]
+            };
+            currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
+            currentY = 0;
+            
+            if (collide()) {
+                gameOver = true;
+                endGame();
             }
-        });
-        
-        showNotification('🎯 Игра окончена! Счет: ' + score);
-        setTimeout(() => {
-            showMenu();
-            loadUserStats(); // Обновляем статистику
-        }, 1500);
-        
-        return;
-    }
-}
+        }
 
-function collide(piece, x, y) {
-    // Проверяем каждую клетку фигуры
-    for (let row = 0; row < piece.shape.length; row++) {
-        for (let col = 0; col < piece.shape[row].length; col++) {
-            // Если клетка фигуры занята (1)
-            if (piece.shape[row][col]) {
-                // Проверяем выход за границы
-                const boardRow = y + row;
-                const boardCol = x + col;
-                
-                // 1. Проверка выхода за левую/правую границу
-                if (boardCol < 0 || boardCol >= COLS) {
-                    return true;
+        function collide(x = currentX, y = currentY, shape = currentPiece.shape) {
+            for (let row = 0; row < shape.length; row++) {
+                for (let col = 0; col < shape[row].length; col++) {
+                    if (shape[row][col]) {
+                        const boardX = x + col;
+                        const boardY = y + row;
+                        
+                        if (boardX < 0 || boardX >= COLS || boardY >= ROWS) {
+                            return true;
+                        }
+                        
+                        if (boardY >= 0 && board[boardY][boardX]) {
+                            return true;
+                        }
+                    }
                 }
-                
-                // 2. Проверка выхода за нижнюю границу
-                if (boardRow >= ROWS) {
-                    return true;
-                }
-                
-                // 3. Проверка выхода за верхнюю границу (только для существующих строк)
-                if (boardRow >= 0) {
-                    // 4. Проверка столкновения с установленным блоком
-                    if (board[boardRow] && board[boardRow][boardCol]) {
-                        return true;
+            }
+            return false;
+        }
+
+        function mergePiece() {
+            for (let row = 0; row < currentPiece.shape.length; row++) {
+                for (let col = 0; col < currentPiece.shape[row].length; col++) {
+                    if (currentPiece.shape[row][col]) {
+                        const boardY = currentY + row;
+                        const boardX = currentX + col;
+                        
+                        if (boardY >= 0) {
+                            board[boardY][boardX] = currentPiece.color;
+                        }
                     }
                 }
             }
         }
-    }
-    return false;
-}
 
-function mergePiece() {
-    for (let y = 0; y < currentPiece.shape.length; y++) {
-        for (let x = 0; x < currentPiece.shape[y].length; x++) {
-            if (currentPiece.shape[y][x]) {
-                if (currentY + y >= 0) {
-                    board[currentY + y][currentX + x] = currentPiece.color;
-                }
-            }
-        }
-    }
-}
-
-function moveDown() {
-    if (gameOver || gamePaused) return;
-    
-    if (!collide(currentPiece, currentX, currentY + 1)) {
-        currentY++;
-    } else {
-        mergePiece();
-        checkLines();
-        spawnPiece();
-    }
-    drawBoard();
-}
-
-function moveLeft() {
-    if (gameOver || gamePaused) return;
-    
-    if (!collide(currentPiece, currentX - 1, currentY)) {
-        currentX--;
-        drawBoard();
-    }
-}
-
-function moveRight() {
-    if (gameOver || gamePaused) return;
-    
-    if (!collide(currentPiece, currentX + 1, currentY)) {
-        currentX++;
-        drawBoard();
-    }
-}
-
-function rotatePiece() {
-    if (gameOver || gamePaused) return;
-    
-    const originalShape = currentPiece.shape;
-    const rotated = [];
-    const piece = currentPiece.shape;
-    
-    for (let i = 0; i < piece[0].length; i++) {
-        rotated[i] = [];
-        for (let j = 0; j < piece.length; j++) {
-            rotated[i][j] = piece[piece.length - 1 - j][i];
-        }
-    }
-    
-    currentPiece.shape = rotated;
-    
-    if (collide(currentPiece, currentX, currentY)) {
-        currentPiece.shape = originalShape;
-    }
-    
-    drawBoard();
-}
-
-function hardDrop() {
-    if (gameOver || gamePaused) return;
-    
-    let dropDistance = 0;
-    while (!collide(currentPiece, currentX, currentY + 1)) {
-        currentY++;
-        dropDistance++;
-    }
-    
-    score += dropDistance * 2;
-    mergePiece();
-    checkLines();
-    spawnPiece();
-    updateDisplay();
-    drawBoard();
-}
-
-function checkLines() {
-    let linesCleared = 0;
-    let clearedRows = [];
-    
-    for (let y = ROWS - 1; y >= 0; y--) {
-        if (board[y].every(cell => cell !== 0)) {
-            clearedRows.push(y);
-            linesCleared++;
-        }
-    }
-    
-    if (linesCleared > 0) {
-        lines += linesCleared;
-        
-        // Анимация очистки линий
-        clearedLinesAnimation = clearedRows;
-        
-        // Бонус за несколько линий
-        const lineBonus = [0, 100, 300, 500, 800];
-        score += lineBonus[linesCleared] * level;
-        
-        // Повышение уровня
-        if (lines >= level * 10) {
-            level++;
-            dropInterval = Math.max(150, dropInterval - 50);
-            showNotification(`🎉 Уровень ${level}!`);
-        }
-        
-        // Удаляем линии после анимации
-        setTimeout(() => {
-            for (let y of clearedRows.sort((a, b) => a - b)) {
-                board.splice(y, 1);
-                board.unshift(Array(COLS).fill(0));
-            }
-            clearedLinesAnimation = [];
-            updateDisplay();
-            drawBoard();
-        }, 400);
-        
-        updateDisplay();
-    }
-}
-
-function pauseGame() {
-    if (gameActive && !gameOver) {
-        gamePaused = !gamePaused;
-        if (gamePaused) {
-            cancelAnimationFrame(animationId);
-            showNotification('⏸ Игра на паузе');
-        } else {
-            lastTime = 0;
-            animationId = requestAnimationFrame(gameLoop);
-            showNotification('▶️ Игра продолжается');
-        }
-    }
-}
-
-function restartGame() {
-    if (confirm('Начать новую игру? Текущий прогресс будет потерян.')) {
-        initGame();
-        showNotification('🔄 Новая игра начата');
-    }
-}
-
-function updateDisplay() {
-    document.getElementById('level-display').textContent = level;
-    document.getElementById('score-display').textContent = score;
-    document.getElementById('lines-display').textContent = lines;
-    
-    document.getElementById('current-level').textContent = level;
-    document.getElementById('current-score').textContent = score;
-    document.getElementById('session-lines').textContent = lines;
-}
-
-function drawBoard() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Фон
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Сетка
-    ctx.strokeStyle = 'rgba(106, 91, 255, 0.15)';
-    ctx.lineWidth = 1;
-    
-    for (let x = 0; x <= COLS; x++) {
-        ctx.beginPath();
-        ctx.moveTo(x * BLOCK_SIZE, 0);
-        ctx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
-        ctx.stroke();
-    }
-    
-    for (let y = 0; y <= ROWS; y++) {
-        ctx.beginPath();
-        ctx.moveTo(0, y * BLOCK_SIZE);
-        ctx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
-        ctx.stroke();
-    }
-    
-    // Установленные блоки
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            if (board[y][x]) {
-                drawBlock(x, y, board[y][x], false);
-            }
-        }
-    }
-    
-    // Анимация очистки линий
-    if (clearedLinesAnimation.length > 0) {
-        ctx.globalAlpha = 0.7;
-        clearedLinesAnimation.forEach(rowY => {
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, rowY * BLOCK_SIZE, COLS * BLOCK_SIZE, BLOCK_SIZE);
-        });
-        ctx.globalAlpha = 1.0;
-    }
-    
-    // Текущая фигура
-    if (currentPiece) {
-        for (let y = 0; y < currentPiece.shape.length; y++) {
-            for (let x = 0; x < currentPiece.shape[y].length; x++) {
-                if (currentPiece.shape[y][x]) {
-                    drawBlock(currentX + x, currentY + y, currentPiece.color, true);
-                }
-            }
-        }
-    }
-}
-
-function drawBlock(x, y, color, isCurrent = false) {
-    const size = BLOCK_SIZE;
-    const blockX = x * size;
-    const blockY = y * size;
-    
-    ctx.fillStyle = color;
-    ctx.fillRect(blockX, blockY, size, size);
-    
-    const gradient = ctx.createLinearGradient(
-        blockX, blockY, 
-        blockX + size, blockY + size
-    );
-    
-    if (isCurrent) {
-        gradient.addColorStop(0, lightenColor(color, 30));
-        gradient.addColorStop(1, color);
-        
-        ctx.strokeStyle = lightenColor(color, 40);
-        ctx.lineWidth = 2;
-        ctx.strokeRect(blockX + 1, blockY + 1, size - 2, size - 2);
-    } else {
-        gradient.addColorStop(0, lightenColor(color, 20));
-        gradient.addColorStop(0.5, color);
-        gradient.addColorStop(1, darkenColor(color, 20));
-        
-        ctx.strokeStyle = darkenColor(color, 30);
-        ctx.lineWidth = 1;
-        ctx.strokeRect(blockX, blockY, size, size);
-    }
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(blockX, blockY, size, size);
-}
-
-function lightenColor(color, percent) {
-    const num = parseInt(color.slice(1), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, (num >> 16) + amt);
-    const G = Math.min(255, (num >> 8 & 0x00FF) + amt);
-    const B = Math.min(255, (num & 0x0000FF) + amt);
-    
-    return `rgb(${R}, ${G}, ${B})`;
-}
-
-function darkenColor(color, percent) {
-    const num = parseInt(color.slice(1), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.max(0, (num >> 16) - amt);
-    const G = Math.max(0, (num >> 8 & 0x00FF) - amt);
-    const B = Math.max(0, (num & 0x0000FF) - amt);
-    
-    return `rgb(${R}, ${G}, ${B})`;
-}
-
-function gameLoop(time) {
-    if (gameOver || gamePaused) return;
-    
-    const delta = time - lastTime;
-    lastTime = time;
-    
-    dropCounter += delta;
-    if (dropCounter > dropInterval) {
-        moveDown();
-        dropCounter = 0;
-    }
-    
-    drawBoard();
-    animationId = requestAnimationFrame(gameLoop);
-}
-
-function resumeGame() {
-    if (gameActive && gamePaused) {
-        gamePaused = false;
-        lastTime = 0;
-        dropCounter = 0;
-        animationId = requestAnimationFrame(gameLoop);
-        showNotification('▶️ Игра продолжается');
-    }
-}
-
-// ==================== УВЕДОМЛЕНИЯ ====================
-function showNotification(message) {
-    const notification = document.getElementById('notification');
-    notification.textContent = message;
-    notification.classList.add('show');
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 2000);
-}
-
-// ==================== РАБОТА С БАЗОЙ ДАННЫХ ====================
-async function saveGameToDB(gameOverFlag = false) {
-    try {
-        console.log('💾 Сохранение в БД - DEBUG');
-        console.log('📱 Telegram данные:', telegramUserData);
-        
-        // ✅ Подготавливаем данные для отправки
-        let dbUserId = userId;
-        let username = 'Web Player';
-        let isWebAppUser = true;
-        
-        // Если есть Telegram данные
-        if (telegramUserData) {
-            dbUserId = telegramUserId;
-            username = telegramUsername;
-            isWebAppUser = false; // Это Telegram пользователь, не веб-пользователь
-        } else if (userId.startsWith('web_')) {
-            const match = userId.match(/web_(\d+)/);
-            if (match && match[1]) {
-                dbUserId = match[1];
-                console.log(`🔄 Преобразовали web ID: ${userId} → ${dbUserId}`);
-            }
-        }
-        
-        const requestData = {
-            action: 'tetris_score',
-            gameType: 'tetris',
-            game_type: 'tetris',
-            score: score,
-            level: level,
-            lines: lines,
-            gameOver: gameOverFlag,
-            isWin: gameOverFlag,
-            userId: dbUserId,
-            user_id: dbUserId,
-            username: username,
-            first_name: telegramUserData?.first_name || '',
-            last_name: telegramUserData?.last_name || '',
-            city: telegramCity || 'Не указан',
-            isWebApp: isWebAppUser,
-            telegramData: telegramUserData || null
-        };
-        
-        console.log('📤 Отправка данных в API:', requestData);
-        
-        const response = await fetch('/api/save-score', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(requestData)
-        });
-        
-        const responseText = await response.text();
-        console.log('📋 Ответ сервера:', responseText);
-        
-        let result;
-        try {
-            result = JSON.parse(responseText);
-        } catch (e) {
-            console.error('❌ Ошибка парсинга JSON:', e);
-            result = { success: false, error: 'Invalid JSON response' };
-        }
-        
-        if (response.ok && result.success) {
-            console.log('✅ Результат сохранен в БД:', result);
+        function checkLines() {
+            let linesCleared = 0;
             
-            // Отправляем данные в Telegram через WebApp
-            if (tg && tg.sendData) {
-                const telegramData = {
-                    action: 'tetris_score',
+            for (let y = ROWS - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    linesCleared++;
+                    board.splice(y, 1);
+                    board.unshift(Array(COLS).fill(0));
+                }
+            }
+            
+            if (linesCleared > 0) {
+                lines += linesCleared;
+                const bonus = [0, 100, 300, 500, 800];
+                score += bonus[linesCleared] * level;
+                
+                if (lines >= level * 10) {
+                    level++;
+                    dropInterval = Math.max(100, dropInterval - 100);
+                    showNotification(`🎉 Уровень ${level}!`);
+                }
+                
+                updateDisplay();
+                
+                // Отправляем обновление счета
+                sendGameDataToBot({
+                    action: 'score_update',
                     score: score,
                     level: level,
                     lines: lines,
-                    gameOver: gameOverFlag,
-                    userId: dbUserId,
-                    gameType: 'tetris',
-                    username: username,
-                    timestamp: new Date().toISOString(),
-                    source: 'webapp',
-                    telegramUserId: telegramUserId // Добавляем Telegram ID для идентификации
-                };
-                console.log('📤 Отправка данных в Telegram бот:', telegramData);
-                try {
-                    tg.sendData(JSON.stringify(telegramData));
-                } catch (sendError) {
-                    console.error('❌ Ошибка отправки в Telegram:', sendError);
-                }
-            }
-            
-            return { 
-                success: true, 
-                data: result,
-                savedToTelegram: !!tg 
-            };
-        } else {
-            console.error('❌ Ошибка сохранения на сервере:', result?.error || response.status);
-            saveGameToLocalStorage(gameOverFlag);
-            return { 
-                success: false, 
-                error: result?.error || 'Server error: ' + response.status 
-            };
-        }
-    } catch (error) {
-        console.error('❌ Критическая ошибка сети:', error);
-        saveGameToLocalStorage(gameOverFlag);
-        return { 
-            success: false, 
-            error: 'Network error: ' + error.message,
-            savedLocally: true
-        };
-    }
-}
-
-function saveGameToLocalStorage(gameOverFlag = false) {
-    try {
-        const gameData = {
-            userId: userId,
-            telegramUserId: telegramUserId,
-            score: score,
-            level: level,
-            lines: lines,
-            gameOver: gameOverFlag,
-            timestamp: new Date().toISOString(),
-            isTelegramUser: !!telegramUserData
-        };
-        
-        let existing = JSON.parse(localStorage.getItem('tetris_games') || '[]');
-        existing.push(gameData);
-        
-        if (existing.length > 50) {
-            existing = existing.slice(-50);
-        }
-        
-        localStorage.setItem('tetris_games', JSON.stringify(existing));
-        console.log('✅ Результат сохранен локально:', gameData);
-    } catch (error) {
-        console.error('❌ Ошибка локального сохранения:', error);
-    }
-}
-
-async function saveGameScore() {
-    console.log('🎮 Сохранение игры (ручное)');
-    
-    // Анимация кнопки
-    const saveBtn = document.getElementById('save-btn');
-    if (saveBtn) {
-        saveBtn.classList.add('pulsing');
-        setTimeout(() => saveBtn.classList.remove('pulsing'), 1000);
-    }
-    
-    if (gameActive && !gameOver) {
-        pauseGame();
-    }
-    
-    showNotification('💾 Сохраняем результат...');
-    
-    const result = await saveGameToDB(false);
-    
-    if (result.success) {
-        showNotification('✅ Результат сохранен в БД!');
-        await loadUserStats();
-    } else {
-        showNotification('✅ Результат сохранен локально');
-    }
-}
-
-// Функция для автосохранения каждые 30 секунд
-function setupAutoSave() {
-    setInterval(async () => {
-        if (gameActive && !gamePaused && !gameOver && score > 0) {
-            console.log('💾 Автосохранение прогресса...');
-            
-            try {
-                await saveGameToDB(false);
-                
-                if (tg && tg.sendData) {
-                    const gameData = {
-                        action: 'tetris_score',
-                        score: score,
-                        level: level,
-                        lines: lines,
-                        gameOver: false,
-                        autoSave: true,
-                        userId: telegramUserId || userId
-                    };
-                    tg.sendData(JSON.stringify(gameData));
-                }
-                
-                console.log('✅ Автосохранение завершено');
-            } catch (error) {
-                console.error('❌ Ошибка автосохранения:', error);
+                    linesCleared: linesCleared,
+                    gameOver: false
+                });
             }
         }
-    }, 30000);
-}
 
-async function loadUserStats() {
-    console.log('📊 Загрузка статистики пользователя:', userId);
-    console.log('📊 Telegram ID:', telegramUserId);
-    
-    try {
-        // Используем Telegram ID если есть, иначе обычный ID
-        const statsUserId = telegramUserId || userId;
+        function moveLeft() { if (!collide(currentX - 1, currentY)) currentX--; drawBoard(); }
+        function moveRight() { if (!collide(currentX + 1, currentY)) currentX++; drawBoard(); }
         
-        const response = await fetch(`${API_ENDPOINTS.getUserStats}?userId=${statsUserId}&gameType=tetris`);
-        
-        if (response.ok) {
-            const result = await response.json();
-            console.log('📊 Статистика получена:', result);
-            
-            if (result.success && result.stats) {
-                const stats = result.stats;
-                
-                document.getElementById('best-score').textContent = stats.best_score || 0;
-                document.getElementById('best-level').textContent = stats.best_level || 1;
-                document.getElementById('total-lines').textContent = stats.best_lines || 0;
-                document.getElementById('games-played').textContent = stats.games_played || 0;
-                document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
-                
-                // Добавляем информацию о городе если есть
-                if (stats.city && stats.city !== 'Не указан') {
-                    // Проверяем, есть ли уже строка с городом
-                    let cityElement = document.querySelector('.city-stat');
-                    if (!cityElement) {
-                        cityElement = document.createElement('div');
-                        cityElement.className = 'stat-row city-stat';
-                        document.getElementById('user-stats').appendChild(cityElement);
-                    }
-                    cityElement.innerHTML = `
-                        <span class="stat-label">Город:</span>
-                        <span class="stat-value">${stats.city}</span>
-                    `;
-                }
+        function moveDown() {
+            if (!collide(currentX, currentY + 1)) {
+                currentY++;
             } else {
-                console.warn('⚠️ Нет статистики в ответе');
-                loadLocalStats();
+                mergePiece();
+                checkLines();
+                spawnPiece();
+            }
+            drawBoard();
+        }
+
+        function rotatePiece() {
+            const originalShape = currentPiece.shape;
+            const rotated = [];
+            const piece = currentPiece.shape;
+            
+            for (let i = 0; i < piece[0].length; i++) {
+                rotated[i] = [];
+                for (let j = 0; j < piece.length; j++) {
+                    rotated[i][j] = piece[piece.length - 1 - j][i];
+                }
             }
             
+            currentPiece.shape = rotated;
+            if (collide()) {
+                currentPiece.shape = originalShape;
+            }
+            drawBoard();
+        }
+
+        function hardDrop() {
+            while (!collide(currentX, currentY + 1)) {
+                currentY++;
+                score += 2;
+            }
+            mergePiece();
+            checkLines();
+            spawnPiece();
+            updateDisplay();
+            drawBoard();
+        }
+
+        function pauseGame() {
+            if (gameActive && !gameOver) {
+                gamePaused = !gamePaused;
+                if (gamePaused) {
+                    cancelAnimationFrame(animationId);
+                    showNotification('⏸ Пауза');
+                } else {
+                    lastTime = 0;
+                    animationId = requestAnimationFrame(gameLoop);
+                    showNotification('▶️ Продолжаем');
+                }
+            }
+        }
+
+        function restartGame() {
+            if (confirm('Начать новую игру? Текущий прогресс будет потерян.')) {
+                initGame();
+            }
+        }
+
+        async function saveGameScore() {
+            if (!gameActive || gameOver) return;
+            
+            showNotification('💾 Сохраняем игру...');
+            
+            const result = await sendGameDataToBot({
+                action: 'game_save',
+                score: score,
+                level: level,
+                lines: lines,
+                gameOver: false
+            });
+            
+            if (result.database.success) {
+                showNotification('✅ Игра сохранена в БД!');
+            } else if (result.telegram.success) {
+                showNotification('✅ Игра отправлена в бота!');
+            } else {
+                showNotification('⚠️ Сохранено локально');
+            }
+        }
+
+        function endGame() {
+            if (!gameActive) return;
+            
+            gameActive = false;
+            cancelAnimationFrame(animationId);
+            
+            // Отправляем финальный результат
+            sendGameDataToBot({
+                action: 'game_over',
+                score: score,
+                level: level,
+                lines: lines,
+                gameOver: true,
+                finalScore: score
+            });
+            
+            setTimeout(() => {
+                showNotification(`🎯 Игра окончена! Счет: ${score}`);
+                backToMenu();
+                loadUserStats();
+            }, 1500);
+        }
+
+        function updateDisplay() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('lines').textContent = lines;
             document.getElementById('current-score').textContent = score;
             document.getElementById('current-level').textContent = level;
-            document.getElementById('session-lines').textContent = lines;
-        } else {
-            console.warn('⚠️ Не удалось загрузить статистику с сервера, загружаем локально');
-            loadLocalStats();
         }
-    } catch (error) {
-        console.error('❌ Ошибка загрузки статистики:', error);
-        loadLocalStats();
-    }
-}
 
-function loadLocalStats() {
-    try {
-        const games = JSON.parse(localStorage.getItem('tetris_games') || '[]');
-        
-        // Фильтруем игры по текущему пользователю (учитывая Telegram ID)
-        const userGames = games.filter(g => {
-            if (telegramUserId) {
-                return g.telegramUserId === telegramUserId || g.userId === userId;
-            }
-            return g.userId === userId;
-        });
-        
-        if (userGames.length > 0) {
-            const bestScore = Math.max(...userGames.map(g => g.score));
-            const bestLevel = Math.max(...userGames.map(g => g.level));
-            const bestLines = Math.max(...userGames.map(g => g.lines));
-            const avgScore = userGames.reduce((sum, g) => sum + g.score, 0) / userGames.length;
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            document.getElementById('best-score').textContent = bestScore || 0;
-            document.getElementById('best-level').textContent = bestLevel || 1;
-            document.getElementById('total-lines').textContent = bestLines || 0;
-            document.getElementById('games-played').textContent = userGames.length || 0;
-            document.getElementById('avg-score').textContent = Math.round(avgScore || 0);
-        } else {
-            document.getElementById('best-score').textContent = 0;
-            document.getElementById('best-level').textContent = 1;
-            document.getElementById('total-lines').textContent = 0;
-            document.getElementById('games-played').textContent = 0;
-            document.getElementById('avg-score').textContent = 0;
+            // Фон
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Установленные блоки
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x]) {
+                        drawBlock(x, y, board[y][x], false);
+                    }
+                }
+            }
+            
+            // Текущая фигура
+            if (currentPiece) {
+                for (let y = 0; y < currentPiece.shape.length; y++) {
+                    for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                        if (currentPiece.shape[y][x]) {
+                            drawBlock(currentX + x, currentY + y, currentPiece.color, true);
+                        }
+                    }
+                }
+            }
+            
+            // Сетка
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            
+            for (let x = 0; x <= COLS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * BLOCK_SIZE, 0);
+                ctx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y <= ROWS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * BLOCK_SIZE);
+                ctx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
+                ctx.stroke();
+            }
         }
-    } catch (error) {
-        console.error('❌ Ошибка загрузки локальной статистики:', error);
-    }
-}
 
-async function loadLeaderboard() {
-    console.log('🏆 Загрузка лидерборда');
-    
-    try {
-        const response = await fetch(`${API_ENDPOINTS.getTopPlayers}?gameType=tetris&limit=10`);
-        const leaderboardList = document.getElementById('leaderboard-list');
-        leaderboardList.innerHTML = '';
-        
-        if (response.ok) {
-            const result = await response.json();
-            console.log('🏆 Ответ сервера:', result);
+        function drawBlock(x, y, color, isCurrent) {
+            const blockX = x * BLOCK_SIZE;
+            const blockY = y * BLOCK_SIZE;
             
-            // Проверяем формат ответа
-            const players = result.players || result.topPlayers || result.data || [];
+            ctx.fillStyle = color;
+            ctx.fillRect(blockX, blockY, BLOCK_SIZE, BLOCK_SIZE);
             
-            if (!Array.isArray(players)) {
-                console.error('❌ Ошибка: players не является массивом:', players);
-                leaderboardList.innerHTML = `
-                    <div style="text-align: center; padding: 30px; color: #b5aaff;">
-                        <p>Ошибка формата данных</p>
-                        <p style="font-size: 0.9rem;">Попробуйте позже</p>
-                    </div>
-                `;
-                return;
+            // Граница
+            ctx.strokeStyle = isCurrent ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.5)';
+            ctx.lineWidth = isCurrent ? 3 : 1;
+            ctx.strokeRect(blockX, blockY, BLOCK_SIZE, BLOCK_SIZE);
+            
+            // Свечение для текущей фигуры
+            if (isCurrent) {
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 15;
+                ctx.fillRect(blockX, blockY, BLOCK_SIZE, BLOCK_SIZE);
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function gameLoop(time) {
+            if (gameOver || gamePaused) return;
+            
+            const delta = time - lastTime;
+            lastTime = time;
+            
+            dropCounter += delta;
+            if (dropCounter > dropInterval) {
+                moveDown();
+                dropCounter = 0;
             }
             
-            console.log('🏆 Игроков в лидерборде:', players.length);
-            
-            if (players.length === 0) {
-                leaderboardList.innerHTML = `
-                    <div style="text-align: center; padding: 30px; color: #b5aaff;">
-                        <p>Лидерборд пуст</p>
-                        <p style="font-size: 0.9rem;">Будьте первым!</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            players.forEach((player, index) => {
-                // Определяем, текущий ли это пользователь
-                const isCurrentUser = String(player.user_id) === String(telegramUserId || userId) || 
-                                     String(player.userId) === String(telegramUserId || userId);
-                
-                const item = document.createElement('div');
-                item.className = 'leaderboard-item';
-                
-                item.innerHTML = `
-                    <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
-                    <div class="player-info">
-                        <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
-                            ${player.username || player.name || `Игрок ${String(player.user_id || player.userId || '??').slice(-4)}`}
-                            ${isCurrentUser ? ' (Вы)' : ''}
-                        </div>
-                        <div class="player-score">${player.score || 0} очков</div>
-                        ${player.city && player.city !== 'Не указан' ? 
-                          `<div style="color: #aaccff; font-size: 0.8rem;">📍 ${player.city}</div>` : ''}
-                    </div>
-                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.level || 1}</div>
-                `;
-                leaderboardList.appendChild(item);
+            drawBoard();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        // ==================== УПРАВЛЕНИЕ ЭКРАНАМИ ====================
+        function showScreenById(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
             });
-        } else {
-            console.warn('⚠️ Не удалось загрузить лидерборд с сервера');
-            showLocalLeaderboard();
+            document.getElementById(screenId).classList.add('active');
         }
-    } catch (error) {
-        console.error('❌ Ошибка загрузки лидерборда:', error);
-        showLocalLeaderboard();
-    }
-}
 
-function showLocalLeaderboard() {
-    const leaderboardList = document.getElementById('leaderboard-list');
-    leaderboardList.innerHTML = `
-        <div style="text-align: center; padding: 30px; color: #b5aaff;">
-            <p>Сервер недоступен</p>
-            <p style="font-size: 0.9rem;">Лидерборд временно не работает</p>
-        </div>
-    `;
-}
-
-function getRankColor(rank) {
-    switch(rank) {
-        case 1: return '#ffd700';
-        case 2: return '#c0c0c0';
-        case 3: return '#cd7f32';
-        default: return '#ffcc66';
-    }
-}
-
-async function testDatabase() {
-    const statusEl = document.getElementById('db-status-text');
-    statusEl.textContent = 'Проверка...';
-    statusEl.style.color = '#ffcc66';
-    
-    try {
-        console.log('🔍 Тест подключения к БД');
-        const response = await fetch(API_ENDPOINTS.checkDB);
-        
-        if (response.ok) {
-            try {
-                const data = await response.json();
-                console.log('✅ Результат теста БД:', data);
-                
-                statusEl.textContent = 'База данных подключена ✓';
-                statusEl.style.color = '#66ffaa';
-                showNotification('✅ База данных подключена');
-            } catch (jsonError) {
-                console.error('❌ Ошибка парсинга JSON:', jsonError);
-                statusEl.textContent = 'Ошибка формата ответа';
-                statusEl.style.color = '#ff6666';
+        function startGame() {
+            if (userCity === 'Не указан') {
+                showCityInput();
+                return;
             }
-        } else {
-            console.error('❌ Ошибка подключения к БД:', response.status);
-            
-            statusEl.textContent = `Ошибка ${response.status}`;
-            statusEl.style.color = '#ff6666';
-            showNotification('⚠️ Проблема с подключением');
-        }
-    } catch (error) {
-        console.error('❌ Ошибка теста БД:', error);
-        
-        statusEl.textContent = 'Сервер недоступен';
-        statusEl.style.color = '#ff6666';
-        showNotification('🌐 Сервер недоступен');
-    }
-}
-
-// ==================== УРОВНИ СЛОЖНОСТИ ====================
-function renderLevels() {
-    const levelsGrid = document.getElementById('levels-grid');
-    levelsGrid.innerHTML = '';
-    
-    DIFFICULTY_LEVELS.forEach(level => {
-        const levelCard = document.createElement('div');
-        levelCard.className = `level-card ${level.id === currentDifficulty ? 'active' : ''}`;
-        levelCard.onclick = () => selectDifficulty(level.id);
-        
-        levelCard.innerHTML = `
-            <div class="level-icon">${getLevelIcon(level.id)}</div>
-            <div class="level-name">${level.name}</div>
-            <div class="level-desc">${level.desc}</div>
-            <div style="margin-top: 8px; font-size: 0.75rem; color: #ffcc66;">
-                ${level.speed}ms
-            </div>
-        `;
-        
-        levelsGrid.appendChild(levelCard);
-    });
-}
-
-function getLevelIcon(levelId) {
-    const icons = {
-        easy: '🐣',
-        medium: '⚡',
-        hard: '🔥',
-        expert: '👑',
-        insane: '💀'
-    };
-    return icons[levelId] || '⭐';
-}
-
-function selectDifficulty(levelId) {
-    currentDifficulty = levelId;
-    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === levelId).speed;
-    renderLevels();
-    
-    showNotification(`Сложность: ${DIFFICULTY_LEVELS.find(d => d.id === levelId).name}`);
-    
-    if (gameActive && !gameOver) {
-        if (confirm('Изменить сложность? Текущая игра будет перезапущена.')) {
             initGame();
         }
-    }
-}
 
-// ==================== УПРАВЛЕНИЕ ====================
-document.addEventListener('keydown', (e) => {
-    if (!document.getElementById('keyboard-controls')?.checked) return;
-    
-    switch(e.key) {
-        case 'ArrowLeft': e.preventDefault(); moveLeft(); break;
-        case 'ArrowRight': e.preventDefault(); moveRight(); break;
-        case 'ArrowDown': e.preventDefault(); moveDown(); break;
-        case 'ArrowUp': e.preventDefault(); rotatePiece(); break;
-        case ' ': e.preventDefault(); hardDrop(); break;
-        case 'p': case 'P': e.preventDefault(); pauseGame(); break;
-        case 'Escape': e.preventDefault(); showMenu(); break;
-        case 'r': case 'R': e.preventDefault(); restartGame(); break;
-    }
-});
+        function showCityInput() {
+            const newCity = prompt('Введите ваш город для участия в рейтинге:', userCity);
+            if (newCity && newCity.trim() && newCity !== userCity) {
+                userCity = newCity.trim();
+                localStorage.setItem('tetris_city', userCity);
+                updateUserUI();
+                
+                // Обновляем город в БД
+                updateUserCityInDB();
+                
+                showNotification(`📍 Город установлен: ${userCity}`);
+            }
+        }
 
-// ==================== ИНИЦИАЛИЗАЦИЯ ====================
-function init() {
-    console.log('🎮 Игра инициализирована. User ID:', userId);
-    
-    // ✅ ОТКЛЮЧИТЕ тест БД если он падает с 500 ошибкой
-    // setTimeout(testDatabase, 1000); // ЗАКОММЕНТИРУЙТЕ эту строку
-    
-    // Вместо этого просто покажите статус
-    const statusEl = document.getElementById('db-status-text');
-    statusEl.textContent = 'Автономный режим';
-    statusEl.style.color = '#ffcc66';
-    
-    // Начальная сложность
-    selectDifficulty('medium');
-    
-    // Загрузка статистики
-    loadUserStats();
-    
-    // Только готовим пустой холст
-    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-    drawBoard(); // Рисуем пустое поле
-    
-    // Настройка автосохранения
-    setupAutoSave();
-    
-    // Telegram WebApp
-    if (tg) {
-        tg.ready();
-        tg.MainButton.setText('Открыть меню').show();
-        tg.MainButton.onClick(showMenu);
-        tg.BackButton.onClick(showMenu);
-    }
-    
-    // Адаптация размера
-    adaptCanvasSize();
-    window.addEventListener('resize', adaptCanvasSize);
-    
-    console.log('✅ Игра готова к запуску');
-}
+        async function updateUserCityInDB() {
+            try {
+                const response = await fetch('/api/update-user-city', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userId,
+                        username: username,
+                        city: userCity
+                    })
+                });
+                
+                if (response.ok) {
+                    addDebug('✅ Город обновлен в БД');
+                }
+            } catch (error) {
+                addDebug('❌ Ошибка обновления города:', error.message);
+            }
+        }
 
-function adaptCanvasSize() {
-    const gameArea = document.querySelector('.game-area');
-    if (!gameArea) return;
-    
-    const maxWidth = gameArea.clientWidth - 20;
-    const maxHeight = gameArea.clientHeight - 20;
-    
-    const scale = Math.min(
-        maxWidth / (COLS * BLOCK_SIZE),
-        maxHeight / (ROWS * BLOCK_SIZE)
-    );
-    
-    const newWidth = Math.floor(COLS * BLOCK_SIZE * scale);
-    const newHeight = Math.floor(ROWS * BLOCK_SIZE * scale);
-    
-    canvas.style.width = newWidth + 'px';
-    canvas.style.height = newHeight + 'px';
-}
+        function backToMenu() {
+            if (gameActive && !gamePaused) {
+                pauseGame();
+            }
+            showScreenById('menu-screen');
+        }
 
-// Запуск игры
-window.addEventListener('load', init);
-</script>
+        // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+        function addDebug(message, data = null) {
+            const debugLog = document.getElementById('debug-log');
+            if (!debugLog) return;
+            
+            const entry = document.createElement('div');
+            entry.className = 'debug-entry';
+            
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `
+                <span class="debug-time">[${time}]</span>
+                <span class="debug-message">${message}</span>
+            `;
+            
+            if (data) {
+                const dataStr = typeof data === 'object' ? JSON.stringify(data, null, 2) : String(data);
+                entry.innerHTML += `<pre style="color: #8b9dc3; margin: 5px 0 0 20px; font-size: 0.75rem;">${dataStr}</pre>`;
+            }
+            
+            debugLog.appendChild(entry);
+            debugLog.scrollTop = debugLog.scrollHeight;
+            
+            console.log(`[${time}] ${message}`, data || '');
+        }
+
+        function showNotification(message, type = 'normal') {
+            const notification = document.getElementById('notification');
+            if (!notification) return;
+            
+            notification.textContent = message;
+            notification.className = 'notification';
+            
+            if (type === 'error') {
+                notification.classList.add('error');
+            } else if (type === 'warning') {
+                notification.classList.add('warning');
+            }
+            
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+            
+            addDebug(`📢 ${message}`);
+        }
+
+        function saveToLocalStorage(data) {
+            try {
+                let games = JSON.parse(localStorage.getItem('tetris_games') || '[]');
+                games.push({
+                    ...data,
+                    timestamp: new Date().toISOString(),
+                    localSave: true
+                });
+                
+                // Храним только последние 50 игр
+                if (games.length > 50) {
+                    games = games.slice(-50);
+                }
+                
+                localStorage.setItem('tetris_games', JSON.stringify(games));
+                addDebug('💾 Сохранено локально');
+            } catch (error) {
+                addDebug('❌ Ошибка локального сохранения:', error.message);
+            }
+        }
+
+        function loadLocalStats() {
+            try {
+                const games = JSON.parse(localStorage.getItem('tetris_games') || '[]');
+                const userGames = games.filter(g => g.userId === userId);
+                
+                if (userGames.length > 0) {
+                    const bestScore = Math.max(...userGames.map(g => g.score || 0));
+                    const bestLevel = Math.max(...userGames.map(g => g.level || 1));
+                    const totalLines = userGames.reduce((sum, g) => sum + (g.lines || 0), 0);
+                    const avgScore = userGames.reduce((sum, g) => sum + (g.score || 0), 0) / userGames.length;
+                    
+                    displayUserStats({
+                        best_score: bestScore,
+                        best_level: bestLevel,
+                        total_lines: totalLines,
+                        games_played: userGames.length,
+                        avg_score: Math.round(avgScore),
+                        city: userCity
+                    });
+                } else {
+                    displayDefaultStats();
+                }
+            } catch (error) {
+                addDebug('❌ Ошибка загрузки локальной статистики:', error.message);
+                displayDefaultStats();
+            }
+        }
+
+        function displayDefaultStats() {
+            const statsGrid = document.getElementById('user-stats');
+            if (!statsGrid) return;
+            
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Лучший счет</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Макс. уровень</div>
+                    <div class="stat-value">1</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Всего линий</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Игр сыграно</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Средний счет</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Город</div>
+                    <div class="stat-value">${userCity}</div>
+                </div>
+            `;
+        }
+
+        function clearLocalStats() {
+            if (confirm('Очистить локальную статистику?')) {
+                localStorage.removeItem('tetris_games');
+                showNotification('🗑️ Локальная статистика очищена');
+                loadLocalStats();
+            }
+        }
+
+        async function testDatabase() {
+            showNotification('🔗 Тестируем подключение к БД...');
+            
+            try {
+                const response = await fetch('/api/test-connection');
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ База данных подключена!');
+                } else {
+                    showNotification('❌ Ошибка подключения к БД', 'error');
+                }
+                
+                addDebug('🔗 Тест БД:', result);
+            } catch (error) {
+                showNotification('❌ БД недоступна', 'error');
+                addDebug('❌ Тест БД:', error.message);
+            }
+        }
+
+        async function testTelegramBot() {
+            showNotification('🤖 Тестируем связь с ботом...');
+            
+            const result = await sendDataToTelegramBot({
+                action: 'test_connection',
+                userId: userId,
+                username: username,
+                timestamp: new Date().toISOString(),
+                message: 'Тестовое сообщение из игры'
+            });
+            
+            if (result.success) {
+                showNotification('✅ Связь с ботом установлена!');
+            } else {
+                showNotification('❌ Ошибка связи с ботом', 'error');
+            }
+        }
+
+        function sendStartDataToBot() {
+            if (!tg || !tg.sendData) return;
+            
+            setTimeout(() => {
+                sendDataToTelegramBot({
+                    action: 'app_start',
+                    userId: userId,
+                    username: username,
+                    city: userCity,
+                    platform: tg.platform,
+                    timestamp: new Date().toISOString()
+                });
+            }, 1000);
+        }
+
+        // ==================== КЛАВИАТУРА ====================
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('game-screen').classList.contains('active')) return;
+            
+            switch(e.key) {
+                case 'ArrowLeft': e.preventDefault(); moveLeft(); break;
+                case 'ArrowRight': e.preventDefault(); moveRight(); break;
+                case 'ArrowDown': e.preventDefault(); moveDown(); break;
+                case 'ArrowUp': e.preventDefault(); rotatePiece(); break;
+                case ' ': e.preventDefault(); hardDrop(); break;
+                case 'p': case 'P': e.preventDefault(); pauseGame(); break;
+                case 'r': case 'R': e.preventDefault(); restartGame(); break;
+                case 'Escape': e.preventDefault(); backToMenu(); break;
+                case 's': case 'S': e.preventDefault(); saveGameScore(); break;
+            }
+        });
+
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
+        function init() {
+            addDebug('🎮 Инициализация игры...');
+            
+            // Загружаем город из localStorage
+            const savedCity = localStorage.getItem('tetris_city');
+            if (savedCity) {
+                userCity = savedCity;
+            }
+            
+            // Инициализируем Telegram
+            initTelegram();
+            
+            // Инициализируем canvas
+            canvas.width = COLS * BLOCK_SIZE;
+            canvas.height = ROWS * BLOCK_SIZE;
+            drawBoard();
+            
+            // Загружаем статистику
+            setTimeout(() => loadUserStats(), 500);
+            
+            addDebug('✅ Игра готова к запуску');
+            showNotification('🎮 Тетрис загружен!');
+        }
+
+        // Запускаем игру при загрузке страницы
+        window.addEventListener('load', init);
+    </script>
 </body>
 </html>
