@@ -896,7 +896,61 @@ function showMenu() {
 }
 
 function startGame() {
-    console.log('Начало новой игры');
+    console.log('🚀 Начало новой игры - DEBUG');
+    
+    // ✅ Останавливаем старую анимацию если она есть
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+    
+    // ✅ Инициализируем новую игру
+    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    score = 0;
+    level = 1;
+    lines = 0;
+    gameActive = true;
+    gamePaused = false;
+    gameOver = false;
+    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
+    clearedLinesAnimation = [];
+    pieceQueue = [];
+    
+    console.log('🔄 Генерация начальной фигуры...');
+    generatePieceQueue();
+    updateDisplay();
+    
+    // ✅ СПЕЦИАЛЬНАЯ ПРОВЕРКА перед spawnPiece
+    console.log('🔍 Проверка начального состояния:');
+    console.log(' - Доска пустая?', board.flat().every(cell => cell === 0));
+    console.log(' - pieceQueue:', pieceQueue);
+    
+    spawnPiece();
+    
+    // ✅ ПРОВЕРКА после spawnPiece
+    console.log('🔍 Состояние после spawnPiece:');
+    console.log(' - gameOver:', gameOver);
+    console.log(' - currentPiece:', currentPiece);
+    console.log(' - currentX, currentY:', currentX, currentY);
+    
+    // Если игра не окончена, продолжаем
+    if (!gameOver) {
+        drawBoard();
+        
+        // ✅ Показываем игровой экран
+        showScreen('game');
+        
+        // ✅ Запускаем игровой цикл
+        lastTime = 0;
+        dropCounter = 0;
+        animationId = requestAnimationFrame(gameLoop);
+        
+        showNotification('🎮 Игра началась!');
+    } else {
+        console.error('❌ Игра сразу завершилась! Проверьте collide() функцию');
+        showNotification('⚠️ Ошибка запуска игры');
+    }
+}
     
     // ✅ Останавливаем старую анимацию если она есть
     if (animationId) {
@@ -930,7 +984,7 @@ function startGame() {
     animationId = requestAnimationFrame(gameLoop);
     
     showNotification('🎮 Игра началась!');
-}
+
 
 function showStats() {
     console.log('Показать статистику');
@@ -1029,6 +1083,37 @@ function spawnPiece() {
 }
 
 function collide(piece, x, y) {
+    // Проверяем каждую клетку фигуры
+    for (let row = 0; row < piece.shape.length; row++) {
+        for (let col = 0; col < piece.shape[row].length; col++) {
+            // Если клетка фигуры занята (1)
+            if (piece.shape[row][col]) {
+                // Проверяем выход за границы
+                const boardRow = y + row;
+                const boardCol = x + col;
+                
+                // 1. Проверка выхода за левую/правую границу
+                if (boardCol < 0 || boardCol >= COLS) {
+                    return true;
+                }
+                
+                // 2. Проверка выхода за нижнюю границу
+                if (boardRow >= ROWS) {
+                    return true;
+                }
+                
+                // 3. Проверка выхода за верхнюю границу (только для существующих строк)
+                if (boardRow >= 0) {
+                    // 4. Проверка столкновения с установленным блоком
+                    if (board[boardRow] && board[boardRow][boardCol]) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
     for (let row = 0; row < piece.shape.length; row++) {
         for (let col = 0; col < piece.shape[row].length; col++) {
             if (piece.shape[row][col] &&
@@ -1043,7 +1128,6 @@ function collide(piece, x, y) {
         }
     }
     return false;
-}
 
 function mergePiece() {
     for (let y = 0; y < currentPiece.shape.length; y++) {
@@ -1581,7 +1665,23 @@ async function loadLeaderboard() {
         leaderboardList.innerHTML = '';
         
         if (response.ok) {
-            const players = await response.json();
+            const data = await response.json();
+            console.log('🏆 Ответ сервера:', data);
+            
+            // ✅ Проверяем, что data.players существует и это массив
+            const players = data.players || data.topPlayers || data.data || [];
+            
+            if (!Array.isArray(players)) {
+                console.error('❌ Ошибка: players не является массивом:', players);
+                leaderboardList.innerHTML = `
+                    <div style="text-align: center; padding: 30px; color: #b5aaff;">
+                        <p>Ошибка формата данных</p>
+                        <p style="font-size: 0.9rem;">Попробуйте позже</p>
+                    </div>
+                `;
+                return;
+            }
+            
             console.log('🏆 Игроков в лидерборде:', players.length);
             
             if (players.length === 0) {
@@ -1595,7 +1695,8 @@ async function loadLeaderboard() {
             }
             
             players.forEach((player, index) => {
-                const isCurrentUser = String(player.user_id) === String(userId);
+                const isCurrentUser = String(player.user_id) === String(userId) || 
+                                     String(player.userId) === String(userId);
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
                 
@@ -1603,12 +1704,12 @@ async function loadLeaderboard() {
                     <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
                     <div class="player-info">
                         <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
-                            ${player.username || `Игрок ${String(player.user_id).slice(-4)}`}
+                            ${player.username || player.name || `Игрок ${String(player.user_id || player.userId || '??').slice(-4)}`}
                             ${isCurrentUser ? ' (Вы)' : ''}
                         </div>
-                        <div class="player-score">${player.score} очков</div>
+                        <div class="player-score">${player.score || 0} очков</div>
                     </div>
-                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.level}</div>
+                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.level || 1}</div>
                 `;
                 leaderboardList.appendChild(item);
             });
@@ -1651,6 +1752,40 @@ async function testDatabase() {
         const response = await fetch(API_ENDPOINTS.checkDB);
         
         if (response.ok) {
+            try {
+                const data = await response.json();
+                console.log('✅ Результат теста БД:', data);
+                
+                statusEl.textContent = 'База данных подключена ✓';
+                statusEl.style.color = '#66ffaa';
+                showNotification('✅ База данных подключена');
+            } catch (jsonError) {
+                console.error('❌ Ошибка парсинга JSON:', jsonError);
+                statusEl.textContent = 'Ошибка формата ответа';
+                statusEl.style.color = '#ff6666';
+            }
+        } else {
+            console.error('❌ Ошибка подключения к БД:', response.status);
+            
+            statusEl.textContent = `Ошибка ${response.status}`;
+            statusEl.style.color = '#ff6666';
+            showNotification('⚠️ Проблема с подключением');
+        }
+    } catch (error) {
+        console.error('❌ Ошибка теста БД:', error);
+        
+        statusEl.textContent = 'Сервер недоступен';
+        statusEl.style.color = '#ff6666';
+        showNotification('🌐 Сервер недоступен');
+    }
+}
+    statusEl.style.color = '#ffcc66';
+    
+    try {
+        console.log('🔍 Тест подключения к БД');
+        const response = await fetch(API_ENDPOINTS.checkDB);
+        
+        if (response.ok) {
             const data = await response.json();
             console.log('✅ Результат теста БД:', data);
             
@@ -1672,7 +1807,7 @@ async function testDatabase() {
         statusEl.style.color = '#ff6666';
         showNotification('🌐 Сервер недоступен');
     }
-}
+
 
 // ==================== УРОВНИ СЛОЖНОСТИ ====================
 function renderLevels() {
@@ -1742,6 +1877,41 @@ document.addEventListener('keydown', (e) => {
 function init() {
     console.log('🎮 Игра инициализирована. User ID:', userId);
     
+    // ✅ ОТКЛЮЧИТЕ тест БД если он падает с 500 ошибкой
+    // setTimeout(testDatabase, 1000); // ЗАКОММЕНТИРУЙТЕ эту строку
+    
+    // Вместо этого просто покажите статус
+    const statusEl = document.getElementById('db-status-text');
+    statusEl.textContent = 'Автономный режим';
+    statusEl.style.color = '#ffcc66';
+    
+    // Начальная сложность
+    selectDifficulty('medium');
+    
+    // Загрузка статистики
+    loadUserStats();
+    
+    // Только готовим пустой холст
+    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    drawBoard(); // Рисуем пустое поле
+    
+    // Настройка автосохранения
+    setupAutoSave();
+    
+    // Telegram WebApp
+    if (tg) {
+        tg.ready();
+        tg.MainButton.setText('Открыть меню').show();
+        tg.MainButton.onClick(showMenu);
+        tg.BackButton.onClick(showMenu);
+    }
+    
+    // Адаптация размера
+    adaptCanvasSize();
+    window.addEventListener('resize', adaptCanvasSize);
+    
+    console.log('✅ Игра готова к запуску');
+}    
     // Проверка БД
     setTimeout(testDatabase, 1000);
     
@@ -1772,7 +1942,7 @@ function init() {
     window.addEventListener('resize', adaptCanvasSize);
     
     console.log('✅ Игра готова к запуску');
-}
+
 
 function adaptCanvasSize() {
     const gameArea = document.querySelector('.game-area');
