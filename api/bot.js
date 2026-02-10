@@ -963,6 +963,131 @@ const cityKeyboard = new Keyboard()
     .text('🔙 НАЗАД')
     .resized();
 
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+/**
+ * Функция для сохранения города с улучшенной обработкой ошибок
+ */
+async function saveUserCityWithRetry(userId, city, username = null, retries = 3) {
+  const dbUserId = userId.toString();
+  console.log(`📍 Сохраняем город для ${dbUserId}: "${city}"`);
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // 🔴 Используем saveOrUpdateUser из db.js
+      const result = await saveOrUpdateUser({
+        user_id: dbUserId,
+        username: username || '',
+        first_name: username || 'Игрок',
+        city: city || 'Не указан'
+      });
+      
+      if (result) {
+        console.log(`✅ Город успешно сохранен (попытка ${attempt})`);
+        
+        // Также сохраняем в сессию для совместимости
+        try {
+          await saveUserCity(userId, city, username);
+        } catch (sessionError) {
+          console.log('⚠️ Ошибка сохранения в сессию:', sessionError.message);
+        }
+        
+        return { 
+          success: true, 
+          user_id: dbUserId, 
+          city: city,
+          db_id: result 
+        };
+      } else {
+        console.log(`⚠️ saveOrUpdateUser вернул null (попытка ${attempt})`);
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка сохранения города (попытка ${attempt}):`, error.message);
+      
+      if (attempt < retries) {
+        // Ждем перед повторной попыткой
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+  
+  // Если все попытки провалились, пробуем старый метод как запасной вариант
+  console.log('🔄 Пробуем старый метод saveUserCity...');
+  try {
+    const fallbackResult = await saveUserCity(userId, city, username);
+    if (fallbackResult && fallbackResult.success) {
+      console.log(`✅ Город сохранен через fallback метод`);
+      return { 
+        success: true, 
+        user_id: dbUserId, 
+        city: city,
+        source: 'fallback' 
+      };
+    }
+  } catch (fallbackError) {
+    console.error('❌ Ошибка fallback метода:', fallbackError.message);
+  }
+  
+  return { 
+    success: false, 
+    error: 'Не удалось сохранить город после всех попыток',
+    user_id: dbUserId 
+  };
+}
+
+/**
+ * Функция для получения города с улучшенной обработкой
+ */
+async function getUserCityWithFallback(userId) {
+  const dbUserId = userId.toString();
+  console.log(`📍 Запрашиваем город для ${dbUserId}`);
+  
+  try {
+    // 🔴 Используем основную функцию из db.js
+    const result = await getUserCity(userId);
+    
+    if (result && result.success) {
+      const city = result.city || 'Не указан';
+      console.log(`✅ Город получен: "${city}" (источник: ${result.source || 'unknown'})`);
+      return { 
+        success: true, 
+        city: city,
+        found: result.found || false,
+        source: result.source 
+      };
+    }
+    
+    // Если не нашли, пробуем через getUserProfile
+    console.log('🔄 Город не найден через getUserCity, пробуем getUserProfile...');
+    const profile = await getUserProfile(userId);
+    if (profile && profile.city && profile.city !== 'Не указан') {
+      console.log(`✅ Город найден через профиль: "${profile.city}"`);
+      return { 
+        success: true, 
+        city: profile.city,
+        found: true,
+        source: 'profile' 
+      };
+    }
+    
+    console.log(`ℹ️ Город не найден для ${dbUserId}`);
+    return { 
+      success: true, 
+      city: 'Не указан',
+      found: false,
+      source: 'none' 
+    };
+    
+  } catch (error) {
+    console.error('❌ Ошибка получения города:', error.message);
+    return { 
+      success: false, 
+      error: error.message,
+      city: 'Не указан',
+      found: false 
+    };
+  }
+}
+
 // ===================== ОСНОВНЫЕ КОМАНДЫ =====================
 bot.command('start', async (ctx) => {
   console.log(`🚀 /start от ${ctx.from.id}`);
@@ -1019,7 +1144,7 @@ bot.command('start', async (ctx) => {
       `• 📊 Ваша статистика с городом\n` +
       `• 🏆 Топ игроков с городами\n\n` +
       `📍 *Важно:* Укажите город командой /city [город] чтобы отображаться в топе!\n\n` +
-      `👉 *Чтобы продолжить, нажмите "🚀 НАЧАТЬ РАБОТУ"*`,
+      `👉 *Чтобы продолжить, нажмите "🚀 НАЧАТЬ РАБОТА"*`,
       { parse_mode: 'Markdown' }
     );
   } catch (error) {
@@ -1050,8 +1175,9 @@ bot.hears('🚀 НАЧАТЬ РАБОТУ', async (ctx) => {
 // ===================== ОБРАБОТКА ВЫБОРА ГОРОДА =====================
 bot.hears(/^📍 /, async (ctx) => {
   const userId = ctx.from.id;
+  const username = ctx.from.username || ctx.from.first_name || '';
   const city = ctx.message.text.replace('📍 ', '').trim();
-  console.log(`📍 Выбран город: "${city}" для ${userId}`);
+  console.log(`📍 Выбран город: "${city}" для ${userId} (${username})`);
   
   if (isRateLimited(userId)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
@@ -1059,31 +1185,16 @@ bot.hears(/^📍 /, async (ctx) => {
   }
   
   try {
-    // 🔴 СОХРАНЯЕМ ГОРОД В БАЗУ
-    let result;
-    try {
-      result = await saveOrUpdateUser({
-        user_id: userId.toString(),
-        username: ctx.from.username || '',
-        first_name: ctx.from.first_name || '',
-        city: city
-      });
-    } catch (saveError) {
-      console.error('❌ Ошибка saveOrUpdateUser:', saveError);
-      result = null;
+    // 🔴 ИСПОЛЬЗУЕМ УЛУЧШЕННУЮ ФУНКЦИЮ ДЛЯ СОХРАНЕНИЯ
+    const saveResult = await saveUserCityWithRetry(userId, city, username);
+    
+    if (!saveResult.success) {
+      console.error('❌ Не удалось сохранить город:', saveResult.error);
+      await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз или используйте команду /city [город]');
+      return;
     }
     
-    if (!result) {
-      // 🔴 Пробуем старый метод для совместимости
-      console.log('🔄 Пробуем старый метод saveUserCity...');
-      const oldResult = await saveUserCity(userId, city, ctx.from.username || '');
-      if (!oldResult || !oldResult.success) {
-        console.error('❌ Не удалось сохранить город ни одним методом');
-        await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
-        return;
-      }
-    }
-    
+    // Сохраняем в локальное хранилище
     userStorage.set(userId, { city, lastActivity: Date.now(), awaitingCity: false });
     
     await ctx.reply(
@@ -1098,9 +1209,21 @@ bot.hears(/^📍 /, async (ctx) => {
       `👇 *Используйте кнопки ниже:*`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
+    
+    // Показываем пример, как выглядит город в статистике
+    setTimeout(async () => {
+      await ctx.reply(
+        `ℹ️ *Проверить город:*\n` +
+        `• Посмотреть статистику: /stats\n` +
+        `• Посмотреть топ игроков: /top\n\n` +
+        `📍 В статистике теперь будет указан ваш город: *${city}*`,
+        { parse_mode: 'Markdown' }
+      );
+    }, 1000);
+    
   } catch (error) {
     console.error('❌ Ошибка при выборе города:', error);
-    await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
+    await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз или используйте команду /city [город]');
   }
 });
 
@@ -1115,7 +1238,7 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
   }
   
   try {
-    const result = await getUserCity(userId);
+    const result = await getUserCityWithFallback(userId);
     
     if (!result || !result.success || !result.city || result.city === 'Не указан') {
       await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
@@ -1166,7 +1289,7 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
   }
   
   try {
-    const result = await getUserCity(userId);
+    const result = await getUserCityWithFallback(userId);
     
     if (!result || !result.success || !result.city || result.city === 'Не указан') {
       await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
@@ -1265,11 +1388,30 @@ bot.hears('📊 МОЯ СТАТИСТИКА', async (ctx) => {
   try {
     await ctx.reply('⏳ Загружаю вашу статистику...', { parse_mode: 'Markdown' });
     
+    // 🔴 ПРОВЕРЯЕМ ГОРОД ПЕРЕД ПОКАЗОМ СТАТИСТИКИ
+    const cityResult = await getUserCityWithFallback(userId);
+    if (cityResult.success && cityResult.city && cityResult.city !== 'Не указан') {
+      console.log(`📍 В статистике будет город: "${cityResult.city}"`);
+    }
+    
     const statsMessage = await getGameStatsMessage(userId);
     await ctx.reply(statsMessage, { 
       parse_mode: 'Markdown', 
       reply_markup: mainMenuKeyboard 
     });
+    
+    // 🔴 ДОБАВЛЯЕМ ПОДСКАЗКУ ПРО ГОРОД
+    if (!cityResult.found || cityResult.city === 'Не указан') {
+      setTimeout(async () => {
+        await ctx.reply(
+          `📍 *Совет:* Укажите свой город командой /city [город], чтобы он отображался в статистике!\n\n` +
+          `Например: /city Москва\n` +
+          `Или используйте кнопку "🏙️ СМЕНИТЬ ГОРОД"`,
+          { parse_mode: 'Markdown' }
+        );
+      }, 500);
+    }
+    
   } catch (error) {
     console.error('❌ Ошибка в МОЯ СТАТИСТИКА:', error);
     await ctx.reply('❌ Произошла ошибка при загрузке статистики. Попробуйте позже.', { 
@@ -1295,6 +1437,19 @@ bot.hears('🏆 ТОП ИГРОКОВ', async (ctx) => {
       parse_mode: 'Markdown', 
       reply_markup: mainMenuKeyboard 
     });
+    
+    // 🔴 ДОБАВЛЯЕМ ПОДСКАЗКУ ПРО ГОРОД
+    const cityResult = await getUserCityWithFallback(userId);
+    if (!cityResult.found || cityResult.city === 'Не указан') {
+      setTimeout(async () => {
+        await ctx.reply(
+          `📍 *Совет:* Укажите свой город командой /city [город], чтобы отображаться в топе с вашим городом!\n\n` +
+          `Например: /city Москва`,
+          { parse_mode: 'Markdown' }
+        );
+      }, 500);
+    }
+    
   } catch (error) {
     console.error('❌ Ошибка в ТОП ИГРОКОВ:', error);
     await ctx.reply('❌ Произошла ошибка при загрузке топа игроков. Попробуйте позже.', { 
@@ -1315,11 +1470,19 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
   try {
     const webAppUrl = 'https://pogodasovet1.vercel.app';
     
+    // 🔴 ПРОВЕРЯЕМ ЕСТЬ ЛИ У ПОЛЬЗОВАТЕЛЯ ГОРОД
+    const cityResult = await getUserCityWithFallback(ctx.from.id);
+    const hasCity = cityResult.found && cityResult.city !== 'Не указан';
+    
+    let cityMessage = '';
+    if (!hasCity) {
+      cityMessage = `\n📍 *Укажите город командой /city [город] чтобы отображаться в топе!*`;
+    }
+    
     await ctx.reply(
       `🎮 *Тетрис*\n\n` +
       `Нажмите кнопку ниже, чтобы открыть игру в мини-приложении!\n\n` +
-      `📊 *Ваша статистика будет автоматически сохраняться.*\n` +
-      `📍 *Укажите город командой /city [город] чтобы отображаться в топе!*\n` +
+      `📊 *Ваша статистика будет автоматически сохраняться.*${cityMessage}\n` +
       `🏆 *Соревнуйтесь с другими игроками в топе!*`,
       {
         parse_mode: 'Markdown',
@@ -1412,13 +1575,25 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
         return;
       }
       
+      // 🔴 ПОЛУЧАЕМ ГОРОД ПОЛЬЗОВАТЕЛЯ ПЕРЕД СОХРАНЕНИЕМ РЕЗУЛЬТАТА
+      let userCity = 'Не указан';
+      try {
+        const cityResult = await getUserCityWithFallback(userId);
+        if (cityResult.success && cityResult.city && cityResult.city !== 'Не указан') {
+          userCity = cityResult.city;
+          console.log(`📍 Для сохранения игры будет использован город: "${userCity}"`);
+        }
+      } catch (cityError) {
+        console.error('❌ Ошибка получения города для игры:', cityError.message);
+      }
+      
       // 🔴 СОХРАНЯЕМ ПОЛЬЗОВАТЕЛЯ ПЕРЕД СОХРАНЕНИЕМ РЕЗУЛЬТАТА
       try {
         await saveOrUpdateUser({
           user_id: userId.toString(),
           username: ctx.from.username || '',
           first_name: ctx.from.first_name || '',
-          city: 'Не указан'
+          city: userCity
         });
       } catch (userError) {
         console.error('❌ Ошибка сохранения пользователя:', userError);
@@ -1439,7 +1614,7 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
       
       const statsResult = await fetchGameStats(userId, 'tetris');
       const bestScore = statsResult?.success ? statsResult.stats?.best_score || 0 : 0;
-      const city = statsResult?.success ? statsResult.stats?.city || 'Не указан' : 'Не указан';
+      const cityInStats = statsResult?.success ? statsResult.stats?.city || 'Не указан' : 'Не указан';
       
       let message = '';
       if (gameOver) {
@@ -1452,7 +1627,7 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
       message += `🎯 *Результат:* ${score} очков\n`;
       message += `📊 *Уровень:* ${level}\n`;
       message += `📈 *Линии:* ${lines}\n`;
-      message += `📍 *Город:* ${city}\n\n`;
+      message += `📍 *Город:* ${cityInStats}\n\n`;
       
       if (score > bestScore && bestScore > 0) {
         message += `🎉 *НОВЫЙ РЕКОРД!* 🎉\n`;
@@ -1464,7 +1639,11 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
       message += `📊 *Теперь вы можете:*\n`;
       message += `• Посмотреть свою статистику 📊\n`;
       message += `• Проверить место в топе 🏆\n`;
-      message += `• Указать город: /city Москва\n`;
+      
+      if (cityInStats === 'Не указан') {
+        message += `• 📍 Указать город: /city [город]\n`;
+      }
+      
       message += `• Продолжить играть 🎮\n\n`;
       
       if (gameOver) {
@@ -1506,7 +1685,7 @@ bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   }
   
   try {
-    const result = await getUserCity(userId);
+    const result = await getUserCityWithFallback(userId);
     
     if (!result || !result.success || !result.city || result.city === 'Не указан') {
       await ctx.reply('Сначала выберите город!', { reply_markup: cityKeyboard });
@@ -1598,7 +1777,7 @@ bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
       `🇷🇺 *${phrase.russian}*\n\n` +
       `📚 *Объяснение:* ${phrase.explanation}\n\n` +
       `📂 *Категория:* ${phrase.category || "Общие"}\n` +
-      `📊 *Уровень:* ${phrase.level || "Средний"}\n\n` +
+      `📊 *Уровень:* ${phrase.level || "Средный"}\n\n` +
       `🔄 Нажмите кнопку для новой случайной фразы!`;
     
     await ctx.reply(message, { 
@@ -1614,7 +1793,6 @@ bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
   }
 });
 
-
 // ===================== ВСПОМОГАТЕЛЬНЫЕ КНОПКИ =====================
 bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
   console.log(`🏙️ СМЕНИТЬ ГОРОД от ${ctx.from.id}`);
@@ -1625,7 +1803,22 @@ bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
   }
   
   try {
-    await ctx.reply('Выберите новый город:', { reply_markup: cityKeyboard });
+    // 🔴 ПОКАЗЫВАЕМ ТЕКУЩИЙ ГОРОД ПЕРЕД СМЕНОЙ
+    const currentCityResult = await getUserCityWithFallback(ctx.from.id);
+    let currentCityMessage = '';
+    
+    if (currentCityResult.success && currentCityResult.city !== 'Не указан') {
+      currentCityMessage = `\n📍 *Ваш текущий город:* ${currentCityResult.city}`;
+    }
+    
+    await ctx.reply(
+      `🏙️ *Выберите новый город*${currentCityMessage}\n\n` +
+      `Или напишите название города вручную.`,
+      { 
+        parse_mode: 'Markdown',
+        reply_markup: cityKeyboard 
+      }
+    );
   } catch (error) {
     console.error('❌ Ошибка в СМЕНИТЬ ГОРОД:', error);
   }
@@ -1640,7 +1833,9 @@ bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
   }
   
   try {
-    await ctx.reply('Напишите название вашего города:');
+    await ctx.reply('Напишите название вашего города:\n\n*Например:* Москва, Санкт-Петербург, Екатеринбург', 
+      { parse_mode: 'Markdown' }
+    );
     const userId = ctx.from.id;
     userStorage.set(userId, { awaitingCity: true, lastActivity: Date.now() });
   } catch (error) {
@@ -1735,7 +1930,7 @@ bot.command('weather', async (ctx) => {
   }
   
   try {
-    const result = await getUserCity(userId);
+    const result = await getUserCityWithFallback(userId);
     
     if (!result || !result.success || !result.city || result.city === 'Не указан') {
       await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
@@ -1783,7 +1978,7 @@ bot.command('forecast', async (ctx) => {
   }
   
   try {
-    const result = await getUserCity(userId);
+    const result = await getUserCityWithFallback(userId);
     
     if (!result || !result.success || !result.city || result.city === 'Не указан') {
       await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
@@ -1859,7 +2054,7 @@ bot.command('wardrobe', async (ctx) => {
   }
   
   try {
-    const result = await getUserCity(userId);
+    const result = await getUserCityWithFallback(userId);
     
     if (!result || !result.success || !result.city || result.city === 'Не указан') {
       await ctx.reply('Сначала выберите город! Используйте /start', { reply_markup: cityKeyboard });
@@ -2048,18 +2243,45 @@ bot.command('top', async (ctx) => {
   }
 });
 
-// 🔴 НОВАЯ КОМАНДА /CITY
+// ===================== ГЛАВНАЯ КОМАНДА /CITY =====================
 bot.command('city', async (ctx) => {
   const userId = ctx.from.id;
+  const username = ctx.from.username || ctx.from.first_name || '';
   const args = ctx.message.text.split(' ').slice(1);
   
   if (args.length === 0) {
-    await ctx.reply('Укажите город: /city Москва');
+    // 🔴 ПОКАЗЫВАЕМ ТЕКУЩИЙ ГОРОД
+    const currentCityResult = await getUserCityWithFallback(userId);
+    
+    if (currentCityResult.success && currentCityResult.city !== 'Не указан') {
+      await ctx.reply(
+        `📍 *Ваш текущий город:* ${currentCityResult.city}\n\n` +
+        `Чтобы сменить город, напишите:\n` +
+        `/city [название города]\n\n` +
+        `*Примеры:*\n` +
+        `/city Москва\n` +
+        `/city Санкт-Петербург\n` +
+        `/city Екатеринбург`,
+        { parse_mode: 'Markdown' }
+      );
+    } else {
+      await ctx.reply(
+        `📍 *У вас ещё не указан город*\n\n` +
+        `Укажите город командой:\n` +
+        `/city [название города]\n\n` +
+        `*Примеры:*\n` +
+        `/city Москва\n` +
+        `/city Санкт-Петербург\n` +
+        `/city Екатеринбург\n\n` +
+        `📍 Город будет отображаться в вашей статистике и топе игроков!`,
+        { parse_mode: 'Markdown' }
+      );
+    }
     return;
   }
   
   const city = args.join(' ').trim();
-  console.log(`📍 Команда /city: ${userId} -> "${city}"`);
+  console.log(`📍 Команда /city: ${userId} (${username}) -> "${city}"`);
   
   if (isRateLimited(userId)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
@@ -2067,31 +2289,61 @@ bot.command('city', async (ctx) => {
   }
   
   try {
-    // 🔴 СОХРАНЯЕМ ГОРОД В БАЗУ
-    const result = await saveOrUpdateUser({
-      user_id: userId.toString(),
-      username: ctx.from.username || '',
-      first_name: ctx.from.first_name || '',
-      city: city
-    });
+    // 🔴 ПРОВЕРЯЕМ ВАЛИДНОСТЬ ГОРОДА
+    if (!city || city.length < 2 || city.length > 100) {
+      await ctx.reply('❌ Неверное название города. Город должен содержать от 2 до 100 символов.');
+      return;
+    }
     
-    if (!result) {
+    await ctx.reply(`⏳ Сохраняю город "${city}"...`, { parse_mode: 'Markdown' });
+    
+    // 🔴 ИСПОЛЬЗУЕМ УЛУЧШЕННУЮ ФУНКЦИЮ ДЛЯ СОХРАНЕНИЯ
+    const saveResult = await saveUserCityWithRetry(userId, city, username);
+    
+    if (!saveResult.success) {
+      console.error('❌ Не удалось сохранить город через /city:', saveResult.error);
       await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
       return;
     }
     
-    await ctx.reply(
-      `✅ Город "${city}" сохранен!\n\n` +
-      `📍 Теперь вы будете отображаться в топе игроков с этим городом.\n` +
-      `📊 Ваша статистика будет показывать город: "${city}"\n\n` +
-      `Проверьте: /stats - ваша статистика\n` +
-      `Или посмотрите: /top - топ игроков`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-    );
+    // 🔴 ПРОВЕРЯЕМ, ЧТО ГОРОД ДЕЙСТВИТЕЛЬНО СОХРАНИЛСЯ
+    setTimeout(async () => {
+      try {
+        const verifyResult = await getUserCityWithFallback(userId);
+        if (verifyResult.success && verifyResult.city === city) {
+          console.log(`✅ Город успешно верифицирован: "${city}"`);
+          
+          await ctx.reply(
+            `✅ *Город "${city}" успешно сохранен!*\n\n` +
+            `📍 Теперь вы будете отображаться в топе игроков с этим городом.\n` +
+            `📊 Ваша статистика будет показывать город: "${city}"\n\n` +
+            `*Проверьте:*\n` +
+            `• /stats - ваша статистика\n` +
+            `• /top - топ игроков\n\n` +
+            `Если в статистике всё ещё не виден город, обновите страницу или подождите немного.`,
+            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+          );
+        } else {
+          console.warn(`⚠️ Город не верифицирован: ожидали "${city}", получили "${verifyResult?.city}"`);
+          
+          await ctx.reply(
+            `⚠️ *Возникли проблемы с сохранением города*\n\n` +
+            `Мы попытались сохранить город "${city}", но при проверке получили "${verifyResult?.city || 'Не указан'}".\n\n` +
+            `*Что можно сделать:*\n` +
+            `• Попробуйте ещё раз: /city ${city}\n` +
+            `• Проверьте статистику через пару минут: /stats\n` +
+            `• Если проблема остаётся, попробуйте перезапустить бота: /start`,
+            { parse_mode: 'Markdown' }
+          );
+        }
+      } catch (verifyError) {
+        console.error('❌ Ошибка верификации города:', verifyError.message);
+      }
+    }, 1000);
     
   } catch (error) {
     console.error('❌ Ошибка в /city:', error);
-    await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
+    await ctx.reply('❌ Произошла ошибка при сохранении города. Попробуйте еще раз.');
   }
 });
 
@@ -2162,6 +2414,13 @@ bot.command('db_check', async (ctx) => {
       message += `• Код ошибки: ${connection.code || 'Неизвестно'}\n`;
     }
     
+    // 🔴 ПРОВЕРЯЕМ ГОРОД ПОЛЬЗОВАТЕЛЯ
+    const cityResult = await getUserCityWithFallback(userId);
+    message += `\n📍 *Ваш город в БД:* ${cityResult.city} (${cityResult.success ? '✅' : '❌'})\n`;
+    if (cityResult.source) {
+      message += `• Источник: ${cityResult.source}\n`;
+    }
+    
     await ctx.reply(message, { parse_mode: 'Markdown' });
     
   } catch (error) {
@@ -2198,6 +2457,26 @@ bot.command('debug_db', async (ctx) => {
       message += `*Таблицы:* Не удалось получить информацию\n`;
     }
     
+    // 🔴 ПРОВЕРЯЕМ ТАБЛИЦУ USERS
+    message += `\n🔍 *Проверка таблицы users:*\n`;
+    try {
+      if (pool) {
+        const client = await pool.connect();
+        try {
+          const userCheck = await client.query(
+            'SELECT COUNT(*) as count, COUNT(DISTINCT city) as unique_cities FROM users WHERE city != \'Не указан\''
+          );
+          const usersWithCity = userCheck.rows[0];
+          message += `• Пользователей с указанным городом: ${usersWithCity.count}\n`;
+          message += `• Уникальных городов: ${usersWithCity.unique_cities}\n`;
+        } finally {
+          client.release();
+        }
+      }
+    } catch (userError) {
+      message += `• Ошибка проверки: ${userError.message}\n`;
+    }
+    
     await ctx.reply(message, { parse_mode: 'Markdown' });
     
   } catch (error) {
@@ -2209,10 +2488,11 @@ bot.command('debug_db', async (ctx) => {
 // ===================== ОБРАБОТЧИК ТЕКСТОВЫХ СООБЩЕНИЙ =====================
 bot.on('message:text', async (ctx) => {
   const userId = ctx.from.id;
+  const username = ctx.from.username || ctx.from.first_name || '';
   const text = ctx.message.text;
   const userData = userStorage.get(userId) || {};
   
-  console.log(`📝 Текст от ${userId}: "${text}"`);
+  console.log(`📝 Текст от ${userId} (${username}): "${text}"`);
   
   if (isRateLimited(userId)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
@@ -2232,22 +2512,17 @@ bot.on('message:text', async (ctx) => {
     try {
       const city = text.trim();
       if (city.length === 0 || city.length > 100) {
-        await ctx.reply('❌ Неверное название города. Попробуйте еще раз.');
+        await ctx.reply('❌ Неверное название города. Город должен содержать от 2 до 100 символов.');
         return;
       }
       
-      console.log(`🏙️ Сохраняю город "${city}" для ${userId}`);
+      console.log(`🏙️ Сохраняю город "${city}" для ${userId} (${username})`);
       
-      // 🔴 СОХРАНЯЕМ ГОРОД В БАЗУ
-      const result = await saveOrUpdateUser({
-        user_id: userId.toString(),
-        username: ctx.from.username || '',
-        first_name: ctx.from.first_name || '',
-        city: city
-      });
+      // 🔴 ИСПОЛЬЗУЕМ УЛУЧШЕННУЮ ФУНКЦИЮ
+      const saveResult = await saveUserCityWithRetry(userId, city, username);
       
-      if (!result) {
-        await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
+      if (!saveResult.success) {
+        await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз или используйте команду /city [город]');
         return;
       }
       
@@ -2255,21 +2530,27 @@ bot.on('message:text', async (ctx) => {
       
       await ctx.reply(
         `✅ *Город "${city}" сохранён!*\n\n` +
-        `📍 Теперь вы будете отображаться в топе игроков с этим городом.`,
+        `📍 Теперь вы будете отображаться в топе игроков с этим городом.\n\n` +
+        `*Проверьте:*\n` +
+        `• /stats - ваша статистика\n` +
+        `• /top - топ игроков`,
         { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
       );
     } catch (error) {
       console.error('❌ Ошибка при сохранении города:', error);
-      await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
+      await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз или используйте команду /city [город]');
     }
   } else {
     try {
-      const result = await getUserCity(userId);
+      const result = await getUserCityWithFallback(userId);
       if (!result || !result.success || !result.city || result.city === 'Не указан') {
         await ctx.reply('Пожалуйста, сначала выберите город:', { reply_markup: cityKeyboard });
       } else {
-        await ctx.reply(`Ваш город: ${result.city}. Используйте кнопки меню для получения информации.`, 
-          { reply_markup: mainMenuKeyboard });
+        await ctx.reply(
+          `📍 *Ваш город:* ${result.city}\n\n` +
+          `Используйте кнопки меню для получения информации.`,
+          { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+        );
       }
     } catch (error) {
       console.error('❌ Ошибка при проверке города:', error);
@@ -2327,7 +2608,13 @@ export default async function handler(req, res) {
           'Топ игроков с городами'
         ],
         city_system: '✅ Работает (города сохраняются в таблице users)',
-        game_stats: '✅ Работает (статистика из game_scores)'
+        game_stats: '✅ Работает (статистика из game_scores)',
+        notes: [
+          '✅ Улучшенная система сохранения городов',
+          '✅ Верификация сохранения городов',
+          '✅ Автоматическое создание пользователя при старте',
+          '✅ Fallback методы для надежности'
+        ]
       });
     }
     
@@ -2372,3 +2659,7 @@ export { bot };
 console.log('⚡ Бот загружен с полноценной системой прогноза погоды и статистикой игр!');
 console.log('📍 Система городов: ВКЛЮЧЕНА (города сохраняются в таблице users)');
 console.log('🏆 Топ игроков: ВКЛЮЧЕН (показывает города из таблицы users)');
+console.log('🔧 Улучшенные функции:');
+console.log('  • Улучшенное сохранение городов с retry');
+console.log('  • Верификация сохраненных городов');
+console.log('  • Подробное логирование работы с БД');
