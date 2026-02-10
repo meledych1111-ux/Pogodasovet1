@@ -610,7 +610,6 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       message += `   🎯 Очки: *${score}*\n`;
       message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
       
-      // 🔴 ДОБАВЛЯЕМ ГОРОД ЕСЛИ ОН ЕСТЬ
       if (player.city && player.city !== 'Не указан') {
         message += `   📍 Город: ${player.city}\n`;
       }
@@ -975,19 +974,23 @@ bot.command('start', async (ctx) => {
   
   try {
     // 🔴 СОХРАНЯЕМ ПОЛЬЗОВАТЕЛЯ В БАЗУ ПРИ СТАРТЕ
-    const userSaved = await saveOrUpdateUser({
-      user_id: ctx.from.id.toString(),
-      chat_id: ctx.chat.id,
-      username: ctx.from.username || '',
-      first_name: ctx.from.first_name || '',
-      city: 'Не указан',
-      source: 'telegram'
-    });
-    
-    if (userSaved) {
-      console.log(`✅ Пользователь ${ctx.from.id} сохранен в таблице users`);
-    } else {
-      console.log(`⚠️ Не удалось сохранить пользователя ${ctx.from.id}`);
+    try {
+      const userSaved = await saveOrUpdateUser({
+        user_id: ctx.from.id.toString(),
+        chat_id: ctx.chat.id,
+        username: ctx.from.username || '',
+        first_name: ctx.from.first_name || '',
+        city: 'Не указан',
+        source: 'telegram'
+      });
+      
+      if (userSaved) {
+        console.log(`✅ Пользователь ${ctx.from.id} сохранен в таблице users`);
+      } else {
+        console.log(`⚠️ Не удалось сохранить пользователя ${ctx.from.id}`);
+      }
+    } catch (userError) {
+      console.error(`❌ Ошибка сохранения пользователя:`, userError.message);
     }
     
     await ctx.reply(
@@ -1057,17 +1060,28 @@ bot.hears(/^📍 /, async (ctx) => {
   
   try {
     // 🔴 СОХРАНЯЕМ ГОРОД В БАЗУ
-    const result = await saveOrUpdateUser({
-      user_id: userId.toString(),
-      username: ctx.from.username || '',
-      first_name: ctx.from.first_name || '',
-      city: city
-    });
+    let result;
+    try {
+      result = await saveOrUpdateUser({
+        user_id: userId.toString(),
+        username: ctx.from.username || '',
+        first_name: ctx.from.first_name || '',
+        city: city
+      });
+    } catch (saveError) {
+      console.error('❌ Ошибка saveOrUpdateUser:', saveError);
+      result = null;
+    }
     
     if (!result) {
-      console.error('❌ Не удалось сохранить город');
-      await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
-      return;
+      // 🔴 Пробуем старый метод для совместимости
+      console.log('🔄 Пробуем старый метод saveUserCity...');
+      const oldResult = await saveUserCity(userId, city, ctx.from.username || '');
+      if (!oldResult || !oldResult.success) {
+        console.error('❌ Не удалось сохранить город ни одним методом');
+        await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
+        return;
+      }
     }
     
     userStorage.set(userId, { city, lastActivity: Date.now(), awaitingCity: false });
@@ -1399,12 +1413,16 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
       }
       
       // 🔴 СОХРАНЯЕМ ПОЛЬЗОВАТЕЛЯ ПЕРЕД СОХРАНЕНИЕМ РЕЗУЛЬТАТА
-      await saveOrUpdateUser({
-        user_id: userId.toString(),
-        username: ctx.from.username || '',
-        first_name: ctx.from.first_name || '',
-        city: 'Не указан'
-      });
+      try {
+        await saveOrUpdateUser({
+          user_id: userId.toString(),
+          username: ctx.from.username || '',
+          first_name: ctx.from.first_name || '',
+          city: 'Не указан'
+        });
+      } catch (userError) {
+        console.error('❌ Ошибка сохранения пользователя:', userError);
+      }
       
       // Сохраняем результат в базу данных
       const result = await saveGameScore(userId, 'tetris', score, level, lines, userName, gameOver);
@@ -1595,6 +1613,7 @@ bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
     });
   }
 });
+
 
 // ===================== ВСПОМОГАТЕЛЬНЫЕ КНОПКИ =====================
 bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
