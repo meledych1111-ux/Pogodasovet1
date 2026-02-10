@@ -475,63 +475,134 @@ async function getUserGameStats(userId) {
 
 async function getGameStatsMessage(userId) {
   try {
-    const result = await getGameStats(userId, 'tetris');
+    console.log(`📊 Получение статистики для: ${userId}`);
     
-    if (!result || !result.success) {
-      return `📊 *Статистика игры*\n\n❌ Не удалось загрузить статистику.`;
-    }
+    // 🔴 Используем правильный user_id (Telegram ID)
+    const telegramUserId = userId.toString();
+    console.log(`🔧 Преобразованный ID: ${telegramUserId}`);
     
-    const stats = result.stats;
+    // 🔴 Прямой запрос к базе данных
+    const client = await pool.connect();
     
-    // 🔴 ПРАВИЛЬНАЯ ПРОВЕРКА: есть ли хоть что-то?
-    if (!stats.has_any_games && !stats.has_unfinished_game) {
-      return `📊 *Статистика игры*\n\n🎮 Вы ещё не играли в тетрис!\n\nНажмите 🎮 ИГРАТЬ В ТЕТРИС чтобы начать!`;
-    }
-    
-    let message = `📊 *Статистика в тетрисе*\n\n`;
-    
-    // 🔴 ЕСЛИ ЕСТЬ ЗАВЕРШЕННЫЕ ИГРЫ
-    if (stats.games_played > 0) {
-      message += `🎮 Игр сыграно: *${stats.games_played}*\n`;
-      message += `🏆 Лучший счёт: *${stats.best_score}*\n`;
-      message += `📈 Лучший уровень: *${stats.best_level}*\n`;
-      message += `📊 Лучшие линии: *${stats.best_lines}*\n`;
-      message += `📉 Средний счёт: *${stats.avg_score}*\n`;
+    try {
+      // 1. Проверяем пользователя в базе
+      const userCheck = await client.query(
+        'SELECT * FROM users WHERE user_id = $1',
+        [telegramUserId]
+      );
       
-      if (stats.last_played) {
-        try {
-          const date = new Date(stats.last_played);
-          message += `⏰ Последняя игра: ${date.toLocaleDateString('ru-RU')}\n`;
-        } catch {}
+      if (userCheck.rows.length > 0) {
+        console.log(`✅ Пользователь найден:`, userCheck.rows[0]);
+      } else {
+        console.log(`❌ Пользователь ${telegramUserId} не найден в таблице users`);
       }
+      
+      // 2. Проверяем game_scores для статистики
+      const scoresQuery = `
+        SELECT 
+          COUNT(*) as games_played,
+          MAX(score) as best_score,
+          MAX(level) as best_level,
+          MAX(lines) as best_lines,
+          AVG(score) as avg_score,
+          SUM(score) as total_score,
+          MAX(created_at) as last_played
+        FROM game_scores 
+        WHERE user_id = $1 
+          AND game_type = 'tetris'
+          AND score > 0
+      `;
+      
+      const scoresResult = await client.query(scoresQuery, [telegramUserId]);
+      const stats = scoresResult.rows[0];
+      console.log(`🎮 Статистика из game_scores:`, stats);
+      
+      // 3. Проверяем незавершенную игру
+      const progressQuery = `
+        SELECT score, level, lines, last_saved 
+        FROM game_progress 
+        WHERE user_id = $1 AND game_type = 'tetris'
+      `;
+      
+      const progressResult = await client.query(progressQuery, [telegramUserId]);
+      const hasUnfinishedGame = progressResult.rows.length > 0;
+      console.log(`🔄 Незавершенная игра: ${hasUnfinishedGame}`);
+      
+      // 4. Получаем город
+      let city = 'Не указан';
+      const cityQuery = `
+        SELECT city 
+        FROM users 
+        WHERE user_id = $1 
+        UNION ALL
+        SELECT selected_city as city 
+        FROM user_sessions 
+        WHERE user_id = $1 
+        LIMIT 1
+      `;
+      
+      const cityResult = await client.query(cityQuery, [telegramUserId]);
+      if (cityResult.rows.length > 0 && cityResult.rows[0].city !== 'Не указан') {
+        city = cityResult.rows[0].city;
+      }
+      
+      console.log(`📍 Город: ${city}`);
+      
+      // 5. Формируем сообщение
+      const gamesPlayed = parseInt(stats.games_played) || 0;
+      const bestScore = parseInt(stats.best_score) || 0;
+      const avgScore = Math.round(parseFloat(stats.avg_score) || 0);
+      const bestLevel = parseInt(stats.best_level) || 1;
+      const bestLines = parseInt(stats.best_lines) || 0;
+      
+      let message = `📊 *Статистика в тетрисе*\n\n`;
+      
+      if (gamesPlayed > 0) {
+        message += `🎮 Игр сыграно: *${gamesPlayed}*\n`;
+        message += `🏆 Лучший счёт: *${bestScore}*\n`;
+        message += `📊 Лучший уровень: *${bestLevel}*\n`;
+        message += `📈 Лучшие линии: *${bestLines}*\n`;
+        message += `📉 Средний счёт: *${avgScore}*\n`;
+        
+        if (stats.last_played) {
+          try {
+            const date = new Date(stats.last_played);
+            message += `⏰ Последняя игра: ${date.toLocaleDateString('ru-RU')}\n`;
+          } catch (e) {}
+        }
+      } else if (hasUnfinishedGame && progressResult.rows[0]) {
+        const progress = progressResult.rows[0];
+        message += `🔄 *Незавершенная игра:*\n`;
+        message += `• Текущие очки: ${progress.score}\n`;
+        message += `• Текущий уровень: ${progress.level}\n`;
+        message += `• Собрано линий: ${progress.lines}\n`;
+        message += `💾 *Прогресс сохранён*\n\n`;
+      } else {
+        message += `🎮 Вы ещё не играли в тетрис!\n`;
+        message += `👉 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" чтобы начать!\n\n`;
+      }
+      
+      message += `📍 Город: *${city}*\n\n`;
+      
+      // Совет
+      if (gamesPlayed === 0 && hasUnfinishedGame) {
+        message += `💡 *Совет:* Завершите текущую игру, чтобы результат попал в статистику!`;
+      } else if (gamesPlayed > 0) {
+        message += `🎯 *Цель:* Попасть в топ игроков!`;
+      } else {
+        message += `🎮 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" чтобы начать!`;
+      }
+      
+      return message;
+      
+    } finally {
+      client.release();
     }
-    
-    // 🔴 ЕСЛИ ТОЛЬКО НЕЗАВЕРШЕННАЯ ИГРА
-    else if (stats.has_unfinished_game && stats.current_progress) {
-      message += `🔄 *Незавершенная игра:*\n`;
-      message += `• Текущие очки: ${stats.current_progress.score}\n`;
-      message += `• Текущий уровень: ${stats.current_progress.level}\n`;
-      message += `• Собрано линий: ${stats.current_progress.lines}\n`;
-      message += `💾 *Прогресс сохранён*\n\n`;
-    }
-    
-    // 🔴 ГОРОД
-    message += `📍 Город: *${stats.city}*\n\n`;
-    
-    // 🔴 СОВЕТЫ
-    if (stats.games_played === 0 && stats.has_unfinished_game) {
-      message += `💡 *Совет:* Завершите текущую игру, чтобы результат попал в статистику!`;
-    } else if (stats.games_played > 0) {
-      message += `🎯 *Цель:* Попасть в топ игроков!`;
-    } else {
-      message += `🎮 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" чтобы начать!`;
-    }
-    
-    return message;
     
   } catch (error) {
-    console.error('❌ Ошибка статистики:', error);
-    return `❌ Ошибка загрузки статистики.`;
+    console.error('❌ Ошибка в getGameStatsMessage:', error);
+    console.error('❌ Stack trace:', error.stack);
+    return `❌ Ошибка загрузки статистики: ${error.message}`;
   }
 }
 
@@ -558,94 +629,145 @@ async function getTopPlayersList(limit = 10) {
 
 async function getTopPlayersMessage(limit = 10, ctx = null) {
   try {
-    const result = await fetchTopPlayers('tetris', limit);
+    console.log(`🏆 Получение топа ${limit} игроков...`);
     
-    if (!result || !result.success) {
-      return `🏆 *Топ игроков*\n\n❌ Не удалось загрузить таблицу лидеров.`;
-    }
+    const client = await pool.connect();
     
-    const topPlayers = result.players || [];
-    
-    // 🔴 ЕСЛИ ТОП ПУСТОЙ - ПОКАЗЫВАЕМ ОБЪЯСНЕНИЕ
-    if (topPlayers.length === 0) {
-      return `🏆 *Топ игроков*\n\n` +
-             `🎮 *Пока никто не завершил игру с хорошим результатом!*\n\n` +
-             `📝 *Как попасть в топ:*\n` +
-             `1. Играйте в тетрис 🎮\n` +
-             `2. Наберите минимум *1000 очков*\n` +
-             `3. Завершите игру (не выходите раньше)\n` +
-             `4. Ваш результат автоматически сохранится\n\n` +
-             `🎯 *Текущие рекорды появятся здесь!*`;
-    }
-    
-    let message = `🏆 *Топ ${Math.min(topPlayers.length, limit)} игроков в тетрисе*\n\n`;
-    
-    topPlayers.forEach((player, index) => {
-      let medal;
-      switch(index) {
-        case 0: medal = '🥇'; break;
-        case 1: medal = '🥈'; break;
-        case 2: medal = '🥉'; break;
-        default: medal = `${index + 1}.`;
+    try {
+      // 🔴 Правильный запрос для топа игроков
+      const topQuery = `
+        SELECT 
+          gs.user_id,
+          COALESCE(u.username, gs.username, 'Игрок') as display_name,
+          COALESCE(u.city, gs.city, 'Не указан') as city,
+          MAX(gs.score) as best_score,
+          COUNT(*) as games_played,
+          MAX(gs.level) as best_level,
+          MAX(gs.lines) as best_lines
+        FROM game_scores gs
+        LEFT JOIN users u ON gs.user_id = u.user_id
+        WHERE gs.game_type = 'tetris' 
+          AND gs.score > 0
+          AND gs.is_win = true
+        GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
+        HAVING MAX(gs.score) >= 1000  -- Минимум 1000 очков для попадания в топ
+        ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
+        LIMIT $1
+      `;
+      
+      const result = await client.query(topQuery, [limit]);
+      console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
+      
+      if (result.rows.length === 0) {
+        return `🏆 *Топ игроков*\n\n` +
+               `🎮 *Пока никто не завершил игру с хорошим результатом!*\n\n` +
+               `📝 *Как попасть в топ:*\n` +
+               `1. Играйте в тетрис 🎮\n` +
+               `2. Наберите минимум *1000 очков*\n` +
+               `3. Завершите игру (не выходите раньше)\n` +
+               `4. Ваш результат автоматически сохранится\n\n` +
+               `🎯 *Текущие рекорды появятся здесь!*`;
       }
       
-      const score = player.score || 0;
-      const level = player.level || 1;
-      const lines = player.lines || 0;
-      const gamesPlayed = player.games_played || 1;
+      let message = `🏆 *Топ ${Math.min(result.rows.length, limit)} игроков в тетрисе*\n\n`;
       
-      message += `${medal} *${player.username}*\n`;
-      message += `   🎯 Очки: *${score}*\n`;
-      message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
+      result.rows.forEach((player, index) => {
+        let medal;
+        switch(index) {
+          case 0: medal = '🥇'; break;
+          case 1: medal = '🥈'; break;
+          case 2: medal = '🥉'; break;
+          default: medal = `${index + 1}.`;
+        }
+        
+        const score = player.best_score || 0;
+        const level = player.best_level || 1;
+        const lines = player.best_lines || 0;
+        const gamesPlayed = player.games_played || 1;
+        
+        message += `${medal} *${player.display_name}*\n`;
+        message += `   🎯 Очки: *${score}*\n`;
+        message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
+        
+        if (player.city && player.city !== 'Не указан') {
+          message += `   📍 Город: ${player.city}\n`;
+        }
+        
+        message += `   🕹️ Игр завершено: ${gamesPlayed}\n\n`;
+      });
       
-      if (player.city && player.city !== 'Не указан') {
-        message += `   📍 Город: ${player.city}\n`;
-      }
-      
-      message += `   🕹️ Игр завершено: ${gamesPlayed}\n\n`;
-    });
-    
-    // 🔴 ПРОВЕРКА ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
-    if (ctx && ctx.from) {
-      const currentUserId = ctx.from.id.toString();
-      const currentPlayerIndex = topPlayers.findIndex(p => p.user_id === currentUserId);
-      
-      if (currentPlayerIndex !== -1) {
-        const currentPlayer = topPlayers[currentPlayerIndex];
-        message += `👤 *Ваше место:* ${currentPlayerIndex + 1}\n`;
-        message += `🎯 *Ваш лучший счёт:* ${currentPlayer.score}\n\n`;
-      } else {
-        // 🔴 ПРОВЕРЯЕМ ЕСТЬ ЛИ У ПОЛЬЗОВАТЕЛЯ ВООБЩЕ ИГРЫ
-        const userStats = await fetchGameStats(currentUserId, 'tetris');
-        if (userStats.success && userStats.stats.best_score > 0) {
-          if (userStats.stats.best_score < 1000) {
+      // Проверяем текущего пользователя
+      if (ctx && ctx.from) {
+        const currentUserId = ctx.from.id.toString();
+        
+        // Проверяем его лучший результат
+        const userBestQuery = `
+          SELECT MAX(score) as best_score, COUNT(*) as games_played
+          FROM game_scores 
+          WHERE user_id = $1 
+            AND game_type = 'tetris'
+            AND score > 0
+        `;
+        
+        const userResult = await client.query(userBestQuery, [currentUserId]);
+        const userBestScore = userResult.rows[0]?.best_score || 0;
+        const userGamesPlayed = userResult.rows[0]?.games_played || 0;
+        
+        // Проверяем, есть ли пользователь в топе
+        const isInTop = result.rows.some(p => p.user_id === currentUserId);
+        
+        if (isInTop) {
+          const userIndex = result.rows.findIndex(p => p.user_id === currentUserId);
+          const userPlayer = result.rows[userIndex];
+          message += `👤 *Ваше место:* ${userIndex + 1}\n`;
+          message += `🎯 *Ваш лучший счёт:* ${userPlayer.best_score}\n\n`;
+        } else if (userBestScore > 0) {
+          if (userBestScore < 1000) {
             message += `👤 *Вы пока не в топе*\n`;
-            message += `🎯 Ваш лучший результат: ${userStats.stats.best_score} очков\n`;
+            message += `🎯 Ваш лучший результат: ${userBestScore} очков\n`;
             message += `🎯 *Нужно минимум 1000 очков* для попадания в топ!\n\n`;
           } else {
-            message += `👤 *Ваш лучший счёт:* ${userStats.stats.best_score}\n`;
-            message += `📍 Ваш город: ${userStats.stats.city || 'Не указан'}\n\n`;
+            // Находим, сколько нужно для попадания в топ
+            const lastScore = result.rows[result.rows.length - 1]?.best_score || 0;
+            const needed = Math.max(0, lastScore - userBestScore + 1);
+            message += `👤 *Вы пока не в топе*\n`;
+            message += `🎯 Ваш лучший результат: ${userBestScore}\n`;
+            message += `🎯 *Нужно ещё ${needed} очков* для попадания в топ!\n\n`;
           }
         } else {
           message += `👤 *Вы пока не играли*\n`;
           message += `🎯 Начните игру и наберите минимум 1000 очков!\n\n`;
         }
+        
+        // Проверяем город
+        const cityQuery = 'SELECT city FROM users WHERE user_id = $1';
+        const cityResult = await client.query(cityQuery, [currentUserId]);
+        const userCity = cityResult.rows[0]?.city || 'Не указан';
+        
+        if (userCity === 'Не указан') {
+          message += `📍 *Ваш город не указан!*\n`;
+          message += `Укажите город: /city [город] чтобы отображаться в топе!\n\n`;
+        }
       }
+      
+      message += `📝 *Как попасть в топ:*\n`;
+      message += `• 🎮 Играйте в тетрис\n`;
+      message += `• 🎯 Наберите *минимум 1000 очков*\n`;
+      message += `• ✅ Завершите игру (не выходите)\n`;
+      message += `• 📍 Укажите город: /city [город]\n\n`;
+      
+      message += `🔄 Топ обновляется после каждой завершенной игры`;
+      
+      return message;
+      
+    } finally {
+      client.release();
     }
     
-    message += `📝 *Как попасть в топ:*\n`;
-    message += `• 🎮 Играйте в тетрис\n`;
-    message += `• 🎯 Наберите *минимум 1000 очков*\n`;
-    message += `• ✅ Завершите игру (не выходите)\n`;
-    message += `• 📍 Укажите город: /city [город]\n\n`;
-    
-    message += `🔄 Топ обновляется после каждой завершенной игры`;
-    
-    return message;
-    
   } catch (error) {
-    console.error('❌ Ошибка формирования топа:', error);
-    return `❌ Ошибка загрузки топа.`;
+    console.error('❌ Ошибка в getTopPlayersMessage:', error);
+    console.error('❌ Stack trace:', error.stack);
+    return `❌ Ошибка загрузки топа игроков: ${error.message}`;
   }
 }
 
@@ -2389,7 +2511,112 @@ bot.command('debug_db', async (ctx) => {
     await ctx.reply(`❌ Ошибка: ${error.message}\n\n🔧 Проверьте настройки БД и подключение.`);
   }
 });
+// 🔴 ДОБАВЬТЕ В bot.js КОМАНДУ ДЛЯ ТЕСТИРОВАНИЯ СТАТИСТИКИ
+bot.command('test_stats', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`🧪 test_stats от ${userId}`);
+  
+  try {
+    // Тестовая игра для статистики
+    const testScore = Math.floor(Math.random() * 5000) + 1000;
+    const testLevel = Math.floor(Math.random() * 10) + 1;
+    const testLines = Math.floor(Math.random() * 100) + 10;
+    
+    await ctx.reply(`🧪 Создаю тестовую запись: ${testScore} очков...`);
+    
+    // Сохраняем тестовый результат
+    const result = await saveGameScore(
+      userId,
+      'tetris',
+      testScore,
+      testLevel,
+      testLines,
+      ctx.from.username || ctx.from.first_name || 'Тестовый игрок',
+      true
+    );
+    
+    if (result.success) {
+      await ctx.reply(
+        `✅ Тестовая игра сохранена!\n\n` +
+        `🎯 Очки: ${testScore}\n` +
+        `📊 Уровень: ${testLevel}\n` +
+        `📈 Линии: ${testLines}\n\n` +
+        `Теперь проверьте статистику: /stats`
+      );
+    } else {
+      await ctx.reply(`❌ Ошибка сохранения: ${result.error}`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка в test_stats:', error);
+    await ctx.reply(`❌ Ошибка: ${error.message}`);
+  }
+});
 
+// 🔴 КОМАНДА ДЛЯ ПРОВЕРКИ ТАБЛИЦ БАЗЫ ДАННЫХ
+bot.command('db_info', async (ctx) => {
+  try {
+    const client = await pool.connect();
+    
+    try {
+      // Информация о таблицах
+      const tablesQuery = `
+        SELECT 
+          table_name,
+          (SELECT COUNT(*) FROM information_schema.columns 
+           WHERE table_schema = 'public' AND table_name = t.table_name) as columns_count,
+          (xpath('/row/cnt/text()', 
+            query_to_xml(format('SELECT COUNT(*) as cnt FROM %I', table_name), 
+            false, true, '')))[1]::text::int as rows_count
+        FROM information_schema.tables t
+        WHERE table_schema = 'public'
+        ORDER BY table_name
+      `;
+      
+      const tablesResult = await client.query(tablesQuery);
+      let message = `📊 *Информация о базе данных:*\n\n`;
+      
+      for (const table of tablesResult.rows) {
+        message += `*${table.table_name}:*\n`;
+        message += `  Колонок: ${table.columns_count}\n`;
+        message += `  Записей: ${table.rows_count}\n\n`;
+      }
+      
+      // Проверяем текущего пользователя
+      const userId = ctx.from.id.toString();
+      const userCheck = await client.query(
+        'SELECT * FROM users WHERE user_id = $1',
+        [userId]
+      );
+      
+      if (userCheck.rows[0]) {
+        message += `👤 *Ваш профиль:*\n`;
+        message += `  ID: ${userCheck.rows[0].user_id}\n`;
+        message += `  Имя: ${userCheck.rows[0].username || 'Нет'}\n`;
+        message += `  Город: ${userCheck.rows[0].city}\n\n`;
+      } else {
+        message += `👤 *Вы не найдены в таблице users*\n\n`;
+      }
+      
+      // Проверяем ваши игры
+      const gamesCheck = await client.query(
+        'SELECT COUNT(*) as count FROM game_scores WHERE user_id = $1',
+        [userId]
+      );
+      
+      message += `🎮 *Ваших игр сохранено:* ${gamesCheck.rows[0].count}\n`;
+      
+      await ctx.reply(message, { parse_mode: 'Markdown' });
+      
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка в db_info:', error);
+    await ctx.reply(`❌ Ошибка: ${error.message}`);
+  }
+});
 // ===================== ОБРАБОТЧИК ТЕКСТОВЫХ СООБЩЕНИЙ =====================
 bot.on('message:text', async (ctx) => {
   const userId = ctx.from.id;
