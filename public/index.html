@@ -869,6 +869,7 @@ let userId = null;
 let clearedLinesAnimation = [];
 let pieceQueue = [];
 
+
 // ==================== TELEGRAM WEBAPP ДАННЫЕ ====================
 let tg = null;
 let telegramUserData = null;
@@ -895,29 +896,17 @@ function initTelegramWebApp() {
                               initData.user.first_name || 
                               'Telegram Player';
             
+            // Пробуем получить город из Telegram
+            telegramCity = initData.user.city || null;
+            
             console.log('👤 Telegram данные пользователя:', {
                 id: telegramUserId,
                 username: telegramUsername,
-                first_name: initData.user.first_name,
-                last_name: initData.user.last_name
+                city: telegramCity
             });
+            
+            return true;
         }
-        
-        // Включаем кнопку "Назад"
-        tg.BackButton.show();
-        tg.BackButton.onClick(() => {
-            if (document.getElementById('game-screen').classList.contains('active')) {
-                pauseGame();
-                showNotification('⏸ Игра приостановлена');
-            }
-            showMenu();
-        });
-        
-        // Устанавливаем основную кнопку
-        tg.MainButton.setText('Главное меню').show();
-        tg.MainButton.onClick(showMenu);
-        
-        return true;
     }
     return false;
 }
@@ -931,517 +920,60 @@ if (initTelegramWebApp()) {
     console.log('⚠️ Telegram WebApp не обнаружен, используем web ID:', userId);
 }
 
-// ==================== ФУНКЦИИ ЭКРАНОВ ====================
-function showScreen(screenName) {
-    Object.keys(screens).forEach(key => {
-        screens[key].classList.remove('active');
-    });
-    screens[screenName].classList.add('active');
-    
-    if (screenName !== 'game' && gameActive && !gamePaused) {
-        pauseGame();
-    }
-}
-
-function showMenu() {
-    showScreen('menu');
-}
-
-function startGame() {
-    console.log('🚀 Начало новой игры - DEBUG');
-    
-    // ✅ Останавливаем старую анимацию если она есть
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
+// ==================== ФУНКЦИЯ ДЛЯ ОТПРАВКИ ДАННЫХ В БОТА ====================
+async function sendToTelegramBot(gameData) {
+    // Если нет Telegram WebApp, не можем отправить данные боту
+    if (!tg || !tg.sendData) {
+        console.log('⚠️ Telegram WebApp не доступен для отправки данных в бота');
+        return { success: false, error: 'Telegram WebApp not available' };
     }
     
-    // ✅ Инициализируем новую игру
-    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-    score = 0;
-    level = 1;
-    lines = 0;
-    gameActive = true;
-    gamePaused = false;
-    gameOver = false;
-    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-    clearedLinesAnimation = [];
-    pieceQueue = [];
-    
-    console.log('🔄 Генерация начальной фигуры...');
-    generatePieceQueue();
-    updateDisplay();
-    
-    // ✅ СПЕЦИАЛЬНАЯ ПРОВЕРКА перед spawnPiece
-    console.log('🔍 Проверка начального состояния:');
-    console.log(' - Доска пустая?', board.flat().every(cell => cell === 0));
-    console.log(' - pieceQueue:', pieceQueue);
-    
-    spawnPiece();
-    
-    // ✅ ПРОВЕРКА после spawnPiece
-    console.log('🔍 Состояние после spawnPiece:');
-    console.log(' - gameOver:', gameOver);
-    console.log(' - currentPiece:', currentPiece);
-    console.log(' - currentX, currentY:', currentX, currentY);
-    
-    // Если игра не окончена, продолжаем
-    if (!gameOver) {
-        drawBoard();
+    try {
+        // Формируем данные для бота
+        const botData = {
+            action: 'tetris_game_result',
+            user_id: telegramUserId || userId,
+            username: telegramUsername || 'Web Player',
+            city: telegramCity || 'Не указан',
+            score: gameData.score,
+            level: gameData.level,
+            lines: gameData.lines,
+            game_type: 'tetris',
+            game_over: gameData.gameOver || false,
+            timestamp: new Date().toISOString(),
+            source: 'tetris_webapp'
+        };
         
-        // ✅ Показываем игровой экран
-        showScreen('game');
+        console.log('📤 Отправка данных в Telegram бота:', botData);
         
-        // ✅ Запускаем игровой цикл
-        lastTime = 0;
-        dropCounter = 0;
-        animationId = requestAnimationFrame(gameLoop);
+        // Отправляем данные через Telegram WebApp
+        tg.sendData(JSON.stringify(botData));
         
-        showNotification('🎮 Игра началась!');
-    } else {
-        console.error('❌ Игра сразу завершилась! Проверьте collide() функцию');
-        showNotification('⚠️ Ошибка запуска игры');
-    }
-}
-
-function showStats() {
-    console.log('Показать статистику');
-    loadUserStats();
-    showScreen('stats');
-}
-
-function showLevels() {
-    console.log('Показать уровни');
-    renderLevels();
-    showScreen('levels');
-}
-
-function showLeaderboard() {
-    console.log('Показать лидерборд');
-    loadLeaderboard();
-    showScreen('leaderboard');
-}
-
-function showSettings() {
-    console.log('Показать настройки');
-    showScreen('settings');
-}
-
-// ==================== ИГРОВАЯ ЛОГИКА ====================
-function initGame() {
-    console.log('Инициализация игры');
-    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-    score = 0;
-    level = 1;
-    lines = 0;
-    gameActive = true;
-    gamePaused = false;
-    gameOver = false;
-    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-    clearedLinesAnimation = [];
-    pieceQueue = [];
-    
-    generatePieceQueue();
-    
-    updateDisplay();
-    spawnPiece();
-    drawBoard();
-    
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-    }
-    
-    lastTime = 0;
-    dropCounter = 0;
-    animationId = requestAnimationFrame(gameLoop);
-}
-
-function generatePieceQueue() {
-    pieceQueue = [];
-    for (let i = 0; i < 3; i++) {
-        const shapeId = Math.floor(Math.random() * SHAPES.length);
-        pieceQueue.push(shapeId);
-    }
-}
-
-function spawnPiece() {
-    if (pieceQueue.length === 0) {
-        generatePieceQueue();
-    }
-    
-    const shapeId = pieceQueue.shift();
-    pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
-    
-    currentPiece = {
-        shape: SHAPES[shapeId],
-        color: COLORS[shapeId]
-    };
-    currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
-    currentY = 0;
-    
-    // 🔴 ПРОСТАЯ ВЕРСИЯ С СОХРАНЕНИЕМ
-    if (collide(currentPiece, currentX, currentY)) {
-        gameOver = true;
+        console.log('✅ Данные отправлены в Telegram бота');
+        return { success: true };
         
-        // ✅ НЕМЕДЛЕННОЕ СОХРАНЕНИЕ
-        saveGameToDB(true).then(result => {
-            if (result.success) {
-                showNotification('✅ Результат сохранен: ' + score);
-            }
-        });
-        
-        showNotification('🎯 Игра окончена! Счет: ' + score);
-        setTimeout(() => {
-            showMenu();
-            loadUserStats(); // Обновляем статистику
-        }, 1500);
-        
-        return;
+    } catch (error) {
+        console.error('❌ Ошибка отправки в Telegram бота:', error);
+        return { success: false, error: error.message };
     }
 }
 
-function collide(piece, x, y) {
-    // Проверяем каждую клетку фигуры
-    for (let row = 0; row < piece.shape.length; row++) {
-        for (let col = 0; col < piece.shape[row].length; col++) {
-            // Если клетка фигуры занята (1)
-            if (piece.shape[row][col]) {
-                // Проверяем выход за границы
-                const boardRow = y + row;
-                const boardCol = x + col;
-                
-                // 1. Проверка выхода за левую/правую границу
-                if (boardCol < 0 || boardCol >= COLS) {
-                    return true;
-                }
-                
-                // 2. Проверка выхода за нижнюю границу
-                if (boardRow >= ROWS) {
-                    return true;
-                }
-                
-                // 3. Проверка выхода за верхнюю границу (только для существующих строк)
-                if (boardRow >= 0) {
-                    // 4. Проверка столкновения с установленным блоком
-                    if (board[boardRow] && board[boardRow][boardCol]) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-
-function mergePiece() {
-    for (let y = 0; y < currentPiece.shape.length; y++) {
-        for (let x = 0; x < currentPiece.shape[y].length; x++) {
-            if (currentPiece.shape[y][x]) {
-                if (currentY + y >= 0) {
-                    board[currentY + y][currentX + x] = currentPiece.color;
-                }
-            }
-        }
-    }
-}
-
-function moveDown() {
-    if (gameOver || gamePaused) return;
-    
-    if (!collide(currentPiece, currentX, currentY + 1)) {
-        currentY++;
-    } else {
-        mergePiece();
-        checkLines();
-        spawnPiece();
-    }
-    drawBoard();
-}
-
-function moveLeft() {
-    if (gameOver || gamePaused) return;
-    
-    if (!collide(currentPiece, currentX - 1, currentY)) {
-        currentX--;
-        drawBoard();
-    }
-}
-
-function moveRight() {
-    if (gameOver || gamePaused) return;
-    
-    if (!collide(currentPiece, currentX + 1, currentY)) {
-        currentX++;
-        drawBoard();
-    }
-}
-
-function rotatePiece() {
-    if (gameOver || gamePaused) return;
-    
-    const originalShape = currentPiece.shape;
-    const rotated = [];
-    const piece = currentPiece.shape;
-    
-    for (let i = 0; i < piece[0].length; i++) {
-        rotated[i] = [];
-        for (let j = 0; j < piece.length; j++) {
-            rotated[i][j] = piece[piece.length - 1 - j][i];
-        }
-    }
-    
-    currentPiece.shape = rotated;
-    
-    if (collide(currentPiece, currentX, currentY)) {
-        currentPiece.shape = originalShape;
-    }
-    
-    drawBoard();
-}
-
-function hardDrop() {
-    if (gameOver || gamePaused) return;
-    
-    let dropDistance = 0;
-    while (!collide(currentPiece, currentX, currentY + 1)) {
-        currentY++;
-        dropDistance++;
-    }
-    
-    score += dropDistance * 2;
-    mergePiece();
-    checkLines();
-    spawnPiece();
-    updateDisplay();
-    drawBoard();
-}
-
-function checkLines() {
-    let linesCleared = 0;
-    let clearedRows = [];
-    
-    for (let y = ROWS - 1; y >= 0; y--) {
-        if (board[y].every(cell => cell !== 0)) {
-            clearedRows.push(y);
-            linesCleared++;
-        }
-    }
-    
-    if (linesCleared > 0) {
-        lines += linesCleared;
-        
-        // Анимация очистки линий
-        clearedLinesAnimation = clearedRows;
-        
-        // Бонус за несколько линий
-        const lineBonus = [0, 100, 300, 500, 800];
-        score += lineBonus[linesCleared] * level;
-        
-        // Повышение уровня
-        if (lines >= level * 10) {
-            level++;
-            dropInterval = Math.max(150, dropInterval - 50);
-            showNotification(`🎉 Уровень ${level}!`);
-        }
-        
-        // Удаляем линии после анимации
-        setTimeout(() => {
-            for (let y of clearedRows.sort((a, b) => a - b)) {
-                board.splice(y, 1);
-                board.unshift(Array(COLS).fill(0));
-            }
-            clearedLinesAnimation = [];
-            updateDisplay();
-            drawBoard();
-        }, 400);
-        
-        updateDisplay();
-    }
-}
-
-function pauseGame() {
-    if (gameActive && !gameOver) {
-        gamePaused = !gamePaused;
-        if (gamePaused) {
-            cancelAnimationFrame(animationId);
-            showNotification('⏸ Игра на паузе');
-        } else {
-            lastTime = 0;
-            animationId = requestAnimationFrame(gameLoop);
-            showNotification('▶️ Игра продолжается');
-        }
-    }
-}
-
-function restartGame() {
-    if (confirm('Начать новую игру? Текущий прогресс будет потерян.')) {
-        initGame();
-        showNotification('🔄 Новая игра начата');
-    }
-}
-
-function updateDisplay() {
-    document.getElementById('level-display').textContent = level;
-    document.getElementById('score-display').textContent = score;
-    document.getElementById('lines-display').textContent = lines;
-    
-    document.getElementById('current-level').textContent = level;
-    document.getElementById('current-score').textContent = score;
-    document.getElementById('session-lines').textContent = lines;
-}
-
-function drawBoard() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Фон
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Сетка
-    ctx.strokeStyle = 'rgba(106, 91, 255, 0.15)';
-    ctx.lineWidth = 1;
-    
-    for (let x = 0; x <= COLS; x++) {
-        ctx.beginPath();
-        ctx.moveTo(x * BLOCK_SIZE, 0);
-        ctx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
-        ctx.stroke();
-    }
-    
-    for (let y = 0; y <= ROWS; y++) {
-        ctx.beginPath();
-        ctx.moveTo(0, y * BLOCK_SIZE);
-        ctx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
-        ctx.stroke();
-    }
-    
-    // Установленные блоки
-    for (let y = 0; y < ROWS; y++) {
-        for (let x = 0; x < COLS; x++) {
-            if (board[y][x]) {
-                drawBlock(x, y, board[y][x], false);
-            }
-        }
-    }
-    
-    // Анимация очистки линий
-    if (clearedLinesAnimation.length > 0) {
-        ctx.globalAlpha = 0.7;
-        clearedLinesAnimation.forEach(rowY => {
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, rowY * BLOCK_SIZE, COLS * BLOCK_SIZE, BLOCK_SIZE);
-        });
-        ctx.globalAlpha = 1.0;
-    }
-    
-    // Текущая фигура
-    if (currentPiece) {
-        for (let y = 0; y < currentPiece.shape.length; y++) {
-            for (let x = 0; x < currentPiece.shape[y].length; x++) {
-                if (currentPiece.shape[y][x]) {
-                    drawBlock(currentX + x, currentY + y, currentPiece.color, true);
-                }
-            }
-        }
-    }
-}
-
-function drawBlock(x, y, color, isCurrent = false) {
-    const size = BLOCK_SIZE;
-    const blockX = x * size;
-    const blockY = y * size;
-    
-    ctx.fillStyle = color;
-    ctx.fillRect(blockX, blockY, size, size);
-    
-    const gradient = ctx.createLinearGradient(
-        blockX, blockY, 
-        blockX + size, blockY + size
-    );
-    
-    if (isCurrent) {
-        gradient.addColorStop(0, lightenColor(color, 30));
-        gradient.addColorStop(1, color);
-        
-        ctx.strokeStyle = lightenColor(color, 40);
-        ctx.lineWidth = 2;
-        ctx.strokeRect(blockX + 1, blockY + 1, size - 2, size - 2);
-    } else {
-        gradient.addColorStop(0, lightenColor(color, 20));
-        gradient.addColorStop(0.5, color);
-        gradient.addColorStop(1, darkenColor(color, 20));
-        
-        ctx.strokeStyle = darkenColor(color, 30);
-        ctx.lineWidth = 1;
-        ctx.strokeRect(blockX, blockY, size, size);
-    }
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(blockX, blockY, size, size);
-}
-
-function lightenColor(color, percent) {
-    const num = parseInt(color.slice(1), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, (num >> 16) + amt);
-    const G = Math.min(255, (num >> 8 & 0x00FF) + amt);
-    const B = Math.min(255, (num & 0x0000FF) + amt);
-    
-    return `rgb(${R}, ${G}, ${B})`;
-}
-
-function darkenColor(color, percent) {
-    const num = parseInt(color.slice(1), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.max(0, (num >> 16) - amt);
-    const G = Math.max(0, (num >> 8 & 0x00FF) - amt);
-    const B = Math.max(0, (num & 0x0000FF) - amt);
-    
-    return `rgb(${R}, ${G}, ${B})`;
-}
-
-function gameLoop(time) {
-    if (gameOver || gamePaused) return;
-    
-    const delta = time - lastTime;
-    lastTime = time;
-    
-    dropCounter += delta;
-    if (dropCounter > dropInterval) {
-        moveDown();
-        dropCounter = 0;
-    }
-    
-    drawBoard();
-    animationId = requestAnimationFrame(gameLoop);
-}
-
-function resumeGame() {
-    if (gameActive && gamePaused) {
-        gamePaused = false;
-        lastTime = 0;
-        dropCounter = 0;
-        animationId = requestAnimationFrame(gameLoop);
-        showNotification('▶️ Игра продолжается');
-    }
-}
-
-// ==================== УВЕДОМЛЕНИЯ ====================
-function showNotification(message) {
-    const notification = document.getElementById('notification');
-    notification.textContent = message;
-    notification.classList.add('show');
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 2000);
-}
-
-// ==================== РАБОТА С БАЗОЙ ДАННЫХ ====================
+// ==================== ОБНОВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ ИГРЫ ====================
 async function saveGameToDB(gameOverFlag = false) {
     try {
         console.log('💾 Сохранение в БД - DEBUG');
         console.log('📱 Telegram данные:', telegramUserData);
+        
+        // ✅ Получаем город пользователя
+        let userCity = telegramCity || 'Не указан';
+        
+        // Проверяем localStorage для веб-пользователей
+        if (!telegramUserData) {
+            const savedCity = localStorage.getItem('tetris_city');
+            if (savedCity && savedCity !== 'Не указан') {
+                userCity = savedCity;
+            }
+        }
         
         // ✅ Подготавливаем данные для отправки
         let dbUserId = userId;
@@ -1475,13 +1007,14 @@ async function saveGameToDB(gameOverFlag = false) {
             username: username,
             first_name: telegramUserData?.first_name || '',
             last_name: telegramUserData?.last_name || '',
-            city: telegramCity || 'Не указан',
+            city: userCity, // Используем полученный город
             isWebApp: isWebAppUser,
             telegramData: telegramUserData || null
         };
         
         console.log('📤 Отправка данных в API:', requestData);
         
+        // 1. Сохраняем в базу данных
         const response = await fetch('/api/save-score', {
             method: 'POST',
             headers: { 
@@ -1505,28 +1038,23 @@ async function saveGameToDB(gameOverFlag = false) {
         if (response.ok && result.success) {
             console.log('✅ Результат сохранен в БД:', result);
             
-            // Отправляем данные в Telegram через WebApp
+            // 2. Отправляем данные в Telegram бота (если есть Telegram)
             if (tg && tg.sendData) {
-                const telegramData = {
-                    action: 'tetris_score',
+                const botResult = await sendToTelegramBot({
                     score: score,
                     level: level,
                     lines: lines,
                     gameOver: gameOverFlag,
-                    userId: dbUserId,
-                    gameType: 'tetris',
-                    username: username,
-                    timestamp: new Date().toISOString(),
-                    source: 'webapp',
-                    telegramUserId: telegramUserId // Добавляем Telegram ID для идентификации
-                };
-                console.log('📤 Отправка данных в Telegram бот:', telegramData);
-                try {
-                    tg.sendData(JSON.stringify(telegramData));
-                } catch (sendError) {
-                    console.error('❌ Ошибка отправки в Telegram:', sendError);
+                    city: userCity
+                });
+                
+                if (botResult.success) {
+                    console.log('✅ Данные также отправлены в Telegram бота');
                 }
             }
+            
+            // 3. Обновляем отображение города в UI
+            updateCityInUI(userCity);
             
             return { 
                 success: true, 
@@ -1552,33 +1080,180 @@ async function saveGameToDB(gameOverFlag = false) {
     }
 }
 
-function saveGameToLocalStorage(gameOverFlag = false) {
-    try {
-        const gameData = {
-            userId: userId,
-            telegramUserId: telegramUserId,
-            score: score,
-            level: level,
-            lines: lines,
-            gameOver: gameOverFlag,
-            timestamp: new Date().toISOString(),
-            isTelegramUser: !!telegramUserData
-        };
-        
-        let existing = JSON.parse(localStorage.getItem('tetris_games') || '[]');
-        existing.push(gameData);
-        
-        if (existing.length > 50) {
-            existing = existing.slice(-50);
-        }
-        
-        localStorage.setItem('tetris_games', JSON.stringify(existing));
-        console.log('✅ Результат сохранен локально:', gameData);
-    } catch (error) {
-        console.error('❌ Ошибка локального сохранения:', error);
+// ==================== ФУНКЦИИ ДЛЯ РАБОТЫ С ГОРОДОМ ====================
+function updateCityInUI(city) {
+    // Обновляем отображение города в интерфейсе
+    const cityDisplay = document.getElementById('city-display');
+    if (cityDisplay) {
+        cityDisplay.textContent = `Город: ${city}`;
+        cityDisplay.style.color = city !== 'Не указан' ? '#66ffaa' : '#ff6666';
+    }
+    
+    // Также в главном меню
+    const userCityElement = document.getElementById('user-city');
+    if (userCityElement) {
+        userCityElement.textContent = city;
     }
 }
 
+function showCityInput() {
+    const newCity = prompt('Введите ваш город для участия в рейтинге:', telegramCity || 'Не указан');
+    if (newCity && newCity.trim()) {
+        const city = newCity.trim();
+        
+        // Сохраняем локально
+        localStorage.setItem('tetris_city', city);
+        
+        // Обновляем переменную
+        if (telegramUserData) {
+            telegramCity = city;
+        }
+        
+        // Обновляем UI
+        updateCityInUI(city);
+        
+        // Показываем уведомление
+        showNotification(`📍 Город установлен: ${city}`);
+        
+        console.log('📍 Город пользователя установлен:', city);
+    }
+}
+
+// ==================== ТЕСТИРОВАНИЕ БОТА ====================
+async function testBotConnection() {
+    if (!tg || !tg.sendData) {
+        showNotification('❌ Telegram WebApp не доступен');
+        return;
+    }
+    
+    try {
+        const testData = {
+            action: 'test_connection',
+            user_id: telegramUserId || userId,
+            username: telegramUsername || 'Web Player',
+            message: 'Тестовое сообщение из игры Тетрис',
+            timestamp: new Date().toISOString()
+        };
+        
+        tg.sendData(JSON.stringify(testData));
+        showNotification('✅ Тестовое сообщение отправлено боту');
+        
+    } catch (error) {
+        console.error('❌ Ошибка теста бота:', error);
+        showNotification('❌ Ошибка отправки теста');
+    }
+}
+
+async function forceSendToBot() {
+    if (!tg || !tg.sendData) {
+        showNotification('❌ Telegram WebApp не доступен');
+        return;
+    }
+    
+    try {
+        const gameData = {
+            action: 'tetris_manual_send',
+            user_id: telegramUserId || userId,
+            username: telegramUsername || 'Web Player',
+            city: telegramCity || localStorage.getItem('tetris_city') || 'Не указан',
+            score: score || 0,
+            level: level || 1,
+            lines: lines || 0,
+            game_type: 'tetris',
+            timestamp: new Date().toISOString(),
+            source: 'manual_send'
+        };
+        
+        tg.sendData(JSON.stringify(gameData));
+        showNotification('📤 Данные отправлены в бота вручную');
+        
+    } catch (error) {
+        console.error('❌ Ошибка ручной отправки:', error);
+        showNotification('❌ Ошибка отправки');
+    }
+}
+
+// ==================== ОБНОВЛЕННАЯ ИНИЦИАЛИЗАЦИЯ ====================
+function init() {
+    console.log('🎮 Игра инициализирована. User ID:', userId);
+    
+    // Показываем информацию о пользователе
+    updateUserInfo();
+    
+    // Проверяем, есть ли сохраненный город
+    const savedCity = localStorage.getItem('tetris_city');
+    if (savedCity && savedCity !== 'Не указан') {
+        updateCityInUI(savedCity);
+        
+        if (!telegramUserData) {
+            // Для веб-пользователей используем localStorage
+            console.log('📍 Используем сохраненный город:', savedCity);
+        }
+    }
+    
+    // Начальная сложность
+    selectDifficulty('medium');
+    
+    // Загрузка статистики
+    loadUserStats();
+    
+    // Только готовим пустой холст
+    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    drawBoard(); // Рисуем пустое поле
+    
+    // Настройка автосохранения
+    setupAutoSave();
+    
+    // Telegram WebApp
+    if (tg) {
+        tg.ready();
+        tg.MainButton.setText('Открыть меню').show();
+        tg.MainButton.onClick(showMenu);
+        tg.BackButton.onClick(showMenu);
+    }
+    
+    // Адаптация размера
+    adaptCanvasSize();
+    window.addEventListener('resize', adaptCanvasSize);
+    
+    console.log('✅ Игра готова к запуску');
+}
+
+function updateUserInfo() {
+    const usernameDisplay = document.getElementById('username-display');
+    const userIdDisplay = document.getElementById('userid-display');
+    const cityDisplay = document.getElementById('city-display');
+    const botStatus = document.getElementById('bot-status');
+    
+    if (usernameDisplay) usernameDisplay.textContent = telegramUsername || 'Web Player';
+    if (userIdDisplay) userIdDisplay.textContent = `ID: ${userId}`;
+    
+    // Определяем город
+    let city = 'Не указан';
+    if (telegramCity) {
+        city = telegramCity;
+    } else {
+        const savedCity = localStorage.getItem('tetris_city');
+        if (savedCity) city = savedCity;
+    }
+    
+    if (cityDisplay) {
+        cityDisplay.textContent = `Город: ${city}`;
+        cityDisplay.style.color = city !== 'Не указан' ? '#66ffaa' : '#ff6666';
+    }
+    
+    if (botStatus) {
+        if (tg && tg.sendData) {
+            botStatus.textContent = 'Бот: Подключен ✓';
+            botStatus.style.color = '#66ffaa';
+        } else {
+            botStatus.textContent = 'Бот: Не подключен';
+            botStatus.style.color = '#ff6666';
+        }
+    }
+}
+
+// ==================== ОБНОВЛЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ СЧЕТА ====================
 async function saveGameScore() {
     console.log('🎮 Сохранение игры (ручное)');
     
@@ -1598,13 +1273,16 @@ async function saveGameScore() {
     const result = await saveGameToDB(false);
     
     if (result.success) {
-        showNotification('✅ Результат сохранен в БД!');
+        if (result.savedToTelegram) {
+            showNotification('✅ Результат сохранен и отправлен в бота!');
+        } else {
+            showNotification('✅ Результат сохранен в БД!');
+        }
         await loadUserStats();
     } else {
         showNotification('✅ Результат сохранен локально');
     }
 }
-
 // Функция для автосохранения каждые 30 секунд
 function setupAutoSave() {
     setInterval(async () => {
