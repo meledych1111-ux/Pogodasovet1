@@ -5,6 +5,16 @@ export default async function handler(req, res) {
   console.log('🔍 API: /api/check-db - проверка базы данных');
   console.log('🔍 Метод:', req.method);
   
+  // CORS заголовки
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  // Обработка предварительного запроса OPTIONS
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   if (req.method !== 'GET' && req.method !== 'POST') {
     console.log('❌ Метод не разрешен:', req.method);
     return res.status(405).json({ 
@@ -55,7 +65,8 @@ export default async function handler(req, res) {
           const expectedTables = [
             'user_sessions', 
             'game_scores', 
-            'game_progress'
+            'game_progress',
+            'tetris_stats'
           ];
           
           // Получаем информацию о таблицах
@@ -233,6 +244,10 @@ export default async function handler(req, res) {
             };
           }
           
+          // 🔴 ДОБАВЛЕНО: Специальная диагностика для функции getTopPlayers
+          console.log('🔍 Выполняем специальную диагностику для getTopPlayers...');
+          const topPlayersDiagnostics = await diagnoseGetTopPlayersIssue(client);
+          
           // ДОБАВЛЕНО: Получаем информацию о структуре user_id
           let idStructureInfo = {};
           try {
@@ -262,7 +277,7 @@ export default async function handler(req, res) {
                 indexname,
                 indexdef
               FROM pg_indexes 
-              WHERE tablename IN ('user_sessions', 'game_scores', 'game_progress')
+              WHERE tablename IN ('user_sessions', 'game_scores', 'game_progress', 'tetris_stats')
               AND schemaname = 'public'
               ORDER BY tablename, indexname
             `);
@@ -270,6 +285,38 @@ export default async function handler(req, res) {
             indexesInfo.indexes = indexesQuery.rows;
           } catch (indexError) {
             indexesInfo.error = indexError.message;
+          }
+          
+          // ДОБАВЛЕНО: Проверяем tetris_stats
+          let tetrisStatsInfo = {};
+          try {
+            const tetrisStatsQuery = await client.query(`
+              SELECT 
+                COUNT(*) as total_players,
+                COALESCE(SUM(games_played), 0) as total_games,
+                COALESCE(MAX(best_score), 0) as max_score,
+                COALESCE(AVG(best_score), 0) as avg_best_score
+              FROM tetris_stats
+            `);
+            
+            tetrisStatsInfo.summary = tetrisStatsQuery.rows[0];
+            
+            // Получаем топ из tetris_stats для сравнения
+            const tetrisTopQuery = await client.query(`
+              SELECT 
+                user_id,
+                username,
+                best_score,
+                games_played
+              FROM tetris_stats
+              WHERE best_score > 0
+              ORDER BY best_score DESC
+              LIMIT 3
+            `);
+            
+            tetrisStatsInfo.top_players = tetrisTopQuery.rows;
+          } catch (tetrisError) {
+            tetrisStatsInfo.error = tetrisError.message;
           }
           
           const response = {
@@ -297,16 +344,24 @@ export default async function handler(req, res) {
               all_tables_present: missingTables.length === 0,
               game_stats: gameStats,
               id_structure: idStructureInfo,
-              indexes: indexesInfo
+              indexes: indexesInfo,
+              tetris_stats: tetrisStatsInfo
             },
+            // 🔴 ДОБАВЛЕНО: Специальная диагностика для getTopPlayers
+            get_top_players_diagnostics: topPlayersDiagnostics,
+            
             system_status: {
               database: missingTables.length === 0 ? 'ok' : 'warning',
               structure: gameStats?.error ? 'error' : 'ok',
-              data_integrity: gameStats?.total_games > 0 ? 'has_data' : 'no_data'
+              data_integrity: gameStats?.total_games > 0 ? 'has_data' : 'no_data',
+              get_top_players_ready: topPlayersDiagnostics.get_top_players_ready
             },
-            recommendations: missingTables.length > 0 
-              ? [`Отсутствуют таблицы: ${missingTables.join(', ')}. Запустите инициализацию БД.`]
-              : ['✅ Все таблицы присутствуют.'],
+            recommendations: [
+              ...(missingTables.length > 0 
+                ? [`Отсутствуют таблицы: ${missingTables.join(', ')}. Запустите инициализацию БД.`]
+                : ['✅ Все таблицы присутствуют.']),
+              ...topPlayersDiagnostics.suggestions
+            ],
             
             structure_check: {
               game_scores_has_username: tablesInfo.find(t => t.name === 'game_scores')?.has_username || false,
@@ -324,7 +379,8 @@ export default async function handler(req, res) {
             tables: response.database_info.total_tables,
             missing_tables: response.database_info.missing_tables.length,
             total_games: response.database_info.game_stats?.total_games || 0,
-            unique_players: response.database_info.game_stats?.unique_players || 0
+            unique_players: response.database_info.game_stats?.unique_players || 0,
+            get_top_players_ready: topPlayersDiagnostics.get_top_players_ready
           });
           
           return res.status(200).json(response);
@@ -408,6 +464,163 @@ export default async function handler(req, res) {
   }
 }
 
+// 🔴 ДОБАВЛЕНО: Функция для диагностики проблемы с getTopPlayers
+async function diagnoseGetTopPlayersIssue(client) {
+  const diagnostics = {
+    timestamp: new Date().toISOString(),
+    issues: [],
+    suggestions: [],
+    get_top_players_ready: true
+  };
+  
+  try {
+    console.log('🔍 Диагностика: проверяем структуру для getTopPlayers...');
+    
+    // 1. Проверяем структуру таблицы game_scores
+    const columnsQuery = await client.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns
+      WHERE table_name = 'game_scores'
+      AND table_schema = 'public'
+      ORDER BY ordinal_position
+    `);
+    
+    const columns = columnsQuery.rows.map(col => col.column_name);
+    diagnostics.columns_in_game_scores = columns;
+    
+    // Проверяем необходимые для getTopPlayers столбцы
+    const requiredColumns = ['user_id', 'username', 'score', 'level', 'lines', 'is_win', 'game_type'];
+    const missingColumns = requiredColumns.filter(col => !columns.includes(col));
+    
+    if (missingColumns.length > 0) {
+      diagnostics.issues.push(`Отсутствуют необходимые столбцы в game_scores: ${missingColumns.join(', ')}`);
+      diagnostics.suggestions.push(`Добавьте недостающие столбцы: ${missingColumns.join(', ')}`);
+      diagnostics.get_top_players_ready = false;
+    }
+    
+    // 2. Проверяем типы данных user_id
+    try {
+      const userIdTypeQuery = await client.query(`
+        SELECT 
+          data_type,
+          character_maximum_length
+        FROM information_schema.columns
+        WHERE table_name = 'game_scores'
+        AND column_name = 'user_id'
+        AND table_schema = 'public'
+      `);
+      
+      if (userIdTypeQuery.rows.length > 0) {
+        diagnostics.user_id_type = userIdTypeQuery.rows[0];
+        
+        // Если user_id имеет тип integer/bigint, это может вызывать проблемы
+        if (userIdTypeQuery.rows[0].data_type === 'integer' || userIdTypeQuery.rows[0].data_type === 'bigint') {
+          diagnostics.issues.push(`user_id имеет числовой тип (${userIdTypeQuery.rows[0].data_type}), но в user_sessions - текст. Это может вызывать ошибки JOIN.`);
+          diagnostics.suggestions.push(`Измените тип user_id на VARCHAR в одной из таблиц для совместимости`);
+        }
+      }
+    } catch (typeError) {
+      diagnostics.user_id_type_error = typeError.message;
+    }
+    
+    // 3. Проверяем наличие данных для топа
+    try {
+      const topDataQuery = await client.query(`
+        SELECT 
+          COUNT(DISTINCT user_id) as players_with_score,
+          COUNT(CASE WHEN score > 0 THEN 1 END) as games_with_score
+        FROM game_scores
+        WHERE (game_type = 'tetris' OR game_type IS NULL)
+      `);
+      
+      diagnostics.top_data_summary = topDataQuery.rows[0];
+      
+      if (topDataQuery.rows[0].players_with_score === 0) {
+        diagnostics.issues.push(`Нет игроков с результатами > 0 в game_scores`);
+        diagnostics.suggestions.push(`Играйте в тетрис для создания результатов`);
+      }
+    } catch (dataError) {
+      diagnostics.top_data_error = dataError.message;
+    }
+    
+    // 4. Тестируем запрос похожий на тот, что в getTopPlayers
+    try {
+      console.log('🔍 Тестируем запрос для getTopPlayers...');
+      
+      // Пробуем выполнить упрощенный вариант запроса
+      const testQuery = `
+        SELECT 
+          gs.user_id,
+          gs.username,
+          MAX(gs.score) as best_score,
+          COUNT(*) as games_played
+        FROM game_scores gs
+        WHERE gs.score > 0
+        GROUP BY gs.user_id, gs.username
+        ORDER BY MAX(gs.score) DESC
+        LIMIT 3
+      `;
+      
+      const testResult = await client.query(testQuery);
+      diagnostics.test_query_success = true;
+      diagnostics.test_query_results_count = testResult.rows.length;
+      diagnostics.test_query_issue = null;
+      
+      console.log('✅ Тестовый запрос выполнен успешно:', testResult.rows.length, 'результатов');
+      
+    } catch (testError) {
+      diagnostics.test_query_success = false;
+      diagnostics.test_query_error = testError.message;
+      diagnostics.get_top_players_ready = false;
+      
+      console.error('❌ Тестовый запрос не удался:', testError.message);
+      
+      // Анализируем ошибку
+      if (testError.message.includes('must appear in the GROUP BY clause')) {
+        diagnostics.issues.push(`Ошибка GROUP BY: ${testError.message}`);
+        diagnostics.suggestions.push(`В запросе getTopPlayers убедитесь, что все SELECT столбцы либо в GROUP BY, либо в агрегатных функциях (MAX, COUNT)`);
+      } else if (testError.message.includes('column "gs.username"')) {
+        diagnostics.issues.push(`Проблема с username: ${testError.message}`);
+        diagnostics.suggestions.push(`Используйте MAX(gs.username) в SELECT вместо gs.username, или добавьте gs.username в GROUP BY`);
+      } else if (testError.message.includes('operator does not exist')) {
+        diagnostics.issues.push(`Проблема с типами данных: ${testError.message}`);
+        diagnostics.suggestions.push(`Проверьте типы данных в JOIN условиях, возможно нужно CAST(user_id AS VARCHAR)`);
+      }
+    }
+    
+    // 5. Проверяем таблицу user_sessions для JOIN
+    try {
+      const userSessionsQuery = await client.query(`
+        SELECT column_name, data_type
+        FROM information_schema.columns
+        WHERE table_name = 'user_sessions'
+        AND table_schema = 'public'
+        AND column_name IN ('user_id', 'username', 'selected_city')
+      `);
+      
+      diagnostics.user_sessions_columns = userSessionsQuery.rows;
+      
+      // Проверяем совместимость типов для JOIN
+      const userSessionsUserIdType = userSessionsQuery.rows.find(col => col.column_name === 'user_id')?.data_type;
+      if (diagnostics.user_id_type?.data_type && userSessionsUserIdType) {
+        if (diagnostics.user_id_type.data_type !== userSessionsUserIdType) {
+          diagnostics.issues.push(`Типы user_id не совпадают: game_scores.${diagnostics.user_id_type.data_type} vs user_sessions.${userSessionsUserIdType}`);
+          diagnostics.suggestions.push(`Используйте CAST в JOIN: ON gs.user_id::text = us.user_id`);
+        }
+      }
+    } catch (usError) {
+      diagnostics.user_sessions_error = usError.message;
+    }
+    
+  } catch (error) {
+    diagnostics.diagnostic_error = error.message;
+    diagnostics.get_top_players_ready = false;
+    console.error('❌ Ошибка диагностики getTopPlayers:', error);
+  }
+  
+  return diagnostics;
+}
+
 // Функция для тестирования подключения
 export const testDatabaseConnection = async () => {
   try {
@@ -421,6 +634,53 @@ export const testDatabaseConnection = async () => {
   }
 };
 
+// 🔴 ДОБАВЛЕНО: Функция для быстрой проверки getTopPlayers
+export const testGetTopPlayersQuery = async () => {
+  try {
+    console.log('🧪 Тестирование запроса getTopPlayers...');
+    const client = await pool.connect();
+    
+    try {
+      const testQuery = `
+        WITH player_stats AS (
+          SELECT 
+            gs.user_id,
+            MAX(COALESCE(gs.username, 'Игрок')) as username,
+            MAX(gs.score) as best_score,
+            COUNT(*) as games_played,
+            MAX(gs.created_at) as last_played
+          FROM game_scores gs
+          WHERE gs.score > 0
+          GROUP BY gs.user_id
+          ORDER BY MAX(gs.score) DESC
+          LIMIT 3
+        )
+        SELECT * FROM player_stats
+      `;
+      
+      const result = await client.query(testQuery);
+      console.log('🧪 Результат тестового запроса:', result.rows.length, 'игроков');
+      
+      return {
+        success: true,
+        players: result.rows,
+        count: result.rows.length
+      };
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('🧪 Ошибка теста getTopPlayers:', error.message);
+    return {
+      success: false,
+      error: error.message,
+      hint: error.message.includes('must appear in the GROUP BY') 
+        ? 'Используйте MAX() для всех столбцов не в GROUP BY' 
+        : 'Проверьте структуру таблицы'
+    };
+  }
+};
+
 // Если файл запущен напрямую, выполнить тест
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('🧪 Запуск теста check-db.js');
@@ -429,7 +689,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // Для тестирования напрямую
   import('./db.js').then(async (db) => {
     const result = await db.checkDatabaseConnection();
-    console.log('🧪 Результат теста:', result);
+    console.log('🧪 Результат теста подключения:', result);
+    
+    if (result.success) {
+      // Тестируем запрос getTopPlayers
+      const topPlayersTest = await testGetTopPlayersQuery();
+      console.log('🧪 Тест getTopPlayers:', topPlayersTest);
+    }
+    
     process.exit(result.success ? 0 : 1);
   }).catch(error => {
     console.error('🧪 Ошибка импорта db.js:', error);
