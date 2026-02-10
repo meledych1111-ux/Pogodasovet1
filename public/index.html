@@ -900,11 +900,41 @@ function showMenu() {
 
 function startGame() {
     console.log('Начало новой игры');
-    initGame();
+    
+    // ✅ Останавливаем старую анимацию если она есть
+    if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+    
+    // ✅ Инициализируем новую игру
+    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    score = 0;
+    level = 1;
+    lines = 0;
+    gameActive = true;
+    gamePaused = false;
+    gameOver = false;
+    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
+    clearedLinesAnimation = [];
+    pieceQueue = [];
+    
+    generatePieceQueue();
+    updateDisplay();
+    spawnPiece();
+    drawBoard();
+    
+    // ✅ Показываем игровой экран
     showScreen('game');
-    resumeGame();
+    
+    // ✅ Запускаем игровой цикл
+    lastTime = 0;
+    dropCounter = 0;
+    animationId = requestAnimationFrame(gameLoop);
+    
     showNotification('🎮 Игра началась!');
 }
+
 
 function showStats() {
     console.log('Показать статистику');
@@ -1293,7 +1323,9 @@ function resumeGame() {
     if (gameActive && gamePaused) {
         gamePaused = false;
         lastTime = 0;
+        dropCounter = 0;
         animationId = requestAnimationFrame(gameLoop);
+        showNotification('▶️ Игра продолжается');
     }
 }
 
@@ -1791,6 +1823,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function init() {
     console.log('🎮 Игра инициализирована. User ID:', userId);
     
@@ -1803,10 +1836,10 @@ function init() {
     // Загрузка статистики
     loadUserStats();
     
-    // ✅ ИСПРАВЛЕНИЕ: НЕ вызываем initGame() и pauseGame() здесь!
-    // Только подготавливаем холст
+    // ✅ ВАЖНО: НЕ инициализируем игру здесь!
+    // Только готовим пустой холст
     board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-    drawBoard();
+    drawBoard(); // Рисуем пустое поле
     
     // Настройка автосохранения
     setupAutoSave();
@@ -1823,7 +1856,7 @@ function init() {
     adaptCanvasSize();
     window.addEventListener('resize', adaptCanvasSize);
     
-    console.log('✅ Игра готова. Нажмите "Новая игра" для старта');
+    console.log('✅ Игра готова к запуску');
 }
 
 function adaptCanvasSize() {
