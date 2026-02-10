@@ -18,7 +18,9 @@ import {
   pool,
   saveOrUpdateUser,
   getUserProfile,
-  getTopPlayersWithCities
+  getTopPlayersWithCities,
+  getGameStats
+
 } from './db.js';
 
 // ===================== ЗАГРУЗКА ПЕРЕМЕННЫХ ОКРУЖЕНИЯ =====================
