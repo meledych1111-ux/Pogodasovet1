@@ -578,7 +578,20 @@ async function getGameStatsMessage(userId) {
         console.log(`❌ Пользователь ${telegramUserId} не найден в таблице users`);
       }
       
-      // 2. ПОЛУЧАЕМ СТАТИСТИКУ ИЗ game_scores
+      // 🔴 2. ПРОВЕРЯЕМ СВЯЗИ - МОЖЕТ БЫТЬ ИГРЫ СОХРАНЕНЫ С ДРУГИМ ID
+      let gameUserId = telegramUserId;
+      
+      const linkResult = await client.query(
+        'SELECT web_game_id FROM user_links WHERE telegram_id = $1',
+        [telegramUserId]
+      );
+      
+      if (linkResult.rows.length > 0) {
+        gameUserId = linkResult.rows[0].web_game_id;
+        console.log(`🔗 Найдена связь: Telegram ID ${telegramUserId} -> Web ID ${gameUserId}`);
+      }
+      
+      // 3. ПОЛУЧАЕМ СТАТИСТИКУ ИЗ game_scores ПО ПРАВИЛЬНОМУ ID
       const scoresQuery = `
         SELECT 
           COUNT(*) as games_played,
@@ -596,25 +609,26 @@ async function getGameStatsMessage(userId) {
           AND score > 0
       `;
       
-      const scoresResult = await client.query(scoresQuery, [telegramUserId]);
+      const scoresResult = await client.query(scoresQuery, [gameUserId]);
       const stats = scoresResult.rows[0];
       
       console.log(`🎮 Статистика из game_scores:`, {
         games_played: parseInt(stats.games_played) || 0,
-        best_score: parseInt(stats.best_score) || 0
+        best_score: parseInt(stats.best_score) || 0,
+        user_id_used: gameUserId
       });
       
-      // 3. 🔴 ИСПРАВЛЕНО: ИСПОЛЬЗУЕМ ПРАВИЛЬНОЕ НАЗВАНИЕ КОЛОНКИ
+      // 4. ПРОВЕРЯЕМ НЕЗАВЕРШЕННУЮ ИГРУ
       const progressQuery = `
         SELECT score, level, lines, last_saved 
         FROM game_progress 
         WHERE user_id = $1 AND game_type = 'tetris'
       `;
       
-      const progressResult = await client.query(progressQuery, [telegramUserId]);
+      const progressResult = await client.query(progressQuery, [gameUserId]);
       const hasUnfinishedGame = progressResult.rows.length > 0;
       
-      // 4. ФОРМИРУЕМ СООБЩЕНИЕ
+      // 5. ФОРМИРУЕМ СООБЩЕНИЕ
       const gamesPlayed = parseInt(stats.games_played) || 0;
       const bestScore = parseInt(stats.best_score) || 0;
       const avgScore = Math.round(parseFloat(stats.avg_score) || 0);
@@ -673,8 +687,6 @@ async function getGameStatsMessage(userId) {
     
   } catch (error) {
     console.error('❌ Ошибка в getGameStatsMessage:', error);
-    
-    // 🔴 ВОЗВРАЩАЕМ ПРОСТОЕ СООБЩЕНИЕ БЕЗ MARKDOWN СИНТАКСИСА
     return `❌ Ошибка загрузки статистики. Пожалуйста, попробуйте позже.`;
   }
 }
