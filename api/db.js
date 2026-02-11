@@ -59,6 +59,38 @@ const parseDatabaseUrl = () => {
 const poolConfig = parseDatabaseUrl();
 const pool = poolConfig ? new Pool(poolConfig) : null;
 
+// 🔴 ФУНКЦИЯ ДЛЯ КОНВЕРТАЦИИ ID - ВОЗВРАЩАЕМ!
+function convertUserIdForDb(userId) {
+  if (!userId) return null;
+  
+  const userIdStr = String(userId).trim();
+  
+  // Убираем префиксы если есть
+  let cleanUserId = userIdStr;
+  if (cleanUserId.startsWith('web_')) {
+    cleanUserId = cleanUserId.replace('web_', '');
+  }
+  if (cleanUserId.startsWith('test_user_')) {
+    cleanUserId = cleanUserId.replace('test_user_', '');
+  }
+  if (cleanUserId.startsWith('unknown_')) {
+    cleanUserId = cleanUserId.replace('unknown_', '');
+  }
+  if (cleanUserId.startsWith('empty_')) {
+    cleanUserId = cleanUserId.replace('empty_', '');
+  }
+  
+  // Оставляем только цифры
+  const digitsOnly = cleanUserId.replace(/[^0-9]/g, '');
+  
+  if (digitsOnly && digitsOnly.length > 0) {
+    console.log(`✅ convertUserIdForDb: ${userIdStr} -> ${digitsOnly}`);
+    return digitsOnly;
+  }
+  
+  return cleanUserId;
+}
+
 // 🔴 ФУНКЦИЯ ДЛЯ ТЕСТИРОВАНИЯ ПОДКЛЮЧЕНИЯ
 async function testConnection() {
   if (!pool) {
@@ -215,6 +247,55 @@ async function createTables() {
   }
 }
 
+// 🔴 ФУНКЦИЯ ДЛЯ АВТОМАТИЧЕСКОЙ ОЧИСТКИ ТЕСТОВЫХ ДАННЫХ
+async function cleanupTestUsers() {
+  if (!pool) return;
+  
+  const client = await pool.connect();
+  try {
+    console.log('🧹 Автоматическая очистка тестовых пользователей...');
+    
+    await client.query(`
+      DELETE FROM game_scores 
+      WHERE user_id LIKE 'web_%' 
+         OR user_id LIKE 'test_user_%'
+         OR user_id LIKE 'unknown_%'
+         OR user_id LIKE 'empty_%'
+    `);
+    
+    await client.query(`
+      DELETE FROM users 
+      WHERE user_id LIKE 'web_%' 
+         OR user_id LIKE 'test_user_%'
+         OR user_id LIKE 'unknown_%'
+         OR user_id LIKE 'empty_%'
+    `);
+    
+    await client.query(`
+      DELETE FROM user_sessions 
+      WHERE user_id LIKE 'web_%' 
+         OR user_id LIKE 'test_user_%'
+         OR user_id LIKE 'unknown_%'
+         OR user_id LIKE 'empty_%'
+    `);
+    
+    await client.query(`
+      DELETE FROM game_progress 
+      WHERE user_id LIKE 'web_%' 
+         OR user_id LIKE 'test_user_%'
+         OR user_id LIKE 'unknown_%'
+         OR user_id LIKE 'empty_%'
+    `);
+    
+    console.log('✅ Тестовые пользователи удалены');
+    
+  } catch (error) {
+    console.error('❌ Ошибка очистки тестовых данных:', error.message);
+  } finally {
+    client.release();
+  }
+}
+
 // ============ ФУНКЦИИ ДЛЯ ПОЛЬЗОВАТЕЛЕЙ ============
 export async function saveOrUpdateUser(userData) {
   console.log('👤🔄 ========== СОХРАНЕНИЕ ПОЛЬЗОВАТЕЛЯ ==========');
@@ -232,7 +313,11 @@ export async function saveOrUpdateUser(userData) {
     city = 'Не указан'
   } = userData;
 
-  const dbUserId = String(user_id).trim();
+  const dbUserId = convertUserIdForDb(user_id);
+  if (!dbUserId) {
+    console.error('❌ Некорректный user_id:', user_id);
+    return null;
+  }
   
   console.log(`👤 Сохранение профиля: user_id="${dbUserId}", city="${city}"`);
   
@@ -275,9 +360,10 @@ export async function getUserProfile(userId) {
   
   if (!pool) return null;
   
-  const dbUserId = String(userId).trim();
-  const client = await pool.connect();
+  const dbUserId = convertUserIdForDb(userId);
+  if (!dbUserId) return null;
   
+  const client = await pool.connect();
   try {
     const query = 'SELECT * FROM users WHERE user_id = $1';
     const result = await client.query(query, [dbUserId]);
@@ -292,7 +378,11 @@ export async function getUserProfile(userId) {
 
 // ============ ФУНКЦИИ ДЛЯ ГОРОДОВ ============
 export async function saveUserCity(userId, city, username = null) {
-  const dbUserId = String(userId).trim();
+  const dbUserId = convertUserIdForDb(userId);
+  if (!dbUserId) {
+    return { success: false, error: 'Некорректный ID' };
+  }
+  
   console.log(`📍 Сохранение города: ${dbUserId} -> "${city}"`);
   
   try {
@@ -316,7 +406,11 @@ export async function saveUserCity(userId, city, username = null) {
 }
 
 export async function getUserCity(userId) {
-  const dbUserId = String(userId).trim();
+  const dbUserId = convertUserIdForDb(userId);
+  if (!dbUserId) {
+    return { success: false, city: 'Не указан', found: false };
+  }
+  
   console.log(`📍 Запрос города для: "${dbUserId}"`);
   
   if (!pool) {
@@ -350,7 +444,10 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
     return { success: false, error: 'Нет подключения к БД' };
   }
   
-  const dbUserId = String(userId).trim();
+  const dbUserId = convertUserIdForDb(userId);
+  if (!dbUserId) {
+    return { success: false, error: 'Некорректный ID' };
+  }
   
   if (parseInt(score) === 0 && isWin) {
     console.log('⚠️ Игра с 0 очков, пропускаем сохранение');
@@ -410,7 +507,11 @@ export async function saveGameProgress(userId, gameType, score, level, lines, us
     return { success: false, error: 'Нет подключения к БД' };
   }
   
-  const dbUserId = String(userId).trim();
+  const dbUserId = convertUserIdForDb(userId);
+  if (!dbUserId) {
+    return { success: false, error: 'Некорректный ID' };
+  }
+  
   const client = await pool.connect();
   
   try {
@@ -448,7 +549,9 @@ export async function saveGameProgress(userId, gameType, score, level, lines, us
 export async function getGameProgress(userId, gameType = 'tetris') {
   if (!pool) return { success: false, found: false };
   
-  const dbUserId = String(userId).trim();
+  const dbUserId = convertUserIdForDb(userId);
+  if (!dbUserId) return { success: false, found: false };
+  
   const client = await pool.connect();
   
   try {
@@ -487,7 +590,9 @@ export async function getGameProgress(userId, gameType = 'tetris') {
 export async function deleteGameProgress(userId, gameType = 'tetris') {
   if (!pool) return { success: false };
   
-  const dbUserId = String(userId).trim();
+  const dbUserId = convertUserIdForDb(userId);
+  if (!dbUserId) return { success: false };
+  
   const client = await pool.connect();
   
   try {
@@ -509,7 +614,9 @@ export async function getGameStats(userId, gameType = 'tetris') {
   
   if (!pool) return { success: false, stats: null };
   
-  const dbUserId = String(userId).trim();
+  const dbUserId = convertUserIdForDb(userId);
+  if (!dbUserId) return { success: false, stats: null };
+  
   const client = await pool.connect();
   
   try {
@@ -684,14 +791,19 @@ if (process.env.DATABASE_URL) {
   console.log('📊 Инициализация базы данных...');
   setTimeout(() => {
     createTables().catch(console.error);
+    cleanupTestUsers();
+    setInterval(() => {
+      cleanupTestUsers();
+    }, 3600000);
   }, 1500);
 }
 
-// 🔴 ЭКСПОРТ
+// 🔴 ЭКСПОРТ ВСЕХ ФУНКЦИЙ
 export { 
   pool,
   testConnection,
   checkDatabaseConnection,
   createTables,
-  convertUserIdForDb: (userId) => String(userId).trim()
+  cleanupTestUsers,
+  convertUserIdForDb
 };
