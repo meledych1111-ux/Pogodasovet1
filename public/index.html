@@ -795,230 +795,112 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // ==================== 🔴 ИСПРАВЛЕНО: ПОЛНАЯ ИНИЦИАЛИЗАЦИЯ TELEGRAM WEBAPP ====================
+        // ==================== ПРОСТАЯ ИНИЦИАЛИЗАЦИЯ TELEGRAM ====================
         let tg = null;
-        let telegramUserData = null;
         let telegramUserId = null;
         let telegramUsername = null;
-        let telegramCity = null;
 
-        // Функция для проверки, запущено ли приложение в Telegram WebView
-        function isTelegramWebView() {
-            return !!(window.Telegram?.WebApp || 
-                      window.location.hash.includes('tgWebAppData') || 
-                      window.location.search.includes('tgWebApp') ||
-                      navigator.userAgent.includes('Telegram'));
-        }
-
-        // Функция инициализации Telegram WebApp с повторными попытками
-        function initTelegramWebApp(retryCount = 0, maxRetries = 30) {
-            console.log(`📱 Попытка инициализации Telegram WebApp #${retryCount + 1}/${maxRetries + 1}`);
-            
-            // Проверяем доступность Telegram WebApp API
-            if (window.Telegram && window.Telegram.WebApp) {
+        // Функция инициализации - без 30 повторов!
+        function initTelegram() {
+            if (window.Telegram?.WebApp) {
                 try {
                     tg = window.Telegram.WebApp;
-                    
-                    // 🔴 ВАЖНО: Инициализируем WebApp
                     tg.ready();
-                    
-                    // Расширяем на весь экран
                     tg.expand();
                     
-                    // Получаем данные пользователя
-                    const initData = tg.initDataUnsafe;
-                    console.log('📱 Telegram WebApp данные получены:', initData);
-                    
-                    // Проверяем наличие данных пользователя
-                    if (initData && initData.user && initData.user.id) {
-                        telegramUserData = initData.user;
-                        telegramUserId = String(initData.user.id);
-                        telegramUsername = initData.user.username || 
-                                          initData.user.first_name || 
-                                          `Player_${telegramUserId.slice(-4)}`;
-                        
-                        console.log('✅ Telegram WebApp УСПЕШНО инициализирован!');
-                        console.log('👤 ID пользователя:', telegramUserId);
-                        console.log('👤 Имя пользователя:', telegramUsername);
-                        
-                        // 🔴 ТОЛЬКО ЧИСЛОВОЙ ID, БЕЗ ПРЕФИКСОВ!
+                    const user = tg.initDataUnsafe?.user;
+                    if (user?.id) {
+                        telegramUserId = String(user.id);
+                        telegramUsername = user.username || user.first_name || 'Player';
                         window.userId = telegramUserId;
                         
-                        // Настраиваем кнопки Telegram
-                        setupTelegramButtons();
+                        console.log('✅ Telegram ID:', telegramUserId);
                         
-                        // Обновляем статистику
-                        setTimeout(() => {
-                            if (typeof loadUserStats === 'function') {
-                                loadUserStats();
-                            }
-                        }, 100);
-                        
-                        // Обновляем статус БД
                         const statusEl = document.getElementById('db-status-text');
                         if (statusEl) {
-                            statusEl.textContent = 'Telegram Mini App ✓';
+                            statusEl.textContent = `✅ ID: ${telegramUserId.slice(-4)}`;
                             statusEl.style.color = '#66ffaa';
                         }
                         
+                        // Кнопки Telegram
+                        try {
+                            tg.BackButton.show();
+                            tg.BackButton.onClick(() => {
+                                if (document.getElementById('game-screen')?.classList.contains('active')) {
+                                    if (typeof pauseGame === 'function') pauseGame();
+                                }
+                                if (typeof showMenu === 'function') showMenu();
+                            });
+                            
+                            tg.MainButton.setText('Главное меню');
+                            tg.MainButton.show();
+                            tg.MainButton.onClick(() => {
+                                if (typeof showMenu === 'function') showMenu();
+                            });
+                        } catch(e) {}
+                        
+                        // Статистика
+                        setTimeout(() => {
+                            if (typeof loadUserStats === 'function') loadUserStats();
+                        }, 200);
+                        
                         return true;
-                    } else {
-                        console.log('⚠️ Telegram WebApp: данные пользователя отсутствуют');
                     }
-                } catch (error) {
-                    console.error('❌ Ошибка инициализации Telegram WebApp:', error);
+                } catch(e) {
+                    console.error('❌ Ошибка:', e);
                 }
             }
             
-            // Проверяем, должно ли приложение работать в Telegram
-            if (isTelegramWebView()) {
-                console.log('🔄 Обнаружен Telegram WebView, но API еще не готов. Повтор через 200мс...');
-                
-                // Повторяем попытку, если не превышен лимит
-                if (retryCount < maxRetries) {
-                    setTimeout(() => initTelegramWebApp(retryCount + 1, maxRetries), 200);
-                } else {
-                    console.error('❌ Не удалось инициализировать Telegram WebApp после', maxRetries + 1, 'попыток');
-                    
-                    const statusEl = document.getElementById('db-status-text');
-                    if (statusEl) {
-                        statusEl.textContent = 'Ошибка загрузки Telegram';
-                        statusEl.style.color = '#ff6666';
-                    }
-                }
-            } else {
-                console.log('⚠️ Приложение запущено вне Telegram WebView');
-                
-                const statusEl = document.getElementById('db-status-text');
-                if (statusEl) {
-                    statusEl.textContent = 'Откройте через Telegram бота';
-                    statusEl.style.color = '#ffcc66';
-                }
+            console.log('⚠️ Не в Telegram');
+            const statusEl = document.getElementById('db-status-text');
+            if (statusEl) {
+                statusEl.textContent = '⚠️ Откройте в Telegram';
+                statusEl.style.color = '#ffcc66';
             }
-            
             return false;
         }
 
-        // 🔴 НАСТРОЙКА КНОПОК TELEGRAM
-        function setupTelegramButtons() {
-            if (!tg) return;
-            
-            try {
-                // Включаем кнопку "Назад"
-                tg.BackButton.show();
-                tg.BackButton.onClick(() => {
-                    if (document.getElementById('game-screen')?.classList.contains('active')) {
-                        if (typeof pauseGame === 'function') {
-                            pauseGame();
-                        }
-                        if (typeof showNotification === 'function') {
-                            showNotification('⏸ Игра приостановлена');
-                        }
-                    }
-                    if (typeof showMenu === 'function') {
-                        showMenu();
-                    }
-                });
-                
-                // Устанавливаем основную кнопку
-                tg.MainButton.setText('Главное меню');
-                tg.MainButton.show();
-                tg.MainButton.onClick(() => {
-                    if (typeof showMenu === 'function') {
-                        showMenu();
-                    }
-                });
-                
-                console.log('✅ Кнопки Telegram настроены');
-            } catch (error) {
-                console.error('❌ Ошибка настройки кнопок Telegram:', error);
-            }
-        }
+        // Запускаем 3 раза - этого достаточно!
+        initTelegram();
+        setTimeout(initTelegram, 500);
+        setTimeout(initTelegram, 1000);
 
-        // 🔴 АВТОМАТИЧЕСКИЙ ЗАПУСК ИНИЦИАЛИЗАЦИИ
-        (function autoInitTelegram() {
-            console.log('🔄 Автоматическая инициализация Telegram WebApp...');
-            
-            // Немедленная попытка
-            if (!initTelegramWebApp(0, 30)) {
-                // Если не удалось, пробуем после загрузки страницы
-                window.addEventListener('load', function() {
-                    console.log('📄 Страница загружена, повторная инициализация...');
-                    initTelegramWebApp(0, 30);
-                });
-                
-                // Также пробуем после небольшой задержки
-                setTimeout(() => {
-                    console.log('⏰ Задержка 500мс, повторная инициализация...');
-                    initTelegramWebApp(0, 30);
-                }, 500);
-                
-                // И еще через 1.5 секунды
-                setTimeout(() => {
-                    console.log('⏰ Задержка 1500мс, повторная инициализация...');
-                    initTelegramWebApp(0, 30);
-                }, 1500);
-                
-                // И через 3 секунды
-                setTimeout(() => {
-                    console.log('⏰ Задержка 3000мс, повторная инициализация...');
-                    initTelegramWebApp(0, 30);
-                }, 3000);
-            }
-        })();
-
-        // 🔴 ЭКСПОРТ ПЕРЕМЕННЫХ В ГЛОБАЛЬНУЮ ОБЛАСТЬ
-        window.telegramDebug = {
-            getUserId: () => telegramUserId,
-            getUsername: () => telegramUsername,
-            isInitialized: () => !!telegramUserId,
-            getTg: () => tg
-        };
-
-        // 🔴 УДАЛЯЕМ СТАРУЮ ИНИЦИАЛИЗАЦИЮ!
-        // Весь код ниже ЭТОГО блока должен начинаться с КОНСТАНТЫ И ПЕРЕМЕННЫЕ
-        
         // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
         const COLS = 10;
         const ROWS = 20;
-const BLOCK_SIZE = 24;
-const COLORS = [
-    '#FF6B6B', // Терракотовый/коралловый
-    '#4ECDC4', // Бирюзовый
-    '#45B7D1', // Голубой
-    '#96CEB4', // Мятный
-    '#FFEAA7', // Песочный
-    '#DDA0DD', // Сиреневый
-    '#98D8C8', // Изумрудный
-    '#F7DC6F'  // Золотистый
-];
-const SHAPES = [
-    [[1,1,1,1]],
-    [[1,1],[1,1]],
-    [[0,1,0],[1,1,1]],
-    [[1,1,0],[0,1,1]],
-    [[0,1,1],[1,1,0]],
-    [[1,0,0],[1,1,1]],
-    [[0,0,1],[1,1,1]]
-];
+        const BLOCK_SIZE = 24;
+        const COLORS = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+            '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'
+        ];
+        const SHAPES = [
+            [[1,1,1,1]],
+            [[1,1],[1,1]],
+            [[0,1,0],[1,1,1]],
+            [[1,1,0],[0,1,1]],
+            [[0,1,1],[1,1,0]],
+            [[1,0,0],[1,1,1]],
+            [[0,0,1],[1,1,1]]
+        ];
 
-// Уровни сложности
-const DIFFICULTY_LEVELS = [
-    { id: 'easy', name: 'Легкий', speed: 1000, desc: 'Медленно, для новичков' },
-    { id: 'medium', name: 'Средний', speed: 700, desc: 'Стандартная скорость' },
-    { id: 'hard', name: 'Сложный', speed: 450, desc: 'Быстро, для профи' },
-    { id: 'expert', name: 'Эксперт', speed: 250, desc: 'Максимальная скорость' },
-    { id: 'insane', name: 'Безумие', speed: 150, desc: 'Только для мастеров' }
-];
+        // Уровни сложности
+        const DIFFICULTY_LEVELS = [
+            { id: 'easy', name: 'Легкий', speed: 1000, desc: 'Медленно, для новичков' },
+            { id: 'medium', name: 'Средний', speed: 700, desc: 'Стандартная скорость' },
+            { id: 'hard', name: 'Сложный', speed: 450, desc: 'Быстро, для профи' },
+            { id: 'expert', name: 'Эксперт', speed: 250, desc: 'Максимальная скорость' },
+            { id: 'insane', name: 'Безумие', speed: 150, desc: 'Только для мастеров' }
+        ];
 
-// ==================== API ENDPOINTS ====================
-const API_ENDPOINTS = {
-    saveScore: '/api/save-score',
-    getUserStats: '/api/user-stats',
-    getTopPlayers: '/api/top-players',
-    checkDB: '/api/check-db'
-};
+        // ==================== API ENDPOINTS ====================
+        const API_ENDPOINTS = {
+            saveScore: '/api/save-score',
+            getUserStats: '/api/user-stats',
+            getTopPlayers: '/api/top-players',
+            checkDB: '/api/check-db'
+        };
 
+      
 // DOM элементы
 const screens = {
     menu: document.getElementById('menu-screen'),
