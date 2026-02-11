@@ -727,17 +727,46 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     
     const result = await client.query(query, [gameType, limit]);
     
-    const players = result.rows.map((row, index) => ({
-      rank: index + 1,
+    // ✅ УБИРАЕМ ДУБЛИКАТЫ (ОДИН ИГРОК - ОДНА СТРОКА)
+const uniqueMap = new Map();
+result.rows.forEach(row => {
+  const existing = uniqueMap.get(row.user_id);
+  const currentScore = parseInt(row.best_score) || 0;
+  
+  if (!existing || currentScore > (parseInt(existing.best_score) || 0)) {
+    uniqueMap.set(row.user_id, {
       user_id: row.user_id,
       display_name: row.display_name,
       username: row.display_name,
       city: row.city || 'Не указан',
-      best_score: parseInt(row.best_score) || 0,
+      best_score: currentScore,
       best_level: parseInt(row.best_level) || 1,
       best_lines: parseInt(row.best_lines) || 0,
       games_played: parseInt(row.games_played) || 1
-    }));
+    });
+  } else {
+    // Суммируем игры для существующего игрока
+    const existingGames = parseInt(existing?.games_played) || 0;
+    uniqueMap.set(row.user_id, {
+      ...existing,
+      games_played: existingGames + (parseInt(row.games_played) || 0)
+    });
+  }
+});
+
+// ✅ СОРТИРУЕМ ПО ОЧКАМ
+const uniquePlayers = Array.from(uniqueMap.values())
+  .sort((a, b) => b.best_score - a.best_score)
+  .slice(0, limit)
+  .map((player, index) => ({
+    ...player,
+    rank: index + 1
+  }));
+
+console.log(`🏆 Топ игроков: ${uniquePlayers.length} игроков (убрано дублей: ${result.rows.length - uniquePlayers.length})`);
+console.log(`🥇 1 место: ${uniquePlayers[0]?.display_name} - ${uniquePlayers[0]?.best_score} очков`);
+
+const players = uniquePlayers;
     
     console.log(`🏆 Топ игроков: ${players.length} игроков с 1000+ очками`);
     return { success: true, players: players, count: players.length };
