@@ -1654,82 +1654,116 @@ function loadUserStats() {
 
 // ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ЛИДЕРБОРДА ====================
 // ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ЛИДЕРБОРДА ====================
+// ==================== ФИНАЛЬНАЯ РАБОЧАЯ ФУНКЦИЯ ЛИДЕРБОРДА ====================
 function loadLeaderboard() {
     console.log('🏆 Загрузка лидерборда');
     
     const leaderboardList = document.getElementById('leaderboard-list');
-    leaderboardList.innerHTML = '<div style="text-align: center; padding: 20px; color: #b5aaff;">Загрузка лидерборда...</div>';
+    
+    // Показываем загрузку
+    leaderboardList.innerHTML = '<div style="text-align: center; padding: 30px; color: #b5aaff;">🏆 Загрузка лидерборда...</div>';
     
     fetch('/api/top-players?gameType=tetris&limit=10')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(result => {
-            console.log('🏆 Ответ API лидерборда:', result);
+            console.log('🏆 Данные лидерборда:', result);
             
-            // 🔴 БЕРЕМ ИГРОКОВ ИЗ ОТВЕТА
             const players = result.players || [];
             
             if (players.length === 0) {
                 leaderboardList.innerHTML = `
                     <div style="text-align: center; padding: 30px; color: #b5aaff;">
-                        <p style="font-size: 1.2rem; margin-bottom: 10px;">🏆 ЛИДЕРБОРД</p>
-                        <p style="font-size: 0.9rem;">Пока нет игроков</p>
+                        <p style="font-size: 1.5rem; margin-bottom: 15px;">🏆 ЛИДЕРБОРД</p>
+                        <p style="font-size: 1rem;">Пока нет игроков</p>
+                        <p style="font-size: 0.9rem; margin-top: 20px; color: #ffcc66;">
+                            🎮 Сыграйте игру и наберите очки!
+                        </p>
                     </div>
                 `;
                 return;
             }
             
-            // 🔴 ОЧИЩАЕМ И ЗАПОЛНЯЕМ ЗАНОВО
+            // Очищаем контейнер
             leaderboardList.innerHTML = '';
             
+            // Добавляем каждого игрока
             players.forEach((player, index) => {
-                const playerId = player.user_id;
-                const urlParams = new URLSearchParams(window.location.search);
-                const currentUserId = urlParams.get('telegramId') || window.telegramUserId;
-                const isCurrentUser = currentUserId && String(playerId) === String(currentUserId);
+                const playerId = player.user_id || '';
+                const isCurrentUser = playerId === '975501399' || 
+                                     playerId === window.telegramUserId;
+                
+                const rankColor = index === 0 ? '#ffd700' : 
+                                 index === 1 ? '#c0c0c0' : 
+                                 index === 2 ? '#cd7f32' : '#ffcc66';
+                
+                const rankIcon = index === 0 ? '🥇' : 
+                                index === 1 ? '🥈' : 
+                                index === 2 ? '🥉' : `${index + 1}.`;
                 
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
                 
-                // 🔴 ПОДСВЕТКА ДЛЯ ТЕКУЩЕГО ИГРОКА
                 if (isCurrentUser) {
-                    item.style.background = 'rgba(102, 204, 153, 0.2)';
+                    item.style.background = 'linear-gradient(145deg, rgba(102, 204, 153, 0.2), rgba(77, 179, 128, 0.1))';
                     item.style.border = '2px solid #66ffaa';
                 }
                 
-                // 🔴 ИСПОЛЬЗУЕМ BEST_SCORE!
-                const score = player.best_score || player.score || 0;
-                const level = player.best_level || player.level || 1;
-                
                 item.innerHTML = `
-                    <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
+                    <div class="rank" style="color: ${rankColor}; font-size: 1.3rem; width: 50px;">
+                        ${rankIcon}
+                    </div>
                     <div class="player-info">
-                        <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
+                        <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}; font-size: 1.1rem;">
                             ${player.display_name || player.username || `Игрок ${String(playerId).slice(-4)}`}
                             ${isCurrentUser ? ' (Вы)' : ''}
                         </div>
-                        <div class="player-score">${score} очков</div>
+                        <div class="player-score" style="font-size: 1.1rem; color: #66ffaa; margin: 5px 0;">
+                            ${player.best_score || 0} очков
+                        </div>
                         ${player.city && player.city !== 'Не указан' ? 
-                            `<div style="color: #aaccff; font-size: 0.8rem;">📍 ${player.city}</div>` : ''}
+                            `<div style="color: #aaccff; font-size: 0.9rem;">
+                                📍 ${player.city}
+                            </div>` : 
+                            `<div style="color: #888; font-size: 0.9rem;">
+                                📍 Город не указан
+                            </div>`
+                        }
                     </div>
-                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${level}</div>
+                    <div style="color: #ffcc66; font-size: 1.1rem; font-weight: bold;">
+                        Ур. ${player.best_level || 1}
+                    </div>
                 `;
                 
                 leaderboardList.appendChild(item);
             });
             
-            console.log(`✅ Лидерборд отображен: ${players.length} игроков`);
+            console.log(`✅ Лидерборд загружен: ${players.length} игроков`);
+            
+            // Добавляем информацию об обновлении
+            const updateInfo = document.createElement('div');
+            updateInfo.style.cssText = 'text-align: center; margin-top: 15px; color: #aaccff; font-size: 0.8rem;';
+            updateInfo.textContent = `🔄 Обновлено: ${new Date().toLocaleTimeString()}`;
+            leaderboardList.appendChild(updateInfo);
+            
         })
         .catch(error => {
             console.error('❌ Ошибка загрузки лидерборда:', error);
             leaderboardList.innerHTML = `
                 <div style="text-align: center; padding: 30px; color: #b5aaff;">
-                    <p>❌ Ошибка загрузки</p>
-                    <p style="font-size: 0.9rem;">Попробуйте позже</p>
+                    <p style="font-size: 1.2rem; margin-bottom: 10px;">❌ Ошибка загрузки</p>
+                    <p style="font-size: 0.9rem;">Попробуйте обновить страницу</p>
+                    <p style="font-size: 0.8rem; margin-top: 20px; color: #ff6666;">
+                        ${error.message}
+                    </p>
                 </div>
             `;
         });
 }
-
 function getRankColor(rank) {
     switch(rank) {
         case 1: return '#ffd700';
