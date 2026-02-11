@@ -794,76 +794,106 @@
        <!-- Уведомление -->
     <div id="notification" class="notification"></div>
 
-    <script>
-        // ==================== ПРОСТАЯ ИНИЦИАЛИЗАЦИЯ TELEGRAM ====================
+      <script>
+        // ==================== ПРИНУДИТЕЛЬНАЯ ИНИЦИАЛИЗАЦИЯ TELEGRAM ====================
         let tg = null;
         let telegramUserId = null;
         let telegramUsername = null;
 
-        // Функция инициализации - без 30 повторов!
-        function initTelegram() {
+        // Максимально простая инициализация
+        (function() {
+            console.log('📱 Загрузка Telegram WebApp...');
+            
+            // Проверяем наличие Telegram WebApp
             if (window.Telegram?.WebApp) {
                 try {
                     tg = window.Telegram.WebApp;
                     tg.ready();
                     tg.expand();
                     
+                    // ПОЛУЧАЕМ ID ПРЯМО СЕЙЧАС
                     const user = tg.initDataUnsafe?.user;
                     if (user?.id) {
                         telegramUserId = String(user.id);
                         telegramUsername = user.username || user.first_name || 'Player';
+                        
+                        // 🔴 КРИТИЧЕСКИ ВАЖНО - сохраняем ID в localStorage
+                        localStorage.setItem('telegram_user_id', telegramUserId);
+                        localStorage.setItem('telegram_username', telegramUsername);
+                        
+                        // Устанавливаем глобальную переменную
+                        window.telegramUserId = telegramUserId;
                         window.userId = telegramUserId;
                         
-                        console.log('✅ Telegram ID:', telegramUserId);
+                        console.log('✅ УСПЕХ! Telegram ID:', telegramUserId);
+                        console.log('👤 Имя:', telegramUsername);
                         
+                        // Обновляем статус на странице
                         const statusEl = document.getElementById('db-status-text');
                         if (statusEl) {
                             statusEl.textContent = `✅ ID: ${telegramUserId.slice(-4)}`;
                             statusEl.style.color = '#66ffaa';
                         }
                         
-                        // Кнопки Telegram
-                        try {
-                            tg.BackButton.show();
-                            tg.BackButton.onClick(() => {
-                                if (document.getElementById('game-screen')?.classList.contains('active')) {
-                                    if (typeof pauseGame === 'function') pauseGame();
-                                }
-                                if (typeof showMenu === 'function') showMenu();
-                            });
-                            
-                            tg.MainButton.setText('Главное меню');
-                            tg.MainButton.show();
-                            tg.MainButton.onClick(() => {
-                                if (typeof showMenu === 'function') showMenu();
-                            });
-                        } catch(e) {}
+                        // Загружаем статистику
+                        if (typeof loadUserStats === 'function') {
+                            setTimeout(loadUserStats, 100);
+                        }
                         
-                        // Статистика
-                        setTimeout(() => {
-                            if (typeof loadUserStats === 'function') loadUserStats();
-                        }, 200);
-                        
-                        return true;
+                        return;
                     }
                 } catch(e) {
-                    console.error('❌ Ошибка:', e);
+                    console.error('❌ Ошибка Telegram:', e);
                 }
             }
             
-            console.log('⚠️ Не в Telegram');
+            // Если не в Telegram - проверяем localStorage
+            const savedId = localStorage.getItem('telegram_user_id');
+            if (savedId) {
+                console.log('🔄 Загружаем сохраненный ID:', savedId);
+                telegramUserId = savedId;
+                window.telegramUserId = savedId;
+                window.userId = savedId;
+                
+                const statusEl = document.getElementById('db-status-text');
+                if (statusEl) {
+                    statusEl.textContent = `✅ ID: ${savedId.slice(-4)} (кэш)`;
+                    statusEl.style.color = '#66ffaa';
+                }
+                return;
+            }
+            
+            console.log('⚠️ Нет Telegram ID');
             const statusEl = document.getElementById('db-status-text');
             if (statusEl) {
                 statusEl.textContent = '⚠️ Откройте в Telegram';
                 statusEl.style.color = '#ffcc66';
             }
-            return false;
-        }
+        })();
 
-        // Запускаем 3 раза - этого достаточно!
-        initTelegram();
-        setTimeout(initTelegram, 500);
-        setTimeout(initTelegram, 1000);
+        // Повторная попытка через 1 секунду
+        setTimeout(function() {
+            if (!telegramUserId && window.Telegram?.WebApp) {
+                const user = window.Telegram.WebApp.initDataUnsafe?.user;
+                if (user?.id) {
+                    telegramUserId = String(user.id);
+                    window.telegramUserId = telegramUserId;
+                    window.userId = telegramUserId;
+                    localStorage.setItem('telegram_user_id', telegramUserId);
+                    console.log('✅ Повторная попытка - успех! ID:', telegramUserId);
+                    
+                    const statusEl = document.getElementById('db-status-text');
+                    if (statusEl) {
+                        statusEl.textContent = `✅ ID: ${telegramUserId.slice(-4)}`;
+                        statusEl.style.color = '#66ffaa';
+                    }
+                    
+                    if (typeof loadUserStats === 'function') {
+                        loadUserStats();
+                    }
+                }
+            }
+        }, 1000);
 
         // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
         const COLS = 10;
@@ -900,6 +930,7 @@
             checkDB: '/api/check-db'
         };
 
+     
       
 // DOM элементы
 const screens = {
@@ -1443,18 +1474,30 @@ async function saveGameToDB(gameOverFlag = false) {
     try {
         console.log('💾 Сохранение в БД');
         
-        // 🔴 ТОЛЬКО ЧИСЛОВОЙ TELEGRAM ID!
-        if (!telegramUserId) {
+        // 🔴 БЕРЕМ ID ИЗ РАЗНЫХ ИСТОЧНИКОВ
+        let finalTelegramId = telegramUserId || 
+                             window.telegramUserId || 
+                             window.userId || 
+                             localStorage.getItem('telegram_user_id');
+        
+        // Если все еще нет ID - ошибка
+        if (!finalTelegramId) {
             console.error('❌ Нет Telegram ID, сохранение невозможно');
             showNotification('❌ Только Telegram пользователи могут сохранять результаты');
             return { success: false, error: 'No Telegram ID' };
         }
         
-        // Проверяем, что ID числовой
-        if (!/^\d+$/.test(telegramUserId)) {
-            console.error('❌ Некорректный Telegram ID:', telegramUserId);
+        // Очищаем ID от возможных префиксов
+        finalTelegramId = String(finalTelegramId).replace(/[^0-9]/g, '');
+        
+        // Проверяем, что ID числовой и не пустой
+        if (!finalTelegramId || finalTelegramId.length < 5) {
+            console.error('❌ Некорректный Telegram ID:', finalTelegramId);
+            showNotification('❌ Некорректный ID пользователя');
             return { success: false, error: 'Invalid Telegram ID' };
         }
+        
+        console.log('✅ Используем Telegram ID для сохранения:', finalTelegramId);
         
         const requestData = {
             action: 'tetris_score',
@@ -1466,10 +1509,10 @@ async function saveGameToDB(gameOverFlag = false) {
             gameOver: gameOverFlag,
             isWin: gameOverFlag,
             // 🔴 ТОЛЬКО ЧИСЛОВЫЕ ID!
-            telegramId: telegramUserId,
-            userId: telegramUserId,
-            user_id: telegramUserId,
-            username: telegramUsername,
+            telegramId: finalTelegramId,
+            userId: finalTelegramId,
+            user_id: finalTelegramId,
+            username: telegramUsername || localStorage.getItem('telegram_username') || 'Player',
             first_name: telegramUserData?.first_name || '',
             last_name: telegramUserData?.last_name || ''
         };
@@ -1500,6 +1543,12 @@ async function saveGameToDB(gameOverFlag = false) {
             console.log('✅ Результат сохранен в БД! ID записи:', result.id);
             showNotification('✅ Результат сохранен!');
             
+            // Сохраняем ID в localStorage для следующих игр
+            localStorage.setItem('telegram_user_id', finalTelegramId);
+            if (telegramUsername) {
+                localStorage.setItem('telegram_username', telegramUsername);
+            }
+            
             // Отправляем данные в Telegram через WebApp
             if (tg && tg.sendData) {
                 const telegramData = {
@@ -1508,7 +1557,7 @@ async function saveGameToDB(gameOverFlag = false) {
                     level: level,
                     lines: lines,
                     gameOver: gameOverFlag,
-                    telegramId: telegramUserId,
+                    telegramId: finalTelegramId,
                     gameType: 'tetris',
                     username: telegramUsername,
                     timestamp: new Date().toISOString(),
@@ -1534,7 +1583,6 @@ async function saveGameToDB(gameOverFlag = false) {
         return { success: false, error: 'Network error: ' + error.message };
     }
 }
-
 // 🔴 ЛОКАЛЬНОЕ СОХРАНЕНИЕ - ТОЛЬКО ДЛЯ Telegram ПОЛЬЗОВАТЕЛЕЙ
 function saveGameToLocalStorage(gameOverFlag = false) {
     if (!telegramUserId) return; // Сохраняем только для Telegram пользователей
