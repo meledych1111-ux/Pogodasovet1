@@ -1,5 +1,5 @@
 import { saveGameScore, saveGameProgress, deleteGameProgress, getGameStats } from './db.js';
-import { pool } from './db.js'; // Добавляем pool для сохранения связи
+import { pool } from './db.js';
 
 function getAchievements(score, level, lines, previousBestScore) {
   const achievements = [];
@@ -131,195 +131,174 @@ function generateTips(score, level, lines, isNewRecord) {
   return tips.slice(0, 3);
 }
 
+// 🔴 ФУНКЦИЯ ДЛЯ ОЧИСТКИ ID - ТОЛЬКО ЦИФРЫ!
+function cleanUserId(id) {
+  if (!id) return null;
+  
+  const strId = String(id).trim();
+  
+  // Убираем все префиксы
+  let cleanId = strId.replace(/^(web_|test_user_|unknown_|empty_)/, '');
+  
+  // Оставляем только цифры
+  const digitsOnly = cleanId.replace(/[^0-9]/g, '');
+  
+  if (digitsOnly && digitsOnly.length > 0) {
+    console.log(`🧹 Очищен ID: ${strId} -> ${digitsOnly}`);
+    return digitsOnly;
+  }
+  
+  return null;
+}
+
 export default async function handler(req, res) {
   console.log('📨 POST /api/save-score');
-  console.log('📊 Метод:', req.method);
-  console.log('📊 Content-Type:', req.headers['content-type']);
   
   if (req.method !== 'POST') {
-    console.log('❌ Метод не разрешен:', req.method);
-    return res.status(405).json({ 
-      success: false, 
-      error: 'Method not allowed. Use POST.' 
-    });
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
   try {
     let body;
     
-    // Парсим тело запроса
     if (typeof req.body === 'string') {
       try {
         body = JSON.parse(req.body);
-        console.log('✅ Тело распарсено как JSON');
       } catch (parseError) {
-        console.log('⚠️ Не удалось распарсить JSON, используем raw body:', req.body);
         body = req.body;
       }
     } else if (req.body) {
       body = req.body;
-      console.log('✅ Тело уже объект');
     } else {
-      console.log('⚠️ Тело запроса пустое');
       body = {};
     }
     
-    console.log('📊 Полное тело запроса:', JSON.stringify(body, null, 2));
+    console.log('📊 Тело запроса:', JSON.stringify(body, null, 2));
     
-    // Извлекаем поля
-    const {
-      // 🔴 ОСНОВНЫЕ ПОЛЯ - только реальные ID!
-      userId,        // Telegram ID (975501399) или веб-ID (1770803251747)
-      telegramId,    // Telegram ID (975501399) - приоритет!
-      webGameId,     // Веб-ID (1770803251747)
-      score,
-      level = 1,
-      lines = 0,
-      gameType = 'tetris',
-      game_type,
-      gameOver = false,
-      isGameOver,
-      action,
-      username,
-      first_name,
-      last_name,
-      data,
-      webAppData
-    } = body;
-    
-    console.log('📊 Извлеченные поля:', {
-      userId,
-      telegramId,
-      webGameId,
-      score,
-      level,
-      lines,
-      gameType,
-      gameOver,
-      username
-    });
-    
-    // 🔴 ВАЖНО: Определяем ID по приоритету:
-    // 1. telegramId (реальный ID пользователя из бота) - 975501399
-    // 2. userId (может быть как Telegram, так и веб-ID)
-    // 3. webGameId (веб-ID) - 1770803251747
-    
-    let finalTelegramId = null;
-    let finalWebGameId = null;
+    // 🔴 ИЗВЛЕКАЕМ ТОЛЬКО ЧИСЛОВЫЕ ID
+    let numericId = null;
+    let sourceField = 'none';
     
     // Приоритет 1: telegramId
-    if (telegramId) {
-      finalTelegramId = String(telegramId).replace(/[^0-9]/g, ''); // Только цифры
-      console.log(`✅ Используем Telegram ID: ${finalTelegramId}`);
+    if (body.telegramId) {
+      const cleaned = cleanUserId(body.telegramId);
+      if (cleaned) {
+        numericId = cleaned;
+        sourceField = 'telegramId';
+      }
     }
     
     // Приоритет 2: userId
-    if (userId) {
-      const cleanUserId = String(userId).replace(/^(web_|test_user_)/, ''); // Убираем префиксы
-      if (/^\d+$/.test(cleanUserId)) {
-        // Если это числовой ID - это может быть Telegram ID
-        if (!finalTelegramId) {
-          finalTelegramId = cleanUserId;
-          console.log(`✅ Используем userId как Telegram ID: ${finalTelegramId}`);
-        }
-      } else {
-        // Нечисловой ID - веб-ID
-        finalWebGameId = cleanUserId;
-        console.log(`✅ Используем userId как веб-ID: ${finalWebGameId}`);
+    if (!numericId && body.userId) {
+      const cleaned = cleanUserId(body.userId);
+      if (cleaned) {
+        numericId = cleaned;
+        sourceField = 'userId';
       }
     }
     
     // Приоритет 3: webGameId
-    if (webGameId) {
-      finalWebGameId = String(webGameId).replace(/^(web_|test_user_)/, ''); // Убираем префиксы
-      console.log(`✅ Используем webGameId: ${finalWebGameId}`);
-    }
-    
-    // 🔴 Если нет Telegram ID, но есть веб-ID - проверяем связи
-    if (!finalTelegramId && finalWebGameId) {
-      try {
-        const linkResult = await pool.query(
-          'SELECT telegram_id FROM user_links WHERE web_game_id = $1',
-          [finalWebGameId]
-        );
-        if (linkResult.rows.length > 0) {
-          finalTelegramId = linkResult.rows[0].telegram_id;
-          console.log(`🔗 Найдена связь: веб-ID ${finalWebGameId} -> Telegram ID ${finalTelegramId}`);
-        }
-      } catch (error) {
-        console.error('Ошибка поиска связи:', error);
+    if (!numericId && body.webGameId) {
+      const cleaned = cleanUserId(body.webGameId);
+      if (cleaned) {
+        numericId = cleaned;
+        sourceField = 'webGameId';
       }
     }
     
-    // 🔴 Если нет веб-ID, но есть Telegram ID - создаем веб-ID
-    if (!finalWebGameId && finalTelegramId) {
-      finalWebGameId = finalTelegramId; // Используем Telegram ID как веб-ID
-      console.log(`🆔 Создан веб-ID из Telegram ID: ${finalWebGameId}`);
+    // Приоритет 4: data из WebApp
+    if (!numericId && body.data) {
+      try {
+        const parsedData = typeof body.data === 'string' ? JSON.parse(body.data) : body.data;
+        if (parsedData.userId) {
+          const cleaned = cleanUserId(parsedData.userId);
+          if (cleaned) {
+            numericId = cleaned;
+            sourceField = 'data.userId';
+          }
+        }
+      } catch (e) {}
     }
     
-    // Если ID не найден
-    if (!finalTelegramId && !finalWebGameId) {
-      console.log('❌ Не найден ни один ID');
+    // Приоритет 5: webAppData
+    if (!numericId && body.webAppData) {
+      try {
+        const parsedData = typeof body.webAppData === 'string' ? JSON.parse(body.webAppData) : body.webAppData;
+        if (parsedData.userId) {
+          const cleaned = cleanUserId(parsedData.userId);
+          if (cleaned) {
+            numericId = cleaned;
+            sourceField = 'webAppData.userId';
+          }
+        }
+      } catch (e) {}
+    }
+    
+    // 🔴 ЕСЛИ ID НЕ НАЙДЕН - ОШИБКА!
+    if (!numericId) {
+      console.log('❌ Не найден валидный числовой ID');
       return res.status(400).json({ 
         success: false, 
-        error: 'Missing user ID',
-        received_data: body
+        error: 'Valid numeric user ID is required',
+        received: {
+          telegramId: body.telegramId,
+          userId: body.userId,
+          webGameId: body.webGameId
+        }
       });
     }
     
-    // 🔴 Для сохранения игры используем ТОЛЬКО числовой ID (без префиксов!)
-    const gameUserId = finalWebGameId || finalTelegramId;
+    console.log(`✅ Используем числовой ID: ${numericId} (из ${sourceField})`);
     
     // Определяем gameType
-    let finalGameType = gameType;
-    if (game_type) finalGameType = game_type;
+    const finalGameType = body.gameType || body.game_type || 'tetris';
     
     // Определяем окончание игры
-    let finalGameOver = gameOver;
-    if (isGameOver !== undefined) finalGameOver = isGameOver;
-    if (action === 'tetris_final_score') finalGameOver = true;
+    let finalGameOver = body.gameOver;
+    if (body.isGameOver !== undefined) finalGameOver = body.isGameOver;
+    if (body.action === 'tetris_final_score') finalGameOver = true;
     
     // Определяем имя пользователя
-    let finalUsername = username || first_name || `Игрок ${gameUserId.slice(-4)}`;
-    if (last_name && first_name) {
-      finalUsername = `${first_name} ${last_name}`;
-    }
+    const finalUsername = body.username || body.first_name || `Игрок ${numericId.slice(-4)}`;
     
     // Валидация score
-    if (score === undefined || score === null) {
-      console.log('❌ Отсутствует score');
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing score field' 
-      });
+    if (body.score === undefined || body.score === null) {
+      return res.status(400).json({ success: false, error: 'Missing score field' });
     }
     
     // Преобразуем значения
-    const numericScore = parseInt(score) || 0;
-    const numericLevel = parseInt(level) || 1;
-    const numericLines = parseInt(lines) || 0;
+    const numericScore = parseInt(body.score) || 0;
+    const numericLevel = parseInt(body.level) || 1;
+    const numericLines = parseInt(body.lines) || 0;
     const isWin = numericScore > 0;
     
-    console.log('📊 Финальные данные для сохранения:', {
-      gameUserId,           // Числовой ID для game_scores
-      finalTelegramId,      // Telegram ID для users
-      finalWebGameId,       // Веб-ID для связей
-      finalUsername,
-      numericScore,
-      numericLevel,
-      numericLines,
-      finalGameType,
-      finalGameOver,
+    // 🔴 НЕ СОХРАНЯЕМ ИГРЫ С 0 ОЧКОВ
+    if (numericScore === 0) {
+      console.log('⚠️ Игра с 0 очков, пропускаем сохранение');
+      return res.status(200).json({
+        success: true,
+        message: 'Игра начата!',
+        score: 0,
+        skipped: true
+      });
+    }
+    
+    console.log('📊 Финальные данные:', {
+      userId: numericId,
+      score: numericScore,
+      level: numericLevel,
+      lines: numericLines,
+      gameOver: finalGameOver,
       isWin
     });
     
-    let resultId;
+    let result;
     
     if (finalGameOver) {
-      // Сохраняем финальный результат - ВСЕГДА с числовым ID!
-      console.log(`💾 Сохраняем финальный результат в game_scores...`);
-      resultId = await saveGameScore(
-        gameUserId,         // ТОЛЬКО ЧИСЛОВОЙ ID! (975501399 или 1770803251747)
+      // Сохраняем финальный результат - ТОЛЬКО ЧИСЛОВОЙ ID!
+      console.log(`💾 Сохраняем результат игры...`);
+      result = await saveGameScore(
+        numericId,        // 🔴 ТОЛЬКО ЧИСЛА!
         finalGameType, 
         numericScore, 
         numericLevel, 
@@ -328,32 +307,16 @@ export default async function handler(req, res) {
         isWin
       );
       
-      // 🔴 Сохраняем связь между Telegram ID и веб-ID
-      if (finalTelegramId && finalWebGameId && finalTelegramId !== finalWebGameId) {
-        try {
-          await pool.query(
-            `INSERT INTO user_links (telegram_id, web_game_id, username) 
-             VALUES ($1, $2, $3)
-             ON CONFLICT (telegram_id, web_game_id) 
-             DO UPDATE SET username = EXCLUDED.username, updated_at = NOW()`,
-            [finalTelegramId, finalWebGameId, finalUsername]
-          );
-          console.log(`🔗 Сохранена связь: ${finalTelegramId} <-> ${finalWebGameId}`);
-        } catch (error) {
-          console.error('Ошибка сохранения связи:', error);
-        }
-      }
-      
       // Удаляем прогресс
-      if (resultId) {
-        await deleteGameProgress(gameUserId, finalGameType);
+      if (result && result.success) {
+        await deleteGameProgress(numericId, finalGameType);
         console.log('🗑️ Прогресс удален');
       }
     } else {
       // Сохраняем прогресс
-      console.log(`💾 Сохраняем прогресс в game_progress...`);
-      resultId = await saveGameProgress(
-        gameUserId,         // ТОЛЬКО ЧИСЛОВОЙ ID!
+      console.log(`💾 Сохраняем прогресс...`);
+      result = await saveGameProgress(
+        numericId,        // 🔴 ТОЛЬКО ЧИСЛА!
         finalGameType, 
         numericScore, 
         numericLevel, 
@@ -362,38 +325,28 @@ export default async function handler(req, res) {
       );
     }
     
-    if (resultId) {
+    if (result && result.success) {
       // Получаем статистику
-      const stats = await getGameStats(gameUserId, finalGameType);
-      const bestScore = stats?.best_score || 0;
-      const gamesPlayed = stats?.games_played || 0;
-      const wins = stats?.wins || 0;
+      const stats = await getGameStats(numericId, finalGameType);
+      const bestScore = stats?.stats?.best_score || 0;
+      const gamesPlayed = stats?.stats?.games_played || 0;
+      const wins = stats?.stats?.wins || 0;
       const isNewRecord = numericScore > bestScore;
       
       const achievements = getAchievements(numericScore, numericLevel, numericLines, bestScore);
       const tips = generateTips(numericScore, numericLevel, numericLines, isNewRecord);
       
-      console.log('✅ Успешно сохранено!', {
-        savedId: resultId,
-        gameUserId,
-        telegramId: finalTelegramId,
-        username: finalUsername,
+      console.log('✅ Игра сохранена!', {
+        userId: numericId,
         score: numericScore,
         bestScore,
-        gamesPlayed,
-        wins,
-        gameOver: finalGameOver,
-        isWin,
-        achievementsCount: achievements.length,
         isNewRecord
       });
       
       const response = {
         success: true,
-        id: resultId,
-        userId: gameUserId,           // Числовой ID для игры
-        telegramId: finalTelegramId,  // Реальный Telegram ID
-        webGameId: finalWebGameId,    // Веб-ID
+        id: result.id,
+        userId: numericId,           // 🔴 ТОЛЬКО ЧИСЛОВОЙ ID!
         username: finalUsername,
         score: numericScore,
         level: numericLevel,
@@ -401,7 +354,7 @@ export default async function handler(req, res) {
         gameType: finalGameType,
         gameOver: finalGameOver,
         isWin: isWin,
-        isWebApp: false,             // Всегда false - мы не создаем web_ префиксы!
+        isWebApp: false,            // 🔴 НИКАКИХ ПРЕФИКСОВ!
         bestScore: bestScore,
         gamesPlayed: gamesPlayed,
         wins: wins,
@@ -429,18 +382,17 @@ export default async function handler(req, res) {
         timestamp: new Date().toISOString()
       };
       
-      console.log('📤 Отправляем ответ клиенту');
       return res.status(200).json(response);
     } else {
-      console.log('❌ Не удалось сохранить в БД');
+      console.log('❌ Ошибка сохранения:', result?.error);
       return res.status(500).json({ 
         success: false,
-        error: 'Database save failed'
+        error: result?.error || 'Database save failed'
       });
     }
     
   } catch (error) {
-    console.error('🔥 Критическая ошибка сохранения:', error);
+    console.error('🔥 Критическая ошибка:', error);
     return res.status(500).json({ 
       success: false,
       error: `Internal server error: ${error.message}`
