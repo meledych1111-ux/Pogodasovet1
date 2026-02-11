@@ -953,61 +953,7 @@ export async function getGameStatsForMessage(userId, gameType = 'tetris') {
 /**
  * Получает топ игроков
  */
-export async function getTopPlayers(gameType = 'tetris', limit = 10) {
-  if (!pool) {
-    return { success: false, players: [] };
-  }
-  
-  const client = await pool.connect();
-  
-  try {
-    const query = `
-      SELECT 
-        gs.user_id,
-        COALESCE(u.username, gs.username, CONCAT('Игрок ', RIGHT(gs.user_id, 4))) as display_name,
-        COALESCE(u.city, gs.city, 'Не указан') as city,
-        MAX(gs.score) as best_score,
-        COUNT(*) as games_played,
-        MAX(gs.level) as best_level,
-        MAX(gs.lines) as best_lines,
-        MAX(gs.created_at) as last_played
-      FROM game_scores gs
-      LEFT JOIN users u ON gs.user_id = u.user_id
-      WHERE gs.game_type = $1 
-        AND gs.score >= 200
-        AND gs.is_win = true
-        AND gs.user_id NOT LIKE 'web_%'
-        AND gs.user_id NOT LIKE 'test_user_%'
-        AND gs.user_id NOT LIKE 'unknown_%'
-        AND gs.user_id NOT LIKE 'empty_%'
-        AND gs.user_id ~ '^[0-9]+$'
-      GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
-      ORDER BY MAX(gs.score) DESC, COUNT(*) DESC, MAX(gs.created_at) DESC
-      LIMIT $2
-    `;
-    
-    const result = await client.query(query, [gameType, limit]);
-    
-    const players = result.rows.map((row, index) => ({
-      rank: index + 1,
-      user_id: row.user_id,
-      username: row.display_name || `Игрок ${row.user_id.slice(-4)}`,
-      city: row.city || 'Не указан',
-      score: parseInt(row.best_score) || 0,
-      level: parseInt(row.best_level) || 1,
-      lines: parseInt(row.best_lines) || 0,
-      games_played: parseInt(row.games_played) || 1
-    }));
-    
-    return { success: true, players: players };
-    
-  } catch (error) {
-    console.error('❌ Ошибка топа:', error.message);
-    return { success: false, players: [] };
-  } finally {
-    client.release();
-  }
-}
+xport async function getTopPlayers
 
 /**
  * Получает топ игроков с городами (для совместимости)
