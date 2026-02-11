@@ -2228,30 +2228,35 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
 // 🔴 ТОЛЬКО РЕАЛЬНЫЕ ПОЛЬЗОВАТЕЛИ - БЕЗ ТЕСТОВЫХ!
       const topQuery = `
         SELECT DISTINCT ON (gs.user_id)
-  gs.user_id,
-  COALESCE(u.username, gs.username, 'Игрок') as display_name,
-  COALESCE(u.city, gs.city, 'Не указан') as city,
-  MAX(gs.score) as best_score,
-  COUNT(*) as games_played,
-  MAX(gs.level) as best_level,
-  MAX(gs.lines) as best_lines
-FROM game_scores gs
-LEFT JOIN users u ON gs.user_id = u.user_id
-WHERE gs.game_type = 'tetris' 
-  AND gs.score > 0
-  AND gs.is_win = true
-  AND gs.user_id NOT LIKE 'test_%'
-  AND gs.user_id NOT LIKE 'web_%'
-  AND gs.user_id ~ '^[0-9]+$'
-GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
-HAVING MAX(gs.score) >= 1000
-ORDER BY MAX(gs.score) DESC, gs.user_id  /* ✅ ИСПРАВЛЕНО! */
-LIMIT $1
+          gs.user_id,
+          COALESCE(u.username, gs.username, 'Игрок') as display_name,
+          COALESCE(u.city, gs.city, 'Не указан') as city,
+          MAX(gs.score) as best_score,
+          COUNT(*) as games_played,
+          MAX(gs.level) as best_level,
+          MAX(gs.lines) as best_lines
+        FROM game_scores gs
+        LEFT JOIN users u ON gs.user_id = u.user_id
+        WHERE gs.game_type = 'tetris' 
+          AND gs.score > 0
+          AND gs.is_win = true
+          AND gs.user_id NOT LIKE 'test_%'
+          AND gs.user_id NOT LIKE 'web_%'
+          AND gs.user_id ~ '^[0-9]+$'
+        GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
+        HAVING MAX(gs.score) >= 1000
+        ORDER BY gs.user_id, MAX(gs.score) DESC
+        LIMIT $1
+      `;
       
       const result = await client.query(topQuery, [limit]);
-      console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
       
-      if (result.rows.length === 0) {
+      // ✅ СОРТИРУЕМ ПО ОЧКАМ В JS (БЕЗОПАСНО!)
+      const sortedRows = result.rows.sort((a, b) => b.best_score - a.best_score);
+      
+      console.log(`🏆 Найдено игроков в топе: ${sortedRows.length}`);
+      
+      if (sortedRows.length === 0) {
         return `🏆 *Топ игроков*\n\n` +
                `🎮 *Пока никто не завершил игру с хорошим результатом!*\n\n` +
                `📝 *Как попасть в топ:*\n` +
@@ -2262,9 +2267,9 @@ LIMIT $1
                `🎯 *Текущие рекорды появятся здесь!*`;
       }
       
-      let message = `🏆 *Топ ${Math.min(result.rows.length, limit)} игроков в тетрисе*\n\n`;
+      let message = `🏆 *Топ ${Math.min(sortedRows.length, limit)} игроков в тетрисе*\n\n`;
       
-      result.rows.forEach((player, index) => {
+      sortedRows.forEach((player, index) => {
         let medal;
         switch(index) {
           case 0: medal = '🥇'; break;
@@ -2288,6 +2293,7 @@ LIMIT $1
         
         message += `   🕹️ Игр завершено: ${gamesPlayed}\n\n`;
       });
+      
       
       if (ctx && ctx.from) {
         const currentUserId = ctx.from.id.toString();
