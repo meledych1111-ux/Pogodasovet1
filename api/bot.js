@@ -74,7 +74,7 @@ function isRateLimited(userId) {
   userLimit.lastRequest = now;
   rateLimit.set(userId, userLimit);
   
-  if (userLimit.count > 20) {
+  if (userLimit.count > 1000) {
     console.log(`⚠️ Ограничение запросов для ${userId}: ${userLimit.count}/мин`);
     return true;
   }
