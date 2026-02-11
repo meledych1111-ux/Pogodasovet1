@@ -1095,5 +1095,6 @@ export {
   checkDatabaseConnection,
   createTables,
   cleanupTestUsers,
-  convertUserIdForDb
+  convertUserIdForDb,
+  getTopPlayersWithCities
 };
