@@ -414,43 +414,1576 @@ function getWardrobeAdvice(weatherData) {
 
   return advice.join('\n');
 }
-
-// ===================== ФРАЗЫ ДНЯ =====================
+// ============= ПОЛНЫЙ РАЗГОВОРНИК: 200+ ФРАЗ НА ВСЕ СЛУЧАИ ЖИЗНИ =============
 const dailyPhrases = [
+  // -------------------- ТРАНСПОРТ (20 фраз) --------------------
   {
     english: "Where is the nearest bus stop?",
     russian: "Где ближайшая автобусная остановка?",
     explanation: "Спрашиваем про общественный транспорт",
-    category: "Путешествия",
+    category: "Транспорт",
     level: "Начальный"
   },
   {
     english: "I'd like a window seat, please.",
     russian: "Я хотел бы место у окна, пожалуйста.",
     explanation: "Заказываем место в самолете или поезде",
-    category: "Путешествия",
+    category: "Транспорт",
     level: "Средний"
   },
   {
+    english: "What time is the last train?",
+    russian: "Во сколько последний поезд?",
+    explanation: "Уточняем расписание",
+    category: "Транспорт",
+    level: "Начальный"
+  },
+  {
+    english: "How often do the buses run?",
+    russian: "Как часто ходят автобусы?",
+    explanation: "Интервал движения",
+    category: "Транспорт",
+    level: "Средний"
+  },
+  {
+    english: "Is this the right platform for Oxford?",
+    russian: "Это правильная платформа на Оксфорд?",
+    explanation: "Проверяем платформу",
+    category: "Транспорт",
+    level: "Средний"
+  },
+  {
+    english: "Do I need to validate my ticket?",
+    russian: "Мне нужно компостировать билет?",
+    explanation: "Спрашиваем про валидацию",
+    category: "Транспорт",
+    level: "Средний"
+  },
+  {
+    english: "Can I pay by card?",
+    russian: "Можно оплатить картой?",
+    explanation: "Способ оплаты",
+    category: "Транспорт",
+    level: "Начальный"
+  },
+  {
+    english: "A return ticket to Brighton, please.",
+    russian: "Билет туда-обратно в Брайтон, пожалуйста.",
+    explanation: "Покупаем билет",
+    category: "Транспорт",
+    level: "Начальный"
+  },
+  {
+    english: "Is there a direct flight?",
+    russian: "Есть прямой рейс?",
+    explanation: "Без пересадок",
+    category: "Транспорт",
+    level: "Средний"
+  },
+  {
+    english: "What's the boarding time?",
+    russian: "Во сколько посадка?",
+    explanation: "Уточняем время посадки",
+    category: "Транспорт",
+    level: "Начальный"
+  },
+  {
+    english: "Which gate do I need?",
+    russian: "Какой выход мне нужен?",
+    explanation: "В аэропорту",
+    category: "Транспорт",
+    level: "Начальный"
+  },
+  {
+    english: "I missed my connection.",
+    russian: "Я опоздал на стыковку.",
+    explanation: "Проблема в аэропорту",
+    category: "Транспорт",
+    level: "Средний"
+  },
+  {
+    english: "Can you call me a taxi?",
+    russian: "Вы можете вызвать мне такси?",
+    explanation: "В отеле или ресторане",
+    category: "Транспорт",
+    level: "Начальный"
+  },
+  {
+    english: "How much to the city center?",
+    russian: "Сколько стоит до центра города?",
+    explanation: "Торгуемся с таксистом",
+    category: "Транспорт",
+    level: "Начальный"
+  },
+  {
+    english: "Keep the change.",
+    russian: "Сдачи не надо.",
+    explanation: "Чаевые таксисту",
+    category: "Транспорт",
+    level: "Средний"
+  },
+  {
+    english: "I need to rent a car.",
+    russian: "Мне нужно арендовать машину.",
+    explanation: "В прокате авто",
+    category: "Транспорт",
+    level: "Средний"
+  },
+  {
+    english: "Is insurance included?",
+    russian: "Страховка включена?",
+    explanation: "При аренде авто",
+    category: "Транспорт",
+    level: "Средний"
+  },
+  {
+    english: "I'd like automatic transmission.",
+    russian: "Я хотел бы автоматическую коробку.",
+    explanation: "Выбор авто",
+    category: "Транспорт",
+    level: "Продвинутый"
+  },
+  {
+    english: "Where can I park?",
+    russian: "Где можно припарковаться?",
+    explanation: "Поиск парковки",
+    category: "Транспорт",
+    level: "Начальный"
+  },
+  {
+    english: "My car broke down.",
+    russian: "Моя машина сломалась.",
+    explanation: "Экстренная ситуация",
+    category: "Транспорт",
+    level: "Средний"
+  },
+
+  // -------------------- ЕДА И РЕСТОРАНЫ (25 фраз) --------------------
+  {
     english: "Could you recommend a good restaurant?",
     russian: "Не могли бы вы порекомендовать хороший ресторан?",
-    explanation: "Просим рекомендацию по питанию",
+    explanation: "Просим рекомендацию",
     category: "Еда",
     level: "Средний"
   },
   {
+    english: "A table for two, please.",
+    russian: "Столик на двоих, пожалуйста.",
+    explanation: "В ресторане",
+    category: "Еда",
+    level: "Начальный"
+  },
+  {
+    english: "Do you have a vegetarian menu?",
+    russian: "У вас есть вегетарианское меню?",
+    explanation: "Особое питание",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "I'm allergic to nuts.",
+    russian: "У меня аллергия на орехи.",
+    explanation: "Предупреждение об аллергии",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "What's the dish of the day?",
+    russian: "Какое блюдо дня?",
+    explanation: "Спецпредложение",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "I'd like it medium rare.",
+    russian: "Я хотел бы с кровью.",
+    explanation: "Степень прожарки стейка",
+    category: "Еда",
+    level: "Продвинутый"
+  },
+  {
+    english: "Could we see the wine list?",
+    russian: "Можно посмотреть винную карту?",
+    explanation: "Заказ вина",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "Is service included?",
+    russian: "Обслуживание включено?",
+    explanation: "Проверка счета",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "Can we sit outside?",
+    russian: "Можно сесть на улице?",
+    explanation: "На террасе",
+    category: "Еда",
+    level: "Начальный"
+  },
+  {
+    english: "I didn't order this.",
+    russian: "Я это не заказывал.",
+    explanation: "Ошибка в заказе",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "Could we have some more bread?",
+    russian: "Можно еще хлеба?",
+    explanation: "Дополнительный заказ",
+    category: "Еда",
+    level: "Начальный"
+  },
+  {
+    english: "Is this spicy?",
+    russian: "Это острое?",
+    explanation: "Уточняем остроту",
+    category: "Еда",
+    level: "Начальный"
+  },
+  {
+    english: "I'd like the bill, please.",
+    russian: "Счет, пожалуйста.",
+    explanation: "Просим счет",
+    category: "Еда",
+    level: "Начальный"
+  },
+  {
+    english: "We'd like to order.",
+    russian: "Мы хотели бы сделать заказ.",
+    explanation: "Готовы заказывать",
+    category: "Еда",
+    level: "Начальный"
+  },
+  {
+    english: "What do you recommend?",
+    russian: "Что вы порекомендуете?",
+    explanation: "Совет официанта",
+    category: "Еда",
+    level: "Начальный"
+  },
+  {
+    english: "Can I have this to go?",
+    russian: "Можно это с собой?",
+    explanation: "Еда на вынос",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "Is there a kids' menu?",
+    russian: "Есть детское меню?",
+    explanation: "Для детей",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "Could we change tables?",
+    russian: "Можно пересесть?",
+    explanation: "Смена столика",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "The food is cold.",
+    russian: "Еда холодная.",
+    explanation: "Жалоба",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "I'd like to make a reservation.",
+    russian: "Я хотел бы забронировать столик.",
+    explanation: "Бронь по телефону",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "For 7:30 PM.",
+    russian: "На 19:30.",
+    explanation: "Время брони",
+    category: "Еда",
+    level: "Начальный"
+  },
+  {
+    english: "Do you have gluten-free options?",
+    russian: "У вас есть безглютеновые блюда?",
+    explanation: "Диетическое питание",
+    category: "Еда",
+    level: "Продвинутый"
+  },
+  {
+    english: "Could we have a high chair?",
+    russian: "Можно детский стульчик?",
+    explanation: "Для ребенка",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "Is tap water free?",
+    russian: "Вода из-под крана бесплатная?",
+    explanation: "Экономим на воде",
+    category: "Еда",
+    level: "Средний"
+  },
+  {
+    english: "Can I pay separately?",
+    russian: "Можно оплатить отдельно?",
+    explanation: "Раздельный счет",
+    category: "Еда",
+    level: "Средний"
+  },
+
+  // -------------------- ПОКУПКИ (20 фраз) --------------------
+  {
     english: "How much does this cost?",
     russian: "Сколько это стоит?",
-    explanation: "Спрашиваем цену товара",
+    explanation: "Спрашиваем цену",
     category: "Покупки",
     level: "Начальный"
   },
   {
+    english: "I'm just looking, thanks.",
+    russian: "Я просто смотрю, спасибо.",
+    explanation: "Отказ от помощи",
+    category: "Покупки",
+    level: "Начальный"
+  },
+  {
+    english: "Do you have this in a different color?",
+    russian: "У вас есть это другого цвета?",
+    explanation: "Выбор цвета",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "Can I try this on?",
+    russian: "Можно это примерить?",
+    explanation: "Примерка",
+    category: "Покупки",
+    level: "Начальный"
+  },
+  {
+    english: "Where are the fitting rooms?",
+    russian: "Где примерочные?",
+    explanation: "Поиск примерочной",
+    category: "Покупки",
+    level: "Начальный"
+  },
+  {
+    english: "It doesn't fit.",
+    russian: "Не подходит по размеру.",
+    explanation: "Неправильный размер",
+    category: "Покупки",
+    level: "Начальный"
+  },
+  {
+    english: "Do you have a larger size?",
+    russian: "У вас есть размер побольше?",
+    explanation: "Нужен больше",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "Is this on sale?",
+    russian: "Это по акции?",
+    explanation: "Скидка",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "Can I get a tax refund?",
+    russian: "Можно вернуть налог?",
+    explanation: "Tax Free",
+    category: "Покупки",
+    level: "Продвинутый"
+  },
+  {
+    english: "I'd like to return this.",
+    russian: "Я хотел бы вернуть это.",
+    explanation: "Возврат товара",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "Do you offer gift wrapping?",
+    russian: "У вас есть подарочная упаковка?",
+    explanation: "Упаковка подарка",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "Is there a warranty?",
+    russian: "Есть гарантия?",
+    explanation: "На электронику",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "Can you order it for me?",
+    russian: "Можете заказать для меня?",
+    explanation: "Нет в наличии",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "I'll take it.",
+    russian: "Я беру это.",
+    explanation: "Решение купить",
+    category: "Покупки",
+    level: "Начальный"
+  },
+  {
+    english: "Where's the nearest supermarket?",
+    russian: "Где ближайший супермаркет?",
+    explanation: "Поиск продуктов",
+    category: "Покупки",
+    level: "Начальный"
+  },
+  {
+    english: "Do you have a loyalty card?",
+    russian: "У вас есть карта лояльности?",
+    explanation: "Скидочная карта",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "Can I have a receipt, please?",
+    russian: "Можно чек, пожалуйста?",
+    explanation: "Просим чек",
+    category: "Покупки",
+    level: "Начальный"
+  },
+  {
+    english: "Is this real leather?",
+    russian: "Это настоящая кожа?",
+    explanation: "Проверка материала",
+    category: "Покупки",
+    level: "Средний"
+  },
+  {
+    english: "Where can I find cosmetics?",
+    russian: "Где найти косметику?",
+    explanation: "Отдел косметики",
+    category: "Покупки",
+    level: "Начальный"
+  },
+  {
+    english: "Do you have this in stock?",
+    russian: "Это есть в наличии?",
+    explanation: "Наличие товара",
+    category: "Покупки",
+    level: "Средний"
+  },
+
+  // -------------------- ЗДОРОВЬЕ (20 фраз) --------------------
+  {
     english: "I need to see a doctor.",
     russian: "Мне нужно к врачу.",
-    explanation: "Выражаем потребность в медицинской помощи",
+    explanation: "Вызов врача",
     category: "Здоровье",
     level: "Начальный"
+  },
+  {
+    english: "Where's the nearest pharmacy?",
+    russian: "Где ближайшая аптека?",
+    explanation: "Поиск аптеки",
+    category: "Здоровье",
+    level: "Начальный"
+  },
+  {
+    english: "I have a headache.",
+    russian: "У меня болит голова.",
+    explanation: "Симптомы",
+    category: "Здоровье",
+    level: "Начальный"
+  },
+  {
+    english: "I feel dizzy.",
+    russian: "У меня кружится голова.",
+    explanation: "Плохое самочувствие",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "I have a fever.",
+    russian: "У меня температура.",
+    explanation: "Жар",
+    category: "Здоровье",
+    level: "Начальный"
+  },
+  {
+    english: "I need antibiotics.",
+    russian: "Мне нужны антибиотики.",
+    explanation: "По рецепту",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "I'm allergic to penicillin.",
+    russian: "У меня аллергия на пенициллин.",
+    explanation: "Предупреждение",
+    category: "Здоровье",
+    level: "Продвинутый"
+  },
+  {
+    english: "I have asthma.",
+    russian: "У меня астма.",
+    explanation: "Хроническое заболевание",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "I need painkillers.",
+    russian: "Мне нужны обезболивающие.",
+    explanation: "От боли",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "I think I broke my arm.",
+    russian: "Кажется, я сломал руку.",
+    explanation: "Травма",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "Call an ambulance!",
+    russian: "Вызовите скорую!",
+    explanation: "Экстренный вызов",
+    category: "Здоровье",
+    level: "Начальный"
+  },
+  {
+    english: "I have diabetes.",
+    russian: "У меня диабет.",
+    explanation: "Важная информация",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "I need insulin.",
+    russian: "Мне нужен инсулин.",
+    explanation: "Лекарство",
+    category: "Здоровье",
+    level: "Продвинутый"
+  },
+  {
+    english: "I can't sleep.",
+    russian: "Я не могу спать.",
+    explanation: "Бессонница",
+    category: "Здоровье",
+    level: "Начальный"
+  },
+  {
+    english: "Do I need a prescription?",
+    russian: "Нужен рецепт?",
+    explanation: "Уточнение",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "I have heart problems.",
+    russian: "У меня проблемы с сердцем.",
+    explanation: "Сердечное заболевание",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "I'm pregnant.",
+    russian: "Я беременна.",
+    explanation: "Важная информация",
+    category: "Здоровье",
+    level: "Средний"
+  },
+  {
+    english: "I need a dentist.",
+    russian: "Мне нужен стоматолог.",
+    explanation: "Зубная боль",
+    category: "Здоровье",
+    level: "Начальный"
+  },
+  {
+    english: "I have a sore throat.",
+    russian: "У меня болит горло.",
+    explanation: "Простуда",
+    category: "Здоровье",
+    level: "Начальный"
+  },
+  {
+    english: "Is it serious?",
+    russian: "Это серьезно?",
+    explanation: "Оценка состояния",
+    category: "Здоровье",
+    level: "Средний"
+  },
+
+  // -------------------- ГОСТИНИЦА (15 фраз) --------------------
+  {
+    english: "I have a reservation.",
+    russian: "У меня забронировано.",
+    explanation: "На ресепшн",
+    category: "Гостиница",
+    level: "Начальный"
+  },
+  {
+    english: "Check-in, please.",
+    russian: "Заселение, пожалуйста.",
+    explanation: "Прибытие в отель",
+    category: "Гостиница",
+    level: "Начальный"
+  },
+  {
+    english: "What time is check-out?",
+    russian: "Во сколько выезд?",
+    explanation: "Время выезда",
+    category: "Гостиница",
+    level: "Начальный"
+  },
+  {
+    english: "Can I have a late check-out?",
+    russian: "Можно поздний выезд?",
+    explanation: "Дополнительное время",
+    category: "Гостиница",
+    level: "Средний"
+  },
+  {
+    english: "Is breakfast included?",
+    russian: "Завтрак включен?",
+    explanation: "Уточнение",
+    category: "Гостиница",
+    level: "Начальный"
+  },
+  {
+    english: "The air conditioner doesn't work.",
+    russian: "Кондиционер не работает.",
+    explanation: "Проблема в номере",
+    category: "Гостиница",
+    level: "Средний"
+  },
+  {
+    english: "There's no hot water.",
+    russian: "Нет горячей воды.",
+    explanation: "Проблема в номере",
+    category: "Гостиница",
+    level: "Средний"
+  },
+  {
+    english: "Could I have extra towels?",
+    russian: "Можно дополнительные полотенца?",
+    explanation: "В номер",
+    category: "Гостиница",
+    level: "Средний"
+  },
+  {
+    english: "Is there WiFi in the room?",
+    russian: "В номере есть WiFi?",
+    explanation: "Интернет",
+    category: "Гостиница",
+    level: "Начальный"
+  },
+  {
+    english: "What's the WiFi password?",
+    russian: "Какой пароль от WiFi?",
+    explanation: "Доступ в интернет",
+    category: "Гостиница",
+    level: "Начальный"
+  },
+  {
+    english: "Can you store my luggage?",
+    russian: "Можете оставить мой багаж?",
+    explanation: "Камера хранения",
+    category: "Гостиница",
+    level: "Средний"
+  },
+  {
+    english: "I need a wake-up call at 7 AM.",
+    russian: "Мне нужен звонок-будильник в 7 утра.",
+    explanation: "Будильник",
+    category: "Гостиница",
+    level: "Средний"
+  },
+  {
+    english: "Can I change rooms?",
+    russian: "Можно поменять номер?",
+    explanation: "Смена номера",
+    category: "Гостиница",
+    level: "Средний"
+  },
+  {
+    english: "Is there a gym?",
+    russian: "У вас есть тренажерный зал?",
+    explanation: "Услуги отеля",
+    category: "Гостиница",
+    level: "Средний"
+  },
+  {
+    english: "Do you have a swimming pool?",
+    russian: "У вас есть бассейн?",
+    explanation: "Удобства",
+    category: "Гостиница",
+    level: "Начальный"
+  },
+
+  // -------------------- ОРИЕНТАЦИЯ В ГОРОДЕ (15 фраз) --------------------
+  {
+    english: "How do I get to the museum?",
+    russian: "Как мне добраться до музея?",
+    explanation: "Маршрут",
+    category: "Город",
+    level: "Начальный"
+  },
+  {
+    english: "Is it far from here?",
+    russian: "Это далеко отсюда?",
+    explanation: "Расстояние",
+    category: "Город",
+    level: "Начальный"
+  },
+  {
+    english: "Can I walk there?",
+    russian: "Туда можно дойти пешком?",
+    explanation: "Пешая доступность",
+    category: "Город",
+    level: "Средний"
+  },
+  {
+    english: "Which bus goes to the beach?",
+    russian: "Какой автобус идет на пляж?",
+    explanation: "Общественный транспорт",
+    category: "Город",
+    level: "Средний"
+  },
+  {
+    english: "Where's the city center?",
+    russian: "Где центр города?",
+    explanation: "Ориентация",
+    category: "Город",
+    level: "Начальный"
+  },
+  {
+    english: "I'm lost.",
+    russian: "Я заблудился.",
+    explanation: "Потерялся",
+    category: "Город",
+    level: "Начальный"
+  },
+  {
+    english: "Can you show me on the map?",
+    russian: "Можете показать на карте?",
+    explanation: "Просьба показать",
+    category: "Город",
+    level: "Средний"
+  },
+  {
+    english: "What's the address?",
+    russian: "Какой адрес?",
+    explanation: "Уточнение",
+    category: "Город",
+    level: "Начальный"
+  },
+  {
+    english: "Turn left at the traffic lights.",
+    russian: "Поверните налево на светофоре.",
+    explanation: "Маршрут",
+    category: "Город",
+    level: "Средний"
+  },
+  {
+    english: "Is this the way to the station?",
+    russian: "Это дорога к вокзалу?",
+    explanation: "Проверка маршрута",
+    category: "Город",
+    level: "Средний"
+  },
+  {
+    english: "Go straight ahead.",
+    russian: "Идите прямо.",
+    explanation: "Направление",
+    category: "Город",
+    level: "Начальный"
+  },
+  {
+    english: "It's around the corner.",
+    russian: "Это за углом.",
+    explanation: "Близко",
+    category: "Город",
+    level: "Начальный"
+  },
+  {
+    english: "I'm looking for this street.",
+    russian: "Я ищу эту улицу.",
+    explanation: "Поиск",
+    category: "Город",
+    level: "Средний"
+  },
+  {
+    english: "What's the best route?",
+    russian: "Какой лучший маршрут?",
+    explanation: "Оптимальный путь",
+    category: "Город",
+    level: "Средний"
+  },
+  {
+    english: "Is it safe to walk at night?",
+    russian: "Здесь безопасно гулять ночью?",
+    explanation: "Безопасность",
+    category: "Город",
+    level: "Средний"
+  },
+
+  // -------------------- ЭКСТРЕННЫЕ СЛУЧАИ (15 фраз) --------------------
+  {
+    english: "Help!",
+    russian: "Помогите!",
+    explanation: "Крик о помощи",
+    category: "Экстренное",
+    level: "Начальный"
+  },
+  {
+    english: "Call the police!",
+    russian: "Вызовите полицию!",
+    explanation: "Экстренный вызов",
+    category: "Экстренное",
+    level: "Начальный"
+  },
+  {
+    english: "There's a fire!",
+    russian: "Пожар!",
+    explanation: "Пожарная тревога",
+    category: "Экстренное",
+    level: "Начальный"
+  },
+  {
+    english: "I've been robbed.",
+    russian: "Меня ограбили.",
+    explanation: "Кража",
+    category: "Экстренное",
+    level: "Средний"
+  },
+  {
+    english: "I lost my passport.",
+    russian: "Я потерял паспорт.",
+    explanation: "Потеря документа",
+    category: "Экстренное",
+    level: "Средний"
+  },
+  {
+    english: "My wallet was stolen.",
+    russian: "У меня украли кошелек.",
+    explanation: "Кража",
+    category: "Экстренное",
+    level: "Средний"
+  },
+  {
+    english: "I need to contact the embassy.",
+    russian: "Мне нужно связаться с посольством.",
+    explanation: "ЧП за границей",
+    category: "Экстренное",
+    level: "Средний"
+  },
+  {
+    english: "There's been an accident.",
+    russian: "Произошла авария.",
+    explanation: "Сообщение о ДТП",
+    category: "Экстренное",
+    level: "Средний"
+  },
+  {
+    english: "I'm being followed.",
+    russian: "За мной следят.",
+    explanation: "Опасная ситуация",
+    category: "Экстренное",
+    level: "Продвинутый"
+  },
+  {
+    english: "I need a lawyer.",
+    russian: "Мне нужен адвокат.",
+    explanation: "Юридическая помощь",
+    category: "Экстренное",
+    level: "Средний"
+  },
+  {
+    english: "I've been assaulted.",
+    russian: "На меня напали.",
+    explanation: "Физическое насилие",
+    category: "Экстренное",
+    level: "Продвинутый"
+  },
+  {
+    english: "Where is the police station?",
+    russian: "Где полицейский участок?",
+    explanation: "Поиск полиции",
+    category: "Экстренное",
+    level: "Начальный"
+  },
+  {
+    english: "I want to report a crime.",
+    russian: "Я хочу заявить о преступлении.",
+    explanation: "В полиции",
+    category: "Экстренное",
+    level: "Продвинутый"
+  },
+  {
+    english: "My child is missing.",
+    russian: "Мой ребенок пропал.",
+    explanation: "Пропал человек",
+    category: "Экстренное",
+    level: "Средний"
+  },
+  {
+    english: "I need a translator.",
+    russian: "Мне нужен переводчик.",
+    explanation: "Языковой барьер",
+    category: "Экстренное",
+    level: "Средний"
+  },
+
+  // -------------------- РАБОТА И БИЗНЕС (15 фраз) --------------------
+  {
+    english: "I have a job interview.",
+    russian: "У меня собеседование.",
+    explanation: "Поиск работы",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "What's the salary?",
+    russian: "Какая зарплата?",
+    explanation: "Обсуждение оплаты",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "When can I start?",
+    russian: "Когда я могу приступить?",
+    explanation: "Готовность работать",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "I need a work visa.",
+    russian: "Мне нужна рабочая виза.",
+    explanation: "Документы",
+    category: "Работа",
+    level: "Продвинутый"
+  },
+  {
+    english: "I'm here for a conference.",
+    russian: "Я здесь на конференции.",
+    explanation: "Командировка",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "Let's schedule a meeting.",
+    russian: "Давайте назначим встречу.",
+    explanation: "Деловая встреча",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "I'll send you an email.",
+    russian: "Я пришлю вам письмо.",
+    explanation: "Деловая переписка",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "Can you send me the contract?",
+    russian: "Можете прислать мне контракт?",
+    explanation: "Документы",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "I need a day off.",
+    russian: "Мне нужен выходной.",
+    explanation: "Отгул",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "I'm sick today.",
+    russian: "Я заболел сегодня.",
+    explanation: "Больничный",
+    category: "Работа",
+    level: "Начальный"
+  },
+  {
+    english: "What are the working hours?",
+    russian: "Какой график работы?",
+    explanation: "Режим работы",
+    category: "Работа",
+    level: "Средний"
+  },
+  {
+    english: "Is overtime paid?",
+    russian: "Сверхурочные оплачиваются?",
+    explanation: "Оплата труда",
+    category: "Работа",
+    level: "Продвинутый"
+  },
+  {
+    english: "I'd like to resign.",
+    russian: "Я хотел бы уволиться.",
+    explanation: "Увольнение",
+    category: "Работа",
+    level: "Продвинутый"
+  },
+  {
+    english: "Can you write a reference?",
+    russian: "Можете написать рекомендацию?",
+    explanation: "Рекомендательное письмо",
+    category: "Работа",
+    level: "Продвинутый"
+  },
+  {
+    english: "I have experience in this field.",
+    russian: "У меня есть опыт в этой сфере.",
+    explanation: "Опыт работы",
+    category: "Работа",
+    level: "Средний"
+  },
+
+  // -------------------- ОБЩЕНИЕ И ЗНАКОМСТВА (15 фраз) --------------------
+  {
+    english: "Hi, my name is...",
+    russian: "Привет, меня зовут...",
+    explanation: "Знакомство",
+    category: "Общение",
+    level: "Начальный"
+  },
+  {
+    english: "Nice to meet you.",
+    russian: "Приятно познакомиться.",
+    explanation: "Вежливость",
+    category: "Общение",
+    level: "Начальный"
+  },
+  {
+    english: "Where are you from?",
+    russian: "Откуда вы?",
+    explanation: "Вопрос о происхождении",
+    category: "Общение",
+    level: "Начальный"
+  },
+  {
+    english: "I'm from Russia.",
+    russian: "Я из России.",
+    explanation: "Ответ",
+    category: "Общение",
+    level: "Начальный"
+  },
+  {
+    english: "Do you speak English?",
+    russian: "Вы говорите по-английски?",
+    explanation: "Язык общения",
+    category: "Общение",
+    level: "Начальный"
+  },
+  {
+    english: "I don't understand.",
+    russian: "Я не понимаю.",
+    explanation: "Нет понимания",
+    category: "Общение",
+    level: "Начальный"
+  },
+  {
+    english: "Could you speak slower?",
+    russian: "Не могли бы вы говорить медленнее?",
+    explanation: "Просьба",
+    category: "Общение",
+    level: "Средний"
+  },
+  {
+    english: "Can you repeat that?",
+    russian: "Можете повторить?",
+    explanation: "Уточнение",
+    category: "Общение",
+    level: "Начальный"
+  },
+  {
+    english: "What do you do?",
+    russian: "Чем вы занимаетесь?",
+    explanation: "Профессия",
+    category: "Общение",
+    level: "Средний"
+  },
+  {
+    english: "Do you live here?",
+    russian: "Вы здесь живете?",
+    explanation: "Место жительства",
+    category: "Общение",
+    level: "Средний"
+  },
+  {
+    english: "I'm just visiting.",
+    russian: "Я просто в гостях.",
+    explanation: "Турист",
+    category: "Общение",
+    level: "Средний"
+  },
+  {
+    english: "What are your hobbies?",
+    russian: "Какие у вас хобби?",
+    explanation: "Интересы",
+    category: "Общение",
+    level: "Средний"
+  },
+  {
+    english: "Can I have your number?",
+    russian: "Можно ваш номер?",
+    explanation: "Обмен контактами",
+    category: "Общение",
+    level: "Средний"
+  },
+  {
+    english: "Let's keep in touch.",
+    russian: "Давайте оставаться на связи.",
+    explanation: "Поддержание контакта",
+    category: "Общение",
+    level: "Средний"
+  },
+  {
+    english: "It was great talking to you.",
+    russian: "Было приятно пообщаться.",
+    explanation: "Завершение разговора",
+    category: "Общение",
+    level: "Средний"
+  },
+
+  // -------------------- ДЕНЬГИ И БАНКИ (10 фраз) --------------------
+  {
+    english: "Where can I exchange currency?",
+    russian: "Где можно обменять валюту?",
+    explanation: "Обменник",
+    category: "Деньги",
+    level: "Начальный"
+  },
+  {
+    english: "What's the exchange rate?",
+    russian: "Какой курс обмена?",
+    explanation: "Курс валют",
+    category: "Деньги",
+    level: "Средний"
+  },
+  {
+    english: "I need to withdraw money.",
+    russian: "Мне нужно снять деньги.",
+    explanation: "Банкомат",
+    category: "Деньги",
+    level: "Средний"
+  },
+  {
+    english: "My card doesn't work.",
+    russian: "Моя карта не работает.",
+    explanation: "Проблема с картой",
+    category: "Деньги",
+    level: "Средний"
+  },
+  {
+    english: "I lost my credit card.",
+    russian: "Я потерял кредитную карту.",
+    explanation: "Блокировка",
+    category: "Деньги",
+    level: "Средний"
+  },
+  {
+    english: "I need to send money.",
+    russian: "Мне нужно отправить деньги.",
+    explanation: "Перевод",
+    category: "Деньги",
+    level: "Средний"
+  },
+  {
+    english: "What's the commission?",
+    russian: "Какая комиссия?",
+    explanation: "Плата за услугу",
+    category: "Деньги",
+    level: "Средний"
+  },
+  {
+    english: "Is there an ATM nearby?",
+    russian: "Здесь рядом есть банкомат?",
+    explanation: "Поиск банкомата",
+    category: "Деньги",
+    level: "Начальный"
+  },
+  {
+    english: "I'd like to open an account.",
+    russian: "Я хотел бы открыть счет.",
+    explanation: "В банке",
+    category: "Деньги",
+    level: "Продвинутый"
+  },
+  {
+    english: "Can I use my foreign card?",
+    russian: "Можно использовать иностранную карту?",
+    explanation: "Принимают ли",
+    category: "Деньги",
+    level: "Средний"
+  },
+
+  // -------------------- ТЕХНИКА И ИНТЕРНЕТ (10 фраз) --------------------
+  {
+    english: "My phone is dead.",
+    russian: "Мой телефон разрядился.",
+    explanation: "Нет заряда",
+    category: "Техника",
+    level: "Начальный"
+  },
+  {
+    english: "Do you have a charger?",
+    russian: "У вас есть зарядка?",
+    explanation: "Зарядное устройство",
+    category: "Техника",
+    level: "Начальный"
+  },
+  {
+    english: "Is there free WiFi?",
+    russian: "Здесь есть бесплатный WiFi?",
+    explanation: "Бесплатный интернет",
+    category: "Техника",
+    level: "Начальный"
+  },
+  {
+    english: "My laptop won't turn on.",
+    russian: "Мой ноутбук не включается.",
+    explanation: "Проблема",
+    category: "Техника",
+    level: "Средний"
+  },
+  {
+    english: "I need to print something.",
+    russian: "Мне нужно что-то распечатать.",
+    explanation: "Печать",
+    category: "Техника",
+    level: "Средний"
+  },
+  {
+    english: "Where can I buy a SIM card?",
+    russian: "Где купить сим-карту?",
+    explanation: "Мобильная связь",
+    category: "Техника",
+    level: "Начальный"
+  },
+  {
+    english: "I need a data plan.",
+    russian: "Мне нужен тариф с интернетом.",
+    explanation: "Мобильный интернет",
+    category: "Техника",
+    level: "Средний"
+  },
+  {
+    english: "The screen is broken.",
+    russian: "Экран разбит.",
+    explanation: "Ремонт",
+    category: "Техника",
+    level: "Средний"
+  },
+  {
+    english: "Can you fix it?",
+    russian: "Вы можете это починить?",
+    explanation: "Ремонт техники",
+    category: "Техника",
+    level: "Средний"
+  },
+  {
+    english: "How long will it take?",
+    russian: "Сколько времени это займет?",
+    explanation: "Сроки",
+    category: "Техника",
+    level: "Средний"
+  },
+
+  // -------------------- РОМАНТИЧЕСКИЕ ОТНОШЕНИЯ (10 фраз) --------------------
+  {
+    english: "You're very beautiful.",
+    russian: "Вы очень красивая.",
+    explanation: "Комплимент",
+    category: "Романтика",
+    level: "Средний"
+  },
+  {
+    english: "Can I buy you a drink?",
+    russian: "Могу я купить вам напиток?",
+    explanation: "В баре",
+    category: "Романтика",
+    level: "Средний"
+  },
+  {
+    english: "Would you like to have dinner with me?",
+    russian: "Не хотите поужинать со мной?",
+    explanation: "Приглашение",
+    category: "Романтика",
+    level: "Средний"
+  },
+  {
+    english: "You have a great sense of humor.",
+    russian: "У вас отличное чувство юмора.",
+    explanation: "Комплимент",
+    category: "Романтика",
+    level: "Средний"
+  },
+  {
+    english: "I miss you.",
+    russian: "Я скучаю по тебе.",
+    explanation: "Чувства",
+    category: "Романтика",
+    level: "Начальный"
+  },
+  {
+    english: "I love you.",
+    russian: "Я люблю тебя.",
+    explanation: "Признание",
+    category: "Романтика",
+    level: "Начальный"
+  },
+  {
+    english: "Are you single?",
+    russian: "Вы свободны?",
+    explanation: "Статус отношений",
+    category: "Романтика",
+    level: "Средний"
+  },
+  {
+    english: "I had a wonderful time.",
+    russian: "Я прекрасно провел время.",
+    explanation: "После свидания",
+    category: "Романтика",
+    level: "Средний"
+  },
+  {
+    english: "When can I see you again?",
+    russian: "Когда я увижу тебя снова?",
+    explanation: "Следующая встреча",
+    category: "Романтика",
+    level: "Средний"
+  },
+  {
+    english: "I'm not ready for a relationship.",
+    russian: "Я не готов к отношениям.",
+    explanation: "Отказ",
+    category: "Романтика",
+    level: "Продвинутый"
+  },
+
+  // -------------------- УСЛУГИ И СЕРВИС (10 фраз) --------------------
+  {
+    english: "I need a haircut.",
+    russian: "Мне нужно подстричься.",
+    explanation: "Парикмахерская",
+    category: "Услуги",
+    level: "Начальный"
+  },
+  {
+    english: "Just a trim, please.",
+    russian: "Просто подравняйте, пожалуйста.",
+    explanation: "Стрижка",
+    category: "Услуги",
+    level: "Средний"
+  },
+  {
+    english: "I need my shoes repaired.",
+    russian: "Мне нужно отремонтировать обувь.",
+    explanation: "Ремонт обуви",
+    category: "Услуги",
+    level: "Средний"
+  },
+  {
+    english: "Where can I do laundry?",
+    russian: "Где можно постирать?",
+    explanation: "Прачечная",
+    category: "Услуги",
+    level: "Средний"
+  },
+  {
+    english: "I need dry cleaning.",
+    russian: "Мне нужна химчистка.",
+    explanation: "Чистка одежды",
+    category: "Услуги",
+    level: "Средний"
+  },
+  {
+    english: "When will it be ready?",
+    russian: "Когда будет готово?",
+    explanation: "Сроки",
+    category: "Услуги",
+    level: "Начальный"
+  },
+  {
+    english: "Can you deliver it to my hotel?",
+    russian: "Можете доставить в отель?",
+    explanation: "Доставка",
+    category: "Услуги",
+    level: "Средний"
+  },
+  {
+    english: "I need a locksmith.",
+    russian: "Мне нужен слесарь.",
+    explanation: "Замочные работы",
+    category: "Услуги",
+    level: "Продвинутый"
+  },
+  {
+    english: "The key is broken.",
+    russian: "Ключ сломался.",
+    explanation: "Проблема",
+    category: "Услуги",
+    level: "Средний"
+  },
+  {
+    english: "How much does the service cost?",
+    russian: "Сколько стоит услуга?",
+    explanation: "Цена",
+    category: "Услуги",
+    level: "Начальный"
+  },
+
+  // -------------------- СПОРТ И АКТИВНЫЙ ОТДЫХ (10 фраз) --------------------
+  {
+    english: "Where can I rent a bike?",
+    russian: "Где можно взять напрокат велосипед?",
+    explanation: "Прокат",
+    category: "Спорт",
+    level: "Средний"
+  },
+  {
+    english: "Is there a hiking trail?",
+    russian: "Здесь есть пешеходная тропа?",
+    explanation: "Поход",
+    category: "Спорт",
+    level: "Средний"
+  },
+  {
+    english: "I want to go skiing.",
+    russian: "Я хочу покататься на лыжах.",
+    explanation: "Зимний спорт",
+    category: "Спорт",
+    level: "Средний"
+  },
+  {
+    english: "Do I need equipment?",
+    russian: "Мне нужно снаряжение?",
+    explanation: "Экипировка",
+    category: "Спорт",
+    level: "Средний"
+  },
+  {
+    english: "Is there a gym nearby?",
+    russian: "Здесь рядом есть спортзал?",
+    explanation: "Тренировки",
+    category: "Спорт",
+    level: "Начальный"
+  },
+  {
+    english: "I'd like to play tennis.",
+    russian: "Я хотел бы поиграть в теннис.",
+    explanation: "Аренда корта",
+    category: "Спорт",
+    level: "Средний"
+  },
+  {
+    english: "Can I join your game?",
+    russian: "Можно присоединиться к вашей игре?",
+    explanation: "Командный спорт",
+    category: "Спорт",
+    level: "Средний"
+  },
+  {
+    english: "What time does the pool open?",
+    russian: "Во сколько открывается бассейн?",
+    explanation: "Бассейн",
+    category: "Спорт",
+    level: "Начальный"
+  },
+  {
+    english: "I need a personal trainer.",
+    russian: "Мне нужен личный тренер.",
+    explanation: "Фитнес",
+    category: "Спорт",
+    level: "Продвинутый"
+  },
+  {
+    english: "Is there a surfing school?",
+    russian: "Здесь есть школа серфинга?",
+    explanation: "Водные виды",
+    category: "Спорт",
+    level: "Продвинутый"
+  },
+
+  // -------------------- ОБРАЗОВАНИЕ (10 фраз) --------------------
+  {
+    english: "I want to learn English.",
+    russian: "Я хочу выучить английский.",
+    explanation: "Изучение языка",
+    category: "Образование",
+    level: "Начальный"
+  },
+  {
+    english: "Are there any language courses?",
+    russian: "Здесь есть курсы языка?",
+    explanation: "Поиск курсов",
+    category: "Образование",
+    level: "Средний"
+  },
+  {
+    english: "How much are the classes?",
+    russian: "Сколько стоят занятия?",
+    explanation: "Цена обучения",
+    category: "Образование",
+    level: "Средний"
+  },
+  {
+    english: "I need a private tutor.",
+    russian: "Мне нужен частный репетитор.",
+    explanation: "Индивидуальные занятия",
+    category: "Образование",
+    level: "Средний"
+  },
+  {
+    english: "Is the certificate accredited?",
+    russian: "Сертификат аккредитован?",
+    explanation: "Официальный документ",
+    category: "Образование",
+    level: "Продвинутый"
+  },
+  {
+    english: "I'm studying for an exam.",
+    russian: "Я готовлюсь к экзамену.",
+    explanation: "Подготовка",
+    category: "Образование",
+    level: "Средний"
+  },
+  {
+    english: "Can I borrow this book?",
+    russian: "Можно взять эту книгу?",
+    explanation: "Библиотека",
+    category: "Образование",
+    level: "Начальный"
+  },
+  {
+    english: "Where is the library?",
+    russian: "Где библиотека?",
+    explanation: "Поиск",
+    category: "Образование",
+    level: "Начальный"
+  },
+  {
+    english: "I need a student visa.",
+    russian: "Мне нужна студенческая виза.",
+    explanation: "Документы",
+    category: "Образование",
+    level: "Продвинутый"
+  },
+  {
+    english: "What's the deadline?",
+    russian: "Какой крайний срок?",
+    explanation: "Дедлайн",
+    category: "Образование",
+    level: "Средний"
   }
 ];
 
