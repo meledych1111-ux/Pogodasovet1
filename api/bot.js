@@ -679,6 +679,7 @@ async function getGameStatsMessage(userId) {
   }
 }
 // ===================== 🔴 ИСПРАВЛЕННАЯ ФУНКЦИЯ ТОПА ИГРОКОВ =====================
+// ==================== РАБОЧАЯ ФУНКЦИЯ ТОПА ДЛЯ БОТА ====================
 async function getTopPlayersMessage(limit = 10, ctx = null) {
   try {
     console.log(`🏆 Получение топа ${limit} игроков...`);
@@ -686,7 +687,7 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
     const client = await pool.connect();
     
     try {
-      // 🔴 ТОЛЬКО РЕАЛЬНЫЕ ПОЛЬЗОВАТЕЛИ - БЕЗ ТЕСТОВЫХ!
+      // 🔴 ВОЗВРАЩАЕМ СТАРЫЙ ПРОВЕРЕННЫЙ SQL-ЗАПРОС!
       const topQuery = `
         SELECT 
           gs.user_id,
@@ -701,11 +702,10 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
         WHERE gs.game_type = 'tetris' 
           AND gs.score > 0
           AND gs.is_win = true
-          AND gs.user_id NOT LIKE 'test_%'      -- ❌ ИСКЛЮЧАЕМ ТЕСТОВЫХ
-          AND gs.user_id NOT LIKE 'web_%'       -- ❌ ИСКЛЮЧАЕМ WEB_
-          AND gs.user_id ~ '^[0-9]+$'           -- ✅ ТОЛЬКО ЧИСЛОВЫЕ ID
+          AND gs.user_id NOT LIKE 'test_%'
+          AND gs.user_id NOT LIKE 'web_%'
+          AND gs.user_id ~ '^[0-9]+$'
         GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
-        HAVING MAX(gs.score) >= 200
         ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
         LIMIT $1
       `;
@@ -751,60 +751,18 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
         message += `   🕹️ Игр завершено: ${gamesPlayed}\n\n`;
       });
       
+      // Добавляем информацию о текущем пользователе
       if (ctx && ctx.from) {
         const currentUserId = ctx.from.id.toString();
-        
-        const userBestQuery = `
-          SELECT MAX(score) as best_score, COUNT(*) as games_played
-          FROM game_scores 
-          WHERE user_id = $1 
-            AND game_type = 'tetris'
-            AND score > 0
-        `;
-        
-        const userResult = await client.query(userBestQuery, [currentUserId]);
-        const userBestScore = userResult.rows[0]?.best_score || 0;
-        const userGamesPlayed = userResult.rows[0]?.games_played || 0;
-        
-        const isInTop = result.rows.some(p => p.user_id === currentUserId);
-        
-        if (isInTop) {
-          const userIndex = result.rows.findIndex(p => p.user_id === currentUserId);
-          message += `👤 *Ваше место:* ${userIndex + 1}\n`;
-          message += `🎯 *Ваш лучший счёт:* ${result.rows[userIndex].best_score}\n\n`;
-        } else if (userBestScore > 0) {
-          if (userBestScore < 1000) {
-            message += `👤 *Вы пока не в топе*\n`;
-            message += `🎯 Ваш лучший результат: ${userBestScore} очков\n`;
-            message += `🎯 *Нужно минимум 1000 очков* для попадания в топ!\n\n`;
-          } else {
-            const lastScore = result.rows[result.rows.length - 1]?.best_score || 0;
-            const needed = Math.max(0, lastScore - userBestScore + 1);
-            message += `👤 *Вы пока не в топе*\n`;
-            message += `🎯 Ваш лучший результат: ${userBestScore}\n`;
-            message += `🎯 *Нужно ещё ${needed} очков* для попадания в топ!\n\n`;
-          }
-        } else {
-          message += `👤 *Вы пока не играли*\n`;
-          message += `🎯 Начните игру и наберите минимум 1000 очков!\n\n`;
-        }
-        
-        const cityQuery = 'SELECT city FROM users WHERE user_id = $1';
-        const cityResult = await client.query(cityQuery, [currentUserId]);
-        const userCity = cityResult.rows[0]?.city || 'Не указан';
-        
-        if (userCity === 'Не указан') {
-          message += `📍 *Ваш город не указан!*\n`;
-          message += `Укажите город: /city [город] чтобы отображаться в топе!\n\n`;
-        }
+        message += `👤 *Ваш ID:* ${currentUserId.slice(-4)}\n`;
+        message += `📍 *Ваш город:* ${await getUserCityName(currentUserId)}\n\n`;
       }
       
       message += `📝 *Как попасть в топ:*\n`;
       message += `• 🎮 Играйте в тетрис\n`;
       message += `• 🎯 Наберите *минимум 1000 очков*\n`;
       message += `• ✅ Завершите игру\n`;
-      message += `• 📍 Укажите город: /city [город]\n\n`;
-      message += `🔄 Топ обновляется после каждой завершенной игры`;
+      message += `• 📍 Укажите город: /city [город]`;
       
       return message;
       
@@ -814,10 +772,19 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
     
   } catch (error) {
     console.error('❌ Ошибка в getTopPlayersMessage:', error);
-    return `❌ Ошибка загрузки топа игроков: ${error.message}`;
+    return `❌ Ошибка загрузки топа игроков. Пожалуйста, попробуйте позже.`;
   }
 }
 
+// Вспомогательная функция для получения города
+async function getUserCityName(userId) {
+  try {
+    const result = await getUserCityWithFallback(userId);
+    return result.city || 'Не указан';
+  } catch {
+    return 'Не указан';
+  }
+}
 // ===================== ОСНОВНЫЕ КОМАНДЫ =====================
 bot.command('start', async (ctx) => {
   console.log(`🚀 /start от ${ctx.from.id}`);
