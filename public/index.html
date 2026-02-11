@@ -795,107 +795,84 @@
     <div id="notification" class="notification"></div>
 
       <script>
-        // ==================== ПРИНУДИТЕЛЬНАЯ ИНИЦИАЛИЗАЦИЯ TELEGRAM ====================
-        let tg = null;
-        let telegramUserId = null;
-        let telegramUsername = null;
+ 
+    // ==================== ПОЛУЧАЕМ ID ИЗ URL ПАРАМЕТРОВ ====================
+    function getUrlParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const telegramId = urlParams.get('telegramId');
+        const username = urlParams.get('username');
+        return { telegramId, username };
+    }
 
-        // Максимально простая инициализация
-        (function() {
-            console.log('📱 Загрузка Telegram WebApp...');
-            
-            // Проверяем наличие Telegram WebApp
-            if (window.Telegram?.WebApp) {
-                try {
-                    tg = window.Telegram.WebApp;
-                    tg.ready();
-                    tg.expand();
-                    
-                    // ПОЛУЧАЕМ ID ПРЯМО СЕЙЧАС
-                    const user = tg.initDataUnsafe?.user;
-                    if (user?.id) {
-                        telegramUserId = String(user.id);
-                        telegramUsername = user.username || user.first_name || 'Player';
-                        
-                        // 🔴 КРИТИЧЕСКИ ВАЖНО - сохраняем ID в localStorage
-                        localStorage.setItem('telegram_user_id', telegramUserId);
-                        localStorage.setItem('telegram_username', telegramUsername);
-                        
-                        // Устанавливаем глобальную переменную
-                        window.telegramUserId = telegramUserId;
-                        window.userId = telegramUserId;
-                        
-                        console.log('✅ УСПЕХ! Telegram ID:', telegramUserId);
-                        console.log('👤 Имя:', telegramUsername);
-                        
-                        // Обновляем статус на странице
-                        const statusEl = document.getElementById('db-status-text');
-                        if (statusEl) {
-                            statusEl.textContent = `✅ ID: ${telegramUserId.slice(-4)}`;
-                            statusEl.style.color = '#66ffaa';
-                        }
-                        
-                        // Загружаем статистику
-                        if (typeof loadUserStats === 'function') {
-                            setTimeout(loadUserStats, 100);
-                        }
-                        
-                        return;
-                    }
-                } catch(e) {
-                    console.error('❌ Ошибка Telegram:', e);
-                }
-            }
-            
-            // Если не в Telegram - проверяем localStorage
-            const savedId = localStorage.getItem('telegram_user_id');
-            if (savedId) {
-                console.log('🔄 Загружаем сохраненный ID:', savedId);
-                telegramUserId = savedId;
-                window.telegramUserId = savedId;
-                window.userId = savedId;
+    // ==================== ИНИЦИАЛИЗАЦИЯ TELEGRAM ====================
+    let tg = null;
+    let telegramUserId = null;
+    let telegramUsername = null;
+
+    (function() {
+        console.log('📱 Загрузка Telegram WebApp...');
+        
+        // 1. Пробуем получить из Telegram WebApp API
+        if (window.Telegram?.WebApp) {
+            try {
+                tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
                 
-                const statusEl = document.getElementById('db-status-text');
-                if (statusEl) {
-                    statusEl.textContent = `✅ ID: ${savedId.slice(-4)} (кэш)`;
-                    statusEl.style.color = '#66ffaa';
-                }
-                return;
-            }
-            
-            console.log('⚠️ Нет Telegram ID');
-            const statusEl = document.getElementById('db-status-text');
-            if (statusEl) {
-                statusEl.textContent = '⚠️ Откройте в Telegram';
-                statusEl.style.color = '#ffcc66';
-            }
-        })();
-
-        // Повторная попытка через 1 секунду
-        setTimeout(function() {
-            if (!telegramUserId && window.Telegram?.WebApp) {
-                const user = window.Telegram.WebApp.initDataUnsafe?.user;
+                const user = tg.initDataUnsafe?.user;
                 if (user?.id) {
                     telegramUserId = String(user.id);
-                    window.telegramUserId = telegramUserId;
-                    window.userId = telegramUserId;
-                    localStorage.setItem('telegram_user_id', telegramUserId);
-                    console.log('✅ Повторная попытка - успех! ID:', telegramUserId);
-                    
-                    const statusEl = document.getElementById('db-status-text');
-                    if (statusEl) {
-                        statusEl.textContent = `✅ ID: ${telegramUserId.slice(-4)}`;
-                        statusEl.style.color = '#66ffaa';
-                    }
-                    
-                    if (typeof loadUserStats === 'function') {
-                        loadUserStats();
-                    }
+                    telegramUsername = user.username || user.first_name || 'Player';
+                    console.log('✅ Telegram API ID:', telegramUserId);
                 }
+            } catch(e) {
+                console.error('❌ Ошибка Telegram API:', e);
             }
-        }, 1000);
+        }
 
-        // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
+        // 2. Если не получили из API - берем из URL параметров
+        if (!telegramUserId) {
+            const { telegramId, username } = getUrlParams();
+            if (telegramId && /^\d+$/.test(telegramId)) {
+                telegramUserId = telegramId;
+                telegramUsername = username || 'Player';
+                console.log('✅ URL параметр ID:', telegramUserId);
+            }
+        }
+
+        // 3. Если всё равно нет ID - показываем ошибку
+        if (!telegramUserId) {
+            console.error('❌ Нет Telegram ID!');
+            const statusEl = document.getElementById('db-status-text');
+            if (statusEl) {
+                statusEl.textContent = '❌ Ошибка: нет ID пользователя';
+                statusEl.style.color = '#ff6666';
+            }
+            return;
+        }
+
+        // ✅ Сохраняем ID в глобальные переменные
+        window.telegramUserId = telegramUserId;
+        window.userId = telegramUserId;
+        
+        console.log('✅ Установлен ID:', telegramUserId);
+        
+        const statusEl = document.getElementById('db-status-text');
+        if (statusEl) {
+            statusEl.textContent = `✅ ID: ${telegramUserId.slice(-4)}`;
+            statusEl.style.color = '#66ffaa';
+        }
+        
+        // Загружаем статистику
+        setTimeout(() => {
+            if (typeof loadUserStats === 'function') {
+                loadUserStats();
+            }
+        }, 200);
+    })();
+
+    // ==================== КОНСТАНТЫ И ПЕРЕМЕННЫЕ ====================
+    // ... (весь твой остальной код остается без изменений)
         const COLS = 10;
         const ROWS = 20;
         const BLOCK_SIZE = 24;
