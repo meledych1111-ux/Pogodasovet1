@@ -1653,6 +1653,7 @@ function loadUserStats() {
 }
 
 // ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ЛИДЕРБОРДА ====================
+// ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ЛИДЕРБОРДА ====================
 function loadLeaderboard() {
     console.log('🏆 Загрузка лидерборда');
     
@@ -1664,21 +1665,20 @@ function loadLeaderboard() {
         .then(result => {
             console.log('🏆 Ответ API лидерборда:', result);
             
+            // 🔴 БЕРЕМ ИГРОКОВ ИЗ ОТВЕТА
             const players = result.players || [];
             
             if (players.length === 0) {
                 leaderboardList.innerHTML = `
                     <div style="text-align: center; padding: 30px; color: #b5aaff;">
                         <p style="font-size: 1.2rem; margin-bottom: 10px;">🏆 ЛИДЕРБОРД</p>
-                        <p style="font-size: 0.9rem;">Пока нет игроков с результатом ≥1000 очков</p>
-                        <p style="font-size: 0.8rem; margin-top: 15px; color: #ffcc66;">
-                            🎮 Сыграйте и наберите 1000+ очков!
-                        </p>
+                        <p style="font-size: 0.9rem;">Пока нет игроков</p>
                     </div>
                 `;
                 return;
             }
             
+            // 🔴 ОЧИЩАЕМ И ЗАПОЛНЯЕМ ЗАНОВО
             leaderboardList.innerHTML = '';
             
             players.forEach((player, index) => {
@@ -1690,22 +1690,34 @@ function loadLeaderboard() {
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
                 
+                // 🔴 ПОДСВЕТКА ДЛЯ ТЕКУЩЕГО ИГРОКА
+                if (isCurrentUser) {
+                    item.style.background = 'rgba(102, 204, 153, 0.2)';
+                    item.style.border = '2px solid #66ffaa';
+                }
+                
+                // 🔴 ИСПОЛЬЗУЕМ BEST_SCORE!
+                const score = player.best_score || player.score || 0;
+                const level = player.best_level || player.level || 1;
+                
                 item.innerHTML = `
                     <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
                     <div class="player-info">
                         <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
-                            ${player.display_name || `Игрок ${String(playerId).slice(-4)}`}
+                            ${player.display_name || player.username || `Игрок ${String(playerId).slice(-4)}`}
                             ${isCurrentUser ? ' (Вы)' : ''}
                         </div>
-                        <div class="player-score">${player.best_score || 0} очков</div>
+                        <div class="player-score">${score} очков</div>
                         ${player.city && player.city !== 'Не указан' ? 
                             `<div style="color: #aaccff; font-size: 0.8rem;">📍 ${player.city}</div>` : ''}
                     </div>
-                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.best_level || 1}</div>
+                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${level}</div>
                 `;
                 
                 leaderboardList.appendChild(item);
             });
+            
+            console.log(`✅ Лидерборд отображен: ${players.length} игроков`);
         })
         .catch(error => {
             console.error('❌ Ошибка загрузки лидерборда:', error);
