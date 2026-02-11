@@ -974,7 +974,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
       FROM game_scores gs
       LEFT JOIN users u ON gs.user_id = u.user_id
       WHERE gs.game_type = $1 
-        AND gs.score >= 1000
+        AND gs.score >= 200
         AND gs.is_win = true
         AND gs.user_id NOT LIKE 'web_%'
         AND gs.user_id NOT LIKE 'test_user_%'
