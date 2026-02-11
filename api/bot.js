@@ -40,10 +40,6 @@ console.log('🗄️ DATABASE_URL найден?', !!process.env.DATABASE_URL);
 const BOT_TOKEN = process.env.BOT_TOKEN;
 if (!BOT_TOKEN) {
   console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: BOT_TOKEN не найден!');
-  console.error('Проверьте файл .env.local в корне проекта:');
-  console.error('Путь:', envPath);
-  console.error('Содержимое файла должен содержать:');
-  console.error('BOT_TOKEN="ваш_токен_бота"');
   throw new Error('BOT_TOKEN is required');
 }
 
@@ -63,7 +59,6 @@ function cleanupStorage() {
     }
   }
 }
-
 setInterval(cleanupStorage, 300000);
 
 // Проверка ограничения запросов
@@ -83,7 +78,6 @@ function isRateLimited(userId) {
     console.log(`⚠️ Ограничение запросов для ${userId}: ${userLimit.count}/мин`);
     return true;
   }
-  
   return false;
 }
 
@@ -94,12 +88,7 @@ const weatherCache = new Map();
 async function getWeatherData(cityName, forceRefresh = false) {
   try {
     if (!cityName) {
-      console.error('❌ cityName не определен');
-      return {
-        success: false,
-        error: 'Город не указан',
-        city: 'Неизвестно'
-      };
+      return { success: false, error: 'Город не указан', city: 'Неизвестно' };
     }
     
     if (typeof cityName !== 'string') {
@@ -112,12 +101,9 @@ async function getWeatherData(cityName, forceRefresh = false) {
     if (!forceRefresh && weatherCache.has(cacheKey)) {
       const cached = weatherCache.get(cacheKey);
       if (now - cached.timestamp < 600000) {
-        console.log(`🌤️ Использую кэшированную погоду для ${cityName}`);
         return cached.data;
       }
     }
-    
-    console.log(`🌤️ Запрашиваю погоду для: "${cityName}"`);
     
     const encodedCity = encodeURIComponent(cityName);
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodedCity}&count=1&language=ru`;
@@ -156,25 +142,18 @@ async function getWeatherData(cityName, forceRefresh = false) {
       timestamp: new Date().toLocaleTimeString('ru-RU')
     };
     
-    weatherCache.set(cacheKey, {
-      data: weatherResult,
-      timestamp: now
-    });
-    
+    weatherCache.set(cacheKey, { data: weatherResult, timestamp: now });
     return weatherResult;
     
   } catch (error) {
     console.error('❌ Ошибка получения погоды:', error.message);
-    
     if (weatherCache.has(cityName?.toLowerCase())) {
       return weatherCache.get(cityName.toLowerCase()).data;
     }
-    
     return {
       success: false,
       error: `Не удалось получить погоду: ${error.message}`,
-      city: typeof cityName === 'string' ? cityName : String(cityName),
-      timestamp: new Date().toLocaleTimeString('ru-RU')
+      city: typeof cityName === 'string' ? cityName : String(cityName)
     };
   }
 }
@@ -182,11 +161,7 @@ async function getWeatherData(cityName, forceRefresh = false) {
 async function getWeatherForecast(cityName) {
   try {
     if (!cityName) {
-      return {
-        success: false,
-        error: 'Город не указан',
-        city: 'Неизвестно'
-      };
+      return { success: false, error: 'Город не указан', city: 'Неизвестно' };
     }
     
     if (typeof cityName !== 'string') {
@@ -199,12 +174,9 @@ async function getWeatherForecast(cityName) {
     if (weatherCache.has(cacheKey)) {
       const cached = weatherCache.get(cacheKey);
       if (now - cached.timestamp < 1800000) {
-        console.log(`🌤️ Использую кэшированный прогноз для ${cityName}`);
         return cached.data;
       }
     }
-    
-    console.log(`🌤️ Запрашиваю прогноз на завтра для: "${cityName}"`);
     
     const encodedCity = encodeURIComponent(cityName);
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodedCity}&count=1&language=ru`;
@@ -298,77 +270,18 @@ async function getWeatherForecast(cityName) {
       updated: new Date().toLocaleTimeString('ru-RU')
     };
     
-    weatherCache.set(cacheKey, {
-      data: forecastResult,
-      timestamp: now
-    });
-    
+    weatherCache.set(cacheKey, { data: forecastResult, timestamp: now });
     return forecastResult;
     
   } catch (error) {
     console.error('❌ Ошибка получения прогноза:', error.message);
-    
     if (weatherCache.has(cityName?.toLowerCase())) {
       return weatherCache.get(cityName.toLowerCase()).data;
     }
-    
-    const tomorrowDate = new Date(Date.now() + 86400000);
-    const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
-    
     return {
       success: false,
       error: `Не удалось получить прогноз: ${error.message}`,
-      city: typeof cityName === 'string' ? cityName : String(cityName),
-      date: tomorrowDateStr,
-      temp_max: 20,
-      temp_min: 10,
-      precipitation: 0,
-      wind_max: '3.0',
-      sunrise: '07:00',
-      sunset: '19:00',
-      periods: {
-        'ночь': {
-          temp_min: 10,
-          temp_max: 12,
-          feels_min: 9,
-          feels_max: 11,
-          precip_max: 10,
-          precip_avg: 5,
-          wind_avg: '2.5',
-          description: 'Ясно 🌙'
-        },
-        'утро': {
-          temp_min: 12,
-          temp_max: 16,
-          feels_min: 11,
-          feels_max: 15,
-          precip_max: 20,
-          precip_avg: 10,
-          wind_avg: '3.0',
-          description: 'Переменная облачность ⛅'
-        },
-        'день': {
-          temp_min: 18,
-          temp_max: 22,
-          feels_min: 17,
-          feels_max: 21,
-          precip_max: 15,
-          precip_avg: 5,
-          wind_avg: '3.5',
-          description: 'Ясно ☀️'
-        },
-        'вечер': {
-          temp_min: 14,
-          temp_max: 18,
-          feels_min: 13,
-          feels_max: 17,
-          precip_max: 30,
-          precip_avg: 15,
-          wind_avg: '2.8',
-          description: 'Пасмурно ☁️'
-        }
-      },
-      updated: new Date().toLocaleTimeString('ru-RU')
+      city: typeof cityName === 'string' ? cityName : String(cityName)
     };
   }
 }
@@ -396,7 +309,6 @@ function getWeatherDescription(code) {
     96: 'Гроза с градом ⛈️',
     99: 'Сильная гроза с градом ⛈️'
   };
-  
   return weatherMap[code] || 'Облачно ⛅';
 }
 
@@ -423,8 +335,6 @@ function getDetailedWeatherDescription(code, precipitationMm = 0) {
     80: 'Небольшой ливень 🌧️',
     81: 'Умеренный ливень 🌧️',
     82: 'Сильный ливень 🌧️',
-    85: 'Небольшой снегопад ❄️',
-    86: 'Сильный снегопад ❄️',
     95: 'Гроза ⛈️',
     96: 'Гроза с небольшим градом ⛈️',
     99: 'Гроза с сильным градом ⛈️'
@@ -443,7 +353,7 @@ function getDetailedWeatherDescription(code, precipitationMm = 0) {
       } else {
         description = `Пасмурно, возможен сильный дождь 🌧️ (${precipitationMm.toFixed(1)} мм)`;
       }
-    } else if ([51, 53, 61, 63, 65, 71, 73, 75, 80, 81, 82, 85, 86].includes(code)) {
+    } else {
       description += ` (${precipitationMm.toFixed(1)} мм)`;
     }
   } else if (precipitationMm === 0 && [3].includes(code)) {
@@ -453,325 +363,7 @@ function getDetailedWeatherDescription(code, precipitationMm = 0) {
   return description;
 }
 
-// ===================== ФУНКЦИИ СТАТИСТИКИ И ТОПА =====================
-async function getUserGameStats(userId) {
-  try {
-    console.log(`📊 Получение статистики для пользователя: ${userId}`);
-    
-    const result = await fetchGameStats(userId, 'tetris');
-    
-    if (!result || !result.success) {
-      console.error('❌ Ошибка получения статистики:', result?.error);
-      return null;
-    }
-    
-    return result.stats;
-    
-  } catch (error) {
-    console.error('❌ Ошибка получения статистики:', error);
-    return null;
-  }
-}
-
-async function getGameStatsMessage(userId) {
-  try {
-    console.log(`📊 Получение статистики для: ${userId}`);
-    
-    // 🔴 Используем правильный user_id (Telegram ID)
-    const telegramUserId = userId.toString();
-    console.log(`🔧 Преобразованный ID: ${telegramUserId}`);
-    
-    // 🔴 Прямой запрос к базе данных
-    const client = await pool.connect();
-    
-    try {
-      // 1. Проверяем пользователя в базе
-      const userCheck = await client.query(
-        'SELECT * FROM users WHERE user_id = $1',
-        [telegramUserId]
-      );
-      
-      if (userCheck.rows.length > 0) {
-        console.log(`✅ Пользователь найден:`, userCheck.rows[0]);
-      } else {
-        console.log(`❌ Пользователь ${telegramUserId} не найден в таблице users`);
-      }
-      
-      // 2. Проверяем game_scores для статистики
-      const scoresQuery = `
-        SELECT 
-          COUNT(*) as games_played,
-          MAX(score) as best_score,
-          MAX(level) as best_level,
-          MAX(lines) as best_lines,
-          AVG(score) as avg_score,
-          SUM(score) as total_score,
-          MAX(created_at) as last_played
-        FROM game_scores 
-        WHERE user_id = $1 
-          AND game_type = 'tetris'
-          AND score > 0
-      `;
-      
-      const scoresResult = await client.query(scoresQuery, [telegramUserId]);
-      const stats = scoresResult.rows[0];
-      console.log(`🎮 Статистика из game_scores:`, stats);
-      
-      // 3. Проверяем незавершенную игру
-      const progressQuery = `
-        SELECT score, level, lines, last_saved 
-        FROM game_progress 
-        WHERE user_id = $1 AND game_type = 'tetris'
-      `;
-      
-      const progressResult = await client.query(progressQuery, [telegramUserId]);
-      const hasUnfinishedGame = progressResult.rows.length > 0;
-      console.log(`🔄 Незавершенная игра: ${hasUnfinishedGame}`);
-      
-      // 4. Получаем город
-      let city = 'Не указан';
-      const cityQuery = `
-        SELECT city 
-        FROM users 
-        WHERE user_id = $1 
-        UNION ALL
-        SELECT selected_city as city 
-        FROM user_sessions 
-        WHERE user_id = $1 
-        LIMIT 1
-      `;
-      
-      const cityResult = await client.query(cityQuery, [telegramUserId]);
-      if (cityResult.rows.length > 0 && cityResult.rows[0].city !== 'Не указан') {
-        city = cityResult.rows[0].city;
-      }
-      
-      console.log(`📍 Город: ${city}`);
-      
-      // 5. Формируем сообщение
-      const gamesPlayed = parseInt(stats.games_played) || 0;
-      const bestScore = parseInt(stats.best_score) || 0;
-      const avgScore = Math.round(parseFloat(stats.avg_score) || 0);
-      const bestLevel = parseInt(stats.best_level) || 1;
-      const bestLines = parseInt(stats.best_lines) || 0;
-      
-      let message = `📊 *Статистика в тетрисе*\n\n`;
-      
-      if (gamesPlayed > 0) {
-        message += `🎮 Игр сыграно: *${gamesPlayed}*\n`;
-        message += `🏆 Лучший счёт: *${bestScore}*\n`;
-        message += `📊 Лучший уровень: *${bestLevel}*\n`;
-        message += `📈 Лучшие линии: *${bestLines}*\n`;
-        message += `📉 Средний счёт: *${avgScore}*\n`;
-        
-        if (stats.last_played) {
-          try {
-            const date = new Date(stats.last_played);
-            message += `⏰ Последняя игра: ${date.toLocaleDateString('ru-RU')}\n`;
-          } catch (e) {}
-        }
-      } else if (hasUnfinishedGame && progressResult.rows[0]) {
-        const progress = progressResult.rows[0];
-        message += `🔄 *Незавершенная игра:*\n`;
-        message += `• Текущие очки: ${progress.score}\n`;
-        message += `• Текущий уровень: ${progress.level}\n`;
-        message += `• Собрано линий: ${progress.lines}\n`;
-        message += `💾 *Прогресс сохранён*\n\n`;
-      } else {
-        message += `🎮 Вы ещё не играли в тетрис!\n`;
-        message += `👉 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" чтобы начать!\n\n`;
-      }
-      
-      message += `📍 Город: *${city}*\n\n`;
-      
-      // Совет
-      if (gamesPlayed === 0 && hasUnfinishedGame) {
-        message += `💡 *Совет:* Завершите текущую игру, чтобы результат попал в статистику!`;
-      } else if (gamesPlayed > 0) {
-        message += `🎯 *Цель:* Попасть в топ игроков!`;
-      } else {
-        message += `🎮 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" чтобы начать!`;
-      }
-      
-      return message;
-      
-    } finally {
-      client.release();
-    }
-    
-  } catch (error) {
-    console.error('❌ Ошибка в getGameStatsMessage:', error);
-    console.error('❌ Stack trace:', error.stack);
-    return `❌ Ошибка загрузки статистики: ${error.message}`;
-  }
-}
-
-async function getTopPlayersList(limit = 10) {
-  try {
-    console.log(`🏆 Получение топа игроков, лимит: ${limit}`);
-    
-    const result = await fetchTopPlayers('tetris', limit);
-    
-    if (!result || !result.success) {
-      console.error('❌ Ошибка получения топа:', result?.error);
-      return [];
-    }
-    
-    console.log(`🏆 Игроков в топе: ${result.players?.length || 0}`);
-    
-    return result.players || [];
-    
-  } catch (error) {
-    console.error('❌ Ошибка получения топа игроков:', error);
-    return [];
-  }
-}
-
-async function getTopPlayersMessage(limit = 10, ctx = null) {
-  try {
-    console.log(`🏆 Получение топа ${limit} игроков...`);
-    
-    const client = await pool.connect();
-    
-    try {
-      // 🔴 Правильный запрос для топа игроков
-      const topQuery = `
-        SELECT 
-          gs.user_id,
-          COALESCE(u.username, gs.username, 'Игрок') as display_name,
-          COALESCE(u.city, gs.city, 'Не указан') as city,
-          MAX(gs.score) as best_score,
-          COUNT(*) as games_played,
-          MAX(gs.level) as best_level,
-          MAX(gs.lines) as best_lines
-        FROM game_scores gs
-        LEFT JOIN users u ON gs.user_id = u.user_id
-        WHERE gs.game_type = 'tetris' 
-          AND gs.score > 0
-          AND gs.is_win = true
-        GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
-        HAVING MAX(gs.score) >= 1000  -- Минимум 1000 очков для попадания в топ
-        ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
-        LIMIT $1
-      `;
-      
-      const result = await client.query(topQuery, [limit]);
-      console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
-      
-      if (result.rows.length === 0) {
-        return `🏆 *Топ игроков*\n\n` +
-               `🎮 *Пока никто не завершил игру с хорошим результатом!*\n\n` +
-               `📝 *Как попасть в топ:*\n` +
-               `1. Играйте в тетрис 🎮\n` +
-               `2. Наберите минимум *1000 очков*\n` +
-               `3. Завершите игру (не выходите раньше)\n` +
-               `4. Ваш результат автоматически сохранится\n\n` +
-               `🎯 *Текущие рекорды появятся здесь!*`;
-      }
-      
-      let message = `🏆 *Топ ${Math.min(result.rows.length, limit)} игроков в тетрисе*\n\n`;
-      
-      result.rows.forEach((player, index) => {
-        let medal;
-        switch(index) {
-          case 0: medal = '🥇'; break;
-          case 1: medal = '🥈'; break;
-          case 2: medal = '🥉'; break;
-          default: medal = `${index + 1}.`;
-        }
-        
-        const score = player.best_score || 0;
-        const level = player.best_level || 1;
-        const lines = player.best_lines || 0;
-        const gamesPlayed = player.games_played || 1;
-        
-        message += `${medal} *${player.display_name}*\n`;
-        message += `   🎯 Очки: *${score}*\n`;
-        message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
-        
-        if (player.city && player.city !== 'Не указан') {
-          message += `   📍 Город: ${player.city}\n`;
-        }
-        
-        message += `   🕹️ Игр завершено: ${gamesPlayed}\n\n`;
-      });
-      
-      // Проверяем текущего пользователя
-      if (ctx && ctx.from) {
-        const currentUserId = ctx.from.id.toString();
-        
-        // Проверяем его лучший результат
-        const userBestQuery = `
-          SELECT MAX(score) as best_score, COUNT(*) as games_played
-          FROM game_scores 
-          WHERE user_id = $1 
-            AND game_type = 'tetris'
-            AND score > 0
-        `;
-        
-        const userResult = await client.query(userBestQuery, [currentUserId]);
-        const userBestScore = userResult.rows[0]?.best_score || 0;
-        const userGamesPlayed = userResult.rows[0]?.games_played || 0;
-        
-        // Проверяем, есть ли пользователь в топе
-        const isInTop = result.rows.some(p => p.user_id === currentUserId);
-        
-        if (isInTop) {
-          const userIndex = result.rows.findIndex(p => p.user_id === currentUserId);
-          const userPlayer = result.rows[userIndex];
-          message += `👤 *Ваше место:* ${userIndex + 1}\n`;
-          message += `🎯 *Ваш лучший счёт:* ${userPlayer.best_score}\n\n`;
-        } else if (userBestScore > 0) {
-          if (userBestScore < 1000) {
-            message += `👤 *Вы пока не в топе*\n`;
-            message += `🎯 Ваш лучший результат: ${userBestScore} очков\n`;
-            message += `🎯 *Нужно минимум 1000 очков* для попадания в топ!\n\n`;
-          } else {
-            // Находим, сколько нужно для попадания в топ
-            const lastScore = result.rows[result.rows.length - 1]?.best_score || 0;
-            const needed = Math.max(0, lastScore - userBestScore + 1);
-            message += `👤 *Вы пока не в топе*\n`;
-            message += `🎯 Ваш лучший результат: ${userBestScore}\n`;
-            message += `🎯 *Нужно ещё ${needed} очков* для попадания в топ!\n\n`;
-          }
-        } else {
-          message += `👤 *Вы пока не играли*\n`;
-          message += `🎯 Начните игру и наберите минимум 1000 очков!\n\n`;
-        }
-        
-        // Проверяем город
-        const cityQuery = 'SELECT city FROM users WHERE user_id = $1';
-        const cityResult = await client.query(cityQuery, [currentUserId]);
-        const userCity = cityResult.rows[0]?.city || 'Не указан';
-        
-        if (userCity === 'Не указан') {
-          message += `📍 *Ваш город не указан!*\n`;
-          message += `Укажите город: /city [город] чтобы отображаться в топе!\n\n`;
-        }
-      }
-      
-      message += `📝 *Как попасть в топ:*\n`;
-      message += `• 🎮 Играйте в тетрис\n`;
-      message += `• 🎯 Наберите *минимум 1000 очков*\n`;
-      message += `• ✅ Завершите игру (не выходите)\n`;
-      message += `• 📍 Укажите город: /city [город]\n\n`;
-      
-      message += `🔄 Топ обновляется после каждой завершенной игры`;
-      
-      return message;
-      
-    } finally {
-      client.release();
-    }
-    
-  } catch (error) {
-    console.error('❌ Ошибка в getTopPlayersMessage:', error);
-    console.error('❌ Stack trace:', error.stack);
-    return `❌ Ошибка загрузки топа игроков: ${error.message}`;
-  }
-}
-
-// ===================== ОДЕЖДА И СОВЕТЫ =====================
+// ===================== ФУНКЦИИ ОДЕЖДЫ =====================
 function getWardrobeAdvice(weatherData) {
   if (!weatherData || !weatherData.success) {
     return '❌ Нет данных о погоде для рекомендаций по одежде.';
@@ -894,16 +486,12 @@ const cityKeyboard = new Keyboard()
     .resized();
 
 // ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
-/**
- * Функция для сохранения города с улучшенной обработкой ошибок
- */
 async function saveUserCityWithRetry(userId, city, username = null, retries = 3) {
   const dbUserId = userId.toString();
   console.log(`📍 Сохраняем город для ${dbUserId}: "${city}"`);
   
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // 🔴 ИСПРАВЛЕНИЕ: Передаем chat_id для Telegram пользователей
       const chatId = userId === dbUserId ? userId : null;
       
       const result = await saveOrUpdateUser({
@@ -911,173 +499,322 @@ async function saveUserCityWithRetry(userId, city, username = null, retries = 3)
         username: username || '',
         first_name: username || 'Игрок',
         city: city || 'Не указан',
-        chat_id: chatId, // 🔴 Добавляем chat_id
-        source: 'telegram' // 🔴 Добавляем source
+        chat_id: chatId,
+        source: 'telegram'
       });
       
       if (result) {
         console.log(`✅ Город успешно сохранен (попытка ${attempt})`);
-        
-        // Также сохраняем в сессию для совместимости
         try {
           await saveUserCity(userId, city, username);
         } catch (sessionError) {
           console.log('⚠️ Ошибка сохранения в сессию:', sessionError.message);
         }
-        
-        return { 
-          success: true, 
-          user_id: dbUserId, 
-          city: city,
-          db_id: result 
-        };
-      } else {
-        console.log(`⚠️ saveOrUpdateUser вернул null (попытка ${attempt})`);
+        return { success: true, user_id: dbUserId, city: city, db_id: result };
       }
     } catch (error) {
       console.error(`❌ Ошибка сохранения города (попытка ${attempt}):`, error.message);
-      
       if (attempt < retries) {
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
     }
   }
   
-  // Если все попытки провалились
-  console.log('🔄 Пробуем старый метод saveUserCity...');
-  try {
-    const fallbackResult = await saveUserCity(userId, city, username);
-    if (fallbackResult && fallbackResult.success) {
-      console.log(`✅ Город сохранен через fallback метод`);
-      return { 
-        success: true, 
-        user_id: dbUserId, 
-        city: city,
-        source: 'fallback' 
-      };
-    }
-  } catch (fallbackError) {
-    console.error('❌ Ошибка fallback метода:', fallbackError.message);
-  }
-  
-  return { 
-    success: false, 
-    error: 'Не удалось сохранить город после всех попыток',
-    user_id: dbUserId 
-  };
+  return { success: false, error: 'Не удалось сохранить город после всех попыток', user_id: dbUserId };
 }
 
-/**
- * Проверяет наличие города в базе данных напрямую
- */
-async function checkCityInDatabase(userId, expectedCity) {
-  console.log(`🔍 Прямая проверка города в БД: ${userId} -> "${expectedCity}"`);
-  
-  try {
-    // Используем pool напрямую для проверки
-    const client = await pool.connect();
-    
-    try {
-      // Проверяем в таблице users
-      const userCheck = await client.query(
-        'SELECT city FROM users WHERE user_id = $1',
-        [userId.toString()]
-      );
-      
-      if (userCheck.rows[0]) {
-        const actualCity = userCheck.rows[0].city;
-        const foundInUsers = actualCity === expectedCity;
-        
-        console.log(`📊 Проверка users: ожидали "${expectedCity}", получили "${actualCity}"`);
-        
-        if (foundInUsers) {
-          return { found: true, source: 'users', city: actualCity };
-        }
-      }
-      
-      // Проверяем в user_sessions
-      const sessionCheck = await client.query(
-        'SELECT selected_city FROM user_sessions WHERE user_id = $1',
-        [userId.toString()]
-      );
-      
-      if (sessionCheck.rows[0]) {
-        const actualCity = sessionCheck.rows[0].selected_city;
-        const foundInSessions = actualCity === expectedCity;
-        
-        console.log(`📊 Проверка user_sessions: ожидали "${expectedCity}", получили "${actualCity}"`);
-        
-        if (foundInSessions) {
-          return { found: true, source: 'user_sessions', city: actualCity };
-        }
-      }
-      
-      return { 
-        found: false, 
-        user_city: userCheck.rows[0]?.city || 'не найден',
-        session_city: sessionCheck.rows[0]?.selected_city || 'не найден'
-      };
-      
-    } finally {
-      client.release();
-    }
-  } catch (error) {
-    console.error('❌ Ошибка прямой проверки города:', error);
-    return { found: false, error: error.message };
-  }
-}
-
-/**
- * Функция для получения города с улучшенной обработкой
- */
 async function getUserCityWithFallback(userId) {
   const dbUserId = userId.toString();
   console.log(`📍 Запрашиваем город для ${dbUserId}`);
   
   try {
-    // 🔴 Используем основную функцию из db.js
     const result = await getUserCity(userId);
     
     if (result && result.success) {
       const city = result.city || 'Не указан';
       console.log(`✅ Город получен: "${city}" (источник: ${result.source || 'unknown'})`);
-      return { 
-        success: true, 
-        city: city,
-        found: result.found || false,
-        source: result.source 
-      };
+      return { success: true, city: city, found: result.found || false, source: result.source };
     }
     
-    // Если не нашли, пробуем через getUserProfile
     console.log('🔄 Город не найден через getUserCity, пробуем getUserProfile...');
     const profile = await getUserProfile(userId);
     if (profile && profile.city && profile.city !== 'Не указан') {
       console.log(`✅ Город найден через профиль: "${profile.city}"`);
-      return { 
-        success: true, 
-        city: profile.city,
-        found: true,
-        source: 'profile' 
-      };
+      return { success: true, city: profile.city, found: true, source: 'profile' };
     }
     
-    console.log(`ℹ️ Город не найден для ${dbUserId}`);
-    return { 
-      success: true, 
-      city: 'Не указан',
-      found: false,
-      source: 'none' 
-    };
+    return { success: true, city: 'Не указан', found: false, source: 'none' };
     
   } catch (error) {
     console.error('❌ Ошибка получения города:', error.message);
-    return { 
-      success: false, 
-      error: error.message,
-      city: 'Не указан',
-      found: false 
-    };
+    return { success: false, error: error.message, city: 'Не указан', found: false };
+  }
+}
+
+// ===================== 🔴 ИСПРАВЛЕННАЯ ФУНКЦИЯ СТАТИСТИКИ =====================
+async function getGameStatsMessage(userId) {
+  try {
+    console.log(`📊 Получение статистики для: ${userId}`);
+    
+    const telegramUserId = userId.toString();
+    console.log(`🔧 ID пользователя: ${telegramUserId}`);
+    
+    const client = await pool.connect();
+    
+    try {
+      // 1. 🔴 ПОЛУЧАЕМ ГОРОД ИЗ ТАБЛИЦЫ users
+      let city = 'Не указан';
+      let username = 'Игрок';
+      
+      const userResult = await client.query(
+        'SELECT city, username, first_name FROM users WHERE user_id = $1',
+        [telegramUserId]
+      );
+      
+      if (userResult.rows.length > 0) {
+        city = userResult.rows[0].city || 'Не указан';
+        username = userResult.rows[0].username || userResult.rows[0].first_name || 'Игрок';
+        console.log(`🏙️ Найден город из users: "${city}"`);
+      } else {
+        console.log(`❌ Пользователь ${telegramUserId} не найден в таблице users`);
+      }
+      
+      // 2. 🔴 ПОЛУЧАЕМ СТАТИСТИКУ ИЗ game_scores
+      const scoresQuery = `
+        SELECT 
+          COUNT(*) as games_played,
+          COALESCE(MAX(score), 0) as best_score,
+          COALESCE(MAX(level), 1) as best_level,
+          COALESCE(MAX(lines), 0) as best_lines,
+          COALESCE(AVG(score), 0) as avg_score,
+          COALESCE(SUM(score), 0) as total_score,
+          MAX(created_at) as last_played,
+          COUNT(CASE WHEN is_win = true THEN 1 END) as wins,
+          COUNT(CASE WHEN is_win = false THEN 1 END) as losses
+        FROM game_scores 
+        WHERE user_id = $1 
+          AND game_type = 'tetris'
+          AND score > 0
+      `;
+      
+      const scoresResult = await client.query(scoresQuery, [telegramUserId]);
+      const stats = scoresResult.rows[0];
+      
+      console.log(`🎮 Статистика из game_scores:`, {
+        games_played: parseInt(stats.games_played) || 0,
+        best_score: parseInt(stats.best_score) || 0
+      });
+      
+      // 3. 🔴 ПРОВЕРЯЕМ НЕЗАВЕРШЕННУЮ ИГРУ
+      const progressQuery = `
+        SELECT score, level, lines, updated_at 
+        FROM game_progress 
+        WHERE user_id = $1 AND game_type = 'tetris'
+      `;
+      
+      const progressResult = await client.query(progressQuery, [telegramUserId]);
+      const hasUnfinishedGame = progressResult.rows.length > 0;
+      
+      // 4. 🔴 ФОРМИРУЕМ СООБЩЕНИЕ
+      const gamesPlayed = parseInt(stats.games_played) || 0;
+      const bestScore = parseInt(stats.best_score) || 0;
+      const avgScore = Math.round(parseFloat(stats.avg_score) || 0);
+      const bestLevel = parseInt(stats.best_level) || 1;
+      const bestLines = parseInt(stats.best_lines) || 0;
+      const wins = parseInt(stats.wins) || 0;
+      const losses = parseInt(stats.losses) || 0;
+      const winRate = gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0;
+      
+      let message = `🎮 *Статистика в тетрисе*\n\n`;
+      
+      if (gamesPlayed > 0) {
+        message += `📊 *Всего игр:* ${gamesPlayed}\n`;
+        message += `🏆 *Лучший счёт:* ${bestScore}\n`;
+        message += `📈 *Лучший уровень:* ${bestLevel}\n`;
+        message += `🧱 *Лучшие линии:* ${bestLines}\n`;
+        message += `📉 *Средний счёт:* ${avgScore}\n`;
+        message += `🎯 *Побед:* ${wins}\n`;
+        message += `💔 *Поражений:* ${losses}\n`;
+        message += `📊 *Процент побед:* ${winRate}%\n\n`;
+        
+        if (stats.last_played) {
+          try {
+            const date = new Date(stats.last_played);
+            message += `⏰ *Последняя игра:* ${date.toLocaleDateString('ru-RU')}\n\n`;
+          } catch (e) {}
+        }
+      } else if (hasUnfinishedGame && progressResult.rows[0]) {
+        const progress = progressResult.rows[0];
+        message += `🔄 *Незавершенная игра:*\n`;
+        message += `• Текущие очки: ${progress.score}\n`;
+        message += `• Текущий уровень: ${progress.level}\n`;
+        message += `• Собрано линий: ${progress.lines}\n`;
+        message += `💾 *Прогресс сохранён*\n\n`;
+        message += `🎮 *Завершите игру, чтобы результат попал в статистику!*\n\n`;
+      } else {
+        message += `🎮 *Вы ещё не играли в тетрис!*\n`;
+        message += `👇 *Нажмите кнопку ниже, чтобы начать!*\n\n`;
+      }
+      
+      message += `📍 *Город:* ${city}\n`;
+      message += `👤 *Игрок:* ${username}\n\n`;
+      
+      if (gamesPlayed === 0 && !hasUnfinishedGame) {
+        message += `🎮 *Сыграйте свою первую игру прямо сейчас!*`;
+      } else if (gamesPlayed > 0) {
+        message += `🎯 *Цель:* Попасть в топ игроков!\n`;
+        message += `🏆 *Топ игроков:* /top`;
+      }
+      
+      return message;
+      
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка в getGameStatsMessage:', error);
+    return `❌ Ошибка загрузки статистики: ${error.message}`;
+  }
+}
+
+// ===================== 🔴 ИСПРАВЛЕННАЯ ФУНКЦИЯ ТОПА ИГРОКОВ =====================
+async function getTopPlayersMessage(limit = 10, ctx = null) {
+  try {
+    console.log(`🏆 Получение топа ${limit} игроков...`);
+    
+    const client = await pool.connect();
+    
+    try {
+      // 🔴 ТОЛЬКО РЕАЛЬНЫЕ ПОЛЬЗОВАТЕЛИ - БЕЗ ТЕСТОВЫХ!
+      const topQuery = `
+        SELECT 
+          gs.user_id,
+          COALESCE(u.username, gs.username, 'Игрок') as display_name,
+          COALESCE(u.city, gs.city, 'Не указан') as city,
+          MAX(gs.score) as best_score,
+          COUNT(*) as games_played,
+          MAX(gs.level) as best_level,
+          MAX(gs.lines) as best_lines
+        FROM game_scores gs
+        LEFT JOIN users u ON gs.user_id = u.user_id
+        WHERE gs.game_type = 'tetris' 
+          AND gs.score > 0
+          AND gs.is_win = true
+          AND gs.user_id NOT LIKE 'test_%'      -- ❌ ИСКЛЮЧАЕМ ТЕСТОВЫХ
+          AND gs.user_id NOT LIKE 'web_%'       -- ❌ ИСКЛЮЧАЕМ WEB_
+          AND gs.user_id ~ '^[0-9]+$'           -- ✅ ТОЛЬКО ЧИСЛОВЫЕ ID
+        GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
+        HAVING MAX(gs.score) >= 1000
+        ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
+        LIMIT $1
+      `;
+      
+      const result = await client.query(topQuery, [limit]);
+      console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
+      
+      if (result.rows.length === 0) {
+        return `🏆 *Топ игроков*\n\n` +
+               `🎮 *Пока никто не завершил игру с хорошим результатом!*\n\n` +
+               `📝 *Как попасть в топ:*\n` +
+               `1. 🎮 Играйте в тетрис\n` +
+               `2. 🎯 Наберите минимум *1000 очков*\n` +
+               `3. ✅ Завершите игру\n` +
+               `4. 📍 Укажите город: /city [город]\n\n` +
+               `🎯 *Текущие рекорды появятся здесь!*`;
+      }
+      
+      let message = `🏆 *Топ ${Math.min(result.rows.length, limit)} игроков в тетрисе*\n\n`;
+      
+      result.rows.forEach((player, index) => {
+        let medal;
+        switch(index) {
+          case 0: medal = '🥇'; break;
+          case 1: medal = '🥈'; break;
+          case 2: medal = '🥉'; break;
+          default: medal = `${index + 1}.`;
+        }
+        
+        const score = player.best_score || 0;
+        const level = player.best_level || 1;
+        const lines = player.best_lines || 0;
+        const gamesPlayed = player.games_played || 1;
+        
+        message += `${medal} *${player.display_name}*\n`;
+        message += `   🎯 Очки: *${score}*\n`;
+        message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
+        
+        if (player.city && player.city !== 'Не указан') {
+          message += `   📍 Город: ${player.city}\n`;
+        }
+        
+        message += `   🕹️ Игр завершено: ${gamesPlayed}\n\n`;
+      });
+      
+      if (ctx && ctx.from) {
+        const currentUserId = ctx.from.id.toString();
+        
+        const userBestQuery = `
+          SELECT MAX(score) as best_score, COUNT(*) as games_played
+          FROM game_scores 
+          WHERE user_id = $1 
+            AND game_type = 'tetris'
+            AND score > 0
+        `;
+        
+        const userResult = await client.query(userBestQuery, [currentUserId]);
+        const userBestScore = userResult.rows[0]?.best_score || 0;
+        const userGamesPlayed = userResult.rows[0]?.games_played || 0;
+        
+        const isInTop = result.rows.some(p => p.user_id === currentUserId);
+        
+        if (isInTop) {
+          const userIndex = result.rows.findIndex(p => p.user_id === currentUserId);
+          message += `👤 *Ваше место:* ${userIndex + 1}\n`;
+          message += `🎯 *Ваш лучший счёт:* ${result.rows[userIndex].best_score}\n\n`;
+        } else if (userBestScore > 0) {
+          if (userBestScore < 1000) {
+            message += `👤 *Вы пока не в топе*\n`;
+            message += `🎯 Ваш лучший результат: ${userBestScore} очков\n`;
+            message += `🎯 *Нужно минимум 1000 очков* для попадания в топ!\n\n`;
+          } else {
+            const lastScore = result.rows[result.rows.length - 1]?.best_score || 0;
+            const needed = Math.max(0, lastScore - userBestScore + 1);
+            message += `👤 *Вы пока не в топе*\n`;
+            message += `🎯 Ваш лучший результат: ${userBestScore}\n`;
+            message += `🎯 *Нужно ещё ${needed} очков* для попадания в топ!\n\n`;
+          }
+        } else {
+          message += `👤 *Вы пока не играли*\n`;
+          message += `🎯 Начните игру и наберите минимум 1000 очков!\n\n`;
+        }
+        
+        const cityQuery = 'SELECT city FROM users WHERE user_id = $1';
+        const cityResult = await client.query(cityQuery, [currentUserId]);
+        const userCity = cityResult.rows[0]?.city || 'Не указан';
+        
+        if (userCity === 'Не указан') {
+          message += `📍 *Ваш город не указан!*\n`;
+          message += `Укажите город: /city [город] чтобы отображаться в топе!\n\n`;
+        }
+      }
+      
+      message += `📝 *Как попасть в топ:*\n`;
+      message += `• 🎮 Играйте в тетрис\n`;
+      message += `• 🎯 Наберите *минимум 1000 очков*\n`;
+      message += `• ✅ Завершите игру\n`;
+      message += `• 📍 Укажите город: /city [город]\n\n`;
+      message += `🔄 Топ обновляется после каждой завершенной игры`;
+      
+      return message;
+      
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка в getTopPlayersMessage:', error);
+    return `❌ Ошибка загрузки топа игроков: ${error.message}`;
   }
 }
 
@@ -1091,25 +828,14 @@ bot.command('start', async (ctx) => {
   }
   
   try {
-    // 🔴 СОХРАНЯЕМ ПОЛЬЗОВАТЕЛЯ В БАЗУ ПРИ СТАРТЕ
-    try {
-      const userSaved = await saveOrUpdateUser({
-        user_id: ctx.from.id.toString(),
-        chat_id: ctx.chat.id,
-        username: ctx.from.username || '',
-        first_name: ctx.from.first_name || '',
-        city: 'Не указан',
-        source: 'telegram'
-      });
-      
-      if (userSaved) {
-        console.log(`✅ Пользователь ${ctx.from.id} сохранен в таблице users`);
-      } else {
-        console.log(`⚠️ Не удалось сохранить пользователя ${ctx.from.id}`);
-      }
-    } catch (userError) {
-      console.error(`❌ Ошибка сохранения пользователя:`, userError.message);
-    }
+    await saveOrUpdateUser({
+      user_id: ctx.from.id.toString(),
+      chat_id: ctx.chat.id,
+      username: ctx.from.username || '',
+      first_name: ctx.from.first_name || '',
+      city: 'Не указан',
+      source: 'telegram'
+    });
     
     await ctx.reply(
       `👋 *Добро пожаловать в бота погоды, английских фраз и игр!*\n\n` +
@@ -1118,10 +844,7 @@ bot.command('start', async (ctx) => {
       `• Используйте команду /city Москва\n` +
       `• Или выберите город из списка\n\n` +
       `👇 *ШАГ 1: Нажмите кнопку ниже чтобы начать*`,
-      { 
-        parse_mode: 'Markdown', 
-        reply_markup: startKeyboard 
-      }
+      { parse_mode: 'Markdown', reply_markup: startKeyboard }
     );
     
     await ctx.reply(
@@ -1170,7 +893,7 @@ bot.hears(/^📍 /, async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username || ctx.from.first_name || '';
   const city = ctx.message.text.replace('📍 ', '').trim();
-  console.log(`📍 Выбран город: "${city}" для ${userId} (${username})`);
+  console.log(`📍 Выбран город: "${city}" для ${userId}`);
   
   if (isRateLimited(userId)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
@@ -1178,16 +901,13 @@ bot.hears(/^📍 /, async (ctx) => {
   }
   
   try {
-    // 🔴 ИСПОЛЬЗУЕМ УЛУЧШЕННУЮ ФУНКЦИЮ ДЛЯ СОХРАНЕНИЯ
     const saveResult = await saveUserCityWithRetry(userId, city, username);
     
     if (!saveResult.success) {
-      console.error('❌ Не удалось сохранить город:', saveResult.error);
       await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз или используйте команду /city [город]');
       return;
     }
     
-    // Сохраняем в локальное хранилище
     userStorage.set(userId, { city, lastActivity: Date.now(), awaitingCity: false });
     
     await ctx.reply(
@@ -1202,17 +922,6 @@ bot.hears(/^📍 /, async (ctx) => {
       `👇 *Используйте кнопки ниже:*`,
       { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
     );
-    
-    // Показываем пример, как выглядит город в статистике
-    setTimeout(async () => {
-      await ctx.reply(
-        `ℹ️ *Проверить город:*\n` +
-        `• Посмотреть статистику: /stats\n` +
-        `• Посмотреть топ игроков: /top\n\n` +
-        `📍 В статистике теперь будет указан ваш город: *${city}*`,
-        { parse_mode: 'Markdown' }
-      );
-    }, 1000);
     
   } catch (error) {
     console.error('❌ Ошибка при выборе города:', error);
@@ -1265,9 +974,7 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
     
   } catch (error) {
     console.error('❌ Ошибка в ПОГОДА:', error);
-    await ctx.reply('❌ Не удалось получить данные о погоде или обработать ваш запрос.', { 
-      reply_markup: mainMenuKeyboard 
-    });
+    await ctx.reply('❌ Не удалось получить данные о погоде.', { reply_markup: mainMenuKeyboard });
   }
 });
 
@@ -1311,14 +1018,12 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
     let message = `📅 *Прогноз погоды на ${dateFormatted}*\n`;
     message += `📍 *${forecast.city}*\n`;
     message += `🕒 Обновлено: ${forecast.updated}\n\n`;
-    
     message += `📊 *Общий прогноз:*\n`;
     message += `🌡️ Температура: *${forecast.temp_min}°C ... ${forecast.temp_max}°C*\n`;
     message += `💨 Макс. ветер: ${forecast.wind_max} м/с\n`;
     message += `🌧️ Осадки: ${forecast.precipitation > 0 ? forecast.precipitation.toFixed(1) + ' мм' : 'Нет'}\n`;
     message += `🌅 Восход: ${forecast.sunrise}\n`;
     message += `🌇 Закат: ${forecast.sunset}\n\n`;
-    
     message += `⏰ *Подробный прогноз по времени суток:*\n\n`;
     
     const periodsOrder = ['ночь', 'утро', 'день', 'вечер'];
@@ -1335,26 +1040,6 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
       }
     }
     
-    message += `📝 *Рекомендации:*\n`;
-    
-    if (forecast.temp_max >= 25) {
-      message += `• 🥵 Жарко: легкая одежда, головной убор\n`;
-    } else if (forecast.temp_max >= 18) {
-      message += `• 😊 Комфортно: легкая куртка на вечер\n`;
-    } else if (forecast.temp_max >= 10) {
-      message += `• 🧥 Прохладно: теплая одежда, ветровка\n`;
-    } else {
-      message += `• ❄️ Холодно: зимняя куртка, шапка, шарф\n`;
-    }
-    
-    if (forecast.precipitation > 5) {
-      message += `• ☔ Возьмите зонт или дождевик\n`;
-    }
-    
-    if (parseFloat(forecast.wind_max) > 10) {
-      message += `• 💨 Сильный ветер: ветровка с капюшоном\n`;
-    }
-    
     await ctx.reply(message, { 
       parse_mode: 'Markdown', 
       reply_markup: mainMenuKeyboard 
@@ -1362,9 +1047,7 @@ bot.hears('📅 ПОГОДА ЗАВТРА', async (ctx) => {
     
   } catch (error) {
     console.error('❌ Ошибка в ПОГОДА ЗАВТРА:', error);
-    await ctx.reply('❌ Не удалось получить прогноз погоды. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
+    await ctx.reply('❌ Не удалось получить прогноз погоды.', { reply_markup: mainMenuKeyboard });
   }
 });
 
@@ -1381,33 +1064,15 @@ bot.hears('📊 МОЯ СТАТИСТИКА', async (ctx) => {
   try {
     await ctx.reply('⏳ Загружаю вашу статистику...', { parse_mode: 'Markdown' });
     
-    // 🔴 ПРОВЕРЯЕМ ГОРОД ПЕРЕД ПОКАЗОМ СТАТИСТИКИ
-    const cityResult = await getUserCityWithFallback(userId);
-    if (cityResult.success && cityResult.city && cityResult.city !== 'Не указан') {
-      console.log(`📍 В статистике будет город: "${cityResult.city}"`);
-    }
-    
     const statsMessage = await getGameStatsMessage(userId);
     await ctx.reply(statsMessage, { 
       parse_mode: 'Markdown', 
       reply_markup: mainMenuKeyboard 
     });
     
-    // 🔴 ДОБАВЛЯЕМ ПОДСКАЗКУ ПРО ГОРОД
-    if (!cityResult.found || cityResult.city === 'Не указан') {
-      setTimeout(async () => {
-        await ctx.reply(
-          `📍 *Совет:* Укажите свой город командой /city [город], чтобы он отображался в статистике!\n\n` +
-          `Например: /city Москва\n` +
-          `Или используйте кнопку "🏙️ СМЕНИТЬ ГОРОД"`,
-          { parse_mode: 'Markdown' }
-        );
-      }, 500);
-    }
-    
   } catch (error) {
     console.error('❌ Ошибка в МОЯ СТАТИСТИКА:', error);
-    await ctx.reply('❌ Произошла ошибка при загрузке статистики. Попробуйте позже.', { 
+    await ctx.reply('❌ Произошла ошибка при загрузке статистики.', { 
       reply_markup: mainMenuKeyboard 
     });
   }
@@ -1431,21 +1096,9 @@ bot.hears('🏆 ТОП ИГРОКОВ', async (ctx) => {
       reply_markup: mainMenuKeyboard 
     });
     
-    // 🔴 ДОБАВЛЯЕМ ПОДСКАЗКУ ПРО ГОРОД
-    const cityResult = await getUserCityWithFallback(userId);
-    if (!cityResult.found || cityResult.city === 'Не указан') {
-      setTimeout(async () => {
-        await ctx.reply(
-          `📍 *Совет:* Укажите свой город командой /city [город], чтобы отображаться в топе с вашим городом!\n\n` +
-          `Например: /city Москва`,
-          { parse_mode: 'Markdown' }
-        );
-      }, 500);
-    }
-    
   } catch (error) {
     console.error('❌ Ошибка в ТОП ИГРОКОВ:', error);
-    await ctx.reply('❌ Произошла ошибка при загрузке топа игроков. Попробуйте позже.', { 
+    await ctx.reply('❌ Произошла ошибка при загрузке топа игроков.', { 
       reply_markup: mainMenuKeyboard 
     });
   }
@@ -1463,7 +1116,6 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
   try {
     const webAppUrl = 'https://pogodasovet1.vercel.app';
     
-    // 🔴 ПРОВЕРЯЕМ ЕСТЬ ЛИ У ПОЛЬЗОВАТЕЛЯ ГОРОД
     const cityResult = await getUserCityWithFallback(ctx.from.id);
     const hasCity = cityResult.found && cityResult.city !== 'Не указан';
     
@@ -1505,12 +1157,36 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
   }
 });
 
-// Обработчик callback для кнопок
+// ===================== 🔴 ИСПРАВЛЕННЫЕ ОБРАБОТЧИКИ CALLBACK =====================
 bot.callbackQuery('my_stats', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`📊 Callback: my_stats от ${userId}`);
+  
   try {
-    const statsMessage = await getGameStatsMessage(ctx.from.id);
-    await ctx.editMessageText(statsMessage, { parse_mode: 'Markdown' });
-    await ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery('Загружаю статистику...');
+    
+    const statsMessage = await getGameStatsMessage(userId);
+    
+    await ctx.editMessageText(statsMessage, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ 
+            text: '🎮 ИГРАТЬ В ТЕТРИС', 
+            web_app: { url: 'https://pogodasovet1.vercel.app' } 
+          }],
+          [{ 
+            text: '🏆 ТОП ИГРОКОВ', 
+            callback_data: 'top_players' 
+          }],
+          [{ 
+            text: '◀️ В ГЛАВНОЕ МЕНЮ', 
+            callback_data: 'back_to_menu' 
+          }]
+        ]
+      }
+    });
+    
   } catch (error) {
     console.error('❌ Ошибка в callback my_stats:', error);
     await ctx.answerCallbackQuery('❌ Ошибка загрузки статистики');
@@ -1518,13 +1194,238 @@ bot.callbackQuery('my_stats', async (ctx) => {
 });
 
 bot.callbackQuery('top_players', async (ctx) => {
+  const userId = ctx.from.id;
+  console.log(`🏆 Callback: top_players от ${userId}`);
+  
   try {
+    await ctx.answerCallbackQuery('Загружаю топ игроков...');
+    
     const topMessage = await getTopPlayersMessage(10, ctx);
-    await ctx.editMessageText(topMessage, { parse_mode: 'Markdown' });
-    await ctx.answerCallbackQuery();
+    
+    await ctx.editMessageText(topMessage, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ 
+            text: '🎮 ИГРАТЬ В ТЕТРИС', 
+            web_app: { url: 'https://pogodasovet1.vercel.app' } 
+          }],
+          [{ 
+            text: '📊 МОЯ СТАТИСТИКА', 
+            callback_data: 'my_stats' 
+          }],
+          [{ 
+            text: '◀️ В ГЛАВНОЕ МЕНЮ', 
+            callback_data: 'back_to_menu' 
+          }]
+        ]
+      }
+    });
+    
   } catch (error) {
     console.error('❌ Ошибка в callback top_players:', error);
     await ctx.answerCallbackQuery('❌ Ошибка загрузки топа');
+  }
+});
+
+bot.callbackQuery('back_to_menu', async (ctx) => {
+  console.log(`🔙 Callback: back_to_menu от ${ctx.from.id}`);
+  
+  try {
+    await ctx.answerCallbackQuery('Возвращаюсь в меню...');
+    
+    const cityResult = await getUserCityWithFallback(ctx.from.id);
+    const city = cityResult.success && cityResult.city !== 'Не указан' 
+      ? cityResult.city 
+      : 'Не указан';
+    
+    await ctx.editMessageText(
+      `📍 *Главное меню*\n\n` +
+      `👤 Пользователь: ${ctx.from.first_name || 'Игрок'}\n` +
+      `🏙️ Город: ${city}\n\n` +
+      `👇 Используйте кнопки ниже:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🌤️ ПОГОДА СЕЙЧАС', callback_data: 'weather_now' }],
+            [{ text: '📅 ПОГОДА ЗАВТРА', callback_data: 'weather_forecast' }],
+            [{ text: '👕 ЧТО НАДЕТЬ?', callback_data: 'wardrobe' }],
+            [{ text: '🎮 ИГРАТЬ В ТЕТРИС', web_app: { url: 'https://pogodasovet1.vercel.app' } }],
+            [{ text: '📊 МОЯ СТАТИСТИКА', callback_data: 'my_stats' }],
+            [{ text: '🏆 ТОП ИГРОКОВ', callback_data: 'top_players' }],
+            [{ text: '🏙️ СМЕНИТЬ ГОРОД', callback_data: 'change_city' }]
+          ]
+        }
+      }
+    );
+    
+  } catch (error) {
+    console.error('❌ Ошибка в callback back_to_menu:', error);
+    await ctx.answerCallbackQuery('❌ Ошибка');
+  }
+});
+
+bot.callbackQuery('weather_now', async (ctx) => {
+  const userId = ctx.from.id;
+  
+  try {
+    await ctx.answerCallbackQuery('Запрашиваю погоду...');
+    
+    const result = await getUserCityWithFallback(userId);
+    if (!result.success || result.city === 'Не указан') {
+      await ctx.editMessageText(
+        '📍 Сначала выберите город!',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🏙️ СМЕНИТЬ ГОРОД', callback_data: 'change_city' }],
+              [{ text: '◀️ НАЗАД', callback_data: 'back_to_menu' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+    
+    const weather = await getWeatherData(result.city);
+    
+    if (!weather.success) {
+      await ctx.editMessageText(`❌ ${weather.error}`, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[{ text: '◀️ НАЗАД', callback_data: 'back_to_menu' }]]
+        }
+      });
+      return;
+    }
+    
+    await ctx.editMessageText(
+      `🌤️ *Погода в ${weather.city}*\n` +
+      `🕒 Обновлено: ${weather.timestamp}\n\n` +
+      `🌡️ Температура: *${weather.temp}°C*\n` +
+      `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
+      `💨 Ветер: ${weather.wind} м/с\n` +
+      `💧 Влажность: ${weather.humidity}%\n` +
+      `📝 ${weather.description}\n` +
+      `🌧️ Осадки: ${weather.precipitation}`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔄 ОБНОВИТЬ', callback_data: 'weather_now' }],
+            [{ text: '◀️ НАЗАД', callback_data: 'back_to_menu' }]
+          ]
+        }
+      }
+    );
+    
+  } catch (error) {
+    console.error('❌ Ошибка в weather_now:', error);
+    await ctx.answerCallbackQuery('❌ Ошибка');
+  }
+});
+
+bot.callbackQuery('change_city', async (ctx) => {
+  try {
+    await ctx.answerCallbackQuery('Выберите город');
+    
+    await ctx.editMessageText(
+      `🏙️ *Выберите ваш город:*\n\n` +
+      `Или напишите название города вручную.`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📍 МОСКВА', callback_data: 'set_city_Москва' }],
+            [{ text: '📍 САНКТ-ПЕТЕРБУРГ', callback_data: 'set_city_Санкт-Петербург' }],
+            [{ text: '📍 СЕВАСТОПОЛЬ', callback_data: 'set_city_Севастополь' }],
+            [{ text: '✏️ ДРУГОЙ ГОРОД', callback_data: 'other_city' }],
+            [{ text: '◀️ НАЗАД', callback_data: 'back_to_menu' }]
+          ]
+        }
+      }
+    );
+    
+  } catch (error) {
+    console.error('❌ Ошибка в change_city:', error);
+  }
+});
+
+bot.callbackQuery(/^set_city_(.+)$/, async (ctx) => {
+  const userId = ctx.from.id;
+  const city = ctx.match[1];
+  
+  try {
+    await ctx.answerCallbackQuery(`Сохраняю город ${city}...`);
+    
+    const saveResult = await saveUserCityWithRetry(
+      userId, 
+      city, 
+      ctx.from.username || ctx.from.first_name
+    );
+    
+    if (saveResult.success) {
+      await ctx.editMessageText(
+        `✅ *Город "${city}" сохранён!*\n\n` +
+        `📍 Теперь вы будете отображаться в топе игроков с этим городом.\n\n` +
+        `*Проверьте:*\n` +
+        `• 📊 Ваша статистика - /stats\n` +
+        `• 🏆 Топ игроков - /top`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎮 ИГРАТЬ В ТЕТРИС', web_app: { url: 'https://pogodasovet1.vercel.app' } }],
+              [{ text: '📊 МОЯ СТАТИСТИКА', callback_data: 'my_stats' }],
+              [{ text: '◀️ В МЕНЮ', callback_data: 'back_to_menu' }]
+            ]
+          }
+        }
+      );
+    } else {
+      await ctx.editMessageText(
+        `❌ Не удалось сохранить город. Попробуйте еще раз.`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '◀️ НАЗАД', callback_data: 'change_city' }]
+            ]
+          }
+        }
+      );
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка в set_city:', error);
+    await ctx.answerCallbackQuery('❌ Ошибка');
+  }
+});
+
+bot.callbackQuery('other_city', async (ctx) => {
+  try {
+    await ctx.answerCallbackQuery('Введите название города');
+    
+    await ctx.editMessageText(
+      `✏️ *Введите название вашего города*\n\n` +
+      `Например: Москва, Санкт-Петербург, Екатеринбург\n\n` +
+      `*Просто напишите город в чат*`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '◀️ НАЗАД', callback_data: 'change_city' }]
+          ]
+        }
+      }
+    );
+    
+    userStorage.set(ctx.from.id, { awaitingCity: true, lastActivity: Date.now() });
+    
+  } catch (error) {
+    console.error('❌ Ошибка в other_city:', error);
   }
 });
 
@@ -1533,34 +1434,19 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
   const userId = ctx.from.id;
   const userName = `${ctx.from.first_name || ''} ${ctx.from.last_name || ''}`.trim() || `Игрок ${userId}`;
   
-  console.log(`📱 Получены данные от Mini App от пользователя ${userId} (${userName})`);
+  console.log(`📱 Получены данные от Mini App от пользователя ${userId}`);
   
   try {
     const webAppData = ctx.message.web_app_data;
-    console.log(`📱 Raw data:`, webAppData.data);
-    
     const data = JSON.parse(webAppData.data);
-    console.log('🎮 Данные игры:', data);
     
     if (data.action === 'tetris_score' || data.gameType === 'tetris') {
-      console.log(`🎮 Счёт тетриса от ${userId}:`, data);
-      
       const score = parseInt(data.score) || 0;
       const level = parseInt(data.level) || 1;
       const lines = parseInt(data.lines) || 0;
       const gameOver = Boolean(data.gameOver);
       
-      if (isNaN(score) || isNaN(level) || isNaN(lines)) {
-        console.error('❌ Некорректные данные игры:', { score, level, lines });
-        await ctx.reply(`❌ Ошибка: некорректные данные игры.`, {
-          parse_mode: 'Markdown',
-          reply_markup: mainMenuKeyboard 
-        });
-        return;
-      }
-      
       if (score === 0) {
-        console.log(`⚠️ Нулевой счёт от ${userId}, пропускаем сохранение`);
         await ctx.reply(`🎮 Игра начата! Удачи! 🍀`, {
           parse_mode: 'Markdown',
           reply_markup: mainMenuKeyboard
@@ -1568,59 +1454,48 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
         return;
       }
       
-      // 🔴 ПОЛУЧАЕМ ГОРОД ПОЛЬЗОВАТЕЛЯ ПЕРЕД СОХРАНЕНИЕМ РЕЗУЛЬТАТА
+      // 🔴 ПОЛУЧАЕМ ГОРОД ПОЛЬЗОВАТЕЛЯ
       let userCity = 'Не указан';
       try {
         const cityResult = await getUserCityWithFallback(userId);
         if (cityResult.success && cityResult.city && cityResult.city !== 'Не указан') {
           userCity = cityResult.city;
-          console.log(`📍 Для сохранения игры будет использован город: "${userCity}"`);
         }
       } catch (cityError) {
-        console.error('❌ Ошибка получения города для игры:', cityError.message);
+        console.error('❌ Ошибка получения города:', cityError.message);
       }
       
-      // 🔴 СОХРАНЯЕМ ПОЛЬЗОВАТЕЛЯ ПЕРЕД СОХРАНЕНИЕМ РЕЗУЛЬТАТА
-      try {
-        await saveOrUpdateUser({
-          user_id: userId.toString(),
-          username: ctx.from.username || '',
-          first_name: ctx.from.first_name || '',
-          city: userCity
-        });
-      } catch (userError) {
-        console.error('❌ Ошибка сохранения пользователя:', userError);
-      }
-      
-      // Сохраняем результат в базу данных
-      const result = await saveGameScore(userId, 'tetris', score, level, lines, userName, gameOver);
+      // 🔴 СОХРАНЯЕМ ИГРУ С ЧИСЛОВЫМ ID
+      const result = await saveGameScore(
+        userId.toString(), // ТОЛЬКО ЧИСЛОВОЙ ID!
+        'tetris', 
+        score, 
+        level, 
+        lines, 
+        userName, 
+        gameOver
+      );
       
       if (!result || !result.success) {
-        console.error(`❌ Не удалось сохранить результат для пользователя ${userId}:`, result?.error);
-        await ctx.reply(`❌ Не удалось сохранить ваш результат в базу данных: ${result?.error}. Попробуйте ещё раз.`, {
+        await ctx.reply(`❌ Не удалось сохранить результат. Попробуйте ещё раз.`, {
           reply_markup: mainMenuKeyboard
         });
         return;
       }
       
-      console.log(`✅ Рекорд пользователя ${userId} сохранён в БД. ID: ${result.id}`);
+      // 🔴 ПОЛУЧАЕМ ОБНОВЛЕННУЮ СТАТИСТИКУ
+      const stats = await fetchGameStats(userId.toString(), 'tetris');
+      const bestScore = stats?.success ? stats.stats?.best_score || 0 : 0;
       
-      const statsResult = await fetchGameStats(userId, 'tetris');
-      const bestScore = statsResult?.success ? statsResult.stats?.best_score || 0 : 0;
-      const cityInStats = statsResult?.success ? statsResult.stats?.city || 'Не указан' : 'Не указан';
-      
-      let message = '';
-      if (gameOver) {
-        message = `🎮 *Игра окончена!*\n\n`;
-      } else {
-        message = `🎮 *Прогресс сохранён!*\n\n`;
-      }
+      let message = gameOver 
+        ? `🎮 *Игра окончена!*\n\n` 
+        : `🎮 *Прогресс сохранён!*\n\n`;
       
       message += `👤 *Игрок:* ${userName}\n`;
       message += `🎯 *Результат:* ${score} очков\n`;
       message += `📊 *Уровень:* ${level}\n`;
       message += `📈 *Линии:* ${lines}\n`;
-      message += `📍 *Город:* ${cityInStats}\n\n`;
+      message += `📍 *Город:* ${userCity}\n\n`;
       
       if (score > bestScore && bestScore > 0) {
         message += `🎉 *НОВЫЙ РЕКОРД!* 🎉\n`;
@@ -1633,154 +1508,24 @@ bot.filter(ctx => ctx.message?.web_app_data?.data, async (ctx) => {
       message += `• Посмотреть свою статистику 📊\n`;
       message += `• Проверить место в топе 🏆\n`;
       
-      if (cityInStats === 'Не указан') {
+      if (userCity === 'Не указан') {
         message += `• 📍 Указать город: /city [город]\n`;
-      }
-      
-      message += `• Продолжить играть 🎮\n\n`;
-      
-      if (gameOver) {
-        message += `🔄 Нажмите "🎮 ИГРАТЬ В ТЕТРИС" для новой игры!`;
-      } else {
-        message += `💪 Продолжайте в том же духе!`;
       }
       
       await ctx.reply(message, { 
         parse_mode: 'Markdown',
         reply_markup: mainMenuKeyboard 
       });
-      
-    } else {
-      console.log(`📱 Неизвестный тип данных:`, data.action || data.gameType);
-      await ctx.reply(`Получены игровые данные: ${JSON.stringify(data, null, 2)}`, {
-        reply_markup: mainMenuKeyboard
-      });
     }
     
   } catch (error) {
     console.error('❌ Ошибка обработки данных игры:', error);
-    console.error('❌ Stack trace:', error.stack);
-    
-    await ctx.reply(`❌ Произошла ошибка при обработке данных игры. Попробуйте ещё раз.`, {
+    await ctx.reply(`❌ Произошла ошибка при обработке данных игры.`, {
       reply_markup: mainMenuKeyboard
     });
   }
 });
-// 🔴 ДОБАВЬТЕ В bot.js ПОСЛЕ обработчика bot.filter
 
-// Команда для тестирования API endpoints
-bot.command('test_api_endpoints', async (ctx) => {
-  try {
-    const userId = ctx.from.id;
-    const testData = {
-      userId: userId.toString(),
-      score: 3500,
-      level: 4,
-      lines: 28,
-      gameType: 'tetris',
-      username: ctx.from.username || ctx.from.first_name || 'ТестИгрок',
-      gameOver: true
-    };
-    
-    await ctx.reply(`🔍 *Тестирую API endpoints...*\n\n`, { parse_mode: 'Markdown' });
-    
-    // Тестируем каждый endpoint
-    const endpoints = [
-      {
-        name: '/api/save-score',
-        url: '/api/save-score',
-        method: 'POST',
-        data: testData
-      },
-      {
-        name: '/api/save-progress',
-        url: '/api/save-progress',
-        method: 'POST',
-        data: { ...testData, gameOver: false }
-      },
-      {
-        name: '/api/user-stats',
-        url: `/api/user-stats?userId=${userId}`,
-        method: 'GET'
-      },
-      {
-        name: '/api/top-players',
-        url: '/api/top-players?limit=5',
-        method: 'GET'
-      }
-    ];
-    
-    let results = '';
-    
-    for (const endpoint of endpoints) {
-      try {
-        const startTime = Date.now();
-        
-        const response = await fetch(`https://${process.env.VERCEL_URL || 'your-domain.vercel.app'}${endpoint.url}`, {
-          method: endpoint.method,
-          headers: { 'Content-Type': 'application/json' },
-          body: endpoint.data ? JSON.stringify(endpoint.data) : undefined
-        });
-        
-        const responseTime = Date.now() - startTime;
-        const result = await response.json();
-        
-        results += `**${endpoint.name}**:\n`;
-        results += `  Статус: ${response.status} (${responseTime}ms)\n`;
-        results += `  Успех: ${result.success ? '✅' : '❌'}\n`;
-        
-        if (result.error) {
-          results += `  Ошибка: ${result.error}\n`;
-        }
-        
-        if (endpoint.name === '/api/user-stats' && result.success) {
-          results += `  Игр: ${result.stats?.games_played || 0}\n`;
-          results += `  Лучший: ${result.stats?.best_score || 0}\n`;
-        }
-        
-        results += '\n';
-        
-      } catch (error) {
-        results += `**${endpoint.name}**: ❌ ${error.message}\n\n`;
-      }
-    }
-    
-    await ctx.reply(results, { parse_mode: 'Markdown' });
-    
-    // Тест с данными из WebApp формата
-    await ctx.reply(`🎮 *Тест WebApp формата:*`, { parse_mode: 'Markdown' });
-    
-    const webAppData = {
-      data: JSON.stringify({
-        action: 'tetris_score',
-        gameType: 'tetris',
-        score: 4200,
-        level: 5,
-        lines: 35,
-        gameOver: true,
-        userId: userId.toString()
-      })
-    };
-    
-    try {
-      const webAppResponse = await fetch('/api/save-score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(webAppData)
-      });
-      
-      const webAppResult = await webAppResponse.json();
-      await ctx.reply(`WebApp format: ${webAppResult.success ? '✅' : '❌'}`, { parse_mode: 'Markdown' });
-      
-    } catch (webAppError) {
-      await ctx.reply(`WebApp format: ❌ ${webAppError.message}`, { parse_mode: 'Markdown' });
-    }
-    
-  } catch (error) {
-    console.error('❌ test_api_endpoints error:', error);
-    await ctx.reply(`❌ Ошибка: ${error.message}`);
-  }
-});
 // ===================== ЧТО НАДЕТЬ =====================
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
   const userId = ctx.from.id;
@@ -1834,15 +1579,9 @@ bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
   }
   
   try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-      await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
-      return;
-    }
-    
     const dayOfMonth = new Date().getDate();
     const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
     const phrase = dailyPhrases[phraseIndex];
-    console.log(`💬 Выбрана фраза #${phraseIndex}: "${phrase.english}"`);
     
     await ctx.reply(
       `💬 *Фраза дня*\n\n` +
@@ -1868,13 +1607,6 @@ bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
   }
   
   try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-      await ctx.reply('Фразы не загружены. Попробуйте позже.', { 
-        reply_markup: mainMenuKeyboard 
-      });
-      return;
-    }
-    
     const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
     const phrase = dailyPhrases[randomIndex];
     
@@ -1884,8 +1616,7 @@ bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
       `🇷🇺 *${phrase.russian}*\n\n` +
       `📚 *Объяснение:* ${phrase.explanation}\n\n` +
       `📂 *Категория:* ${phrase.category || "Общие"}\n` +
-      `📊 *Уровень:* ${phrase.level || "Средний"}\n\n` +
-      `🔄 Нажмите кнопку для новой случайной фразы!`;
+      `📊 *Уровень:* ${phrase.level || "Средний"}`;
     
     await ctx.reply(message, { 
       parse_mode: 'Markdown', 
@@ -1894,7 +1625,7 @@ bot.hears('🎲 СЛУЧАЙНАЯ ФРАЗА', async (ctx) => {
     
   } catch (error) {
     console.error('❌ Ошибка в СЛУЧАЙНАЯ ФРАЗА:', error);
-    await ctx.reply('❌ Не удалось получить случайную фразу. Попробуйте еще раз.', { 
+    await ctx.reply('❌ Не удалось получить случайную фразу.', { 
       reply_markup: mainMenuKeyboard 
     });
   }
@@ -1910,7 +1641,6 @@ bot.hears('🏙️ СМЕНИТЬ ГОРОД', async (ctx) => {
   }
   
   try {
-    // 🔴 ПОКАЗЫВАЕМ ТЕКУЩИЙ ГОРОД ПЕРЕД СМЕНОЙ
     const currentCityResult = await getUserCityWithFallback(ctx.from.id);
     let currentCityMessage = '';
     
@@ -1943,8 +1673,7 @@ bot.hears('✏️ ДРУГОЙ ГОРОД', async (ctx) => {
     await ctx.reply('Напишите название вашего города:\n\n*Например:* Москва, Санкт-Петербург, Екатеринбург', 
       { parse_mode: 'Markdown' }
     );
-    const userId = ctx.from.id;
-    userStorage.set(userId, { awaitingCity: true, lastActivity: Date.now() });
+    userStorage.set(ctx.from.id, { awaitingCity: true, lastActivity: Date.now() });
   } catch (error) {
     console.error('❌ Ошибка в ДРУГОЙ ГОРОД:', error);
   }
@@ -2017,9 +1746,23 @@ bot.hears('ℹ️ ПОМОЩЬ', async (ctx) => {
       `• 🏙️ СМЕНИТЬ ГОРОД - изменить город\n` +
       `• ℹ️ ПОМОЩЬ - эта информация\n` +
       `• 📋 ПОКАЗАТЬ КОМАНДЫ - убрать кнопки и использовать команды\n\n` +
-      `*Важно:* Укажите свой город командой /city [город] чтобы отображаться в топе игроков!\n\n` +
-      `Чтобы использовать текстовые команды, нажмите "📋 ПОКАЗАТЬ КОМАНДЫ".`,
-      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+      `*Текстовые команды:*\n` +
+      `/start - начать работу\n` +
+      `/weather - текущая погода\n` +
+      `/forecast - прогноз на завтра\n` +
+      `/wardrobe - что надеть?\n` +
+      `/phrase - фраза дня\n` +
+      `/random - случайная фраза\n` +
+      `/tetris - играть в тетрис\n` +
+      `/stats - ваша статистика\n` +
+      `/top - топ игроков\n` +
+      `/city [город] - указать свой город\n` +
+      `/help - помощь\n\n` +
+      `📍 *Важно:* Укажите город командой /city [город] чтобы отображаться в топе игроков!`,
+      { 
+        parse_mode: 'Markdown', 
+        reply_markup: mainMenuKeyboard 
+      }
     );
   } catch (error) {
     console.error('❌ Ошибка в ПОМОЩЬ:', error);
@@ -2114,14 +1857,12 @@ bot.command('forecast', async (ctx) => {
     let message = `📅 *Прогноз погоды на ${dateFormatted}*\n`;
     message += `📍 *${forecast.city}*\n`;
     message += `🕒 Обновлено: ${forecast.updated}\n\n`;
-    
     message += `📊 *Общий прогноз:*\n`;
     message += `🌡️ Температура: *${forecast.temp_min}°C ... ${forecast.temp_max}°C*\n`;
     message += `💨 Макс. ветер: ${forecast.wind_max} м/с\n`;
     message += `🌧️ Осадки: ${forecast.precipitation > 0 ? forecast.precipitation.toFixed(1) + ' мм' : 'Нет'}\n`;
     message += `🌅 Восход: ${forecast.sunrise}\n`;
     message += `🌇 Закат: ${forecast.sunset}\n\n`;
-    
     message += `⏰ *Подробный прогноз по времени суток:*\n\n`;
     
     const periodsOrder = ['ночь', 'утро', 'день', 'вечер'];
@@ -2145,9 +1886,7 @@ bot.command('forecast', async (ctx) => {
     
   } catch (error) {
     console.error('❌ Ошибка в /forecast:', error);
-    await ctx.reply('❌ Не удалось получить прогноз погоды. Попробуйте позже.', { 
-      reply_markup: mainMenuKeyboard 
-    });
+    await ctx.reply('❌ Не удалось получить прогноз погоды.', { reply_markup: mainMenuKeyboard });
   }
 });
 
@@ -2202,11 +1941,6 @@ bot.command('phrase', async (ctx) => {
   }
   
   try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-      await ctx.reply('Фразы не загружены.', { reply_markup: mainMenuKeyboard });
-      return;
-    }
-    
     const dayOfMonth = new Date().getDate();
     const phraseIndex = (dayOfMonth - 1) % dailyPhrases.length;
     const phrase = dailyPhrases[phraseIndex];
@@ -2234,13 +1968,6 @@ bot.command('random', async (ctx) => {
   }
   
   try {
-    if (!dailyPhrases || dailyPhrases.length === 0) {
-      await ctx.reply('Фразы не загружены. Попробуйте позже.', { 
-        reply_markup: mainMenuKeyboard 
-      });
-      return;
-    }
-    
     const randomIndex = Math.floor(Math.random() * dailyPhrases.length);
     const phrase = dailyPhrases[randomIndex];
     
@@ -2259,7 +1986,7 @@ bot.command('random', async (ctx) => {
     
   } catch (error) {
     console.error('❌ Ошибка в /random:', error);
-    await ctx.reply('❌ Не удалось получить случайную фразу. Попробуйте еще раз.', { 
+    await ctx.reply('❌ Не удалось получить случайную фразу.', { 
       reply_markup: mainMenuKeyboard 
     });
   }
@@ -2350,14 +2077,13 @@ bot.command('top', async (ctx) => {
   }
 });
 
-// ===================== ГЛАВНАЯ КОМАНДА /CITY =====================
+// ===================== КОМАНДА /CITY =====================
 bot.command('city', async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username || ctx.from.first_name || '';
   const args = ctx.message.text.split(' ').slice(1);
   
   if (args.length === 0) {
-    // Показываем текущий город
     try {
       const result = await getUserCityWithFallback(userId);
       
@@ -2368,8 +2094,7 @@ bot.command('city', async (ctx) => {
           `/city [название города]\n\n` +
           `*Примеры:*\n` +
           `/city Москва\n` +
-          `/city Санкт-Петербург\n` +
-          `/city "Нью-Йорк"`,
+          `/city Санкт-Петербург`,
           { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
         );
       } else {
@@ -2377,20 +2102,19 @@ bot.command('city', async (ctx) => {
           `📍 *У вас не указан город*\n\n` +
           `Укажите свой город, чтобы он отображался в статистике и топе игроков!\n\n` +
           `*Пример:*\n` +
-          `/city Москва\n\n` +
-          `Или используйте кнопку "🏙️ СМЕНИТЬ ГОРОД"`,
+          `/city Москва`,
           { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
         );
       }
     } catch (error) {
-      console.error('❌ Ошибка в /city (без аргументов):', error);
+      console.error('❌ Ошибка в /city:', error);
       await ctx.reply('❌ Не удалось получить информацию о городе.', { reply_markup: mainMenuKeyboard });
     }
     return;
   }
   
   const city = args.join(' ').trim();
-  console.log(`📍 Команда /city: ${userId} (${username}) -> "${city}"`);
+  console.log(`📍 Команда /city: ${userId} -> "${city}"`);
   
   if (isRateLimited(userId)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
@@ -2398,7 +2122,6 @@ bot.command('city', async (ctx) => {
   }
   
   try {
-    // 🔴 ПРОВЕРЯЕМ ВАЛИДНОСТЬ ГОРОДА
     if (!city || city.length < 2 || city.length > 100) {
       await ctx.reply('❌ Неверное название города. Город должен содержать от 2 до 100 символов.');
       return;
@@ -2406,81 +2129,23 @@ bot.command('city', async (ctx) => {
     
     await ctx.reply(`⏳ Сохраняю город "${city}"...`, { parse_mode: 'Markdown' });
     
-    // 🔴 ИСПОЛЬЗУЕМ УЛУЧШЕННУЮ ФУНКЦИЮ С chat_id
     const saveResult = await saveUserCityWithRetry(userId, city, username);
     
     if (!saveResult.success) {
-      console.error('❌ Не удалось сохранить город через /city:', saveResult.error);
       await ctx.reply('❌ Не удалось сохранить город. Попробуйте еще раз.');
       return;
     }
     
-    // 🔴 СРАЗУ ПОСЛЕ СОХРАНЕНИЯ ПРОВЕРЯЕМ И ОБНОВЛЯЕМ
-    console.log('🔍 Немедленная проверка сохранения...');
-    
-    try {
-      // Даем базе данных немного времени
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const verifyResult = await getUserCityWithFallback(userId);
-      
-      if (verifyResult.success && verifyResult.city === city) {
-        console.log(`✅ Город "${city}" успешно сохранен и верифицирован!`);
-        
-        await ctx.reply(
-          `✅ *Город "${city}" успешно сохранен!*\n\n` +
-          `📍 Теперь вы будете отображаться в топе игроков с этим городом.\n` +
-          `📊 Ваша статистика будет показывать город: "${city}"\n\n` +
-          `*Что теперь можно сделать:*\n` +
-          `• Проверить статистику: /stats\n` +
-          `• Посмотреть топ игроков: /top\n` +
-          `• Сыграть в тетрис: /tetris\n\n` +
-          `🎮 *Совет:* Чтобы город отображался в игре, завершите её с хорошим результатом (>1000 очков)!`,
-          { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-        );
-      } else {
-        console.warn(`⚠️ Город не верифицирован: ожидали "${city}", получили "${verifyResult?.city}"`);
-        
-        // 🔴 ПРОБУЕМ ДРУГОЙ СПОСОБ ПРОВЕРКИ
-        console.log('🔄 Пробуем проверить через прямое обращение к БД...');
-        
-        const directCheck = await checkCityInDatabase(userId, city);
-        
-        if (directCheck.found) {
-          await ctx.reply(
-            `✅ *Город "${city}" сохранен!*\n\n` +
-            `📍 База данных подтверждает сохранение.\n` +
-            `🔄 Обновите статистику через /stats\n\n` +
-            `*Если город всё ещё не виден:*\n` +
-            `• Подождите 1-2 минуты\n` +
-            `• Перезапустите бота: /start\n` +
-            `• Сыграйте в игру для активации`,
-            { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-          );
-        } else {
-          await ctx.reply(
-            `⚠️ *Возникли проблемы с сохранением города*\n\n` +
-            `Мы попытались сохранить город "${city}", но при проверке получили "${verifyResult?.city || 'Не указан'}".\n\n` +
-            `*Что можно сделать:*\n` +
-            `• Попробуйте ещё раз: /city ${city}\n` +
-            `• Укажите другой формат: /city "Москва"\n` +
-            `• Перезапустите бота: /start\n` +
-            `• Свяжитесь с поддержкой`,
-            { parse_mode: 'Markdown' }
-          );
-        }
-      }
-    } catch (verifyError) {
-      console.error('❌ Ошибка верификации города:', verifyError.message);
-      
-      await ctx.reply(
-        `✅ *Город "${city}" сохранен!*\n\n` +
-        `⚠️ *Примечание:* Возникла ошибка при проверке, но город скорее всего сохранен.\n` +
-        `Проверьте через /stats через минуту.\n\n` +
-        `Если город не появится, попробуйте ещё раз.`,
-        { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
-      );
-    }
+    await ctx.reply(
+      `✅ *Город "${city}" успешно сохранен!*\n\n` +
+      `📍 Теперь вы будете отображаться в топе игроков с этим городом.\n` +
+      `📊 Ваша статистика будет показывать город: "${city}"\n\n` +
+      `*Что теперь можно сделать:*\n` +
+      `• Проверить статистику: /stats\n` +
+      `• Посмотреть топ игроков: /top\n` +
+      `• Сыграть в тетрис: /tetris`,
+      { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard }
+    );
     
   } catch (error) {
     console.error('❌ Ошибка в /city:', error);
@@ -2511,20 +2176,19 @@ bot.command('help', async (ctx) => {
       `• 🏙️ СМЕНИТЬ ГОРОД - изменить город\n` +
       `• ℹ️ ПОМОЩЬ - эта информация\n` +
       `• 📋 ПОКАЗАТЬ КОМАНДЫ - убрать кнопки и использовать команды\n\n` +
-      `*Текстовые команды (доступны после нажатия "📋 ПОКАЗАТЬ КОМАНДЫ"):*\n` +
-      `/start - начать работу с ботом\n` +
+      `*Текстовые команды:*\n` +
+      `/start - начать работу\n` +
       `/weather - текущая погода\n` +
-      `/forecast - подробный прогноз на завтра\n` +
+      `/forecast - прогноз на завтра\n` +
       `/wardrobe - что надеть?\n` +
       `/phrase - фраза дня\n` +
       `/random - случайная фраза\n` +
       `/tetris - играть в тетрис\n` +
-      `/stats - ваша статистика в игре\n` +
+      `/stats - ваша статистика\n` +
       `/top - топ игроков\n` +
       `/city [город] - указать свой город\n` +
       `/help - помощь\n\n` +
-      `📍 *Важно:* Укажите город командой /city [город] чтобы отображаться в топе игроков!\n\n` +
-      `Чтобы вернуть меню кнопок, нажмите /start`,
+      `📍 *Важно:* Укажите город командой /city [город] чтобы отображаться в топе игроков!`,
       { 
         parse_mode: 'Markdown', 
         reply_markup: { remove_keyboard: true }
@@ -2535,202 +2199,9 @@ bot.command('help', async (ctx) => {
   }
 });
 
-// ===================== КОМАНДЫ ДЛЯ ТЕСТИРОВАНИЯ БАЗЫ ДАННЫХ =====================
-bot.command('db_check', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`🔍 db_check от ${userId}`);
-  
-  try {
-    const connection = await checkDatabaseConnection();
-    
-    let message = `🔍 *Проверка базы данных:*\n\n`;
-    message += `• Подключение: ${connection.success ? '✅ Успешно' : '❌ Ошибка'}\n`;
-    
-    if (connection.success) {
-      message += `• Версия PostgreSQL: ${connection.version?.split(',')[0] || 'Неизвестно'}\n`;
-      message += `• Время сервера: ${connection.time || 'Неизвестно'}\n`;
-      message += `• База данных: ${connection.database || 'Неизвестно'}\n`;
-    } else {
-      message += `• Ошибка: ${connection.error || 'Неизвестно'}\n`;
-      message += `• Код ошибки: ${connection.code || 'Неизвестно'}\n`;
-    }
-    
-    // 🔴 ПРОВЕРЯЕМ ГОРОД ПОЛЬЗОВАТЕЛЯ
-    const cityResult = await getUserCityWithFallback(userId);
-    message += `\n📍 *Ваш город в БД:* ${cityResult.city} (${cityResult.success ? '✅' : '❌'})\n`;
-    if (cityResult.source) {
-      message += `• Источник: ${cityResult.source}\n`;
-    }
-    
-    await ctx.reply(message, { parse_mode: 'Markdown' });
-    
-  } catch (error) {
-    console.error('❌ Ошибка в db_check:', error);
-    await ctx.reply(`❌ Ошибка: ${error.message}`);
-  }
-});
+// ===================== УДАЛЯЕМ ВСЕ ТЕСТОВЫЕ КОМАНДЫ =====================
+// ❌ Удалены: /test_api_endpoints, /db_check, /debug_db, /test_stats, /db_info
 
-bot.command('debug_db', async (ctx) => {
-  try {
-    console.log('🔍 debug_db запущен');
-    
-    const diagnosis = await debugDatabase();
-    
-    if (!diagnosis.success) {
-      await ctx.reply(`❌ Ошибка диагностики: ${diagnosis.error}`, { parse_mode: 'Markdown' });
-      return;
-    }
-    
-    let message = `🔍 *Диагностика базы данных:*\n\n`;
-    
-    if (diagnosis.connection) {
-      message += `*Подключение:*\n`;
-      message += `• Успешно: ${diagnosis.connection.success ? '✅' : '❌'}\n`;
-      message += `• Ошибка: ${diagnosis.connection.error || 'Нет'}\n\n`;
-    }
-    
-    if (diagnosis.tables && Array.isArray(diagnosis.tables)) {
-      message += `*Таблицы:*\n`;
-      diagnosis.tables.forEach(table => {
-        message += `• ${table.table_name}: ${table.columns_count} колонок, ${table.rows_count} записей\n`;
-      });
-    } else {
-      message += `*Таблицы:* Не удалось получить информацию\n`;
-    }
-    
-    // 🔴 ПРОВЕРЯЕМ ТАБЛИЦУ USERS
-    message += `\n🔍 *Проверка таблицы users:*\n`;
-    try {
-      if (pool) {
-        const client = await pool.connect();
-        try {
-          const userCheck = await client.query(
-            'SELECT COUNT(*) as count, COUNT(DISTINCT city) as unique_cities FROM users WHERE city != \'Не указан\''
-          );
-          const usersWithCity = userCheck.rows[0];
-          message += `• Пользователей с указанным городом: ${usersWithCity.count}\n`;
-          message += `• Уникальных городов: ${usersWithCity.unique_cities}\n`;
-        } finally {
-          client.release();
-        }
-      }
-    } catch (userError) {
-      message += `• Ошибка проверки: ${userError.message}\n`;
-    }
-    
-    await ctx.reply(message, { parse_mode: 'Markdown' });
-    
-  } catch (error) {
-    console.error('❌ Ошибка в debug_db:', error);
-    await ctx.reply(`❌ Ошибка: ${error.message}\n\n🔧 Проверьте настройки БД и подключение.`);
-  }
-});
-// 🔴 ДОБАВЬТЕ В bot.js КОМАНДУ ДЛЯ ТЕСТИРОВАНИЯ СТАТИСТИКИ
-bot.command('test_stats', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`🧪 test_stats от ${userId}`);
-  
-  try {
-    // Тестовая игра для статистики
-    const testScore = Math.floor(Math.random() * 5000) + 1000;
-    const testLevel = Math.floor(Math.random() * 10) + 1;
-    const testLines = Math.floor(Math.random() * 100) + 10;
-    
-    await ctx.reply(`🧪 Создаю тестовую запись: ${testScore} очков...`);
-    
-    // Сохраняем тестовый результат
-    const result = await saveGameScore(
-      userId,
-      'tetris',
-      testScore,
-      testLevel,
-      testLines,
-      ctx.from.username || ctx.from.first_name || 'Тестовый игрок',
-      true
-    );
-    
-    if (result.success) {
-      await ctx.reply(
-        `✅ Тестовая игра сохранена!\n\n` +
-        `🎯 Очки: ${testScore}\n` +
-        `📊 Уровень: ${testLevel}\n` +
-        `📈 Линии: ${testLines}\n\n` +
-        `Теперь проверьте статистику: /stats`
-      );
-    } else {
-      await ctx.reply(`❌ Ошибка сохранения: ${result.error}`);
-    }
-    
-  } catch (error) {
-    console.error('❌ Ошибка в test_stats:', error);
-    await ctx.reply(`❌ Ошибка: ${error.message}`);
-  }
-});
-
-// 🔴 КОМАНДА ДЛЯ ПРОВЕРКИ ТАБЛИЦ БАЗЫ ДАННЫХ
-bot.command('db_info', async (ctx) => {
-  try {
-    const client = await pool.connect();
-    
-    try {
-      // Информация о таблицах
-      const tablesQuery = `
-        SELECT 
-          table_name,
-          (SELECT COUNT(*) FROM information_schema.columns 
-           WHERE table_schema = 'public' AND table_name = t.table_name) as columns_count,
-          (xpath('/row/cnt/text()', 
-            query_to_xml(format('SELECT COUNT(*) as cnt FROM %I', table_name), 
-            false, true, '')))[1]::text::int as rows_count
-        FROM information_schema.tables t
-        WHERE table_schema = 'public'
-        ORDER BY table_name
-      `;
-      
-      const tablesResult = await client.query(tablesQuery);
-      let message = `📊 *Информация о базе данных:*\n\n`;
-      
-      for (const table of tablesResult.rows) {
-        message += `*${table.table_name}:*\n`;
-        message += `  Колонок: ${table.columns_count}\n`;
-        message += `  Записей: ${table.rows_count}\n\n`;
-      }
-      
-      // Проверяем текущего пользователя
-      const userId = ctx.from.id.toString();
-      const userCheck = await client.query(
-        'SELECT * FROM users WHERE user_id = $1',
-        [userId]
-      );
-      
-      if (userCheck.rows[0]) {
-        message += `👤 *Ваш профиль:*\n`;
-        message += `  ID: ${userCheck.rows[0].user_id}\n`;
-        message += `  Имя: ${userCheck.rows[0].username || 'Нет'}\n`;
-        message += `  Город: ${userCheck.rows[0].city}\n\n`;
-      } else {
-        message += `👤 *Вы не найдены в таблице users*\n\n`;
-      }
-      
-      // Проверяем ваши игры
-      const gamesCheck = await client.query(
-        'SELECT COUNT(*) as count FROM game_scores WHERE user_id = $1',
-        [userId]
-      );
-      
-      message += `🎮 *Ваших игр сохранено:* ${gamesCheck.rows[0].count}\n`;
-      
-      await ctx.reply(message, { parse_mode: 'Markdown' });
-      
-    } finally {
-      client.release();
-    }
-    
-  } catch (error) {
-    console.error('❌ Ошибка в db_info:', error);
-    await ctx.reply(`❌ Ошибка: ${error.message}`);
-  }
-});
 // ===================== ОБРАБОТЧИК ТЕКСТОВЫХ СООБЩЕНИЙ =====================
 bot.on('message:text', async (ctx) => {
   const userId = ctx.from.id;
@@ -2738,7 +2209,7 @@ bot.on('message:text', async (ctx) => {
   const text = ctx.message.text;
   const userData = userStorage.get(userId) || {};
   
-  console.log(`📝 Текст от ${userId} (${username}): "${text}"`);
+  console.log(`📝 Текст от ${userId}: "${text}"`);
   
   if (isRateLimited(userId)) {
     await ctx.reply('⏳ Пожалуйста, подождите немного перед следующим запросом.');
@@ -2762,9 +2233,8 @@ bot.on('message:text', async (ctx) => {
         return;
       }
       
-      console.log(`🏙️ Сохраняю город "${city}" для ${userId} (${username})`);
+      console.log(`🏙️ Сохраняю город "${city}" для ${userId}`);
       
-      // 🔴 ИСПОЛЬЗУЕМ УЛУЧШЕННУЮ ФУНКЦИЮ
       const saveResult = await saveUserCityWithRetry(userId, city, username);
       
       if (!saveResult.success) {
@@ -2852,14 +2322,6 @@ export default async function handler(req, res) {
           'Английские фразы',
           'Тетрис со статистикой',
           'Топ игроков с городами'
-        ],
-        city_system: '✅ Работает (города сохраняются в таблице users)',
-        game_stats: '✅ Работает (статистика из game_scores)',
-        notes: [
-          '✅ Улучшенная система сохранения городов',
-          '✅ Верификация сохранения городов',
-          '✅ Автоматическое создание пользователя при старте',
-          '✅ Fallback методы для надежности'
         ]
       });
     }
@@ -2870,19 +2332,12 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: false, error: 'Bot not initialized' });
       }
       
-      console.log('📦 Получен update от Telegram');
-      
       try {
         const update = req.body;
-        
         if (!update || typeof update !== 'object') {
-          console.error('❌ Неверный формат update:', update);
           return res.status(400).json({ ok: false, error: 'Invalid update format' });
         }
-        
         await bot.handleUpdate(update);
-        console.log('✅ Update успешно обработан');
-        
         return res.status(200).json({ ok: true });
       } catch (error) {
         console.error('❌ Ошибка обработки update:', error);
@@ -2894,18 +2349,12 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('🔥 Критическая ошибка в handler:', error);
-    return res.status(200).json({ 
-      ok: false, 
-      error: 'Internal server error'
-    });
+    return res.status(200).json({ ok: false, error: 'Internal server error' });
   }
 }
 
 export { bot };
 console.log('⚡ Бот загружен с полноценной системой прогноза погоды и статистикой игр!');
-console.log('📍 Система городов: ВКЛЮЧЕНА (города сохраняются в таблице users)');
-console.log('🏆 Топ игроков: ВКЛЮЧЕН (показывает города из таблицы users)');
-console.log('🔧 Улучшенные функции:');
-console.log('  • Улучшенное сохранение городов с retry');
-console.log('  • Верификация сохраненных городов');
-console.log('  • Подробное логирование работы с БД');
+console.log('📍 Система городов: ВКЛЮЧЕНА');
+console.log('🏆 Топ игроков: ВКЛЮЧЕН');
+console.log('❌ Тестовые команды: УДАЛЕНЫ');
