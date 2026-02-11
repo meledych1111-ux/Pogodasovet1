@@ -1587,150 +1587,78 @@ function setupAutoSave() {
     }, 30000);
 }
 
-async function loadUserStats() {
+// 🔴 ИСПРАВЛЕНО: ЗАГРУЗКА СТАТИСТИКИ ТОЛЬКО ПО TELEGRAM ID
+// ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ СТАТИСТИКИ ====================
+function loadUserStats() {
     console.log('📊 Загрузка статистики пользователя');
     
-    // 🔴 БЕРЕМ ID ИЗ URL ИЛИ ИЗ ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+    // 🔴 БЕРЕМ ID ИЗ URL
     const urlParams = new URLSearchParams(window.location.search);
-    let telegramId = urlParams.get('telegramId') || window.telegramUserId;
+    let telegramId = urlParams.get('telegramId') || window.telegramUserId || '975501399';
     
     if (!telegramId) {
         console.log('⚠️ Нет Telegram ID');
         return;
     }
     
-    try {
-        const response = await fetch(`/api/user-stats?telegramId=${telegramId}&gameType=tetris`);
-        const result = await response.json();
-        
-        console.log('📊 Статистика получена:', result);
-        
-        if (result.success && result.stats) {
-            const stats = result.stats;
+    // 🔴 НЕ ИСПОЛЬЗУЕМ AWAIT, ИСПОЛЬЗУЕМ .then()
+    fetch(`/api/user-stats?telegramId=${telegramId}&gameType=tetris`)
+        .then(response => response.json())
+        .then(result => {
+            console.log('📊 Статистика получена:', result);
             
-            // 🔴 ОБНОВЛЯЕМ UI
-            document.getElementById('best-score').textContent = stats.best_score || 0;
-            document.getElementById('best-level').textContent = stats.best_level || 1;
-            document.getElementById('total-lines').textContent = stats.best_lines || 0;
-            document.getElementById('games-played').textContent = stats.games_played || 0;
-            document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
-            
-            // 🔴 ГОРОД ИЗ ОТВЕТА
-            if (result.city && result.city !== 'Не указан') {
-                let cityElement = document.querySelector('.city-stat');
-                if (!cityElement) {
-                    cityElement = document.createElement('div');
-                    cityElement.className = 'stat-row city-stat';
-                    document.getElementById('user-stats').appendChild(cityElement);
+            if (result.success && result.stats) {
+                const stats = result.stats;
+                
+                document.getElementById('best-score').textContent = stats.best_score || 0;
+                document.getElementById('best-level').textContent = stats.best_level || 1;
+                document.getElementById('total-lines').textContent = stats.best_lines || 0;
+                document.getElementById('games-played').textContent = stats.games_played || 0;
+                document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
+                
+                // 🔴 ГОРОД
+                if (result.city && result.city !== 'Не указан') {
+                    let cityElement = document.querySelector('.city-stat');
+                    if (!cityElement) {
+                        cityElement = document.createElement('div');
+                        cityElement.className = 'stat-row city-stat';
+                        document.getElementById('user-stats').appendChild(cityElement);
+                    }
+                    cityElement.innerHTML = `
+                        <span class="stat-label">Город:</span>
+                        <span class="stat-value">${result.city}</span>
+                    `;
                 }
-                cityElement.innerHTML = `
-                    <span class="stat-label">Город:</span>
-                    <span class="stat-value">${result.city}</span>
-                `;
             }
-        }
-    } catch (error) {
-        console.error('❌ Ошибка:', error);
-    }
+        })
+        .catch(error => {
+            console.error('❌ Ошибка загрузки статистики:', error);
+        });
 }
-async function loadLeaderboard() {
+
+// ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ЛИДЕРБОРДА ====================
+function loadLeaderboard() {
     console.log('🏆 Загрузка лидерборда');
     
-    try {
-        const leaderboardList = document.getElementById('leaderboard-list');
-        leaderboardList.innerHTML = '<div style="text-align: center; padding: 20px; color: #b5aaff;">Загрузка лидерборда...</div>';
-        
-        const response = await fetch('/api/top-players?gameType=tetris&limit=10');
-        const result = await response.json();
-        
-        console.log('🏆 Ответ API лидерборда:', result);
-        
-        // 🔴 ПРОВЕРЯЕМ СТРУКТУРУ ОТВЕТА
-        const players = result.players || [];
-        
-        if (players.length === 0) {
-            leaderboardList.innerHTML = `
-                <div style="text-align: center; padding: 30px; color: #b5aaff;">
-                    <p>🏆 Лидерборд</p>
-                    <p style="font-size: 0.9rem;">Пока нет игроков с результатом ≥1000 очков</p>
-                    <p style="font-size: 0.8rem; margin-top: 15px; color: #ffcc66;">
-                        Сыграйте и наберите 1000+ очков!
-                    </p>
-                </div>
-            `;
-            return;
-        }
-        
-        leaderboardList.innerHTML = '';
-        
-        players.forEach((player, index) => {
-            const playerId = player.user_id;
-            const currentUserId = urlParams.get('telegramId') || window.telegramUserId;
-            const isCurrentUser = currentUserId && String(playerId) === String(currentUserId);
-            
-            const item = document.createElement('div');
-            item.className = 'leaderboard-item';
-            
-            item.innerHTML = `
-                <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
-                <div class="player-info">
-                    <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
-                        ${player.display_name || `Игрок ${playerId.slice(-4)}`}
-                        ${isCurrentUser ? ' (Вы)' : ''}
-                    </div>
-                    <div class="player-score">${player.best_score || 0} очков</div>
-                    ${player.city && player.city !== 'Не указан' ? 
-                        `<div style="color: #aaccff; font-size: 0.8rem;">📍 ${player.city}</div>` : ''}
-                </div>
-                <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.best_level || 1}</div>
-            `;
-            
-            leaderboardList.appendChild(item);
-        });
-        
-    } catch (error) {
-        console.error('❌ Ошибка загрузки лидерборда:', error);
-        leaderboardList.innerHTML = `
-            <div style="text-align: center; padding: 30px; color: #b5aaff;">
-                <p>❌ Ошибка загрузки</p>
-                <p style="font-size: 0.9rem;">Попробуйте позже</p>
-            </div>
-        `;
-    }
-}   
-    try {
-        const leaderboardList = document.getElementById('leaderboard-list');
-        leaderboardList.innerHTML = '<div style="text-align: center; padding: 20px; color: #b5aaff;">Загрузка лидерборда...</div>';
-        
-        const apiUrl = '/api/top-players?gameType=tetris&limit=10';
-        console.log('📡 Запрос к API лидерборда:', apiUrl);
-        
-        const response = await fetch(apiUrl);
-        
-        if (response.ok) {
-            const result = await response.json();
+    const leaderboardList = document.getElementById('leaderboard-list');
+    leaderboardList.innerHTML = '<div style="text-align: center; padding: 20px; color: #b5aaff;">Загрузка лидерборда...</div>';
+    
+    // 🔴 НЕ ИСПОЛЬЗУЕМ AWAIT, ИСПОЛЬЗУЕМ .then()
+    fetch('/api/top-players?gameType=tetris&limit=10')
+        .then(response => response.json())
+        .then(result => {
             console.log('🏆 Ответ API лидерборда:', result);
             
-            const players = result.players || result.topPlayers || result.data || [];
-            
-            if (!Array.isArray(players)) {
-                console.error('❌ Ошибка: players не является массивом:', players);
-                leaderboardList.innerHTML = `
-                    <div style="text-align: center; padding: 30px; color: #b5aaff;">
-                        <p>Ошибка формата данных</p>
-                        <p style="font-size: 0.9rem;">Попробуйте позже</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            console.log('🏆 Игроков в лидерборде:', players.length);
+            const players = result.players || [];
             
             if (players.length === 0) {
                 leaderboardList.innerHTML = `
                     <div style="text-align: center; padding: 30px; color: #b5aaff;">
-                        <p>Лидерборд пуст</p>
-                        <p style="font-size: 0.9rem;">Будьте первым!</p>
+                        <p style="font-size: 1.2rem; margin-bottom: 10px;">🏆 ЛИДЕРБОРД</p>
+                        <p style="font-size: 0.9rem;">Пока нет игроков с результатом ≥1000 очков</p>
+                        <p style="font-size: 0.8rem; margin-top: 15px; color: #ffcc66;">
+                            🎮 Сыграйте и наберите 1000+ очков!
+                        </p>
                     </div>
                 `;
                 return;
@@ -1739,9 +1667,10 @@ async function loadLeaderboard() {
             leaderboardList.innerHTML = '';
             
             players.forEach((player, index) => {
-                // 🔴 Сравниваем с telegramUserId
-                const playerId = player.user_id || player.userId;
-                const isCurrentUser = telegramUserId && String(playerId) === String(telegramUserId);
+                const playerId = player.user_id;
+                const urlParams = new URLSearchParams(window.location.search);
+                const currentUserId = urlParams.get('telegramId') || window.telegramUserId;
+                const isCurrentUser = currentUserId && String(playerId) === String(currentUserId);
                 
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
@@ -1750,38 +1679,28 @@ async function loadLeaderboard() {
                     <div class="rank" style="color: ${getRankColor(index + 1)}">${index + 1}</div>
                     <div class="player-info">
                         <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'}">
-                            ${player.display_name || player.username || player.name || `Игрок ${String(playerId || '??').slice(-4)}`}
+                            ${player.display_name || `Игрок ${String(playerId).slice(-4)}`}
                             ${isCurrentUser ? ' (Вы)' : ''}
                         </div>
-                        <div class="player-score">${player.best_score || player.score || 0} очков</div>
+                        <div class="player-score">${player.best_score || 0} очков</div>
                         ${player.city && player.city !== 'Не указан' ? 
-                          `<div style="color: #aaccff; font-size: 0.8rem;">📍 ${player.city}</div>` : ''}
+                            `<div style="color: #aaccff; font-size: 0.8rem;">📍 ${player.city}</div>` : ''}
                     </div>
-                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.best_level || player.level || 1}</div>
+                    <div style="color: #ffcc66; font-size: 1rem;">Lvl ${player.best_level || 1}</div>
                 `;
+                
                 leaderboardList.appendChild(item);
             });
-            
-            showNotification('🏆 Лидерборд загружен!');
-        } else {
-            console.warn('⚠️ Не удалось загрузить лидерборд с API');
-            showNotification('⚠️ API лидерборда недоступен');
-            showLocalLeaderboard();
-        }
-    } catch (error) {
-        console.error('❌ Ошибка загрузки лидерборда:', error);
-        showNotification('❌ Ошибка загрузки лидерборда');
-        showLocalLeaderboard();
-    }
-
-function showLocalLeaderboard() {
-    const leaderboardList = document.getElementById('leaderboard-list');
-    leaderboardList.innerHTML = `
-        <div style="text-align: center; padding: 30px; color: #b5aaff;">
-            <p>Сервер недоступен</p>
-            <p style="font-size: 0.9rem;">Лидерборд временно не работает</p>
-        </div>
-    `;
+        })
+        .catch(error => {
+            console.error('❌ Ошибка загрузки лидерборда:', error);
+            leaderboardList.innerHTML = `
+                <div style="text-align: center; padding: 30px; color: #b5aaff;">
+                    <p>❌ Ошибка загрузки</p>
+                    <p style="font-size: 0.9rem;">Попробуйте позже</p>
+                </div>
+            `;
+        });
 }
 
 function getRankColor(rank) {
