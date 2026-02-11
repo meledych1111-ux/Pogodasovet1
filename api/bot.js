@@ -2225,9 +2225,9 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
     const client = await pool.connect();
     
     try {
- // 🔴 ТОЛЬКО РЕАЛЬНЫЕ ПОЛЬЗОВАТЕЛИ - БЕЗ ТЕСТОВЫХ!
+// 🔴 ТОЛЬКО РЕАЛЬНЫЕ ПОЛЬЗОВАТЕЛИ - БЕЗ ТЕСТОВЫХ!
       const topQuery = `
-        SELECT 
+        SELECT DISTINCT ON (gs.user_id)
           gs.user_id,
           COALESCE(u.username, gs.username, 'Игрок') as display_name,
           COALESCE(u.city, gs.city, 'Не указан') as city,
@@ -2240,12 +2240,12 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
         WHERE gs.game_type = 'tetris' 
           AND gs.score > 0
           AND gs.is_win = true
-          AND gs.user_id NOT LIKE 'test_%'      -- ❌ ИСКЛЮЧАЕМ ТЕСТОВЫХ
-          AND gs.user_id NOT LIKE 'web_%'       -- ❌ ИСКЛЮЧАЕМ WEB_
-          AND gs.user_id ~ '^[0-9]+$'           -- ✅ ТОЛЬКО ЧИСЛОВЫЕ ID
-        GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city  /* ✅ ВЕРНУЛИ! */
+          AND gs.user_id NOT LIKE 'test_%'
+          AND gs.user_id NOT LIKE 'web_%'
+          AND gs.user_id ~ '^[0-9]+$'
+        GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
         HAVING MAX(gs.score) >= 1000
-        ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
+        ORDER BY gs.user_id, MAX(gs.score) DESC
         LIMIT $1
       `;
       
