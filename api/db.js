@@ -953,7 +953,6 @@ export async function getGameStatsForMessage(userId, gameType = 'tetris') {
 /**
  * Получает топ игроков
  */
-// ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ТОПА ====================
 export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   if (!pool) {
     return { success: false, players: [] };
@@ -962,53 +961,45 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   const client = await pool.connect();
   
   try {
-    // 🔴 УБИРАЕМ ГРУППИРОВКУ, ПРОСТО БЕРЕМ ЛУЧШИЕ РЕЗУЛЬТАТЫ
     const query = `
-      SELECT DISTINCT ON (gs.user_id)
+      SELECT 
         gs.user_id,
         COALESCE(u.username, gs.username, CONCAT('Игрок ', RIGHT(gs.user_id, 4))) as display_name,
         COALESCE(u.city, gs.city, 'Не указан') as city,
-        gs.score as best_score,
-        gs.level as best_level,
-        gs.lines as best_lines,
-        gs.created_at as last_played
+        MAX(gs.score) as best_score,
+        COUNT(*) as games_played,
+        MAX(gs.level) as best_level,
+        MAX(gs.lines) as best_lines,
+        MAX(gs.created_at) as last_played
       FROM game_scores gs
       LEFT JOIN users u ON gs.user_id = u.user_id
       WHERE gs.game_type = $1 
-        AND gs.score > 0
+        AND gs.score >= 200
         AND gs.is_win = true
-        AND gs.user_id NOT LIKE 'test_%'
         AND gs.user_id NOT LIKE 'web_%'
+        AND gs.user_id NOT LIKE 'test_user_%'
+        AND gs.user_id NOT LIKE 'unknown_%'
+        AND gs.user_id NOT LIKE 'empty_%'
         AND gs.user_id ~ '^[0-9]+$'
-      ORDER BY gs.user_id, gs.score DESC, gs.created_at DESC
+      GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
+      ORDER BY MAX(gs.score) DESC, COUNT(*) DESC, MAX(gs.created_at) DESC
+      LIMIT $2
     `;
     
-    const result = await client.query(query, [gameType]);
+    const result = await client.query(query, [gameType, limit]);
     
-    // 🔴 СОРТИРУЕМ ПО ОЧКАМ И БЕРЕМ ТОП LIMIT
-    const topPlayers = result.rows
-      .sort((a, b) => b.best_score - a.best_score)
-      .slice(0, limit)
-      .map((row, index) => ({
-        rank: index + 1,
-        user_id: row.user_id,
-        display_name: row.display_name,
-        username: row.display_name,
-        city: row.city || 'Не указан',
-        best_score: parseInt(row.best_score) || 0,
-        best_level: parseInt(row.best_level) || 1,
-        best_lines: parseInt(row.best_lines) || 0,
-        games_played: 1
-      }));
+    const players = result.rows.map((row, index) => ({
+      rank: index + 1,
+      user_id: row.user_id,
+      username: row.display_name || `Игрок ${row.user_id.slice(-4)}`,
+      city: row.city || 'Не указан',
+      score: parseInt(row.best_score) || 0,
+      level: parseInt(row.best_level) || 1,
+      lines: parseInt(row.best_lines) || 0,
+      games_played: parseInt(row.games_played) || 1
+    }));
     
-    console.log(`🏆 Топ игроков: ${topPlayers.length} игроков`);
-    console.log(`🏆 Лучший счет: ${topPlayers[0]?.best_score || 0}`);
-    
-    return { 
-      success: true, 
-      players: topPlayers,
-      count: topPlayers.length
-    };
+    return { success: true, players: players };
     
   } catch (error) {
     console.error('❌ Ошибка топа:', error.message);
@@ -1016,6 +1007,14 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   } finally {
     client.release();
   }
+}
+
+/**
+ * Получает топ игроков с городами (для совместимости)
+ */
+export async function getTopPlayersWithCities(limit = 10) {
+  const result = await getTopPlayers('tetris', limit);
+  return result.success ? result.players : [];
 }
 
 // ============ ФУНКЦИИ ДЛЯ ДИАГНОСТИКИ ============
@@ -1095,6 +1094,5 @@ export {
   checkDatabaseConnection,
   createTables,
   cleanupTestUsers,
-  convertUserIdForDb,
-  getTopPlayersWithCities
+  convertUserIdForDb
 };
