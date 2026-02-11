@@ -702,28 +702,25 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
   const client = await pool.connect();
   
   try {
-    const query = `
-      SELECT 
-        gs.user_id,
-        COALESCE(u.username, gs.username, CONCAT('Игрок ', RIGHT(gs.user_id, 4))) as display_name,
-        COALESCE(u.city, gs.city, 'Не указан') as city,
-        MAX(gs.score) as best_score,
-        COUNT(*) as games_played,
-        MAX(gs.level) as best_level,
-        MAX(gs.lines) as best_lines
-      FROM game_scores gs
-      LEFT JOIN users u ON gs.user_id = u.user_id
-      WHERE gs.game_type = $1 
-        AND gs.score > 0
-        AND gs.is_win = true
-        AND gs.user_id NOT LIKE 'test_%'
-        AND gs.user_id NOT LIKE 'web_%'
-        AND gs.user_id ~ '^[0-9]+$'
-      GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
-      HAVING MAX(gs.score) >= 1000  /* ✅ ТОЛЬКО ИГРОКИ С 1000+ ОЧКОВ */
-      ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
-      LIMIT $2
-    `;
+   const query = `
+  SELECT DISTINCT ON (gs.user_id)
+    gs.user_id,
+    COALESCE(u.username, gs.username, CONCAT('Игрок ', RIGHT(gs.user_id, 4))) as display_name,
+    COALESCE(u.city, gs.city, 'Не указан') as city,
+    MAX(gs.score) OVER (PARTITION BY gs.user_id) as best_score,
+    COUNT(*) OVER (PARTITION BY gs.user_id) as games_played,
+    MAX(gs.level) OVER (PARTITION BY gs.user_id) as best_level,
+    MAX(gs.lines) OVER (PARTITION BY gs.user_id) as best_lines
+  FROM game_scores gs
+  LEFT JOIN users u ON gs.user_id = u.user_id
+  WHERE gs.game_type = $1 
+    AND gs.score > 0
+    AND gs.is_win = true
+    AND gs.user_id NOT LIKE 'test_%'
+    AND gs.user_id NOT LIKE 'web_%'
+    AND gs.user_id ~ '^[0-9]+$'
+  ORDER BY gs.user_id, gs.score DESC
+`;
     
     const result = await client.query(query, [gameType, limit]);
     
