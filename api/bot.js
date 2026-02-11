@@ -562,7 +562,7 @@ async function getGameStatsMessage(userId) {
     const client = await pool.connect();
     
     try {
-      // 1. 🔴 ПОЛУЧАЕМ ГОРОД ИЗ ТАБЛИЦЫ users
+      // 1. ПОЛУЧАЕМ ГОРОД ИЗ ТАБЛИЦЫ users
       let city = 'Не указан';
       let username = 'Игрок';
       
@@ -579,7 +579,7 @@ async function getGameStatsMessage(userId) {
         console.log(`❌ Пользователь ${telegramUserId} не найден в таблице users`);
       }
       
-      // 2. 🔴 ПОЛУЧАЕМ СТАТИСТИКУ ИЗ game_scores
+      // 2. ПОЛУЧАЕМ СТАТИСТИКУ ИЗ game_scores
       const scoresQuery = `
         SELECT 
           COUNT(*) as games_played,
@@ -605,9 +605,9 @@ async function getGameStatsMessage(userId) {
         best_score: parseInt(stats.best_score) || 0
       });
       
-      // 3. 🔴 ПРОВЕРЯЕМ НЕЗАВЕРШЕННУЮ ИГРУ
+      // 3. 🔴 ИСПРАВЛЕНО: ИСПОЛЬЗУЕМ ПРАВИЛЬНОЕ НАЗВАНИЕ КОЛОНКИ
       const progressQuery = `
-        SELECT score, level, lines, updated_at 
+        SELECT score, level, lines, last_saved 
         FROM game_progress 
         WHERE user_id = $1 AND game_type = 'tetris'
       `;
@@ -615,7 +615,7 @@ async function getGameStatsMessage(userId) {
       const progressResult = await client.query(progressQuery, [telegramUserId]);
       const hasUnfinishedGame = progressResult.rows.length > 0;
       
-      // 4. 🔴 ФОРМИРУЕМ СООБЩЕНИЕ
+      // 4. ФОРМИРУЕМ СООБЩЕНИЕ
       const gamesPlayed = parseInt(stats.games_played) || 0;
       const bestScore = parseInt(stats.best_score) || 0;
       const avgScore = Math.round(parseFloat(stats.avg_score) || 0);
@@ -674,10 +674,11 @@ async function getGameStatsMessage(userId) {
     
   } catch (error) {
     console.error('❌ Ошибка в getGameStatsMessage:', error);
-    return `❌ Ошибка загрузки статистики: ${error.message}`;
+    
+    // 🔴 ВОЗВРАЩАЕМ ПРОСТОЕ СООБЩЕНИЕ БЕЗ MARKDOWN СИНТАКСИСА
+    return `❌ Ошибка загрузки статистики. Пожалуйста, попробуйте позже.`;
   }
 }
-
 // ===================== 🔴 ИСПРАВЛЕННАЯ ФУНКЦИЯ ТОПА ИГРОКОВ =====================
 async function getTopPlayersMessage(limit = 10, ctx = null) {
   try {
