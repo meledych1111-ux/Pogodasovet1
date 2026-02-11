@@ -1,6 +1,5 @@
 import { getTopPlayers } from './db.js';
 
-
 export default async function handler(req, res) {
   // CORS заголовки
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,77 +19,47 @@ export default async function handler(req, res) {
     });
   }
   
-  console.log('🏆 /api/top-players - Request:', req.query);
+  console.log('🏆 /api/top-players - Запрос:', req.query);
 
   try {
-    const { gameType = 'tetris', limit = 10, userId } = req.query;
+    const { gameType = 'tetris', limit = 10 } = req.query;
     const numericLimit = Math.min(parseInt(limit) || 10, 100);
     
-    // Валидация gameType
-    const validGameTypes = ['tetris', 'snake', 'pong', 'racing'];
-    if (!validGameTypes.includes(gameType)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Некорректный тип игры',
-        validGameTypes: validGameTypes
-      });
-    }
+    // Получаем топ игроков из БД
+    const result = await getTopPlayers(gameType, numericLimit);
     
-    // Получаем топ игроков
-    const players = await getTopPlayers(gameType, numericLimit);
-    
-    console.log(`🏆 Игроков из БД (${gameType}):`, players?.length || 0);
+    console.log(`🏆 Результат из БД:`, result);
     
     // Проверяем что функция вернула данные
-    if (!players) {
-      console.error('❌ getTopPlayers вернул null/undefined');
-      return res.status(500).json({
-        success: false,
-        error: 'Ошибка получения данных из базы',
-        players: []
+    if (!result || !result.success) {
+      console.error('❌ getTopPlayers вернул ошибку:', result?.error);
+      return res.status(200).json({
+        success: true,
+        gameType: gameType,
+        limit: numericLimit,
+        count: 0,
+        players: [],
+        message: 'Топ временно недоступен'
       });
     }
     
-    // Гарантируем что работаем с массивом
-    const playersArray = Array.isArray(players) ? players : [];
+    // Получаем массив игроков
+    const playersArray = result.players || [];
+    
+    console.log(`🏆 Игроков в топе: ${playersArray.length}`);
     
     // Форматируем для фронтенда
     const formattedPlayers = playersArray.map((player, index) => {
-      // Стандартизируем поля
-      const playerId = player.user_id || player.userId || player.id || null;
-      const playerScore = Number(player.score || player.best_score || player.high_score || 0);
-      const playerLevel = Number(player.level || player.best_level || 1);
-      const playerLines = Number(player.lines || player.best_lines || 0);
-      const gamesPlayed = Number(player.games_played || player.total_games || 1);
-      
-      // Генерация имени
-      let username = player.username || `Игрок ${index + 1}`;
-      
-      // Если нет username, создаем его на основе ID
-      if (!player.username && playerId) {
-        const idStr = String(playerId);
-        if (idStr.length <= 10) {
-          username = `👤 Telegram #${idStr.slice(-4)}`;
-        } else {
-          username = `🌐 Web #${idStr.slice(-4)}`;
-        }
-      }
-      
       return {
         rank: index + 1,
-        user_id: playerId,
-        username: username,
-        score: playerScore,
-        level: playerLevel,
-        lines: playerLines,
-        games_played: gamesPlayed,
-        // Добавляем оригинальные данные для отладки
-        _original: {
-          id: player.id,
-          user_id: player.user_id,
-          username: player.username,
-          score: player.score
-        }
+        user_id: player.user_id,
+        display_name: player.display_name || player.username || `Игрок ${String(player.user_id).slice(-4)}`,
+        username: player.display_name || player.username,
+        city: player.city || 'Не указан',
+        best_score: player.best_score || 0,
+        best_level: player.best_level || 1,
+        best_lines: player.best_lines || 0,
+        games_played: player.games_played || 1
       };
     });
     
@@ -100,28 +69,23 @@ export default async function handler(req, res) {
       limit: numericLimit,
       count: formattedPlayers.length,
       players: formattedPlayers,
-      timestamp: new Date().toISOString(),
-      // Для отладки
-      debug: process.env.NODE_ENV === 'development' ? {
-        originalCount: playersArray.length,
-        query: req.query
-      } : undefined
+      timestamp: new Date().toISOString()
     };
     
-    console.log(`✅ Топ игроков (${gameType}): ${formattedPlayers.length} игроков`);
-    
+    console.log(`✅ Отправляем ${formattedPlayers.length} игроков в топе`);
     return res.status(200).json(response);
 
   } catch (error) {
     console.error('❌ Критическая ошибка получения топа:', error);
     
-    // Возвращаем 500 только для реальных ошибок сервера
-    return res.status(500).json({
-      success: false,
+    // 🔴 ВСЕГДА возвращаем JSON, даже при ошибке!
+    return res.status(200).json({
+      success: true,
+      gameType: req.query.gameType || 'tetris',
+      limit: parseInt(req.query.limit) || 10,
+      count: 0,
       players: [],
-      error: 'Внутренняя ошибка сервера',
-      // Детали ошибки только в development
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      message: 'Топ временно недоступен',
       timestamp: new Date().toISOString()
     });
   }
