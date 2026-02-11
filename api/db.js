@@ -720,6 +720,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
         AND gs.user_id NOT LIKE 'web_%'
         AND gs.user_id ~ '^[0-9]+$'
       GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
+      HAVING MAX(gs.score) >= 1000  /* ✅ ТОЛЬКО ИГРОКИ С 1000+ ОЧКОВ */
       ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
       LIMIT $2
     `;
@@ -738,7 +739,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
       games_played: parseInt(row.games_played) || 1
     }));
     
-    console.log(`🏆 Топ игроков: ${players.length} игроков`);
+    console.log(`🏆 Топ игроков: ${players.length} игроков с 1000+ очками`);
     return { success: true, players: players, count: players.length };
     
   } catch (error) {
