@@ -4,7 +4,6 @@ import { pool } from './db.js';
 function getAchievements(score, level, lines, previousBestScore) {
   const achievements = [];
   
-  // Достижения по очкам
   if (score >= 50000) {
     achievements.push({
       title: '🏆 Легенда Тетриса',
@@ -42,7 +41,6 @@ function getAchievements(score, level, lines, previousBestScore) {
     });
   }
   
-  // Достижения по уровню
   if (level >= 20) {
     achievements.push({
       title: '🚀 Сверхзвуковой Уровень',
@@ -66,7 +64,6 @@ function getAchievements(score, level, lines, previousBestScore) {
     });
   }
   
-  // Достижения по линиям
   if (lines >= 100) {
     achievements.push({
       title: '🧱 Строитель Монолит',
@@ -90,7 +87,6 @@ function getAchievements(score, level, lines, previousBestScore) {
     });
   }
   
-  // Новый рекорд
   if (previousBestScore > 0 && score > previousBestScore) {
     const improvement = score - previousBestScore;
     achievements.push({
@@ -131,16 +127,13 @@ function generateTips(score, level, lines, isNewRecord) {
   return tips.slice(0, 3);
 }
 
-// 🔴 ФУНКЦИЯ ДЛЯ ОЧИСТКИ ID - ТОЛЬКО ЦИФРЫ!
 function cleanUserId(id) {
   if (!id) return null;
   
   const strId = String(id).trim();
   
-  // Убираем все префиксы
   let cleanId = strId.replace(/^(web_|test_user_|unknown_|empty_)/, '');
   
-  // Оставляем только цифры
   const digitsOnly = cleanId.replace(/[^0-9]/g, '');
   
   if (digitsOnly && digitsOnly.length > 0) {
@@ -175,11 +168,9 @@ export default async function handler(req, res) {
     
     console.log('📊 Тело запроса:', JSON.stringify(body, null, 2));
     
-    // 🔴 ИЗВЛЕКАЕМ ТОЛЬКО ЧИСЛОВЫЕ ID
     let numericId = null;
     let sourceField = 'none';
     
-    // Приоритет 1: telegramId
     if (body.telegramId) {
       const cleaned = cleanUserId(body.telegramId);
       if (cleaned) {
@@ -188,7 +179,6 @@ export default async function handler(req, res) {
       }
     }
     
-    // Приоритет 2: userId
     if (!numericId && body.userId) {
       const cleaned = cleanUserId(body.userId);
       if (cleaned) {
@@ -197,7 +187,6 @@ export default async function handler(req, res) {
       }
     }
     
-    // Приоритет 3: webGameId
     if (!numericId && body.webGameId) {
       const cleaned = cleanUserId(body.webGameId);
       if (cleaned) {
@@ -206,7 +195,6 @@ export default async function handler(req, res) {
       }
     }
     
-    // Приоритет 4: data из WebApp
     if (!numericId && body.data) {
       try {
         const parsedData = typeof body.data === 'string' ? JSON.parse(body.data) : body.data;
@@ -220,7 +208,6 @@ export default async function handler(req, res) {
       } catch (e) {}
     }
     
-    // Приоритет 5: webAppData
     if (!numericId && body.webAppData) {
       try {
         const parsedData = typeof body.webAppData === 'string' ? JSON.parse(body.webAppData) : body.webAppData;
@@ -234,7 +221,6 @@ export default async function handler(req, res) {
       } catch (e) {}
     }
     
-    // 🔴 ЕСЛИ ID НЕ НАЙДЕН - ОШИБКА!
     if (!numericId) {
       console.log('❌ Не найден валидный числовой ID');
       return res.status(400).json({ 
@@ -250,29 +236,23 @@ export default async function handler(req, res) {
     
     console.log(`✅ Используем числовой ID: ${numericId} (из ${sourceField})`);
     
-    // Определяем gameType
     const finalGameType = body.gameType || body.game_type || 'tetris';
     
-    // Определяем окончание игры
     let finalGameOver = body.gameOver;
     if (body.isGameOver !== undefined) finalGameOver = body.isGameOver;
     if (body.action === 'tetris_final_score') finalGameOver = true;
     
-    // Определяем имя пользователя
     const finalUsername = body.username || body.first_name || `Игрок ${numericId.slice(-4)}`;
     
-    // Валидация score
     if (body.score === undefined || body.score === null) {
       return res.status(400).json({ success: false, error: 'Missing score field' });
     }
     
-    // Преобразуем значения
     const numericScore = parseInt(body.score) || 0;
     const numericLevel = parseInt(body.level) || 1;
     const numericLines = parseInt(body.lines) || 0;
     const isWin = numericScore > 0;
     
-    // 🔴 НЕ СОХРАНЯЕМ ИГРЫ С 0 ОЧКОВ
     if (numericScore === 0) {
       console.log('⚠️ Игра с 0 очков, пропускаем сохранение');
       return res.status(200).json({
@@ -295,10 +275,9 @@ export default async function handler(req, res) {
     let result;
     
     if (finalGameOver) {
-      // Сохраняем финальный результат - ТОЛЬКО ЧИСЛОВОЙ ID!
       console.log(`💾 Сохраняем результат игры...`);
       result = await saveGameScore(
-        numericId,        // 🔴 ТОЛЬКО ЧИСЛА!
+        numericId,
         finalGameType, 
         numericScore, 
         numericLevel, 
@@ -307,16 +286,14 @@ export default async function handler(req, res) {
         isWin
       );
       
-      // Удаляем прогресс
       if (result && result.success) {
         await deleteGameProgress(numericId, finalGameType);
         console.log('🗑️ Прогресс удален');
       }
     } else {
-      // Сохраняем прогресс
       console.log(`💾 Сохраняем прогресс...`);
       result = await saveGameProgress(
-        numericId,        // 🔴 ТОЛЬКО ЧИСЛА!
+        numericId,
         finalGameType, 
         numericScore, 
         numericLevel, 
@@ -326,7 +303,6 @@ export default async function handler(req, res) {
     }
     
     if (result && result.success) {
-      // Получаем статистику
       const stats = await getGameStats(numericId, finalGameType);
       const bestScore = stats?.stats?.best_score || 0;
       const gamesPlayed = stats?.stats?.games_played || 0;
@@ -346,7 +322,7 @@ export default async function handler(req, res) {
       const response = {
         success: true,
         id: result.id,
-        userId: numericId,           // 🔴 ТОЛЬКО ЧИСЛОВОЙ ID!
+        userId: numericId,
         username: finalUsername,
         score: numericScore,
         level: numericLevel,
@@ -354,7 +330,7 @@ export default async function handler(req, res) {
         gameType: finalGameType,
         gameOver: finalGameOver,
         isWin: isWin,
-        isWebApp: false,            // 🔴 НИКАКИХ ПРЕФИКСОВ!
+        isWebApp: false,
         bestScore: bestScore,
         gamesPlayed: gamesPlayed,
         wins: wins,
