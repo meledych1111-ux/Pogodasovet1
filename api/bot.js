@@ -550,7 +550,6 @@ async function getUserCityWithFallback(userId) {
     return { success: false, error: error.message, city: 'Не указан', found: false };
   }
 }
-
 // ===================== 🔴 ИСПРАВЛЕННАЯ ФУНКЦИЯ СТАТИСТИКИ =====================
 async function getGameStatsMessage(userId) {
   try {
