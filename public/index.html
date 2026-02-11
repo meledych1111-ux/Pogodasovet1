@@ -1589,19 +1589,20 @@ function setupAutoSave() {
 
 // 🔴 ИСПРАВЛЕНО: ЗАГРУЗКА СТАТИСТИКИ ТОЛЬКО ПО TELEGRAM ID
 // ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ СТАТИСТИКИ ====================
+// ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ СТАТИСТИКИ ====================
 function loadUserStats() {
     console.log('📊 Загрузка статистики пользователя');
     
     // 🔴 БЕРЕМ ID ИЗ URL
     const urlParams = new URLSearchParams(window.location.search);
-    let telegramId = urlParams.get('telegramId') || window.telegramUserId || '975501399';
+    let telegramId = urlParams.get('telegramId') || window.telegramUserId;
     
     if (!telegramId) {
         console.log('⚠️ Нет Telegram ID');
         return;
     }
     
-    // 🔴 НЕ ИСПОЛЬЗУЕМ AWAIT, ИСПОЛЬЗУЕМ .then()
+    // 🔴 ЗАГРУЖАЕМ РЕАЛЬНУЮ СТАТИСТИКУ
     fetch(`/api/user-stats?telegramId=${telegramId}&gameType=tetris`)
         .then(response => response.json())
         .then(result => {
@@ -1610,11 +1611,23 @@ function loadUserStats() {
             if (result.success && result.stats) {
                 const stats = result.stats;
                 
-                document.getElementById('best-score').textContent = stats.best_score || 0;
-                document.getElementById('best-level').textContent = stats.best_level || 1;
-                document.getElementById('total-lines').textContent = stats.best_lines || 0;
-                document.getElementById('games-played').textContent = stats.games_played || 0;
-                document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
+                // 🔴 ПРОВЕРЯЕМ ЧТО ЭЛЕМЕНТЫ СУЩЕСТВУЮТ
+                const bestScoreEl = document.getElementById('best-score');
+                const bestLevelEl = document.getElementById('best-level');
+                const totalLinesEl = document.getElementById('total-lines');
+                const gamesPlayedEl = document.getElementById('games-played');
+                const avgScoreEl = document.getElementById('avg-score');
+                
+                if (bestScoreEl) bestScoreEl.textContent = stats.best_score || 0;
+                if (bestLevelEl) bestLevelEl.textContent = stats.best_level || 1;
+                if (totalLinesEl) totalLinesEl.textContent = stats.best_lines || 0;
+                if (gamesPlayedEl) gamesPlayedEl.textContent = stats.games_played || 0;
+                if (avgScoreEl) avgScoreEl.textContent = Math.round(stats.avg_score || 0);
+                
+                console.log('✅ Статистика обновлена:', {
+                    best_score: stats.best_score,
+                    games_played: stats.games_played
+                });
                 
                 // 🔴 ГОРОД
                 if (result.city && result.city !== 'Не указан') {
@@ -1622,13 +1635,16 @@ function loadUserStats() {
                     if (!cityElement) {
                         cityElement = document.createElement('div');
                         cityElement.className = 'stat-row city-stat';
-                        document.getElementById('user-stats').appendChild(cityElement);
+                        const userStats = document.getElementById('user-stats');
+                        if (userStats) userStats.appendChild(cityElement);
                     }
                     cityElement.innerHTML = `
                         <span class="stat-label">Город:</span>
                         <span class="stat-value">${result.city}</span>
                     `;
                 }
+            } else {
+                console.warn('⚠️ Нет статистики в ответе');
             }
         })
         .catch(error => {
@@ -1643,7 +1659,6 @@ function loadLeaderboard() {
     const leaderboardList = document.getElementById('leaderboard-list');
     leaderboardList.innerHTML = '<div style="text-align: center; padding: 20px; color: #b5aaff;">Загрузка лидерборда...</div>';
     
-    // 🔴 НЕ ИСПОЛЬЗУЕМ AWAIT, ИСПОЛЬЗУЕМ .then()
     fetch('/api/top-players?gameType=tetris&limit=10')
         .then(response => response.json())
         .then(result => {
