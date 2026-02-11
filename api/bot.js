@@ -2252,7 +2252,10 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
       const result = await client.query(topQuery, [limit]);
       console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
       
-      if (result.rows.length === 0) {
+      // ✅ СОРТИРУЕМ ПО ОЧКАМ (ОТ БОЛЬШЕГО К МЕНЬШЕМУ)
+      const sortedRows = result.rows.sort((a, b) => b.best_score - a.best_score);
+      
+      if (sortedRows.length === 0) {
         return `🏆 *Топ игроков*\n\n` +
                `🎮 *Пока никто не завершил игру с хорошим результатом!*\n\n` +
                `📝 *Как попасть в топ:*\n` +
@@ -2263,9 +2266,9 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
                `🎯 *Текущие рекорды появятся здесь!*`;
       }
       
-      let message = `🏆 *Топ ${Math.min(result.rows.length, limit)} игроков в тетрисе*\n\n`;
+      let message = `🏆 *Топ ${Math.min(sortedRows.length, limit)} игроков в тетрисе*\n\n`;
       
-      result.rows.forEach((player, index) => {
+      sortedRows.forEach((player, index) => {
         let medal;
         switch(index) {
           case 0: medal = '🥇'; break;
@@ -2305,19 +2308,19 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
         const userBestScore = userResult.rows[0]?.best_score || 0;
         const userGamesPlayed = userResult.rows[0]?.games_played || 0;
         
-        const isInTop = result.rows.some(p => p.user_id === currentUserId);
+        const isInTop = sortedRows.some(p => p.user_id === currentUserId);
         
         if (isInTop) {
-          const userIndex = result.rows.findIndex(p => p.user_id === currentUserId);
+          const userIndex = sortedRows.findIndex(p => p.user_id === currentUserId);
           message += `👤 *Ваше место:* ${userIndex + 1}\n`;
-          message += `🎯 *Ваш лучший счёт:* ${result.rows[userIndex].best_score}\n\n`;
+          message += `🎯 *Ваш лучший счёт:* ${sortedRows[userIndex].best_score}\n\n`;
         } else if (userBestScore > 0) {
           if (userBestScore < 1000) {
             message += `👤 *Вы пока не в топе*\n`;
             message += `🎯 Ваш лучший результат: ${userBestScore} очков\n`;
             message += `🎯 *Нужно минимум 1000 очков* для попадания в топ!\n\n`;
           } else {
-            const lastScore = result.rows[result.rows.length - 1]?.best_score || 0;
+            const lastScore = sortedRows[sortedRows.length - 1]?.best_score || 0;
             const needed = Math.max(0, lastScore - userBestScore + 1);
             message += `👤 *Вы пока не в топе*\n`;
             message += `🎯 Ваш лучший результат: ${userBestScore}\n`;
@@ -2356,7 +2359,6 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
     return `❌ Ошибка загрузки топа игроков: ${error.message}`;
   }
 }
-
 // ===================== ОСНОВНЫЕ КОМАНДЫ =====================
 bot.command('start', async (ctx) => {
   console.log(`🚀 /start от ${ctx.from.id}`);
