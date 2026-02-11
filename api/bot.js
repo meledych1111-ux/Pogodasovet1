@@ -705,7 +705,7 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
           AND gs.user_id NOT LIKE 'web_%'       -- ❌ ИСКЛЮЧАЕМ WEB_
           AND gs.user_id ~ '^[0-9]+$'           -- ✅ ТОЛЬКО ЧИСЛОВЫЕ ID
         GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
-        HAVING MAX(gs.score) >= 200
+        HAVING MAX(gs.score) >= 1000
         ORDER BY MAX(gs.score) DESC, COUNT(*) DESC
         LIMIT $1
       `;
