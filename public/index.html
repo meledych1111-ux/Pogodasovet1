@@ -1451,113 +1451,51 @@ async function saveGameToDB(gameOverFlag = false) {
     try {
         console.log('💾 Сохранение в БД');
         
-        // 🔴 БЕРЕМ ID ИЗ РАЗНЫХ ИСТОЧНИКОВ
-        let finalTelegramId = telegramUserId || 
-                             window.telegramUserId || 
-                             window.userId || 
-                             localStorage.getItem('telegram_user_id');
+        // 🔴 БЕРЕМ ID ТОЛЬКО ИЗ ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+        const finalTelegramId = window.telegramUserId;
         
-        // Если все еще нет ID - ошибка
         if (!finalTelegramId) {
-            console.error('❌ Нет Telegram ID, сохранение невозможно');
-            showNotification('❌ Только Telegram пользователи могут сохранять результаты');
+            console.error('❌ Нет Telegram ID');
+            showNotification('❌ Ошибка: нет ID пользователя');
             return { success: false, error: 'No Telegram ID' };
         }
         
-        // Очищаем ID от возможных префиксов
-        finalTelegramId = String(finalTelegramId).replace(/[^0-9]/g, '');
-        
-        // Проверяем, что ID числовой и не пустой
-        if (!finalTelegramId || finalTelegramId.length < 5) {
-            console.error('❌ Некорректный Telegram ID:', finalTelegramId);
-            showNotification('❌ Некорректный ID пользователя');
-            return { success: false, error: 'Invalid Telegram ID' };
-        }
-        
-        console.log('✅ Используем Telegram ID для сохранения:', finalTelegramId);
+        console.log('✅ Сохраняем для ID:', finalTelegramId);
         
         const requestData = {
             action: 'tetris_score',
             gameType: 'tetris',
-            game_type: 'tetris',
             score: score,
             level: level,
             lines: lines,
             gameOver: gameOverFlag,
             isWin: gameOverFlag,
-            // 🔴 ТОЛЬКО ЧИСЛОВЫЕ ID!
             telegramId: finalTelegramId,
             userId: finalTelegramId,
-            user_id: finalTelegramId,
-            username: telegramUsername || localStorage.getItem('telegram_username') || 'Player',
-            first_name: telegramUserData?.first_name || '',
-            last_name: telegramUserData?.last_name || ''
+            username: telegramUsername || 'Player'
         };
-        
-        console.log('📤 Отправка данных в API:', requestData);
         
         const response = await fetch('/api/save-score', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
         });
         
-        const responseText = await response.text();
-        console.log('📋 Ответ сервера:', responseText);
-        
-        let result;
-        try {
-            result = JSON.parse(responseText);
-        } catch (e) {
-            console.error('❌ Ошибка парсинга JSON:', e);
-            result = { success: false, error: 'Invalid JSON response' };
-        }
+        const result = await response.json();
         
         if (response.ok && result.success) {
-            console.log('✅ Результат сохранен в БД! ID записи:', result.id);
+            console.log('✅ Результат сохранен!');
             showNotification('✅ Результат сохранен!');
-            
-            // Сохраняем ID в localStorage для следующих игр
-            localStorage.setItem('telegram_user_id', finalTelegramId);
-            if (telegramUsername) {
-                localStorage.setItem('telegram_username', telegramUsername);
-            }
-            
-            // Отправляем данные в Telegram через WebApp
-            if (tg && tg.sendData) {
-                const telegramData = {
-                    action: 'tetris_score',
-                    score: score,
-                    level: level,
-                    lines: lines,
-                    gameOver: gameOverFlag,
-                    telegramId: finalTelegramId,
-                    gameType: 'tetris',
-                    username: telegramUsername,
-                    timestamp: new Date().toISOString(),
-                    source: 'webapp'
-                };
-                console.log('📤 Отправка данных в Telegram бот:', telegramData);
-                try {
-                    tg.sendData(JSON.stringify(telegramData));
-                } catch (sendError) {
-                    console.error('❌ Ошибка отправки в Telegram:', sendError);
-                }
-            }
-            
             return { success: true, data: result };
         } else {
-            console.error('❌ Ошибка сохранения на сервере:', result?.error || response.status);
+            console.error('❌ Ошибка:', result?.error);
             showNotification('❌ Ошибка сохранения');
-            return { success: false, error: result?.error || 'Server error: ' + response.status };
+            return { success: false, error: result?.error };
         }
     } catch (error) {
-        console.error('❌ Критическая ошибка сети:', error);
+        console.error('❌ Ошибка сети:', error);
         showNotification('❌ Ошибка сети');
-        return { success: false, error: 'Network error: ' + error.message };
+        return { success: false, error: error.message };
     }
 }
 // 🔴 ЛОКАЛЬНОЕ СОХРАНЕНИЕ - ТОЛЬКО ДЛЯ Telegram ПОЛЬЗОВАТЕЛЕЙ
