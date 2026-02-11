@@ -18,7 +18,6 @@ import {
   pool,
   saveOrUpdateUser,
   getUserProfile,
-  getTopPlayersWithCities,
   getGameStats
 } from './db.js';
 
