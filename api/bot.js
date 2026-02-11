@@ -1114,8 +1114,16 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
   }
   
   try {
-    const webAppUrl = 'https://pogodasovet1.vercel.app';
+    // 🔴 ПОЛУЧАЕМ РЕАЛЬНЫЙ TELEGRAM ID И ИМЯ ПОЛЬЗОВАТЕЛЯ
+    const userId = ctx.from.id;
+    const username = ctx.from.username || ctx.from.first_name || 'Player';
     
+    console.log(`✅ Открываем игру для пользователя: ${userId} (${username})`);
+    
+    // 🔴 ПЕРЕДАЕМ ID И ИМЯ В URL ПАРАМЕТРАХ!
+    const webAppUrl = `https://pogodasovet1.vercel.app?telegramId=${userId}&username=${encodeURIComponent(username)}`;
+    
+    // ПРОВЕРЯЕМ ЕСТЬ ЛИ У ПОЛЬЗОВАТЕЛЯ ГОРОД
     const cityResult = await getUserCityWithFallback(ctx.from.id);
     const hasCity = cityResult.found && cityResult.city !== 'Не указан';
     
@@ -1157,36 +1165,28 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
   }
 });
 
-// ===================== 🔴 ИСПРАВЛЕННЫЕ ОБРАБОТЧИКИ CALLBACK =====================
+// ===================== ОБРАБОТЧИКИ CALLBACK =====================
 bot.callbackQuery('my_stats', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`📊 Callback: my_stats от ${userId}`);
-  
   try {
-    await ctx.answerCallbackQuery('Загружаю статистику...');
-    
-    const statsMessage = await getGameStatsMessage(userId);
-    
-    await ctx.editMessageText(statsMessage, {
+    const statsMessage = await getGameStatsMessage(ctx.from.id);
+    await ctx.editMessageText(statsMessage, { 
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ 
-            text: '🎮 ИГРАТЬ В ТЕТРИС', 
-            web_app: { url: 'https://pogodasovet1.vercel.app' } 
+          [{
+            text: '🎮 ИГРАТЬ В ТЕТРИС',
+            web_app: { 
+              url: `https://pogodasovet1.vercel.app?telegramId=${ctx.from.id}&username=${encodeURIComponent(ctx.from.username || ctx.from.first_name || 'Player')}`
+            }
           }],
-          [{ 
-            text: '🏆 ТОП ИГРОКОВ', 
-            callback_data: 'top_players' 
-          }],
-          [{ 
-            text: '◀️ В ГЛАВНОЕ МЕНЮ', 
-            callback_data: 'back_to_menu' 
+          [{
+            text: '◀️ В МЕНЮ',
+            callback_data: 'back_to_menu'
           }]
         ]
       }
     });
-    
+    await ctx.answerCallbackQuery();
   } catch (error) {
     console.error('❌ Ошибка в callback my_stats:', error);
     await ctx.answerCallbackQuery('❌ Ошибка загрузки статистики');
@@ -1194,238 +1194,29 @@ bot.callbackQuery('my_stats', async (ctx) => {
 });
 
 bot.callbackQuery('top_players', async (ctx) => {
-  const userId = ctx.from.id;
-  console.log(`🏆 Callback: top_players от ${userId}`);
-  
   try {
-    await ctx.answerCallbackQuery('Загружаю топ игроков...');
-    
     const topMessage = await getTopPlayersMessage(10, ctx);
-    
-    await ctx.editMessageText(topMessage, {
+    await ctx.editMessageText(topMessage, { 
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ 
-            text: '🎮 ИГРАТЬ В ТЕТРИС', 
-            web_app: { url: 'https://pogodasovet1.vercel.app' } 
+          [{
+            text: '🎮 ИГРАТЬ В ТЕТРИС',
+            web_app: { 
+              url: `https://pogodasovet1.vercel.app?telegramId=${ctx.from.id}&username=${encodeURIComponent(ctx.from.username || ctx.from.first_name || 'Player')}`
+            }
           }],
-          [{ 
-            text: '📊 МОЯ СТАТИСТИКА', 
-            callback_data: 'my_stats' 
-          }],
-          [{ 
-            text: '◀️ В ГЛАВНОЕ МЕНЮ', 
-            callback_data: 'back_to_menu' 
+          [{
+            text: '◀️ В МЕНЮ',
+            callback_data: 'back_to_menu'
           }]
         ]
       }
     });
-    
+    await ctx.answerCallbackQuery();
   } catch (error) {
     console.error('❌ Ошибка в callback top_players:', error);
     await ctx.answerCallbackQuery('❌ Ошибка загрузки топа');
-  }
-});
-
-bot.callbackQuery('back_to_menu', async (ctx) => {
-  console.log(`🔙 Callback: back_to_menu от ${ctx.from.id}`);
-  
-  try {
-    await ctx.answerCallbackQuery('Возвращаюсь в меню...');
-    
-    const cityResult = await getUserCityWithFallback(ctx.from.id);
-    const city = cityResult.success && cityResult.city !== 'Не указан' 
-      ? cityResult.city 
-      : 'Не указан';
-    
-    await ctx.editMessageText(
-      `📍 *Главное меню*\n\n` +
-      `👤 Пользователь: ${ctx.from.first_name || 'Игрок'}\n` +
-      `🏙️ Город: ${city}\n\n` +
-      `👇 Используйте кнопки ниже:`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🌤️ ПОГОДА СЕЙЧАС', callback_data: 'weather_now' }],
-            [{ text: '📅 ПОГОДА ЗАВТРА', callback_data: 'weather_forecast' }],
-            [{ text: '👕 ЧТО НАДЕТЬ?', callback_data: 'wardrobe' }],
-            [{ text: '🎮 ИГРАТЬ В ТЕТРИС', web_app: { url: 'https://pogodasovet1.vercel.app' } }],
-            [{ text: '📊 МОЯ СТАТИСТИКА', callback_data: 'my_stats' }],
-            [{ text: '🏆 ТОП ИГРОКОВ', callback_data: 'top_players' }],
-            [{ text: '🏙️ СМЕНИТЬ ГОРОД', callback_data: 'change_city' }]
-          ]
-        }
-      }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в callback back_to_menu:', error);
-    await ctx.answerCallbackQuery('❌ Ошибка');
-  }
-});
-
-bot.callbackQuery('weather_now', async (ctx) => {
-  const userId = ctx.from.id;
-  
-  try {
-    await ctx.answerCallbackQuery('Запрашиваю погоду...');
-    
-    const result = await getUserCityWithFallback(userId);
-    if (!result.success || result.city === 'Не указан') {
-      await ctx.editMessageText(
-        '📍 Сначала выберите город!',
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '🏙️ СМЕНИТЬ ГОРОД', callback_data: 'change_city' }],
-              [{ text: '◀️ НАЗАД', callback_data: 'back_to_menu' }]
-            ]
-          }
-        }
-      );
-      return;
-    }
-    
-    const weather = await getWeatherData(result.city);
-    
-    if (!weather.success) {
-      await ctx.editMessageText(`❌ ${weather.error}`, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [[{ text: '◀️ НАЗАД', callback_data: 'back_to_menu' }]]
-        }
-      });
-      return;
-    }
-    
-    await ctx.editMessageText(
-      `🌤️ *Погода в ${weather.city}*\n` +
-      `🕒 Обновлено: ${weather.timestamp}\n\n` +
-      `🌡️ Температура: *${weather.temp}°C*\n` +
-      `🤔 Ощущается как: *${weather.feels_like}°C*\n` +
-      `💨 Ветер: ${weather.wind} м/с\n` +
-      `💧 Влажность: ${weather.humidity}%\n` +
-      `📝 ${weather.description}\n` +
-      `🌧️ Осадки: ${weather.precipitation}`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🔄 ОБНОВИТЬ', callback_data: 'weather_now' }],
-            [{ text: '◀️ НАЗАД', callback_data: 'back_to_menu' }]
-          ]
-        }
-      }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в weather_now:', error);
-    await ctx.answerCallbackQuery('❌ Ошибка');
-  }
-});
-
-bot.callbackQuery('change_city', async (ctx) => {
-  try {
-    await ctx.answerCallbackQuery('Выберите город');
-    
-    await ctx.editMessageText(
-      `🏙️ *Выберите ваш город:*\n\n` +
-      `Или напишите название города вручную.`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '📍 МОСКВА', callback_data: 'set_city_Москва' }],
-            [{ text: '📍 САНКТ-ПЕТЕРБУРГ', callback_data: 'set_city_Санкт-Петербург' }],
-            [{ text: '📍 СЕВАСТОПОЛЬ', callback_data: 'set_city_Севастополь' }],
-            [{ text: '✏️ ДРУГОЙ ГОРОД', callback_data: 'other_city' }],
-            [{ text: '◀️ НАЗАД', callback_data: 'back_to_menu' }]
-          ]
-        }
-      }
-    );
-    
-  } catch (error) {
-    console.error('❌ Ошибка в change_city:', error);
-  }
-});
-
-bot.callbackQuery(/^set_city_(.+)$/, async (ctx) => {
-  const userId = ctx.from.id;
-  const city = ctx.match[1];
-  
-  try {
-    await ctx.answerCallbackQuery(`Сохраняю город ${city}...`);
-    
-    const saveResult = await saveUserCityWithRetry(
-      userId, 
-      city, 
-      ctx.from.username || ctx.from.first_name
-    );
-    
-    if (saveResult.success) {
-      await ctx.editMessageText(
-        `✅ *Город "${city}" сохранён!*\n\n` +
-        `📍 Теперь вы будете отображаться в топе игроков с этим городом.\n\n` +
-        `*Проверьте:*\n` +
-        `• 📊 Ваша статистика - /stats\n` +
-        `• 🏆 Топ игроков - /top`,
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '🎮 ИГРАТЬ В ТЕТРИС', web_app: { url: 'https://pogodasovet1.vercel.app' } }],
-              [{ text: '📊 МОЯ СТАТИСТИКА', callback_data: 'my_stats' }],
-              [{ text: '◀️ В МЕНЮ', callback_data: 'back_to_menu' }]
-            ]
-          }
-        }
-      );
-    } else {
-      await ctx.editMessageText(
-        `❌ Не удалось сохранить город. Попробуйте еще раз.`,
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '◀️ НАЗАД', callback_data: 'change_city' }]
-            ]
-          }
-        }
-      );
-    }
-    
-  } catch (error) {
-    console.error('❌ Ошибка в set_city:', error);
-    await ctx.answerCallbackQuery('❌ Ошибка');
-  }
-});
-
-bot.callbackQuery('other_city', async (ctx) => {
-  try {
-    await ctx.answerCallbackQuery('Введите название города');
-    
-    await ctx.editMessageText(
-      `✏️ *Введите название вашего города*\n\n` +
-      `Например: Москва, Санкт-Петербург, Екатеринбург\n\n` +
-      `*Просто напишите город в чат*`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '◀️ НАЗАД', callback_data: 'change_city' }]
-          ]
-        }
-      }
-    );
-    
-    userStorage.set(ctx.from.id, { awaitingCity: true, lastActivity: Date.now() });
-    
-  } catch (error) {
-    console.error('❌ Ошибка в other_city:', error);
   }
 });
 
