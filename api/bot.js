@@ -2,7 +2,6 @@ import { Bot, Keyboard } from 'grammy';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import express from 'express';  // ✅ 1. ДОБАВИТЬ!
 
 // ===================== ИМПОРТ ФУНКЦИЙ ИЗ БАЗЫ ДАННЫХ =====================
 import {
@@ -22,10 +21,6 @@ import {
   getTopPlayersWithCities,
   getGameStats
 } from './db.js';
-
-// ===================== СОЗДАЕМ EXPRESS APP =====================
-const app = express();      // ✅ 2. ДОБАВИТЬ!
-app.use(express.json());    // ✅ 3. ДОБАВИТЬ!
 
 // ===================== ЗАГРУЗКА ПЕРЕМЕННЫХ ОКРУЖЕНИЯ =====================
 const __filename = fileURLToPath(import.meta.url);
@@ -3619,31 +3614,6 @@ bot.catch((err) => {
 
 // ===================== ЭКСПОРТ ДЛЯ VERCEL =====================
 let botInitialized = false;
-app.get('/api/user-all-games', async (req, res) => {
-    const { telegramId, gameType } = req.query;
-    console.log(`🎮 Запрос всех игр для: ${telegramId}`);
-    
-    if (!telegramId) {
-        return res.json({ success: false, games: [] });
-    }
-
-    const client = await pool.connect();
-    try {
-        const query = `
-            SELECT score, lines 
-            FROM game_scores 
-            WHERE user_id = $1 AND game_type = $2 AND score > 0
-            ORDER BY created_at DESC
-        `;
-        const result = await client.query(query, [telegramId.toString(), gameType || 'tetris']);
-        res.json({ success: true, games: result.rows });
-    } catch (error) {
-        res.json({ success: false, games: [] });
-    } finally {
-        client.release();
-    }
-});
-// 
 
 async function initializeBot() {
   if (!botInitialized) {
