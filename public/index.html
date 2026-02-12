@@ -5,26 +5,1514 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ТЕТРИС PRO • Питомцы</title>
     <style>
-        /* ==================== СБРОС И ОСНОВЫ ==================== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* ==================== СБРОС И ОСНОВНЫЕ СТИЛИ ==================== */
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
             user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent; 
+            touch-action: manipulation; 
         }
         
-        html, body {
-            height: 100%;
+        html, body { 
+            height: 100%; width: 100%; overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%);
+            color: #ffffff;
+        }
+        
+        body { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 8px;
+        }
+        
+        .game-container {
             width: 100%;
+            max-width: 480px;
+            height: 95vh;
+            max-height: 820px;
+            position: relative;
             overflow: hidden;
-            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
-            background: linear-gradient(145deg, #0a0a2a, #1a1a3a);
-            color: white;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            background: linear-gradient(145deg, #0f1430, #1a1f40);
+            border: 2px solid #5a6cd5;
+            display: flex;
+            flex-direction: column;
         }
         
-        body {
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            background: inherit;
+        }
+        
+        .screen.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        /* ==================== ЗАГОЛОВОК ==================== */
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            flex-shrink: 0;
+        }
+        
+        .game-title {
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(90deg, #b3a0ff, #6b5bff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(106, 91, 255, 0.5);
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            color: #b5c8ff;
+            font-size: 0.8rem;
+        }
+        
+        /* ==================== КНОПКИ МЕНЮ ==================== */
+        .menu-buttons {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 15px 0;
+            overflow-y: auto;
+        }
+        
+        .menu-btn {
+            background: linear-gradient(145deg, rgba(68, 85, 204, 0.4), rgba(51, 68, 170, 0.3));
+            color: white;
+            border: 2px solid rgba(106, 91, 255, 0.4);
+            border-radius: 20px;
+            padding: 18px 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            min-height: 60px;
+        }
+        
+        .menu-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+        }
+        
+        .menu-btn.new-game { 
+            background: linear-gradient(145deg, #2a6e4b, #1e4f37);
+            border-color: #6fcf97;
+        }
+        .menu-btn.stats { 
+            background: linear-gradient(145deg, #4a3f96, #32286a);
+            border-color: #9d8cff;
+        }
+        .menu-btn.leaderboard { 
+            background: linear-gradient(145deg, #9b4b6e, #6d354c);
+            border-color: #ff9eb5;
+        }
+        .menu-btn.settings { 
+            background: linear-gradient(145deg, #3a6e8c, #244b62);
+            border-color: #8ed4ff;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 12px;
+            color: #aab5e0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.8rem;
+        }
+        
+        /* ==================== ИГРОВОЙ ЭКРАН - ПОЛЕ МАКСИМАЛЬНО ВВЕРХ ==================== */
+        #game-screen {
+            display: flex;
+            flex-direction: column;
+            padding: 0px 8px 4px 8px; /* Верхний отступ 0! */
+        }
+        
+        /* ВЕРХНЯЯ ПАНЕЛЬ - КОМПАКТНАЯ, ПРОВЕРЕННАЯ */
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 12px;
+            background: rgba(20, 30, 80, 0.7);
+            backdrop-filter: blur(4px);
+            border: 2px solid #5a6cd5;
+            border-radius: 40px;
+            margin-bottom: 4px; /* МИНИМАЛЬНЫЙ ОТСТУП */
+            min-height: 48px;
+            flex-shrink: 0;
+        }
+        
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 85px;
+            justify-content: center;
+        }
+        
+        .back-btn:before {
+            content: "←";
+            font-size: 1.1rem;
+        }
+        
+        .game-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .info-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid #4a5ccc;
+            border-radius: 30px;
+            padding: 4px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 36px;
+        }
+        
+        .info-label {
+            display: none;
+        }
+        
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #b3ffaa;
+            text-shadow: 0 0 6px #00cc88;
+        }
+        
+        /* РАЗДЕЛИТЕЛЬ ТОЧКА */
+        .game-info .info-box:not(:last-child) {
+            position: relative;
+            margin-right: 14px;
+        }
+        .game-info .info-box:not(:last-child)::after {
+            content: "•";
+            position: absolute;
+            right: -14px;
+            color: #8a9cff;
+            font-size: 1.3rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        /* ПАНЕЛЬКА ПИТОМЦА - ЭМОДЗИ ПИТОМЦА + ЭМОДЗИ ЕДЫ + КОЛИЧЕСТВО */
+        .pet-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 200, 220, 0.2);
+            border: 2px solid #ffb6c1;
+            border-radius: 40px;
+            padding: 4px 18px;
+            margin-left: 8px;
+            height: 40px;
+            font-size: 1.1rem;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 12px rgba(255,200,220,0.3);
+        }
+        
+        .pet-emoji {
+            font-size: 1.4rem;
+        }
+        
+        .pet-food-emoji {
+            font-size: 1.3rem;
+            filter: drop-shadow(0 0 6px gold);
+        }
+        
+        .pet-food-count {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #ffd966;
+            background: rgba(0,0,0,0.4);
+            padding: 2px 10px;
+            border-radius: 30px;
+            margin-left: 2px;
+        }
+        
+        /* ==================== ИГРОВОЕ ПОЛЕ - МАКСИМАЛЬНАЯ ВЫСОТА ==================== */
+        .game-area {
+            flex: 1;
             display: flex;
             justify-content: center;
-            align
+            align-items: center;
+            min-height: 0;
+            padding: 0;
+            margin: 0;
+        }
+        
+        #tetris-canvas {
+            background: #0a0e24;
+            border-radius: 16px;
+            border: 3px solid #5a6cd5;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5);
+            width: 100%;
+            height: auto;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        /* ==================== НИЖНЯЯ ПАНЕЛЬ - МИНИМАЛЬНЫЙ ОТСТУП ==================== */
+        .game-controls-panel {
+            margin-top: 2px; /* МИНИМАЛЬНЫЙ ОТСТУП */
+            flex-shrink: 0;
+        }
+        
+        .game-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 20px;
+            margin-bottom: 6px;
+        }
+        
+        .game-btn {
+            background: linear-gradient(145deg, #2a3670, #1a2260);
+            border: none;
+            border-bottom: 5px solid #121a40;
+            color: white;
+            padding: 12px 4px;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: 0.05s;
+        }
+        
+        .game-btn:active {
+            transform: translateY(4px);
+            border-bottom-width: 2px;
+        }
+        
+        /* КНОПКА СОХРАНИТЬ/ПРОДОЛЖИТЬ */
+        .game-btn.save-btn {
+            background: linear-gradient(145deg, #2a6e4b, #1e4f37);
+            border-bottom-color: #0a2a1a;
+        }
+        
+        .game-btn.continue-btn {
+            background: linear-gradient(145deg, #4a6e8c, #2a4f62);
+            border-bottom-color: #1a2a3a;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 24px;
+        }
+        
+        .control-btn {
+            background: linear-gradient(145deg, #2a3670, #1a2260);
+            border-bottom: 6px solid #121a40;
+            border-radius: 20px;
+            padding: 14px 4px;
+            font-size: 1.9rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.05s;
+        }
+        
+        .control-btn:active {
+            transform: translateY(4px);
+            border-bottom-width: 2px;
+        }
+        
+        /* ==================== ЛИДЕРБОРД ==================== */
+        .leaderboard-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 4px;
+        }
+        
+        .leaderboard-item {
+            background: rgba(30, 40, 90, 0.7);
+            border-left: 8px solid #ffb86b;
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(4px);
+        }
+        
+        .rank {
+            font-size: 1.8rem;
+            font-weight: 800;
+            min-width: 60px;
+            text-align: center;
+            color: #ffd966;
+        }
+        
+        .player-info {
+            flex: 1;
+        }
+        
+        .player-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .player-score {
+            color: #aaffaa;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        /* КОЛЛЕКЦИЯ ПИТОМЦЕВ В ЛИДЕРБОРДЕ - ВСЕ ПИТОМЦЫ */
+        .pets-collection {
+            background: rgba(0,0,0,0.35);
+            border-radius: 40px;
+            padding: 8px 16px;
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(255,215,0,0.4);
+        }
+        
+        .pets-collection span {
+            font-size: 1.3rem;
+            filter: drop-shadow(0 0 5px gold);
+        }
+        
+        .pets-count-badge {
+            background: #ffd966;
+            color: #1a1e3a;
+            font-weight: bold;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+        }
+        
+        /* ==================== СТАТИСТИКА ==================== */
+        .stats-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .stat-card {
+            background: rgba(30,40,100,0.6);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid #6a7aff;
+            backdrop-filter: blur(4px);
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .pet-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 40px;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        /* ==================== АНИМАЦИЯ ЕДЫ ==================== */
+        .food-particle {
+            position: fixed;
+            pointer-events: none;
+            font-size: 2.4rem;
+            animation: flyFood 1.2s ease-out forwards;
+            z-index: 10000;
+            text-shadow: 0 0 20px gold, 0 0 40px orange;
+            filter: drop-shadow(0 0 10px yellow);
+        }
+        
+        @keyframes flyFood {
+            0% { opacity: 0; transform: scale(0.3) translateY(0) rotate(0deg); }
+            20% { opacity: 1; transform: scale(1.4) translateY(-25px) rotate(20deg); }
+            80% { opacity: 1; transform: scale(1.1) translateY(-90px) rotate(-15deg); }
+            100% { opacity: 0; transform: scale(0.8) translateY(-140px) rotate(30deg); }
+        }
+        
+        /* ==================== АНИМАЦИЯ ПОЛУЧЕНИЯ ПИТОМЦА ==================== */
+        .pet-unlock {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: rgba(0,0,0,0.9);
+            border-left: 8px solid;
+            border-radius: 30px;
+            padding: 16px 28px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            z-index: 10001;
+            animation: slideIn 0.4s, fadeOut 0.4s 2.6s forwards;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateX(20px); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(42, 153, 68, 0.95);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 40px;
+            z-index: 20000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 1rem;
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .notification.show {
+            opacity: 1;
+        }
+        
+        /* ==================== АДАПТАЦИЯ ==================== */
+        @media (max-height: 700px) {
+            .game-header { height: 44px; padding: 2px 10px; }
+            .pet-badge { height: 36px; padding: 2px 14px; }
+            .control-btn { padding: 10px 2px; font-size: 1.7rem; }
+            .game-btn { padding: 10px 2px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- ГЛАВНОЕ МЕНЮ -->
+        <div class="screen active" id="menu-screen">
+            <div class="header">
+                <h1 class="game-title">ТЕТРИС PRO</h1>
+                <p class="subtitle">коллекция питомцев • telegram</p>
+            </div>
+            <div class="menu-buttons">
+                <button class="menu-btn new-game" onclick="startGame()">🎮 НОВАЯ ИГРА</button>
+                <button class="menu-btn stats" onclick="showStats()">📊 СТАТИСТИКА</button>
+                <button class="menu-btn leaderboard" onclick="showLeaderboard()">🏆 ЛИДЕРБОРД</button>
+                <button class="menu-btn settings" onclick="showSettings()">⚙️ НАСТРОЙКИ</button>
+            </div>
+            <div class="footer">⚡ Neon PostgreSQL • питомцы в localStorage</div>
+        </div>
+        
+        <!-- ИГРОВОЙ ЭКРАН -->
+        <div class="screen" id="game-screen">
+            <div class="game-header">
+                <button class="back-btn" onclick="showMenu()"><span>МЕНЮ</span></button>
+                <div class="game-info" id="game-info-container">
+                    <div class="info-box"><span class="info-value" id="level-display">1</span></div>
+                    <div class="info-box"><span class="info-value" id="score-display">0</span></div>
+                    <div class="info-box"><span class="info-value" id="lines-display">0</span></div>
+                    <!-- Панель питомца появится здесь -->
+                </div>
+            </div>
+            
+            <div class="game-area">
+                <canvas id="tetris-canvas" width="240" height="480"></canvas>
+            </div>
+            
+            <div class="game-controls-panel">
+                <div class="game-buttons">
+                    <button class="game-btn pause-btn" onclick="togglePause()">⏸ ПАУЗА</button>
+                    <button class="game-btn" onclick="restartGame()">🔄 ЗАНОВО</button>
+                    <button class="game-btn save-btn" id="save-continue-btn" onclick="saveGameScore()">💾 СОХРАНИТЬ</button>
+                </div>
+                <div class="controls">
+                    <button class="control-btn" onclick="moveLeft()">←</button>
+                    <button class="control-btn" onclick="hardDrop()">↓</button>
+                    <button class="control-btn" onclick="rotatePiece()">↻</button>
+                    <button class="control-btn" onclick="moveRight()">→</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- СТАТИСТИКА -->
+        <div class="screen" id="stats-screen">
+            <div class="header"><h1 class="game-title">📊 СТАТИСТИКА</h1></div>
+            <div class="stats-container" id="user-stats"></div>
+            <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
+        </div>
+        
+        <!-- ЛИДЕРБОРД -->
+        <div class="screen" id="leaderboard-screen">
+            <div class="header"><h1 class="game-title">🏆 ЛИДЕРБОРД</h1></div>
+            <div class="leaderboard-list" id="leaderboard-list"></div>
+            <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
+        </div>
+        
+        <!-- НАСТРОЙКИ -->
+        <div class="screen" id="settings-screen">
+            <div class="header"><h1 class="game-title">⚙️ НАСТРОЙКИ</h1></div>
+            <div class="stats-container">
+                <div class="stat-card">
+                    <h3 style="margin-bottom:15px;">🎮 Управление</h3>
+                    <label style="display:flex; align-items:center; gap:12px;">
+                        <input type="checkbox" id="keyboard-controls" checked style="width:20px; height:20px;"> Клавиши ←→↑↓
+                    </label>
+                </div>
+                <div class="stat-card">
+                    <h3 style="margin-bottom:15px;">🗄️ База данных</h3>
+                    <div id="db-status" style="margin-bottom:15px;">Статус: <span id="db-status-text" style="color:#aaffaa;">✅ Подключено</span></div>
+                    <button onclick="testDatabase()" style="background:rgba(255,255,255,0.1); border:1px solid white; color:white; padding:12px 20px; border-radius:30px;">🔄 Тест соединения</button>
+                </div>
+            </div>
+            <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
+        </div>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // ==================== ТЕЛЕГРАМ ID ====================
+        let telegramUserId = 'guest_' + Math.floor(Math.random() * 10000);
+        let telegramUsername = 'Player';
+        try {
+            if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+                telegramUserId = String(window.Telegram.WebApp.initDataUnsafe.user.id);
+                telegramUsername = window.Telegram.WebApp.initDataUnsafe.user.username || 'Player';
+            }
+        } catch(e) {}
+        window.telegramUserId = telegramUserId;
+        console.log('👤 ID:', telegramUserId);
+
+        // ==================== КОНСТАНТЫ ====================
+        const COLS = 10, ROWS = 20, BLOCK_SIZE = 24;
+        const COLORS = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#98D8C8','#F7DC6F'];
+        const SHAPES = [
+            [[1,1,1,1]],
+            [[1,1],[1,1]],
+            [[0,1,0],[1,1,1]],
+            [[1,1,0],[0,1,1]],
+            [[0,1,1],[1,1,0]],
+            [[1,0,0],[1,1,1]],
+            [[0,0,1],[1,1,1]]
+        ];
+        
+        // ==================== УРОВНИ И СКОРОСТЬ (КАЖДЫЕ +1000 ОЧКОВ ПОСЛЕ 1500) ====================
+        const SPEED_TABLE = {
+            1: 800, 2: 750, 3: 700, 4: 650, 5: 600,
+            6: 550, 7: 500, 8: 450, 9: 400, 10: 350,
+            11: 300, 12: 280, 13: 260, 14: 240, 15: 220
+        };
+        
+        // ==================== ВСЕ ПИТОМЦЫ (28) ====================
+        const PETS = [
+            { id: 'cat', name: 'Котенок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🍣' },
+            { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1500, food: '🦴' },
+            { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 2000, food: '🥕' },
+            { id: 'fox', name: 'Лисенок', emoji: '🦊', color: '#FF8C42', score: 2500, food: '🍇' },
+            { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 3000, food: '🎋' },
+            { id: 'owl', name: 'Совенок', emoji: '🦉', color: '#8B4513', score: 3500, food: '📚' },
+            { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 4000, food: '🐟' },
+            { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 4500, food: '🌿' },
+            { id: 'tiger', name: 'Тигренок', emoji: '🐯', color: '#FFA500', score: 5000, food: '🥩' },
+            { id: 'lion', name: 'Львенок', emoji: '🦁', color: '#FFD700', score: 5500, food: '👑' },
+            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿' },
+            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🎨' },
+            { id: 'elephant', name: 'Слоненок', emoji: '🐘', color: '#808080', score: 7000, food: '💧' },
+            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🛡️' },
+            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '💦' },
+            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌' },
+            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '⏰' },
+            { id: 'hedgehog', name: 'Ежик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎' },
+            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰' },
+            { id: 'deer', name: 'Олененок', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿' },
+            { id: 'unicorn', name: 'Единорог', emoji: '🦄', color: '#FF69B4', score: 11000, food: '✨' },
+            { id: 'dragon', name: 'Дракончик', emoji: '🐉', color: '#DC143C', score: 11500, food: '🔥' },
+            { id: 'phoenix', name: 'Феникс', emoji: '🦅', color: '#FF4500', score: 12000, food: '🌅' },
+            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 12500, food: '🌊' },
+            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13000, food: '🏊' },
+            { id: 'crocodile', name: 'Крокодил', emoji: '🐊', color: '#2E8B57', score: 13500, food: '🐟' },
+            { id: 'kangaroo', name: 'Кенгуру', emoji: '🦘', color: '#CD853F', score: 14000, food: '🦘' },
+            { id: 'camel', name: 'Верблюд', emoji: '🐫', color: '#C19A6B', score: 14500, food: '🌵' },
+            { id: 'peacock', name: 'Павлин', emoji: '🦚', color: '#4B0082', score: 15000, food: '🌈' }
+        ];
+
+        // ==================== ПЕРЕМЕННЫЕ ИГРЫ ====================
+        let board = [], currentPiece, currentX, currentY, score = 0, level = 1, lines = 0;
+        let totalLines = 0, gameActive = false, gamePaused = false, gameOver = false;
+        let dropCounter = 0, dropInterval = 800, lastTime = 0, animationId = null;
+        let currentDifficulty = 'medium', clearedLinesAnimation = [], pieceQueue = [];
+        
+        // Питомцы
+        let userPets = [], activePet = null;
+        
+        // DOM
+        const canvas = document.getElementById('tetris-canvas');
+        const ctx = canvas.getContext('2d');
+        const screens = {
+            menu: document.getElementById('menu-screen'),
+            game: document.getElementById('game-screen'),
+            stats: document.getElementById('stats-screen'),
+            leaderboard: document.getElementById('leaderboard-screen'),
+            settings: document.getElementById('settings-screen')
+        };
+
+        // ==================== ЗАГРУЗКА СОХРАНЕНИЙ ПИТОМЦЕВ ====================
+        function loadPets() {
+            try {
+                const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    userPets = data.pets || [];
+                    userPets.forEach(sp => {
+                        const pet = PETS.find(p => p.id === sp.id);
+                        if (pet) pet.rewards = sp.rewards || 0;
+                    });
+                    if (userPets.length) {
+                        const last = userPets[userPets.length-1];
+                        activePet = PETS.find(p => p.id === last.id);
+                        if (activePet) activePet.rewards = last.rewards || 0;
+                    }
+                }
+            } catch(e) { userPets = []; }
+        }
+        
+        function savePets() {
+            localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify({
+                pets: userPets.map(p => ({
+                    id: p.id,
+                    rewards: PETS.find(pet => pet.id === p.id)?.rewards || 0
+                }))
+            }));
+        }
+
+        // ==================== ПАНЕЛЬКА ПИТОМЦА ====================
+        function createPetPanel() {
+            if (document.getElementById('pet-header-panel')) return;
+            const container = document.getElementById('game-info-container');
+            const panel = document.createElement('div');
+            panel.id = 'pet-header-panel';
+            panel.className = 'pet-badge';
+            panel.style.display = 'none';
+            panel.innerHTML = `
+                <span id="pet-emoji-header" class="pet-emoji">🐾</span>
+                <span id="pet-food-emoji-header" class="pet-food-emoji">🍣</span>
+                <span id="pet-food-count-header" class="pet-food-count">0</span>
+            `;
+            container.appendChild(panel);
+        }
+        
+        function updatePetPanel() {
+            const panel = document.getElementById('pet-header-panel');
+            const emoji = document.getElementById('pet-emoji-header');
+            const foodEmoji = document.getElementById('pet-food-emoji-header');
+            const count = document.getElementById('pet-food-count-header');
+            if (!panel || !emoji || !foodEmoji || !count) return;
+            
+            if (activePet && score >= 1000) {
+                emoji.textContent = activePet.emoji;
+                foodEmoji.textContent = activePet.food || '🍣';
+                count.textContent = activePet.rewards || 0;
+                panel.style.display = 'flex';
+                panel.style.borderColor = activePet.color + '80';
+                panel.style.background = `rgba(${hexToRgb(activePet.color)}, 0.2)`;
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // ==================== УРОВЕНЬ ПО ОЧКАМ (КАЖДЫЕ +1000 ПОСЛЕ 1500) ====================
+        function updateLevelByScore() {
+            if (score < 1500) { 
+                if (level !== 1) {
+                    level = 1; 
+                    dropInterval = SPEED_TABLE[1];
+                }
+                return; 
+            }
+            let newLevel = Math.min(15, Math.floor((score - 500) / 1000) + 1);
+            if (newLevel !== level) {
+                level = newLevel;
+                dropInterval = SPEED_TABLE[level] || 220;
+                showNotification(`🎉 УРОВЕНЬ ${level}!`);
+                
+                // Уведомления об открытиях
+                if (level === 7) showNotification('✨ Открыт золотой тетрис!');
+                if (level === 9) showNotification('🎆 Открыты фейерверки!');
+                if (level === 11) showNotification('🌈 Радужные блоки!');
+                if (level === 13) showNotification('👻 Прозрачность!');
+                if (level === 15) showNotification('💀 РЕЖИМ БОГА!');
+            }
+        }
+
+        // ==================== АНИМАЦИЯ ЕДЫ ====================
+        function showFoodAnimation(foodEmoji, count, color) {
+            for (let i = 0; i < Math.min(count, 8); i++) {
+                setTimeout(() => {
+                    let el = document.createElement('div');
+                    el.className = 'food-particle';
+                    el.style.left = (window.innerWidth/2 - 80 + Math.random()*160) + 'px';
+                    el.style.top = (window.innerHeight/2 - 80 + Math.random()*160) + 'px';
+                    el.style.color = color || '#FFD700';
+                    el.textContent = foodEmoji;
+                    document.body.appendChild(el);
+                    setTimeout(() => el.remove(), 1200);
+                }, i * 70);
+            }
+        }
+
+        // ==================== ПОЛУЧЕНИЕ ПИТОМЦА ====================
+        function unlockPet(pet) {
+            if (userPets.some(p => p.id === pet.id)) return false;
+            
+            userPets.push({ id: pet.id, rewards: 0 });
+            activePet = pet;
+            activePet.rewards = 0;
+            savePets();
+            updatePetPanel();
+            showFoodAnimation(pet.food, 5, pet.color);
+            
+            // Анимация получения питомца
+            let div = document.createElement('div');
+            div.className = 'pet-unlock';
+            div.style.borderLeftColor = pet.color;
+            div.innerHTML = `<span style="font-size:2.5rem;">${pet.emoji}</span><span>✨ ${pet.name} получен!<br><span style="color:${pet.color};">+100 очков</span></span>`;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+            
+            score += 100;
+            updateDisplay();
+            return true;
+        }
+
+        // ==================== КОРМЛЕНИЕ ПИТОМЦА ====================
+        function feedActivePet(linesCleared) {
+            if (!activePet) {
+                if (userPets.length) {
+                    activePet = PETS.find(p => p.id === userPets[0].id);
+                    if (activePet) activePet.rewards = userPets[0].rewards || 0;
+                }
+                return false;
+            }
+            let pet = PETS.find(p => p.id === activePet.id);
+            if (!pet) return false;
+            
+            pet.rewards = (pet.rewards || 0) + linesCleared;
+            activePet.rewards = pet.rewards;
+            
+            let userPet = userPets.find(p => p.id === pet.id);
+            if (userPet) userPet.rewards = pet.rewards;
+            savePets();
+            
+            showFoodAnimation(pet.food, linesCleared, pet.color);
+            updatePetPanel();
+            score += linesCleared * 10;
+            updateDisplay();
+            return true;
+        }
+
+        // ==================== ПРОВЕРКА ПОЛУЧЕНИЯ ПИТОМЦЕВ ====================
+        function checkPetUnlocks() {
+            if (!score) return;
+            PETS.forEach(pet => {
+                if (!userPets.some(p => p.id === pet.id) && score >= pet.score) {
+                    unlockPet(pet);
+                }
+            });
+        }
+
+        // ==================== ЛИДЕРБОРД — ВСЕ ПИТОМЦЫ ====================
+        function getPetsCollection(score) {
+            if (score < 1000) return { emojis: '🐾', count: 0, list: [] };
+            let count = Math.min(28, Math.floor((score - 500) / 500));
+            let allPets = PETS.map(p => p.emoji);
+            let collection = [];
+            for (let i = 0; i < count; i++) collection.push(allPets[i % allPets.length]);
+            
+            let displayEmojis = '';
+            if (collection.length > 15) {
+                displayEmojis = collection.slice(0, 15).join(' ') + ` +${collection.length - 15}`;
+            } else {
+                displayEmojis = collection.join(' ');
+            }
+            return { emojis: displayEmojis, count, list: collection };
+        }
+
+        function loadLeaderboard() {
+            let el = document.getElementById('leaderboard-list');
+            el.innerHTML = '<div style="text-align:center;padding:40px;">🏆 ЗАГРУЗКА...</div>';
+            
+            fetch('/api/top-players?gameType=tetris&limit=10')
+                .then(r => r.json())
+                .then(data => {
+                    let players = data.players || [];
+                    el.innerHTML = '';
+                    
+                    players.forEach((p, i) => {
+                        let isMe = p.user_id === telegramUserId;
+                        let col = getPetsCollection(p.best_score || 0);
+                        let item = document.createElement('div');
+                        item.className = 'leaderboard-item';
+                        item.style.background = isMe ? 'linear-gradient(145deg, #2a5a4a, #1a3a3a)' : '';
+                        item.style.borderLeftColor = isMe ? '#aaffaa' : '#ffb86b';
+                        
+                        item.innerHTML = `
+                            <div class="rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</div>
+                            <div class="player-info">
+                                <div class="player-name" style="color:${isMe?'#aaffaa':'white'}">
+                                    ${p.display_name || p.username || 'Игрок'} ${isMe?'(Вы)':''}
+                                </div>
+                                <div class="player-score">${p.best_score || 0} очков</div>
+                                <div class="pets-collection">
+                                    <span style="color:#ffd900;">🐾</span>
+                                    <span style="font-size:1.2rem;">${col.emojis}</span>
+                                    <span class="pets-count-badge">${col.count}</span>
+                                </div>
+                                ${p.city ? `<div style="color:#aad0ff; margin-top:6px;">📍 ${p.city}</div>` : ''}
+                            </div>
+                        `;
+                        el.appendChild(item);
+                    });
+                })
+                .catch(() => el.innerHTML = '<div style="padding:40px;color:red;text-align:center;">❌ Ошибка загрузки</div>');
+        }
+
+        // ==================== СТАТИСТИКА ПИТОМЦЕВ ====================
+        function updatePetsStats() {
+            let container = document.getElementById('user-stats');
+            if (!container) return;
+            
+            let old = document.querySelector('.pets-stats-block');
+            if (old) old.remove();
+            
+            if (userPets.length === 0) {
+                let emptyBlock = document.createElement('div');
+                emptyBlock.className = 'stat-card';
+                emptyBlock.innerHTML = '<div style="display:flex; align-items:center; gap:15px;"><span style="font-size:2.5rem;">🐾</span><span style="font-size:1.1rem;">У вас пока нет питомцев.<br>Наберите 1000 очков, чтобы получить первого!</span></div>';
+                container.appendChild(emptyBlock);
+                return;
+            }
+            
+            let block = document.createElement('div');
+            block.className = 'pets-stats-block stat-card';
+            block.innerHTML = '<h3 style="color:#ffaacc; margin-bottom:20px; display:flex; align-items:center; gap:12px;"><span style="font-size:2rem;">🐾</span> МОЯ КОЛЛЕКЦИЯ</h3>';
+            
+            let sorted = PETS.filter(p => userPets.some(u => u.id === p.id))
+                           .sort((a,b) => (b.rewards||0) - (a.rewards||0));
+            
+            sorted.slice(0, 10).forEach(pet => {
+                block.innerHTML += `<div class="pet-stat-row">
+                    <span style="display:flex; gap:12px; align-items:center;">
+                        <span style="font-size:1.8rem;">${pet.emoji}</span>
+                        <span style="font-weight:600;">${pet.name}</span>
+                        ${activePet?.id === pet.id ? '<span style="color:#ffd700; margin-left:5px;">⭐</span>' : ''}
+                    </span>
+                    <span style="color:${pet.color}; font-size:1.3rem; font-weight:bold; background:rgba(0,0,0,0.3); padding:6px 16px; border-radius:40px;">
+                        ${pet.rewards || 0} ${pet.food}
+                    </span>
+                </div>`;
+            });
+            
+            if (sorted.length > 10) {
+                block.innerHTML += `<div style="text-align:center; margin-top:15px; color:#aaccee;">и еще ${sorted.length - 10} питомцев...</div>`;
+            }
+            
+            container.appendChild(block);
+        }
+
+        // ==================== ОСНОВНЫЕ ФУНКЦИИ ИГРЫ ====================
+        function showScreen(s) { 
+            Object.keys(screens).forEach(k => screens[k].classList.remove('active')); 
+            screens[s].classList.add('active'); 
+        }
+        
+        function showMenu() { 
+            showScreen('menu'); 
+            if (gameActive && !gamePaused) {
+                togglePause();
+            }
+        }
+        
+        function startGame() {
+            if (animationId) cancelAnimationFrame(animationId);
+            
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            score = 0; 
+            level = 1; 
+            lines = 0; 
+            totalLines = 0; 
+            gameActive = true; 
+            gamePaused = false; 
+            gameOver = false;
+            dropInterval = SPEED_TABLE[1];
+            pieceQueue = []; 
+            clearedLinesAnimation = [];
+            
+            // Сбрасываем кнопку на СОХРАНИТЬ
+            updateSaveButton('save');
+            
+            generatePieceQueue(); 
+            updateDisplay(); 
+            spawnPiece();
+            
+            if (!gameOver) {
+                drawBoard(); 
+                showScreen('game');
+                lastTime = 0; 
+                dropCounter = 0;
+                animationId = requestAnimationFrame(gameLoop);
+                showNotification('🎮 Игра началась!');
+            }
+        }
+        
+        function generatePieceQueue() {
+            pieceQueue = [];
+            for (let i=0; i<3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+        }
+        
+        function spawnPiece() {
+            if (!pieceQueue.length) generatePieceQueue();
+            let id = pieceQueue.shift();
+            pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+            currentPiece = { shape: SHAPES[id], color: COLORS[id] };
+            currentX = Math.floor(COLS/2) - Math.floor(currentPiece.shape[0].length/2);
+            currentY = 0;
+            
+            if (collide(currentPiece, currentX, currentY)) {
+                gameOver = true;
+                showNotification('🎯 Игра окончена! Счет: ' + score);
+                updateSaveButton('save');
+                setTimeout(() => { showMenu(); loadUserStats(); }, 1500);
+            }
+        }
+        
+        function collide(piece, x, y) {
+            for (let r=0; r<piece.shape.length; r++) {
+                for (let c=0; c<piece.shape[r].length; c++) {
+                    if (piece.shape[r][c]) {
+                        let nx = x + c, ny = y + r;
+                        if (nx<0 || nx>=COLS || ny>=ROWS) return true;
+                        if (ny>=0 && board[ny] && board[ny][nx]) return true;
+                    }
+                }
+            }
+            return false;
+        }
+        
+        function mergePiece() {
+            for (let y=0; y<currentPiece.shape.length; y++) {
+                for (let x=0; x<currentPiece.shape[y].length; x++) {
+                    if (currentPiece.shape[y][x] && currentY+y>=0) {
+                        board[currentY+y][currentX+x] = currentPiece.color;
+                    }
+                }
+            }
+        }
+        
+        function moveDown() {
+            if (gameOver||gamePaused) return;
+            if (!collide(currentPiece, currentX, currentY+1)) {
+                currentY++;
+            } else { 
+                mergePiece(); 
+                checkLines(); 
+                spawnPiece(); 
+            }
+            drawBoard();
+        }
+        
+        function moveLeft() { 
+            if (!gameOver && !gamePaused && !collide(currentPiece, currentX-1, currentY)) { 
+                currentX--; 
+                drawBoard(); 
+            } 
+        }
+        
+        function moveRight() { 
+            if (!gameOver && !gamePaused && !collide(currentPiece, currentX+1, currentY)) { 
+                currentX++; 
+                drawBoard(); 
+            } 
+        }
+        
+        function rotatePiece() {
+            if (gameOver||gamePaused) return;
+            let rotated = currentPiece.shape[0].map((_,i) => currentPiece.shape.map(row => row[i]).reverse());
+            let orig = currentPiece.shape;
+            currentPiece.shape = rotated;
+            if (collide(currentPiece, currentX, currentY)) currentPiece.shape = orig;
+            drawBoard();
+        }
+        
+        function hardDrop() {
+            if (gameOver||gamePaused) return;
+            let dist = 0;
+            while (!collide(currentPiece, currentX, currentY+1)) { 
+                currentY++; 
+                dist++; 
+            }
+            score += dist * 2;
+            mergePiece(); 
+            checkLines(); 
+            spawnPiece(); 
+            updateDisplay(); 
+            drawBoard();
+        }
+        
+        function checkLines() {
+            let cleared = 0, rows = [];
+            for (let y=ROWS-1; y>=0; y--) {
+                if (board[y].every(c => c!==0)) { 
+                    rows.push(y); 
+                    cleared++; 
+                }
+            }
+            
+            if (cleared > 0) {
+                lines += cleared; 
+                totalLines += cleared; 
+                clearedLinesAnimation = rows;
+                
+                let bonus = [0, 100, 300, 500, 800];
+                score += bonus[cleared] * level;
+                
+                feedActivePet(cleared);
+                
+                // ТЕТРИС!
+                if (cleared === 4) {
+                    showNotification('🎯 ТЕТРИС! +' + (800*level));
+                    
+                    // Золотой тетрис (7+ уровень)
+                    if (level >= 7) {
+                        showNotification('✨ ЗОЛОТОЙ ТЕТРИС!');
+                    }
+                    
+                    // Фейерверки (9+ уровень)
+                    if (level >= 9) {
+                        for (let i=0; i<12; i++) {
+                            setTimeout(() => {
+                                let f = document.createElement('div');
+                                f.className = 'food-particle';
+                                f.style.left = Math.random() * window.innerWidth + 'px';
+                                f.style.top = Math.random() * window.innerHeight * 0.3 + 'px';
+                                f.style.fontSize = '2.5rem';
+                                f.style.color = ['#FFD700','#FFA500','#FF69B4','#00FFFF'][Math.floor(Math.random()*4)];
+                                f.innerHTML = '🎆';
+                                document.body.appendChild(f);
+                                setTimeout(() => f.remove(), 1000);
+                            }, i * 50);
+                        }
+                    }
+                }
+                
+                setTimeout(() => {
+                    rows.sort((a,b)=>a-b).forEach(y => { 
+                        board.splice(y,1); 
+                        board.unshift(Array(COLS).fill(0)); 
+                    });
+                    clearedLinesAnimation = [];
+                    updateDisplay(); 
+                    drawBoard();
+                }, 400);
+                
+                updateDisplay();
+            }
+        }
+        
+        // ==================== УЛУЧШЕННАЯ ПАУЗА/ПРОДОЛЖЕНИЕ ====================
+        function togglePause() {
+            if (gameActive && !gameOver) {
+                gamePaused = !gamePaused;
+                if (gamePaused) {
+                    cancelAnimationFrame(animationId);
+                    showNotification('⏸ Пауза');
+                } else {
+                    lastTime = 0;
+                    dropCounter = 0;
+                    animationId = requestAnimationFrame(gameLoop);
+                    showNotification('▶️ Продолжаем');
+                }
+            }
+        }
+        
+        function restartGame() { 
+            if (confirm('Начать новую игру? Текущий прогресс будет потерян.')) { 
+                initGame(); 
+                showNotification('🔄 Новая игра');
+                updateSaveButton('save');
+            } 
+        }
+        
+        function initGame() {
+            board = Array(ROWS).fill().map(()=>Array(COLS).fill(0));
+            score = 0; 
+            level = 1; 
+            lines = 0; 
+            gameActive = true; 
+            gamePaused = false; 
+            gameOver = false;
+            dropInterval = SPEED_TABLE[1];
+            clearedLinesAnimation = []; 
+            pieceQueue = [];
+            
+            generatePieceQueue(); 
+            updateDisplay(); 
+            spawnPiece(); 
+            drawBoard();
+            
+            if (animationId) cancelAnimationFrame(animationId);
+            lastTime = 0; 
+            dropCounter = 0; 
+            animationId = requestAnimationFrame(gameLoop);
+            updateSaveButton('save');
+        }
+        
+        function updateDisplay() {
+            document.getElementById('level-display').textContent = level;
+            document.getElementById('score-display').textContent = score;
+            document.getElementById('lines-display').textContent = lines;
+            
+            updateLevelByScore();
+            checkPetUnlocks();
+            updatePetPanel();
+        }
+        
+        // ==================== КНОПКА СОХРАНИТЬ/ПРОДОЛЖИТЬ ====================
+        function updateSaveButton(mode) {
+            const btn = document.getElementById('save-continue-btn');
+            if (!btn) return;
+            
+            if (mode === 'continue') {
+                btn.innerHTML = '▶️ ПРОДОЛЖИТЬ';
+                btn.classList.remove('save-btn');
+                btn.classList.add('continue-btn');
+                btn.onclick = continueGame;
+            } else {
+                btn.innerHTML = '💾 СОХРАНИТЬ';
+                btn.classList.remove('continue-btn');
+                btn.classList.add('save-btn');
+                btn.onclick = saveGameScore;
+            }
+        }
+        
+        // Продолжить игру
+        function continueGame() {
+            if (gamePaused) {
+                togglePause();
+            }
+            updateSaveButton('save');
+        }
+        
+        // ==================== СОХРАНЕНИЕ С АВТОПРОДОЛЖЕНИЕМ ====================
+        async function saveGameScore() {
+            console.log('💾 Сохранение игры');
+            
+            const btn = document.getElementById('save-continue-btn');
+            
+            // Анимация кнопки
+            if (btn) {
+                btn.style.transform = 'scale(0.95)';
+                setTimeout(() => btn.style.transform = '', 200);
+            }
+            
+            // Запоминаем состояние
+            const wasActive = gameActive && !gameOver;
+            const wasPaused = gamePaused;
+            
+            // Если игра активна - ставим на паузу для сохранения
+            if (wasActive && !gamePaused) {
+                togglePause();
+            }
+            
+            showNotification('💾 Сохраняем...');
+            
+            // Сохраняем в БД
+            const result = await saveGameToDB(false);
+            
+            if (result.success) {
+                showNotification('✅ Сохранено!');
+                loadUserStats();
+                
+                // Меняем кнопку на "ПРОДОЛЖИТЬ"
+                updateSaveButton('continue');
+            } else {
+                showNotification('❌ Ошибка сохранения');
+            }
+        }
+        
+        // ==================== API ====================
+        async function saveGameToDB(gameOverFlag = false) {
+            try {
+                const response = await fetch('/api/save-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'tetris_score',
+                        gameType: 'tetris',
+                        score: score,
+                        level: level,
+                        lines: lines,
+                        gameOver: gameOverFlag,
+                        telegramId: telegramUserId,
+                        username: telegramUsername
+                    })
+                });
+                const result = await response.json();
+                return { success: response.ok, ...result };
+            } catch (error) {
+                console.error('Ошибка сохранения:', error);
+                return { success: false };
+            }
+        }
+
+        // ==================== ОТРИСОВКА ====================
+        function drawBlock(x, y, col, isCurrent) {
+            let s = BLOCK_SIZE, xx = x*s, yy = y*s;
+            
+            ctx.fillStyle = col; 
+            ctx.fillRect(xx, yy, s, s);
+            
+            let grad = ctx.createLinearGradient(xx, yy, xx+s, yy+s);
+            grad.addColorStop(0, lightenColor(col, 20));
+            grad.addColorStop(0.7, col);
+            ctx.fillStyle = grad; 
+            ctx.fillRect(xx, yy, s, s);
+            
+            if (isCurrent) { 
+                ctx.strokeStyle = 'white'; 
+                ctx.lineWidth = 3; 
+                ctx.strokeRect(xx+1, yy+1, s-2, s-2); 
+            }
+            
+            // Эффекты для высоких уровней
+            if (level >= 11) {
+                ctx.shadowColor = col;
+                ctx.shadowBlur = 8;
+                ctx.fillRect(xx, yy, s, s);
+                ctx.shadowBlur = 0;
+            }
+        }
+        
+        function lightenColor(c,p) { 
+            let n=parseInt(c.slice(1),16), a=Math.round(2.55*p); 
+            return `rgb(${Math.min(255,(n>>16)+a)},${Math.min(255,((n>>8)&255)+a)},${Math.min(255,(n&255)+a)})`; 
+        }
+        
+        function hexToRgb(h) { 
+            if (h.length===4) return `${parseInt(h[1]+h[1],16)},${parseInt(h[2]+h[2],16)},${parseInt(h[3]+h[3],16)}`; 
+            if (h.length===7) return `${parseInt(h[1]+h[2],16)},${parseInt(h[3]+h[4],16)},${parseInt(h[5]+h[6],16)}`; 
+            return '255,182,193'; 
+        }
+        
+        function drawBoard() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = '#0a0e24'; 
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            
+            for (let y=0; y<ROWS; y++) {
+                for (let x=0; x<COLS; x++) {
+                    if (board[y][x]) drawBlock(x,y,board[y][x],false);
+                }
+            }
+            
+            if (clearedLinesAnimation.length) {
+                ctx.globalAlpha = 0.7;
+                clearedLinesAnimation.forEach(y => { 
+                    ctx.fillStyle = '#ffffff'; 
+                    ctx.fillRect(0,y*BLOCK_SIZE,COLS*BLOCK_SIZE,BLOCK_SIZE); 
+                });
+                ctx.globalAlpha = 1;
+            }
+            
+            if (currentPiece) {
+                for (let y=0; y<currentPiece.shape.length; y++) {
+                    for (let x=0; x<currentPiece.shape[y].length; x++) {
+                        if (currentPiece.shape[y][x]) {
+                            drawBlock(currentX+x, currentY+y, currentPiece.color, true);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function gameLoop(time) {
+            if (gameOver||gamePaused) return;
+            let delta = time - lastTime; 
+            lastTime = time;
+            dropCounter += delta;
+            if (dropCounter > dropInterval) { 
+                moveDown(); 
+                dropCounter = 0; 
+            }
+            drawBoard();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+        
+        function showNotification(msg) {
+            let n = document.getElementById('notification');
+            n.textContent = msg; 
+            n.classList.add('show');
+            setTimeout(() => n.classList.remove('show'), 2000);
+        }
+
+        // ==================== СТАТИСТИКА ПОЛЬЗОВАТЕЛЯ ====================
+        function loadUserStats() {
+            let el = document.getElementById('user-stats');
+            if (!el) return;
+            
+            el.innerHTML = '<div style="text-align:center; padding:30px;">📊 ЗАГРУЗКА...</div>';
+            
+            fetch(`/api/user-stats?telegramId=${telegramUserId}&gameType=tetris`)
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success && d.stats) {
+                        let s = d.stats;
+                        el.innerHTML = `
+                            <div class="stat-card">
+                                <h3 style="color:#b3a0ff; margin-bottom:20px;">📈 ВАША СТАТИСТИКА</h3>
+                                <div class="stat-row"><span style="font-size:1.2rem;">🏆 Рекорд</span><span style="font-size:1.3rem; color:#ffd966;">${s.best_score||0}</span></div>
+                                <div class="stat-row"><span style="font-size:1.2rem;">📊 Макс. уровень</span><span style="font-size:1.3rem; color:#aaffaa;">${s.best_level||1}</span></div>
+                                <div class="stat-row"><span style="font-size:1.2rem;">🔷 Всего линий</span><span style="font-size:1.3rem; color:#88ccff;">${s.best_lines||0}</span></div>
+                                <div class="stat-row"><span style="font-size:1.2rem;">🎮 Сыграно игр</span><span style="font-size:1.3rem; color:#ff99aa;">${s.games_played||0}</span></div>
+                            </div>
+                        `;
+                        updatePetsStats();
+                    }
+                })
+                .catch(() => {
+                    el.innerHTML = '<div class="stat-card" style="color:#ff9999;">❌ Ошибка загрузки статистики</div>';
+                });
+        }
+
+        // ==================== НАСТРОЙКИ, БД ====================
+        function testDatabase() {
+            let el = document.getElementById('db-status-text');
+            if (el) { 
+                el.textContent = '✅ Подключено'; 
+                el.style.color = '#aaffaa'; 
+            }
+            showNotification('✅ База данных работает');
+        }
+        
+        function showStats() { 
+            loadUserStats(); 
+            showScreen('stats'); 
+        }
+        
+        function showLeaderboard() { 
+            loadLeaderboard(); 
+            showScreen('leaderboard'); 
+        }
+        
+        function showSettings() { 
+            showScreen('settings'); 
+        }
+
+        // ==================== KEYBOARD ====================
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('keyboard-controls')?.checked) return;
+            if (e.key === 'ArrowLeft') { e.preventDefault(); moveLeft(); }
+            if (e.key === 'ArrowRight') { e.preventDefault(); moveRight(); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); moveDown(); }
+            if (e.key === 'ArrowUp') { e.preventDefault(); rotatePiece(); }
+            if (e.key === ' ') { e.preventDefault(); hardDrop(); }
+            if (e.key === 'p' || e.key === 'P') { e.preventDefault(); togglePause(); }
+            if (e.key === 'Escape') { e.preventDefault(); showMenu(); }
+            if (e.key === 'r' || e.key === 'R') { e.preventDefault(); restartGame(); }
+        });
+
+        // ==================== АДАПТАЦИЯ ====================
+        function adaptCanvasSize() {
+            let area = document.querySelector('.game-area');
+            if (!area) return;
+            let w = area.clientWidth - 8, h = area.clientHeight - 8;
+            let scale = Math.min(w / (COLS*BLOCK_SIZE), h / (ROWS*BLOCK_SIZE), 1.4);
+            canvas.style.width = Math.floor(COLS*BLOCK_SIZE*scale) + 'px';
+            canvas.style.height = Math.floor(ROWS*BLOCK_SIZE*scale) + 'px';
+        }
+
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
+        function init() {
+            console.log('🚀 ТЕТРИС PRO + Питомцы + Уровни');
+            
+            // Загружаем питомцев
+            loadPets();
+            
+            // Создаем панель питомца
+            createPetPanel();
+            updatePetPanel();
+            
+            // Инициализируем доску
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            drawBoard();
+            
+            // Адаптация размера
+            adaptCanvasSize();
+            window.addEventListener('resize', adaptCanvasSize);
+            
+            // Статус БД
+            document.getElementById('db-status-text').textContent = '✅ Подключено';
+            
+            showNotification('🐾 Добро пожаловать!');
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
