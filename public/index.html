@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тетрис PRO — Коллекция питомцев, лидерборд, ранги</title>
+    <title>Тетрис PRO — Классика + Питомцы + Лидерборд</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #fff; }
@@ -111,10 +111,10 @@
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС PRO</h1>
-                <p class="subtitle">Коллекция питомцев • Ранги • Лидерборд</p>
+                <p class="subtitle">Классика • 29 уровней • Бесконечные питомцы</p>
             </div>
             <div class="menu-buttons">
-                <button class="menu-btn new-game" onclick="startGame()">🎮 НОВАЯ ИГРА</button>
+                <button class="menu-btn new-game" onclick="startNewGame()">🎮 НОВАЯ ИГРА</button>
                 <button class="menu-btn stats" onclick="showStats()">📊 СТАТИСТИКА</button>
                 <button class="menu-btn levels" onclick="showLevels()">⭐ УРОВНИ</button>
                 <button class="menu-btn leaderboard" onclick="showLeaderboard()">🏆 ЛИДЕРБОРД</button>
@@ -127,7 +127,7 @@
             <div class="game-header">
                 <div><button class="back-btn" onclick="showMenu()">МЕНЮ</button></div>
                 <div class="game-info" id="game-info-container">
-                    <div class="info-box"><div class="info-value" id="level-display">1</div></div>
+                    <div class="info-box"><div class="info-value" id="level-display">0</div></div>
                     <div class="info-box"><div class="info-value" id="score-display">0</div></div>
                     <div class="info-box"><div class="info-value" id="lines-display">0</div></div>
                     <div id="pet-header-panel" class="pet-badge">
@@ -157,8 +157,8 @@
                 </div>
                 <div class="next-level-progress">
                     <div class="next-level-info">
-                        <span>✨ УРОВЕНЬ <span id="game-level">1</span> • <span id="next-level-target">1500</span> очков</span>
-                        <span id="next-level-effect">⚡ Искры</span>
+                        <span>✨ УРОВЕНЬ <span id="game-level">0</span> • <span id="next-level-target">1000</span> очков</span>
+                        <span id="next-level-effect">⚡</span>
                     </div>
                     <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width:0%;"></div></div>
                 </div>
@@ -174,7 +174,7 @@
                     <div id="user-stats">
                         <div class="stat-row"><span class="stat-label">🎮 Сыграно игр:</span><span class="stat-value" id="games-played">0</span></div>
                         <div class="stat-row"><span class="stat-label">🏆 Лучший счет:</span><span class="stat-value" id="best-score">0</span></div>
-                        <div class="stat-row"><span class="stat-label">⭐ Рекордный уровень:</span><span class="stat-value" id="best-level">1</span></div>
+                        <div class="stat-row"><span class="stat-label">⭐ Рекордный уровень:</span><span class="stat-value" id="best-level">0</span></div>
                         <div class="stat-row"><span class="stat-label">📏 Всего линий:</span><span class="stat-value" id="total-lines">0</span></div>
                         <div class="stat-row"><span class="stat-label">💰 Средний счет:</span><span class="stat-value" id="avg-score">0</span></div>
                     </div>
@@ -184,7 +184,7 @@
                     <h3 style="color:#6a5bff;">🎮 ТЕКУЩАЯ СЕССИЯ</h3>
                     <div id="session-stats">
                         <div class="stat-row"><span class="stat-label">🎯 Текущий счет:</span><span class="stat-value" id="current-score">0</span></div>
-                        <div class="stat-row"><span class="stat-label">⭐ Текущий уровень:</span><span class="stat-value" id="current-level">1</span></div>
+                        <div class="stat-row"><span class="stat-label">⭐ Текущий уровень:</span><span class="stat-value" id="current-level">0</span></div>
                         <div class="stat-row"><span class="stat-label">📏 Линии в сессии:</span><span class="stat-value" id="session-lines">0</span></div>
                     </div>
                 </div>
@@ -275,38 +275,72 @@
         const DIFFICULTY_LEVELS = [
             { id: 'easy', name: 'Легкий', speed: 800, icon: '🐣' },
             { id: 'medium', name: 'Средний', speed: 600, icon: '⚡' },
+            { id: 'classic', name: 'Классический', speed: 800, icon: '🎮' },
             { id: 'hard', name: 'Сложный', speed: 400, icon: '🔥' },
-            { id: 'expert', name: 'Эксперт', speed: 250, icon: '👑' },
-            { id: 'insane', name: 'Безумие', speed: 150, icon: '💀' }
+            { id: 'insane', name: 'Безумие', speed: 200, icon: '💀' }
+        ];
+
+        // ==================== КЛАССИЧЕСКИЕ УРОВНИ (29 УРОВНЕЙ) ====================
+        const GAME_LEVELS = [
+            { level: 0, min: 0, max: 999, speed: 800 },
+            { level: 1, min: 1000, max: 1999, speed: 720 },
+            { level: 2, min: 2000, max: 2999, speed: 630 },
+            { level: 3, min: 3000, max: 3999, speed: 550 },
+            { level: 4, min: 4000, max: 4999, speed: 470 },
+            { level: 5, min: 5000, max: 5999, speed: 380 },
+            { level: 6, min: 6000, max: 6999, speed: 300 },
+            { level: 7, min: 7000, max: 7999, speed: 220 },
+            { level: 8, min: 8000, max: 8999, speed: 150 },
+            { level: 9, min: 9000, max: 9999, speed: 100 },
+            { level: 10, min: 10000, max: 10999, speed: 80 },
+            { level: 11, min: 11000, max: 11999, speed: 80 },
+            { level: 12, min: 12000, max: 12999, speed: 80 },
+            { level: 13, min: 13000, max: 13999, speed: 80 },
+            { level: 14, min: 14000, max: 14999, speed: 80 },
+            { level: 15, min: 15000, max: 15999, speed: 80 },
+            { level: 16, min: 16000, max: 16999, speed: 80 },
+            { level: 17, min: 17000, max: 17999, speed: 80 },
+            { level: 18, min: 18000, max: 18999, speed: 80 },
+            { level: 19, min: 19000, max: 19999, speed: 80 },
+            { level: 20, min: 20000, max: 20999, speed: 80 },
+            { level: 21, min: 21000, max: 21999, speed: 80 },
+            { level: 22, min: 22000, max: 22999, speed: 80 },
+            { level: 23, min: 23000, max: 23999, speed: 80 },
+            { level: 24, min: 24000, max: 24999, speed: 80 },
+            { level: 25, min: 25000, max: 25999, speed: 80 },
+            { level: 26, min: 26000, max: 26999, speed: 80 },
+            { level: 27, min: 27000, max: 27999, speed: 80 },
+            { level: 28, min: 28000, max: 28999, speed: 80 },
+            { level: 29, min: 29000, max: Infinity, speed: 80 }
         ];
 
         // ==================== БАЗОВЫЕ ПИТОМЦЫ (25 ШТУК) ====================
         const BASE_PETS = [
-            { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 1500, food: '🐟' },
-            { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 3000, food: '🦴' },
-            { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 4500, food: '🥕' },
-            { id: 'fox', name: 'Лисёнок', emoji: '🦊', color: '#FF8C42', score: 6000, food: '🍇' },
-            { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 7500, food: '🎋' },
-            { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 9000, food: '🦐' },
-            { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 10500, food: '🌿' },
-            { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 12000, food: '🐭' },
-            { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 13500, food: '🥩' },
-            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 15000, food: '🥩' },
-            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 16500, food: '🌿' },
-            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 18000, food: '🌿' },
-            { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 19500, food: '🍌' },
-            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 21000, food: '🌿' },
-            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 22500, food: '🌿' },
-            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 24000, food: '🍌' },
-            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 25500, food: '🌿' },
-            { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 27000, food: '🍎' },
-            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 28500, food: '🌰' },
-            { id: 'deer', name: 'Оленёнок', emoji: '🦌', color: '#8B5A2B', score: 30000, food: '🌿' },
-            { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 31500, food: '🌿' },
-            { id: 'otter', name: 'Выдра', emoji: '🦦', color: '#8B4513', score: 33000, food: '🐟' },
-            { id: 'seal', name: 'Тюлень', emoji: '🦭', color: '#808080', score: 34500, food: '🐟' },
-            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 36000, food: '🦐' },
-            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 37500, food: '🐟' }
+            { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🐟' },
+            { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 2000, food: '🦴' },
+            { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 3000, food: '🥕' },
+            { id: 'fox', name: 'Лисёнок', emoji: '🦊', color: '#FF8C42', score: 4000, food: '🍇' },
+            { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 5000, food: '🎋' },
+            { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 6000, food: '🦐' },
+            { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 7000, food: '🌿' },
+            { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 8000, food: '🐭' },
+            { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 9000, food: '🥩' },
+            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 10000, food: '🥩' },
+            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 11000, food: '🌿' },
+            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 12000, food: '🌿' },
+            { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 13000, food: '🍌' },
+            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 14000, food: '🌿' },
+            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 15000, food: '🌿' },
+            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 16000, food: '🍌' },
+            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 17000, food: '🌿' },
+            { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 18000, food: '🍎' },
+            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 19000, food: '🌰' },
+            { id: 'deer', name: 'Оленёнок', emoji: '🦌', color: '#8B5A2B', score: 20000, food: '🌿' },
+            { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 21000, food: '🌿' },
+            { id: 'otter', name: 'Выдра', emoji: '🦦', color: '#8B4513', score: 22000, food: '🐟' },
+            { id: 'seal', name: 'Тюлень', emoji: '🦭', color: '#808080', score: 23000, food: '🐟' },
+            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 24000, food: '🦐' },
+            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 25000, food: '🐟' }
         ];
 
         // ==================== РАНГИ ПИТОМЦЕВ (БЕСКОНЕЧНО) ====================
@@ -317,4 +351,832 @@
             { prefix: '💎', name: 'Драгоценный', min: 75, max: 99, color: '#B9F2FF' },
             { prefix: '👑', name: 'Королевский', min: 100, max: 124, color: '#FFD700' },
             { prefix: '🔥', name: 'Легендарный', min: 125, max: 149, color: '#FF4500' },
-            { prefix: '🎮',
+            { prefix: '🎮', name: 'Мифический', min: 150, max: 174, color: '#9370DB' },
+            { prefix: '♾️', name: 'Бесконечный', min: 175, max: Infinity, color: '#00FFFF' }
+        ];
+
+        // ==================== DOM ====================
+        const screens = {
+            menu: document.getElementById('menu-screen'),
+            game: document.getElementById('game-screen'),
+            stats: document.getElementById('stats-screen'),
+            levels: document.getElementById('levels-screen'),
+            leaderboard: document.getElementById('leaderboard-screen')
+        };
+        const canvas = document.getElementById('tetris-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // ==================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ====================
+        let board = [], currentPiece = null, currentX = 0, currentY = 0;
+        let score = 0, level = 0, gameLevel = 0, lines = 0;
+        let gameActive = false, gamePaused = false, gameOver = false;
+        let dropCounter = 0, dropInterval = 800, lastTime = 0, animationId = null;
+        let currentDifficulty = 'classic';
+        let clearedLinesAnimation = [], pieceQueue = [];
+
+        // ==================== ПИТОМЦЫ ====================
+        let userPets = {};  // { "Обычный_cat": 5, "✨_cat": 3, ... }
+        let petFood = {};   // { "Обычный_cat": 42, "✨_cat": 17, ... }
+        let activePet = null;
+        let currentSessionPets = [];
+
+        // ==================== СТАТИСТИКА ИЗ NEON ====================
+        let gamesPlayed = 0;
+        let totalLinesAll = 0;
+        let bestScore = 0;
+        let bestLevel = 0;
+        let avgScore = 0;
+
+        // ==================== ЗАГРУЗКА КОЛЛЕКЦИИ ====================
+        function loadPets() {
+            try {
+                const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    userPets = data.pets || {};
+                    petFood = data.food || {};
+                }
+            } catch(e) {
+                userPets = {};
+                petFood = {};
+            }
+        }
+
+        function savePets() {
+            const saveData = { pets: userPets, food: petFood };
+            localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
+        }
+
+        // ==================== ПОДСЧЁТ ВСЕХ ПИТОМЦЕВ ====================
+        function getTotalPetsCount() {
+            let total = 0;
+            for (let key in userPets) {
+                total += userPets[key] || 0;
+            }
+            return total;
+        }
+
+        // ==================== ПОЛУЧИТЬ ПИТОМЦА ПО СЧЁТУ ====================
+        function getPetByScore(score) {
+            if (score < 1000) return null;
+            
+            const petIndex = Math.floor((score - 1000) / 1000);
+            const basePet = BASE_PETS[petIndex % BASE_PETS.length];
+            const tier = Math.floor(petIndex / BASE_PETS.length);
+            const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+            
+            return {
+                ...basePet,
+                rank: rank,
+                emoji: `${rank.prefix}${basePet.emoji}`,
+                color: rank.color,
+                tier: tier
+            };
+        }
+
+        // ==================== ФУНКЦИИ УРОВНЕЙ ====================
+        function getGameLevelFromScore(score) {
+            for (let lvl of GAME_LEVELS) {
+                if (score >= lvl.min && score <= lvl.max) return lvl.level;
+            }
+            return GAME_LEVELS[GAME_LEVELS.length - 1].level;
+        }
+
+        function getLevelSpeed(level) {
+            const levelData = GAME_LEVELS.find(l => l.level === level);
+            return levelData ? levelData.speed : 80;
+        }
+
+        function updateGameLevel() {
+            const oldLevel = gameLevel;
+            gameLevel = getGameLevelFromScore(score);
+            
+            // ТОЛЬКО УВЕЛИЧИВАЕМ УРОВЕНЬ, НЕ ОЧИЩАЕМ ПОЛЕ!
+            if (gameLevel > oldLevel) {
+                showNotification(`⚡ УРОВЕНЬ ${gameLevel}! ⚡`);
+                // НЕТ ОЧИСТКИ ПОЛЯ!
+                // НЕТ БОНУСА 500 ОЧКОВ!
+            }
+            
+            dropInterval = getLevelSpeed(gameLevel);
+            
+            document.getElementById('game-level').textContent = gameLevel;
+            document.getElementById('level-display').textContent = gameLevel;
+            
+            const nextLevel = GAME_LEVELS.find(l => l.level === gameLevel + 1) || GAME_LEVELS[GAME_LEVELS.length - 1];
+            document.getElementById('next-level-target').textContent = nextLevel.min;
+            
+            const currentLevelData = GAME_LEVELS.find(l => l.level === gameLevel);
+            if (currentLevelData) {
+                const progress = ((score - currentLevelData.min) / (currentLevelData.max - currentLevelData.min + 1)) * 100;
+                document.getElementById('progress-fill').style.width = Math.min(100, Math.max(0, progress)) + '%';
+            }
+        }
+
+        // ==================== ПОЛУЧЕНИЕ ПИТОМЦА ====================
+        function unlockPet(pet) {
+            if (!pet) return false;
+            if (score < pet.score) return false;
+            
+            const petId = `${pet.rank.prefix}_${pet.id}`;
+            
+            // ПРОВЕРЯЕМ, НЕ ПОЛУЧАЛИ ЛИ УЖЕ В ЭТОЙ СЕССИИ
+            if (currentSessionPets.includes(petId)) return false;
+            
+            // ✅ УВЕЛИЧИВАЕМ СЧЁТЧИК ПИТОМЦА!
+            userPets[petId] = (userPets[petId] || 0) + 1;
+            currentSessionPets.push(petId);
+            activePet = pet;
+            
+            // ✅ +3 ЕДЫ
+            petFood[petId] = (petFood[petId] || 0) + 3;
+            
+            // ✅ СОХРАНЯЕМ!
+            savePets();
+            
+            showPetUnlockAnimation(pet);
+            showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name} (Всего: ${userPets[petId]})`, pet.color);
+            showFoodAnimation(pet.food, 3, pet.color);
+            
+            updatePetHeaderPanel();
+            return true;
+        }
+
+        // ==================== ПРОВЕРКА ПИТОМЦЕВ ====================
+        function checkPetUnlocks() {
+            const pet = getPetByScore(score);
+            if (pet) {
+                unlockPet(pet);
+            }
+        }
+
+        // ==================== ПАНЕЛЬ ПИТОМЦА ====================
+        function updatePetHeaderPanel() {
+            const panel = document.getElementById('pet-header-panel');
+            if (!panel) return;
+            
+            if (activePet) {
+                document.getElementById('pet-emoji-header').textContent = activePet.emoji;
+                document.getElementById('pet-food-icon-header').textContent = activePet.food;
+                document.getElementById('pet-food-count-header').textContent = petFood[`${activePet.rank.prefix}_${activePet.id}`] || 0;
+                panel.style.borderColor = activePet.color + '80';
+                panel.style.display = 'flex';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ ====================
+        function updateCollectionInUI() {
+            const petsStats = document.getElementById('pets-collection-stats');
+            const foodStats = document.getElementById('food-collection-stats');
+            
+            if (!petsStats || !foodStats) return;
+            
+            let petsHtml = '';
+            let foodHtml = '';
+            let totalFood = 0;
+            
+            // ГРУППИРУЕМ ПИТОМЦЕВ ПО ID
+            const petList = [];
+            for (let petId in userPets) {
+                const count = userPets[petId];
+                if (count > 0) {
+                    const [prefix, id] = petId.split('_');
+                    const basePet = BASE_PETS.find(p => p.id === id);
+                    if (basePet) {
+                        petList.push({
+                            ...basePet,
+                            prefix: prefix,
+                            count: count,
+                            food: petFood[petId] || 0,
+                            fullId: petId
+                        });
+                        totalFood += petFood[petId] || 0;
+                    }
+                }
+            }
+            
+            // СОРТИРУЕМ ПО ОЧКАМ
+            petList.sort((a, b) => a.score - b.score);
+            
+            if (petList.length === 0) {
+                petsHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🐾 У вас пока нет питомцев. Достигните 1000 очков, чтобы получить котёнка!</div>';
+                foodHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🍖 Нет запасов еды</div>';
+            } else {
+                petList.forEach(pet => {
+                    const emoji = `${pet.prefix}${pet.emoji}`;
+                    petsHtml += `
+                        <div class="pet-stat-row">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.3rem;">${emoji}</span>
+                                <span style="color: white;">${pet.prefix}${pet.name}</span>
+                            </span>
+                            <span style="color: #ffcc66; font-weight: bold;">×${pet.count}</span>
+                        </div>
+                    `;
+                    
+                    foodHtml += `
+                        <div class="pet-stat-row">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.3rem;">${emoji}</span>
+                                <span style="color: white;">${pet.prefix}${pet.name}</span>
+                            </span>
+                            <span style="color: ${pet.color || '#ffd700'}; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                                ${pet.food} ${pet.food}
+                            </span>
+                        </div>
+                    `;
+                });
+            }
+            
+            petsStats.innerHTML = petsHtml;
+            foodStats.innerHTML = foodHtml;
+            
+            const totalPets = getTotalPetsCount();
+            document.getElementById('total-pets-count').textContent = totalPets;
+            document.getElementById('total-food-amount').textContent = totalFood;
+        }
+
+        // ==================== АНИМАЦИИ ====================
+        function showPetUnlockAnimation(pet) {
+            const gameArea = document.querySelector('.game-area');
+            if (!gameArea) return;
+            const div = document.createElement('div');
+            div.className = 'pet-unlock-animation';
+            div.style.borderColor = pet.color;
+            div.innerHTML = `
+                <div style="font-size:3rem;">✨✨✨</div>
+                <div style="font-size:4rem;">${pet.emoji}</div>
+                <div style="font-size:1.5rem;color:${pet.color};">+1 ${pet.rank.prefix}${pet.name}</div>
+                <div style="font-size:1.2rem;">Всего: ${userPets[`${pet.rank.prefix}_${pet.id}`]}</div>
+                <div style="font-size:1.2rem;">+3 ${pet.food}</div>
+            `;
+            gameArea.appendChild(div);
+            setTimeout(() => div.remove(), 2000);
+        }
+
+        function showFoodAnimation(foodEmoji, count, color) {
+            for (let i = 0; i < Math.min(count, 5); i++) {
+                setTimeout(() => {
+                    const food = document.createElement('div');
+                    food.className = 'food-particle';
+                    food.style.left = (window.innerWidth - 150 + Math.random() * 100) + 'px';
+                    food.style.top = (window.innerHeight / 2 + Math.random() * 100 - 50) + 'px';
+                    food.style.color = color || '#ffd700';
+                    food.textContent = foodEmoji;
+                    document.body.appendChild(food);
+                    setTimeout(() => food.remove(), 1000);
+                }, i * 100);
+            }
+        }
+
+        function showStarAnimation() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const star = document.createElement('div');
+                    star.className = 'star-particle';
+                    star.style.left = (window.innerWidth - 200 + Math.random() * 150) + 'px';
+                    star.style.top = (window.innerHeight / 2 + Math.random() * 100 - 50) + 'px';
+                    star.textContent = '✨';
+                    document.body.appendChild(star);
+                    setTimeout(() => star.remove(), 800);
+                }, i * 50);
+            }
+        }
+
+        function showPetNotification(message, color) {
+            const n = document.createElement('div');
+            n.className = 'pet-notification';
+            n.style.borderLeftColor = color;
+            n.innerHTML = `<span style="font-size:1.5rem;">✨</span><span>${message}</span>`;
+            document.body.appendChild(n);
+            setTimeout(() => n.remove(), 2000);
+        }
+
+        // ==================== ИГРОВЫЕ ФУНКЦИИ ====================
+        function startNewGame() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+            score = 0; lines = 0; gameLevel = 0; level = 0;
+            gameActive = true; gamePaused = false; gameOver = false;
+            currentSessionPets = []; activePet = null;
+            
+            dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 800;
+            
+            pieceQueue = [];
+            for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+            
+            updateGameLevel();
+            updateDisplay();
+            spawnPiece();
+            
+            if (!gameOver) {
+                drawBoard();
+                showScreen('game');
+                lastTime = 0; dropCounter = 0;
+                animationId = requestAnimationFrame(gameLoop);
+                showNotification('🎮 Игра началась!');
+            }
+        }
+
+        function startGame() {
+            startNewGame();
+        }
+
+        function spawnPiece() {
+            if (pieceQueue.length === 0) {
+                for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+            }
+            const shapeId = pieceQueue.shift();
+            pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+            currentPiece = { shape: SHAPES[shapeId], color: COLORS[shapeId] };
+            currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
+            currentY = 0;
+            if (collide(currentPiece, currentX, currentY)) {
+                gameOver = true;
+                saveGameToDB(true);
+                showNotification('🎯 Игра окончена! Счет: ' + score);
+                setTimeout(() => showMenu(), 1500);
+            }
+        }
+
+        function collide(piece, x, y) {
+            for (let r = 0; r < piece.shape.length; r++) {
+                for (let c = 0; c < piece.shape[r].length; c++) {
+                    if (piece.shape[r][c]) {
+                        const br = y + r, bc = x + c;
+                        if (bc < 0 || bc >= COLS) return true;
+                        if (br >= ROWS) return true;
+                        if (br >= 0 && board[br] && board[br][bc]) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function mergePiece() {
+            for (let y = 0; y < currentPiece.shape.length; y++) {
+                for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                    if (currentPiece.shape[y][x] && currentY + y >= 0) {
+                        board[currentY + y][currentX + x] = currentPiece.color;
+                    }
+                }
+            }
+        }
+
+        function moveDown() {
+            if (gameOver || gamePaused) return;
+            if (!collide(currentPiece, currentX, currentY + 1)) {
+                currentY++;
+            } else {
+                mergePiece();
+                checkLines();
+                spawnPiece();
+            }
+            drawBoard();
+        }
+
+        function moveLeft() { 
+            if (!gameOver && !gamePaused && !collide(currentPiece, currentX - 1, currentY)) {
+                currentX--; 
+                drawBoard(); 
+            } 
+        }
+        
+        function moveRight() { 
+            if (!gameOver && !gamePaused && !collide(currentPiece, currentX + 1, currentY)) {
+                currentX++; 
+                drawBoard(); 
+            } 
+        }
+
+        function rotatePiece() {
+            if (gameOver || gamePaused) return;
+            const original = currentPiece.shape;
+            const rotated = [];
+            for (let i = 0; i < original[0].length; i++) {
+                rotated[i] = [];
+                for (let j = 0; j < original.length; j++) {
+                    rotated[i][j] = original[original.length - 1 - j][i];
+                }
+            }
+            currentPiece.shape = rotated;
+            if (collide(currentPiece, currentX, currentY)) {
+                currentPiece.shape = original;
+            }
+            drawBoard();
+        }
+
+        function hardDrop() {
+            if (gameOver || gamePaused) return;
+            let drop = 0;
+            while (!collide(currentPiece, currentX, currentY + 1)) {
+                currentY++;
+                drop++;
+            }
+            // ❌ НЕТ ОЧКОВ ЗА ПАДЕНИЕ!
+            mergePiece();
+            checkLines();
+            spawnPiece();
+            updateDisplay();
+            drawBoard();
+        }
+
+        function checkLines() {
+            let linesCleared = 0;
+            let clearedRows = [];
+            
+            for (let y = ROWS - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    clearedRows.push(y);
+                    linesCleared++;
+                }
+            }
+            
+            if (linesCleared > 0) {
+                lines += linesCleared;
+                clearedLinesAnimation = clearedRows;
+                
+                // ✅ КЛАССИЧЕСКИЕ ОЧКИ: 40/100/300/1200 * (уровень + 1)
+                const lineScores = [0, 40, 100, 300, 1200];
+                score += lineScores[linesCleared] * (gameLevel + 1);
+                
+                // Повышение уровня
+                if (lines >= (level + 1) * 10) {
+                    level = Math.floor(lines / 10);
+                }
+                
+                // Кормим питомца
+                if (activePet) {
+                    const petId = `${activePet.rank.prefix}_${activePet.id}`;
+                    petFood[petId] = (petFood[petId] || 0) + linesCleared;
+                    savePets();
+                    showFoodAnimation(activePet.food, linesCleared, activePet.color);
+                }
+                
+                // Проверяем получение питомцев
+                checkPetUnlocks();
+                
+                setTimeout(() => {
+                    for (let y of clearedRows.sort((a,b) => a - b)) {
+                        board.splice(y, 1);
+                        board.unshift(Array(COLS).fill(0));
+                    }
+                    clearedLinesAnimation = [];
+                    drawBoard();
+                }, 400);
+                
+                updateGameLevel();
+                updateDisplay();
+            }
+        }
+
+        function pauseGame() {
+            if (gameActive && !gameOver) {
+                gamePaused = !gamePaused;
+                if (gamePaused) {
+                    cancelAnimationFrame(animationId);
+                    showNotification('⏸ Пауза');
+                } else {
+                    lastTime = 0;
+                    animationId = requestAnimationFrame(gameLoop);
+                    showNotification('▶️ Продолжение');
+                }
+            }
+        }
+
+        function restartGame() { 
+            if (confirm('Начать новую игру?')) {
+                startNewGame(); 
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('score-display').textContent = score;
+            document.getElementById('lines-display').textContent = lines;
+            document.getElementById('current-score').textContent = score;
+            document.getElementById('current-level').textContent = gameLevel;
+            document.getElementById('session-lines').textContent = lines;
+            updatePetHeaderPanel();
+        }
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // СЕТКА
+            ctx.strokeStyle = 'rgba(106,91,255,0.15)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= COLS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * BLOCK_SIZE, 0);
+                ctx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= ROWS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * BLOCK_SIZE);
+                ctx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x]) {
+                        drawBlock(x, y, board[y][x], false);
+                    }
+                }
+            }
+            
+            if (clearedLinesAnimation.length > 0) {
+                ctx.globalAlpha = 0.7;
+                clearedLinesAnimation.forEach(rowY => {
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, rowY * BLOCK_SIZE, COLS * BLOCK_SIZE, BLOCK_SIZE);
+                });
+                ctx.globalAlpha = 1;
+            }
+            
+            if (currentPiece) {
+                for (let y = 0; y < currentPiece.shape.length; y++) {
+                    for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                        if (currentPiece.shape[y][x]) {
+                            drawBlock(currentX + x, currentY + y, currentPiece.color, true);
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawBlock(x, y, color, isCurrent) {
+            const s = BLOCK_SIZE, bx = x * s, by = y * s;
+            ctx.fillStyle = color;
+            ctx.fillRect(bx, by, s, s);
+            
+            const grad = ctx.createLinearGradient(bx, by, bx + s, by + s);
+            
+            if (isCurrent) {
+                grad.addColorStop(0, lightenColor(color, 30));
+                grad.addColorStop(1, color);
+                ctx.strokeStyle = lightenColor(color, 40);
+                ctx.lineWidth = 2;
+                ctx.strokeRect(bx + 1, by + 1, s - 2, s - 2);
+            } else {
+                grad.addColorStop(0, lightenColor(color, 20));
+                grad.addColorStop(0.5, color);
+                grad.addColorStop(1, darkenColor(color, 20));
+                ctx.strokeStyle = darkenColor(color, 30);
+                ctx.lineWidth = 1;
+                ctx.strokeRect(bx, by, s, s);
+            }
+            
+            ctx.fillStyle = grad;
+            ctx.fillRect(bx, by, s, s);
+        }
+
+        function lightenColor(c, p) { 
+            let n = parseInt(c.slice(1), 16), a = Math.round(2.55 * p); 
+            return `rgb(${Math.min(255, (n >> 16) + a)}, ${Math.min(255, ((n >> 8) & 0xFF) + a)}, ${Math.min(255, (n & 0xFF) + a)})`; 
+        }
+        
+        function darkenColor(c, p) { 
+            let n = parseInt(c.slice(1), 16), a = Math.round(2.55 * p); 
+            return `rgb(${Math.max(0, (n >> 16) - a)}, ${Math.max(0, ((n >> 8) & 0xFF) - a)}, ${Math.max(0, (n & 0xFF) - a)})`; 
+        }
+
+        function gameLoop(t) {
+            if (gameOver || gamePaused) return;
+            const d = t - lastTime;
+            lastTime = t;
+            dropCounter += d;
+            if (dropCounter > dropInterval) {
+                moveDown();
+                dropCounter = 0;
+            }
+            drawBoard();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        // ==================== NEON API ====================
+        async function saveGameToDB(gameOverFlag = false) {
+            if (!telegramUserId || telegramUserId.startsWith('guest_')) return { success: false };
+            try {
+                const r = await fetch('/api/save-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegramId: telegramUserId,
+                        gameType: 'tetris',
+                        score: score,
+                        level: gameLevel,
+                        lines: lines,
+                        gameOver: gameOverFlag,
+                        username: telegramUsername
+                    })
+                });
+                const result = await r.json();
+                if (result.success) {
+                    loadUserStats();
+                }
+                return result;
+            } catch {
+                return { success: false };
+            }
+        }
+
+        async function saveGameScore() {
+            if (!gameActive) {
+                showNotification('❌ Нет активной игры');
+                return;
+            }
+            showNotification('💾 Сохраняю в Neon...');
+            const result = await saveGameToDB(false);
+            if (result.success) {
+                showNotification('✅ Результат сохранен!');
+                loadUserStats();
+            } else {
+                showNotification('❌ Ошибка сохранения');
+            }
+        }
+
+        function loadUserStats() {
+            if (!telegramUserId || telegramUserId.startsWith('guest_')) return;
+            
+            fetch(`/api/user-stats?telegramId=${telegramUserId}&gameType=tetris`)
+                .then(r => r.json())
+                .then(result => {
+                    if (result.success && result.stats) {
+                        const s = result.stats;
+                        
+                        gamesPlayed = s.games_played || 0;
+                        totalLinesAll = s.best_lines || 0;
+                        bestScore = s.best_score || 0;
+                        bestLevel = s.best_level || 0;
+                        avgScore = Math.round(s.avg_score || 0);
+                        
+                        document.getElementById('games-played').textContent = gamesPlayed;
+                        document.getElementById('best-score').textContent = bestScore;
+                        document.getElementById('best-level').textContent = bestLevel;
+                        document.getElementById('total-lines').textContent = totalLinesAll;
+                        document.getElementById('avg-score').textContent = avgScore;
+                    }
+                })
+                .catch(() => {});
+        }
+
+        // ==================== ЛИДЕРБОРД С ПИТОМЦАМИ ====================
+        function showLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Загрузка...</div>';
+            showScreen('leaderboard');
+            
+            fetch('/api/top-players?gameType=tetris&limit=10')
+                .then(r => r.json())
+                .then(result => {
+                    const players = result.players || [];
+                    list.innerHTML = '';
+                    
+                    if (players.length === 0) {
+                        list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Пока нет игроков</div>';
+                        return;
+                    }
+                    
+                    players.forEach((p, i) => {
+                        const pid = p.user_id || p.telegram_id || '';
+                        const isMe = pid === telegramUserId;
+                        const rankColor = i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#ffcc66';
+                        const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                        const playerScore = p.best_score || p.score || 0;
+                        const playerLevel = p.best_level || p.level || 0;
+                        
+                        // ПОЛУЧАЕМ ПИТОМЦЕВ ПО СЧЁТУ
+                        let petsHtml = '';
+                        if (playerScore >= 1000) {
+                            const petIndex = Math.floor((playerScore - 1000) / 1000);
+                            const maxPets = Math.min(petIndex + 1, 25); // Максимум 25 базовых питомцев
+                            
+                            for (let j = 0; j < Math.min(maxPets, 8); j++) {
+                                const pet = BASE_PETS[j % BASE_PETS.length];
+                                const tier = Math.floor(j / BASE_PETS.length);
+                                const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+                                const emoji = `${rank.prefix}${pet.emoji}`;
+                                petsHtml += `<span class="leaderboard-pet" style="border-color: ${rank.color}80;">${emoji}</span>`;
+                            }
+                            if (maxPets > 8) {
+                                petsHtml += `<span style="color:#ffd700; margin-left:4px;">+${maxPets - 8}</span>`;
+                            }
+                        } else {
+                            petsHtml = '<span style="color:#aaccff;">🐾 нет</span>';
+                        }
+                        
+                        const item = document.createElement('div');
+                        item.className = 'leaderboard-item';
+                        if (isMe) {
+                            item.style.background = 'linear-gradient(145deg, rgba(102,204,153,0.2), rgba(77,179,128,0.1))';
+                            item.style.border = '2px solid #66ffaa';
+                        }
+                        
+                        item.innerHTML = `
+                            <div class="rank" style="color:${rankColor};">${rankIcon}</div>
+                            <div class="player-info">
+                                <div class="player-name" style="color:${isMe ? '#66ffaa' : 'white'};">
+                                    ${p.display_name || p.username || `Игрок ${pid.slice(-4)}`}
+                                    ${isMe ? ' 👑' : ''}
+                                </div>
+                                <div class="player-score">
+                                    🏆 ${playerScore} очков • Ур.${playerLevel}
+                                </div>
+                                <div class="leaderboard-pets">
+                                    ${petsHtml}
+                                </div>
+                                ${p.city && p.city !== 'Не указан' ? 
+                                    `<div class="leaderboard-city">📍 ${p.city}</div>` : ''}
+                            </div>
+                        `;
+                        list.appendChild(item);
+                    });
+                })
+                .catch(() => {
+                    list.innerHTML = '<div style="text-align:center; padding:30px; color:#ff6666;">❌ Ошибка загрузки</div>';
+                });
+        }
+
+        // ==================== УРОВНИ СЛОЖНОСТИ ====================
+        function showLevels() {
+            const grid = document.getElementById('levels-grid');
+            grid.innerHTML = '';
+            DIFFICULTY_LEVELS.forEach(l => {
+                grid.innerHTML += `<div class="level-card ${l.id === currentDifficulty ? 'active' : ''}" onclick="selectDifficulty('${l.id}')">
+                    <div class="level-icon">${l.icon}</div>
+                    <div class="level-name">${l.name}</div>
+                    <div class="level-desc">${l.speed}ms</div>
+                </div>`;
+            });
+            showScreen('levels');
+        }
+
+        function selectDifficulty(id) {
+            currentDifficulty = id;
+            showLevels();
+            showNotification(`Сложность: ${DIFFICULTY_LEVELS.find(d => d.id === id).name}`);
+        }
+
+        // ==================== СТАТИСТИКА ====================
+        function showStats() {
+            loadPets();
+            loadUserStats();
+            updateCollectionInUI();
+            showScreen('stats');
+        }
+
+        function showMenu() { 
+            showScreen('menu'); 
+            if (gameActive && !gamePaused) {
+                pauseGame(); 
+            }
+        }
+        
+        function showScreen(s) { 
+            Object.keys(screens).forEach(k => screens[k].classList.remove('active')); 
+            screens[s].classList.add('active'); 
+        }
+        
+        function showNotification(m) { 
+            const n = document.getElementById('notification'); 
+            n.textContent = m; 
+            n.classList.add('show'); 
+            setTimeout(() => n.classList.remove('show'), 2000); 
+        }
+
+        // ==================== КЛАВИАТУРА ====================
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('keyboard-controls')?.checked) return;
+            if (e.key.startsWith('Arrow')) e.preventDefault();
+            if (e.key === 'ArrowLeft') moveLeft();
+            if (e.key === 'ArrowRight') moveRight();
+            if (e.key === 'ArrowDown') moveDown();
+            if (e.key === 'ArrowUp') rotatePiece();
+            if (e.key === ' ') { e.preventDefault(); hardDrop(); }
+            if (e.key === 'p' || e.key === 'P') pauseGame();
+            if (e.key === 'Escape') showMenu();
+        });
+
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
+        window.addEventListener('load', () => {
+            console.log('🎮 Тетрис PRO — Классика (29 уровней) + Бесконечные питомцы + Лидерборд!');
+            loadPets();
+            loadUserStats();
+            board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+            drawBoard();
+            selectDifficulty('classic');
+            showNotification('✨ Классическая сложность! Питомцы каждые 1000 очков!');
+        });
+    </script>
+</body>
+</html>
