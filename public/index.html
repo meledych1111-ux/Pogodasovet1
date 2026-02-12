@@ -121,11 +121,10 @@
 </head>
 <body>
     <div class="game-container">
-        <!-- ГЛАВНОЕ МЕНЮ -->
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС PRO</h1>
-                <p class="subtitle">Классика • 29 уровней • Питомцы за рекорды</p>
+                <p class="subtitle">Классика • 29 уровней • Питомцы за каждую игру</p>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startNewGame()">🎮 НОВАЯ ИГРА</button>
@@ -136,7 +135,6 @@
             <div class="footer"><p style="color: #aaccff;">База данных Neon PostgreSQL</p></div>
         </div>
         
-        <!-- ИГРОВОЙ ЭКРАН -->
         <div class="screen" id="game-screen">
             <div class="game-header">
                 <div><button class="back-btn" onclick="showMenu()">МЕНЮ</button></div>
@@ -184,29 +182,24 @@
             </div>
         </div>
         
-        <!-- СТАТИСТИКА -->
         <div class="screen" id="stats-screen">
             <div class="header">
                 <h1 class="game-title">СТАТИСТИКА</h1>
                 <p class="subtitle" id="stats-player-info">Загрузка...</p>
             </div>
-            <div class="stats-container" id="stats-container">
-                <!-- Динамически заполняется -->
-            </div>
+            <div class="stats-container" id="stats-container"></div>
             <div class="footer">
                 <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
                 <button class="back-btn" onclick="refreshStats()">🔄 ОБНОВИТЬ</button>
             </div>
         </div>
         
-        <!-- УРОВНИ СЛОЖНОСТИ -->
         <div class="screen" id="levels-screen">
             <div class="header"><h1 class="game-title">УРОВНИ</h1><p class="subtitle">Выберите сложность</p></div>
             <div class="levels-grid" id="levels-grid"></div>
             <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
         </div>
         
-        <!-- ЛИДЕРБОРД -->
         <div class="screen" id="leaderboard-screen">
             <div class="header"><h1 class="game-title">ЛИДЕРБОРД</h1><p class="subtitle">Топ-10 игроков и их питомцы</p></div>
             <div class="leaderboard-list" id="leaderboard-list"></div>
@@ -262,7 +255,6 @@
             [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]], [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]]
         ];
 
-        // ==================== УРОВНИ СЛОЖНОСТИ ====================
         const DIFFICULTY_LEVELS = [
             { id: 'easy', name: 'Легкий', speed: 800, icon: '🐣' },
             { id: 'medium', name: 'Средний', speed: 600, icon: '⚡' },
@@ -271,7 +263,6 @@
             { id: 'insane', name: 'Безумие', speed: 200, icon: '💀' }
         ];
 
-        // ==================== КЛАССИЧЕСКИЕ УРОВНИ (29 УРОВНЕЙ) ====================
         const GAME_LEVELS = [
             { level: 0, min: 0, max: 999, speed: 800 },
             { level: 1, min: 1000, max: 1999, speed: 720 },
@@ -305,7 +296,6 @@
             { level: 29, min: 29000, max: Infinity, speed: 80 }
         ];
 
-        // ==================== БАЗОВЫЕ ПИТОМЦЫ (25 ШТУК) ====================
         const BASE_PETS = [
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🐟' },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 2000, food: '🦴' },
@@ -334,7 +324,6 @@
             { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 25000, food: '🐟' }
         ];
 
-        // ==================== РАНГИ ПИТОМЦЕВ ====================
         const PET_RANKS = [
             { prefix: '', name: 'Обычный', min: 0, max: 24, color: '#FFFFFF' },
             { prefix: '✨', name: 'Блестящий', min: 25, max: 49, color: '#FFD700' },
@@ -346,7 +335,6 @@
             { prefix: '♾️', name: 'Бесконечный', min: 175, max: Infinity, color: '#00FFFF' }
         ];
 
-        // ==================== DOM ====================
         const screens = {
             menu: document.getElementById('menu-screen'),
             game: document.getElementById('game-screen'),
@@ -438,10 +426,10 @@
         function getPetByScore(scoreValue) {
             if (scoreValue < 1000) return null;
             
-            const petIndex = Math.floor((scoreValue - 1000) / 1000);
-            const basePet = BASE_PETS[petIndex % BASE_PETS.length];
-            const tier = Math.floor(petIndex / BASE_PETS.length);
+            const petIndex = Math.floor((scoreValue - 1000) / 1000) % BASE_PETS.length;
+            const tier = Math.floor((scoreValue - 1000) / 1000 / BASE_PETS.length);
             const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+            const basePet = BASE_PETS[petIndex];
             
             return {
                 ...basePet,
@@ -498,76 +486,161 @@
             }
         }
 
-        // ==================== СТАТИСТИКА ТОЛЬКО ИЗ NEON ====================
-        function updateStatsUI() {
-            const statsContainer = document.getElementById('stats-container');
-            if (!statsContainer) return;
-            
-            // 1️⃣ БЕРЕМ ТОЛЬКО ИЗ NEON
-            const playerBestScore = bestScore || 0;
-            const playerTotalLines = totalLinesAll || 0;
-            
-            // 2️⃣ ВЫЧИСЛЯЕМ ПИТОМЦЕВ ПО BEST_SCORE
-            const totalPetsCount = Math.floor(playerBestScore / 1000);
-            
-            // Группируем питомцев по ID
-            const petGroups = {};
-            
-            for (let i = 0; i < totalPetsCount; i++) {
-                const petIndex = i % BASE_PETS.length;
-                const tier = Math.floor(i / BASE_PETS.length);
-                const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
-                const pet = BASE_PETS[petIndex];
-                const petKey = pet.id;
-                
-                if (!petGroups[petKey]) {
-                    petGroups[petKey] = {
-                        ...pet,
-                        count: 0,
-                        rank: rank,
-                        emoji: `${rank.prefix}${pet.emoji}`,
-                        color: rank.color,
-                        foodCount: 0
-                    };
-                }
-                petGroups[petKey].count++;
+        // ==================== ЗАГРУЗКА ВСЕХ ИГР ИЗ NEON ====================
+        async function loadAllUserGames() {
+            if (!telegramUserId || telegramUserId.startsWith('guest_')) {
+                const demoGames = [
+                    { score: 1200, lines: 45 },
+                    { score: 800, lines: 30 },
+                    { score: 1500, lines: 52 },
+                    { score: 2100, lines: 78 },
+                    { score: 900, lines: 34 },
+                    { score: 1800, lines: 65 },
+                    { score: 3400, lines: 127 },
+                    { score: 1100, lines: 41 },
+                    { score: 2300, lines: 85 },
+                    { score: 1600, lines: 58 },
+                    { score: 2800, lines: 95 },
+                    { score: 1900, lines: 70 }
+                ];
+                return demoGames;
             }
             
-            // 3️⃣ РАСПРЕДЕЛЯЕМ ЕДУ (1 линия = 1 еда)
-            if (totalPetsCount > 0) {
-                const foodPerPet = Math.floor(playerTotalLines / totalPetsCount);
-                const remainingFood = playerTotalLines % totalPetsCount;
+            try {
+                const response = await fetch(`/api/user-all-games?telegramId=${telegramUserId}&gameType=tetris`);
+                const result = await response.json();
+                return result.games || [];
+            } catch (error) {
+                console.error('Ошибка загрузки игр:', error);
+                return [];
+            }
+        }
+
+        // ==================== ПОДСЧЕТ ПИТОМЦЕВ ИЗ ВСЕХ ИГР ====================
+        function calculatePetsFromGames(games) {
+            const petCounts = {};
+            let totalLines = 0;
+            
+            games.forEach(game => {
+                const gameScore = game.score || 0;
+                const gameLines = game.lines || 0;
+                totalLines += gameLines;
+                
+                const petsEarned = Math.floor(gameScore / 1000);
+                
+                for (let i = 0; i < petsEarned; i++) {
+                    const petIndex = i % BASE_PETS.length;
+                    const tier = Math.floor(i / BASE_PETS.length);
+                    const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+                    const pet = BASE_PETS[petIndex];
+                    const petId = `${rank.prefix}_${pet.id}`;
+                    
+                    petCounts[petId] = (petCounts[petId] || 0) + 1;
+                }
+            });
+            
+            return { petCounts, totalLines };
+        }
+
+        // ==================== РАСПРЕДЕЛЕНИЕ ЕДЫ ====================
+        function calculateFood(petCounts, totalLines) {
+            const petFood = {};
+            const totalPets = Object.values(petCounts).reduce((a, b) => a + b, 0);
+            
+            if (totalPets > 0) {
+                const foodPerPet = Math.floor(totalLines / totalPets);
+                const remainingFood = totalLines % totalPets;
                 
                 let index = 0;
-                Object.keys(petGroups).forEach(key => {
-                    const pet = petGroups[key];
-                    pet.foodCount = pet.count * foodPerPet;
+                Object.keys(petCounts).forEach(petId => {
+                    const count = petCounts[petId];
+                    petFood[petId] = count * foodPerPet;
                     if (index < remainingFood) {
-                        pet.foodCount += 1;
+                        petFood[petId] += 1;
                     }
                     index++;
                 });
             }
             
-            // 4️⃣ ПРЕОБРАЗУЕМ В МАССИВ И СОРТИРУЕМ
-            const unlockedPets = Object.values(petGroups);
-            unlockedPets.sort((a, b) => a.score - b.score);
+            return petFood;
+        }
+
+        // ==================== ОБНОВЛЕНИЕ СТАТИСТИКИ ====================
+        async function updateStatsUI() {
+            const statsContainer = document.getElementById('stats-container');
+            if (!statsContainer) return;
             
-            // 5️⃣ СЛЕДУЮЩИЙ ПИТОМЕЦ
-            const nextScore = (totalPetsCount + 1) * 1000;
-            const nextPetIndex = totalPetsCount % BASE_PETS.length;
-            const nextTier = Math.floor(totalPetsCount / BASE_PETS.length);
-            const nextRank = PET_RANKS[Math.min(nextTier, PET_RANKS.length - 1)];
-            const nextPet = BASE_PETS[nextPetIndex];
-            const progress = playerBestScore > 0 ? ((playerBestScore / nextScore) * 100).toFixed(1) : 0;
-            const needPoints = nextScore - playerBestScore;
+            const allGames = await loadAllUserGames();
             
-            // 6️⃣ HTML СТАТИСТИКИ
+            const { petCounts, totalLines } = calculatePetsFromGames(allGames);
+            const petFoodCalculated = calculateFood(petCounts, totalLines);
+            
+            gamesPlayed = allGames.length;
+            bestScore = Math.max(...allGames.map(g => g.score), 0);
+            totalLinesAll = totalLines;
+            avgScore = gamesPlayed > 0 ? Math.round(allGames.reduce((sum, g) => sum + g.score, 0) / gamesPlayed) : 0;
+            bestLevel = getGameLevelFromScore(bestScore);
+            
+            document.getElementById('stats-player-info').innerHTML = `${telegramUsername} • ID: ${telegramUserId.substring(0, 8)}...`;
+            
+            const petGroups = {};
+            let totalPetsEarned = 0;
+            
+            Object.keys(petCounts).forEach(petId => {
+                const count = petCounts[petId];
+                if (count > 0) {
+                    const [prefix, id] = petId.split('_');
+                    const basePet = BASE_PETS.find(p => p.id === id);
+                    const rank = PET_RANKS.find(r => r.prefix === prefix) || PET_RANKS[0];
+                    
+                    if (basePet) {
+                        const key = basePet.id;
+                        if (!petGroups[key]) {
+                            petGroups[key] = {
+                                ...basePet,
+                                count: 0,
+                                foodTotal: 0,
+                                score: basePet.score,
+                                emoji: basePet.emoji,
+                                color: basePet.color
+                            };
+                        }
+                        petGroups[key].count += count;
+                        petGroups[key].foodTotal += petFoodCalculated[petId] || 0;
+                        totalPetsEarned += count;
+                    }
+                }
+            });
+            
+            const sortedPets = Object.values(petGroups).sort((a, b) => a.score - b.score);
+            
+            let nextPet = null;
+            let nextPetProgress = 0;
+            let needPoints = 0;
+            
+            if (totalPetsEarned < 25) {
+                const nextScore = (totalPetsEarned + 1) * 1000;
+                const nextPetIndex = totalPetsEarned % BASE_PETS.length;
+                const nextTier = Math.floor(totalPetsEarned / BASE_PETS.length);
+                const nextRank = PET_RANKS[Math.min(nextTier, PET_RANKS.length - 1)];
+                const nextBasePet = BASE_PETS[nextPetIndex];
+                
+                nextPet = {
+                    ...nextBasePet,
+                    rank: nextRank,
+                    emoji: `${nextRank.prefix}${nextBasePet.emoji}`,
+                    color: nextRank.color,
+                    score: nextScore
+                };
+                
+                nextPetProgress = bestScore > 0 ? ((bestScore / nextScore) * 100).toFixed(1) : 0;
+                needPoints = nextScore - bestScore;
+            }
+            
             let html = `
-                <!-- 🏆 NEON СТАТИСТИКА (ЗА ВСЕ ВРЕМЯ) -->
                 <div class="stat-card" style="border-left-color: #6a5bff;">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>🏆</span> NEON СТАТИСТИКА
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">
+                        <span>🏆</span> ОБЩАЯ СТАТИСТИКА
                     </h3>
                     <div class="stat-row">
                         <span class="stat-label">🎮 Сыграно игр:</span>
@@ -575,7 +648,7 @@
                     </div>
                     <div class="stat-row">
                         <span class="stat-label">🏆 Лучший счет:</span>
-                        <span class="stat-value" style="color: #ffd700; font-size: 1.3rem;">${playerBestScore}</span>
+                        <span class="stat-value" style="color: #ffd700; font-size: 1.3rem;">${bestScore}</span>
                     </div>
                     <div class="stat-row">
                         <span class="stat-label">⭐ Рекордный уровень:</span>
@@ -583,7 +656,7 @@
                     </div>
                     <div class="stat-row">
                         <span class="stat-label">📏 Всего линий:</span>
-                        <span class="stat-value" style="color: #4ecdc4; font-size: 1.1rem;">${playerTotalLines}</span>
+                        <span class="stat-value" style="color: #4ecdc4; font-size: 1.1rem;">${totalLinesAll}</span>
                     </div>
                     <div class="stat-row">
                         <span class="stat-label">💰 Средний счет:</span>
@@ -591,9 +664,8 @@
                     </div>
                 </div>
                 
-                <!-- 🎮 ТЕКУЩАЯ СЕССИЯ (ТОЛЬКО ЦИФРЫ, БЕЗ ПИТОМЦЕВ) -->
                 <div class="stat-card" style="border-left-color: #4ecdc4;">
-                    <h3 style="color: #4ecdc4; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                    <h3 style="color: #4ecdc4; margin-bottom: 15px;">
                         <span>🎮</span> ТЕКУЩАЯ СЕССИЯ
                     </h3>
                     <div class="stat-row">
@@ -608,30 +680,23 @@
                         <span class="stat-label">📏 Линии в сессии:</span>
                         <span class="stat-value">${lines}</span>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">🎮 Игра активна:</span>
-                        <span class="stat-value" style="color: ${gameActive && !gamePaused ? '#66ffaa' : '#ffaa66'};">
-                            ${gameActive ? (gamePaused ? '⏸ Пауза' : '▶ Да') : '⏹ Нет'}
-                        </span>
-                    </div>
                 </div>
             `;
             
-            // 7️⃣ ПРОГРЕСС ДО СЛЕДУЮЩЕГО ПИТОМЦА (ЕСЛИ ЕСТЬ КУДА РАСТИ)
-            if (playerBestScore < 25000) {
+            if (nextPet) {
                 html += `
-                    <div class="stat-card" style="border-left-color: ${nextRank.color};">
-                        <h3 style="color: ${nextRank.color}; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                    <div class="stat-card" style="border-left-color: ${nextPet.color};">
+                        <h3 style="color: ${nextPet.color}; margin-bottom: 15px;">
                             <span>🎯</span> СЛЕДУЮЩИЙ ПИТОМЕЦ
                         </h3>
                         <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
                             <div style="position: relative;">
                                 <span style="font-size: 3rem;">${nextPet.emoji}</span>
-                                ${nextRank.prefix ? `<span style="position: absolute; top: -5px; right: -10px; font-size: 1.5rem; color: ${nextRank.color};">${nextRank.prefix}</span>` : ''}
+                                ${nextPet.rank.prefix ? `<span style="position: absolute; top: -5px; right: -10px; font-size: 1.5rem; color: ${nextPet.color};">${nextPet.rank.prefix}</span>` : ''}
                             </div>
                             <div>
-                                <div style="font-size: 1.2rem; font-weight: bold;">${nextRank.prefix}${nextPet.name}</div>
-                                <div style="color: #aaccff; font-size: 0.9rem;">${nextScore} очков</div>
+                                <div style="font-size: 1.2rem; font-weight: bold;">${nextPet.rank.prefix}${nextPet.name}</div>
+                                <div style="color: #aaccff; font-size: 0.9rem;">${nextPet.score} очков</div>
                                 <div style="display: flex; align-items: center; gap: 5px; margin-top: 5px; color: #ffd700;">
                                     <span>${nextPet.food}</span>
                                     <span>+3 за получение</span>
@@ -641,15 +706,15 @@
                         
                         <div style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 12px;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: #aaccff;">Прогресс</span>
-                                <span style="color: #ffd700; font-weight: bold;">${playerBestScore} / ${nextScore}</span>
+                                <span style="color: #aaccff;">Лучший счет</span>
+                                <span style="color: #ffd700; font-weight: bold;">${bestScore} / ${nextPet.score}</span>
                             </div>
                             <div style="width: 100%; height: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; overflow: hidden; margin-bottom: 8px;">
-                                <div style="height: 100%; width: ${progress}%; background: linear-gradient(90deg, ${nextRank.color}, #ffaa00); border-radius: 5px;"></div>
+                                <div style="height: 100%; width: ${nextPetProgress}%; background: linear-gradient(90deg, ${nextPet.color}, #ffaa00); border-radius: 5px;"></div>
                             </div>
                             <div style="display: flex; justify-content: space-between;">
                                 <span style="color: #ffaa66;">⏳ Осталось: ${needPoints} очков</span>
-                                <span style="background: rgba(255,215,0,0.2); padding: 2px 12px; border-radius: 20px; color: #ffd700;">${progress}%</span>
+                                <span style="background: rgba(255,215,0,0.2); padding: 2px 12px; border-radius: 20px; color: #ffd700;">${nextPetProgress}%</span>
                             </div>
                         </div>
                     </div>
@@ -666,20 +731,19 @@
                 `;
             }
             
-            // 8️⃣ КОЛЛЕКЦИЯ ПИТОМЦЕВ (ТОЛЬКО ПОЛУЧЕННЫЕ)
-            if (unlockedPets.length > 0) {
+            if (sortedPets.length > 0) {
                 html += `
                     <div class="stat-card">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="color: #ff99aa; display: flex; align-items: center; gap: 8px;">
-                                <span>🐾</span> КОЛЛЕКЦИЯ ПИТОМЦЕВ
+                            <h3 style="color: #ff99aa;">
+                                <span>🐾</span> МОИ ПИТОМЦЫ
                             </h3>
                             <div style="display: flex; gap: 10px;">
-                                <span style="background: rgba(255,215,0,0.2); padding: 4px 15px; border-radius: 20px; font-size: 0.9rem;">
-                                    🏆 ${totalPetsCount}
+                                <span style="background: rgba(255,215,0,0.2); padding: 4px 15px; border-radius: 20px;">
+                                    🏆 ${totalPetsEarned}
                                 </span>
-                                <span style="background: rgba(78,205,196,0.2); padding: 4px 15px; border-radius: 20px; font-size: 0.9rem;">
-                                    📏 ${playerTotalLines}
+                                <span style="background: rgba(78,205,196,0.2); padding: 4px 15px; border-radius: 20px;">
+                                    📏 ${totalLinesAll}
                                 </span>
                             </div>
                         </div>
@@ -687,22 +751,26 @@
                         <div class="pets-collection-grid">
                 `;
                 
-                unlockedPets.forEach(pet => {
+                sortedPets.forEach(pet => {
                     html += `
-                        <div class="pet-card" style="border-left-color: ${pet.color};">
-                            <div class="pet-info">
-                                <span class="pet-emoji-big">${pet.emoji}</span>
-                                <div class="pet-details">
-                                    <div class="pet-name-rank">
-                                        <span style="font-weight: bold;">${pet.name}</span>
-                                        <span class="pet-count-badge">×${pet.count}</span>
+                        <div style="background: rgba(30,40,100,0.5); border-radius: 12px; padding: 12px; margin-bottom: 10px; border-left: 6px solid ${pet.color}; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 2.2rem;">${pet.emoji}</span>
+                                <div>
+                                    <div style="font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                                        ${pet.name}
+                                        <span style="background: rgba(255,215,0,0.2); padding: 2px 12px; border-radius: 20px; font-size: 0.9rem; color: #ffcc66;">
+                                            ×${pet.count}
+                                        </span>
                                     </div>
-                                    <div class="pet-score">${pet.score} очков</div>
+                                    <div style="color: #aaccff; font-size: 0.85rem; margin-top: 4px;">
+                                        ${pet.score} очков
+                                    </div>
                                 </div>
                             </div>
-                            <div class="pet-food-display">
-                                <span>${pet.food}</span>
-                                <span class="pet-food-amount">×${pet.foodCount}</span>
+                            <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,215,0,0.1); padding: 6px 16px; border-radius: 30px;">
+                                <span style="font-size: 1.1rem;">${pet.food}</span>
+                                <span style="font-weight: bold; color: #ffd700; font-size: 1.1rem;">×${pet.foodTotal}</span>
                             </div>
                         </div>
                     `;
@@ -712,43 +780,49 @@
                         </div>
                     </div>
                 `;
+            } else {
+                html += `
+                    <div class="stat-card" style="text-align: center; padding: 25px;">
+                        <span style="font-size: 3rem;">🐣</span>
+                        <h3 style="color: #aaccff; margin: 10px 0;">У вас пока нет питомцев</h3>
+                        <p style="color: #aaccff;">Сыграйте игру и наберите 1000 очков!</p>
+                    </div>
+                `;
             }
             
-            // 9️⃣ ВСЕГО ЕДЫ
-            const totalFood = unlockedPets.reduce((sum, pet) => sum + pet.foodCount, 0);
+            const totalFood = Object.values(petFoodCalculated).reduce((a, b) => a + b, 0);
             if (totalFood > 0) {
                 html += `
                     <div class="stat-card" style="background: rgba(255,215,0,0.05); border-left-color: #ffd700;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="font-size: 1.8rem;">🍖</span>
-                                <span style="font-weight: bold; font-size: 1.1rem;">ВСЕГО ЕДЫ</span>
+                                <div>
+                                    <div style="font-weight: bold; font-size: 1.1rem;">ВСЕГО ЕДЫ</div>
+                                    <div style="color: #aaccff; font-size: 0.8rem;">Из ${totalLinesAll} линий</div>
+                                </div>
                             </div>
-                            <span style="font-size: 1.8rem; font-weight: bold; color: #ffd700;">${totalFood}</span>
-                        </div>
-                        <div style="display: flex; gap: 15px; margin-top: 10px; color: #aaccff; font-size: 0.9rem;">
-                            <span>📊 Из линий: ${playerTotalLines}</span>
-                            <span>🎯 На питомцев: ${totalFood}</span>
+                            <span style="font-size: 2rem; font-weight: bold; color: #ffd700;">${totalFood}</span>
                         </div>
                     </div>
                 `;
             }
             
-            // 🔟 NEON DATABASE
             html += `
                 <div class="stat-card" style="border-left-color: #4ecdc4;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <h3 style="color: #4ecdc4; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                            <h3 style="color: #4ecdc4; margin-bottom: 5px;">
                                 <span>💾</span> NEON DATABASE
                             </h3>
                             <p style="color: #66ffaa; font-size: 0.85rem;">✓ Подключено</p>
+                            <p style="color: #aaccff; font-size: 0.8rem;">📦 ${gamesPlayed} игр в базе</p>
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button onclick="refreshStats()" style="background: rgba(78,205,196,0.2); border: 1px solid #4ecdc4; color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem;">
+                            <button onclick="refreshStats()" style="background: rgba(78,205,196,0.2); border: 1px solid #4ecdc4; color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer;">
                                 🔄
                             </button>
-                            <button onclick="saveGameScore()" style="background: rgba(102,204,153,0.2); border: 1px solid #66cc99; color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem;">
+                            <button onclick="saveGameScore()" style="background: rgba(102,204,153,0.2); border: 1px solid #66cc99; color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer;">
                                 💾
                             </button>
                         </div>
@@ -1154,44 +1228,7 @@
         }
 
         function loadUserStats() {
-            if (!telegramUserId || telegramUserId.startsWith('guest_')) {
-                gamesPlayed = 24;
-                totalLinesAll = 127;
-                bestScore = 3400;
-                bestLevel = 3;
-                avgScore = 1450;
-                
-                document.getElementById('stats-player-info').innerHTML = `Гость • ID: ${telegramUserId.substring(0, 8)}...`;
-                updateStatsUI();
-                return;
-            }
-            
-            fetch(`/api/user-stats?telegramId=${telegramUserId}&gameType=tetris`)
-                .then(r => r.json())
-                .then(result => {
-                    if (result.success && result.stats) {
-                        const s = result.stats;
-                        
-                        gamesPlayed = s.games_played || 0;
-                        totalLinesAll = s.total_lines || s.best_lines || 0;
-                        bestScore = s.best_score || 0;
-                        bestLevel = s.best_level || 0;
-                        avgScore = Math.round(s.avg_score || 0);
-                        
-                        document.getElementById('stats-player-info').innerHTML = `${telegramUsername} • ID: ${telegramUserId.substring(0, 8)}...`;
-                        updateStatsUI();
-                    }
-                })
-                .catch(() => {
-                    gamesPlayed = 24;
-                    totalLinesAll = 127;
-                    bestScore = 3400;
-                    bestLevel = 3;
-                    avgScore = 1450;
-                    
-                    document.getElementById('stats-player-info').innerHTML = `${telegramUsername} • ID: ${telegramUserId.substring(0, 8)}...`;
-                    updateStatsUI();
-                });
+            updateStatsUI();
         }
 
         function refreshStats() {
@@ -1231,10 +1268,7 @@
                             
                             for (let j = 0; j < displayPets; j++) {
                                 const pet = BASE_PETS[j % BASE_PETS.length];
-                                const tier = Math.floor(j / BASE_PETS.length);
-                                const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
-                                const emoji = `${rank.prefix}${pet.emoji}`;
-                                petsHtml += `<span class="leaderboard-pet" style="border-color: ${rank.color}80;">${emoji}</span>`;
+                                petsHtml += `<span class="leaderboard-pet" style="border-color: ${pet.color}80;">${pet.emoji}</span>`;
                             }
                             if (maxPets > 5) {
                                 petsHtml += `<span style="color:#ffd700; margin-left:4px;">+${maxPets - 5}</span>`;
@@ -1336,13 +1370,13 @@
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис PRO — Классика (29 уровней) + Питомцы за рекорды');
+            console.log('🎮 Тетрис PRO — Классика (29 уровней) + Питомцы за каждую игру');
             loadPets();
             loadUserStats();
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             drawBoard();
             selectDifficulty('classic');
-            showNotification('✨ Питомцы за лучший счет в Neon!');
+            showNotification('✨ Питомцы за каждые 1000 очков в игре!');
         });
     </script>
 </body>
