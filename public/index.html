@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        /* ==================== ТВОИ ОРИГИНАЛЬНЫЕ СТИЛИ ==================== */
+        /* ==================== СБРОС И ОСНОВНЫЕ СТИЛИ ==================== */
         * { 
             margin: 0; 
             padding: 0; 
@@ -66,6 +66,7 @@
             pointer-events: all;
         }
         
+        /* ==================== ЗАГОЛОВОК ==================== */
         .header {
             text-align: center;
             margin-bottom: 15px;
@@ -89,6 +90,7 @@
             font-size: 0.85rem;
         }
         
+        /* ==================== КНОПКИ МЕНЮ ==================== */
         .menu-buttons {
             flex: 1;
             display: flex;
@@ -144,169 +146,139 @@
             border-color: rgba(102, 204, 204, 0.4);
         }
         
-        /* ==================== ИГРОВОЙ ЭКРАН ==================== */
+        /* ==================== ИГРОВОЙ ЭКРАН - КОМПАКТНАЯ ВЕРХНЯЯ ПАНЕЛЬ ==================== */
         #game-screen {
             display: flex;
             flex-direction: column;
-            padding: 10px;
+            padding: 8px;
         }
         
         .game-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 15px;
+            padding: 2px 8px;
             background: rgba(20, 30, 80, 0.5);
-            border-radius: 10px;
-            margin-bottom: 12px;
+            border-radius: 6px;
+            margin-bottom: 4px;
             flex-shrink: 0;
             border: 1px solid rgba(68, 85, 204, 0.3);
+            min-height: 36px;
+            height: 36px;
         }
         
+        /* КНОПКА МЕНЮ - СО СЛОВОМ! */
+        .back-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            min-width: 65px;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            font-weight: 500;
+        }
+        
+        .back-btn:before {
+            content: "←";
+            margin-right: 2px;
+        }
+        
+        /* КОНТЕЙНЕР СТАТИСТИКИ - ОДНА СТРОКА */
         .game-info {
             display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
+            gap: 4px;
             align-items: center;
+            justify-content: flex-end;
+            height: 32px;
         }
         
+        /* МИКРО-БОКСЫ - БЕЗ ТЕКСТА, ТОЛЬКО ЦИФРЫ */
         .info-box {
             background: rgba(10, 20, 60, 0.7);
-            padding: 8px 10px;
-            border-radius: 8px;
-            text-align: center;
-            min-width: 65px;
-            flex: 1;
-            max-width: 85px;
+            padding: 2px 8px;
+            border-radius: 4px;
             border: 1px solid rgba(68, 85, 204, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 28px;
+            min-width: auto;
         }
         
         .info-label {
-            font-size: 0.7rem;
-            color: #aaccff;
-            margin-bottom: 4px;
+            display: none; /* Прячем "УРОВЕНЬ", "ОЧКИ", "ЛИНИИ" */
         }
         
         .info-value {
-            font-size: 1.2rem;
+            font-size: 0.9rem;
             font-weight: bold;
             color: #66ffaa;
         }
         
-        /* ==================== ПАНЕЛЬКА ПИТОМЦА ==================== */
+        /* РАЗДЕЛИТЕЛЬ - ТОЧКА МЕЖДУ БЛОКАМИ */
+        .game-info .info-box:not(:last-child) {
+            position: relative;
+            margin-right: 8px;
+        }
+        
+        .game-info .info-box:not(:last-child)::after {
+            content: "•";
+            position: absolute;
+            right: -8px;
+            color: #6a5bff;
+            font-size: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        /* КОМПАКТНАЯ ПАНЕЛЬКА ПИТОМЦА - БЕЗ ИМЕНИ */
         .pet-badge {
             display: flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(255, 182, 193, 0.15);
-            border-radius: 30px;
-            padding: 5px 14px;
+            gap: 2px;
+            background: rgba(255, 182, 193, 0.2);
+            border-radius: 16px;
+            padding: 2px 8px;
             border: 1px solid rgba(255, 182, 193, 0.3);
-            font-size: 0.85rem;
-            margin-left: 8px;
-            backdrop-filter: blur(5px);
-            transition: all 0.3s;
+            font-size: 0.8rem;
+            margin-left: 4px;
+            height: 28px;
+            white-space: nowrap;
         }
         
         .pet-emoji {
-            font-size: 1.1rem;
+            font-size: 0.95rem;
         }
         
         .pet-name {
-            color: #ffb6c1;
-            font-weight: 500;
+            display: none; /* Прячем имя питомца */
         }
         
         .pet-food-count {
-            background: rgba(255, 215, 0, 0.15);
-            padding: 2px 8px;
-            border-radius: 20px;
+            background: rgba(255, 215, 0, 0.2);
+            padding: 1px 6px;
+            border-radius: 12px;
             color: #ffd700;
-            font-size: 0.8rem;
-        }
-        
-        /* ==================== УВЕДОМЛЕНИЕ ДЛЯ ПИТОМЦА ==================== */
-        .pet-notification {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background: rgba(10, 15, 30, 0.95);
-            backdrop-filter: blur(10px);
-            border-left: 4px solid;
-            border-radius: 12px;
-            padding: 12px 20px;
-            color: white;
-            font-size: 0.9rem;
-            z-index: 10000;
-            animation: petNotify 2.5s ease forwards;
-            pointer-events: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-        
-        @keyframes petNotify {
-            0% { opacity: 0; transform: translateX(50px); }
-            10% { opacity: 1; transform: translateX(0); }
-            90% { opacity: 1; transform: translateX(0); }
-            100% { opacity: 0; transform: translateX(20px); }
-        }
-        
-        /* ==================== БЛОК ПИТОМЦЕВ В СТАТИСТИКЕ ==================== */
-        .pets-stats-block {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(255, 182, 193, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 182, 193, 0.15);
-        }
-        
-        .pets-stats-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #ff99aa;
+            font-size: 0.75rem;
             font-weight: bold;
-            margin-bottom: 15px;
         }
         
-        .pets-stats-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .pet-stat-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px 10px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-        }
-        
-        /* ==================== ПИТОМЦЫ В ЛИДЕРБОРДЕ ==================== */
-        .leaderboard-pets {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-            padding: 6px 12px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 30px;
-            font-size: 0.9rem;
-        }
-        
-        /* ==================== ОСТАЛЬНЫЕ ТВОИ СТИЛИ ==================== */
+        /* ==================== ИГРОВОЕ ПОЛЕ - БОЛЬШЕ! ==================== */
         .game-area {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 320px;
-            padding: 10px 0;
+            min-height: 440px;
+            padding: 2px 0;
+            height: calc(100% - 80px);
         }
         
         #tetris-canvas {
@@ -316,13 +288,17 @@
             box-shadow: 0 0 20px rgba(68, 85, 204, 0.2);
             max-width: 100%;
             max-height: 100%;
+            width: auto !important;
+            height: auto !important;
+            object-fit: contain;
         }
         
+        /* ==================== НИЖНЯЯ ПАНЕЛЬ - БЕЗ ИЗМЕНЕНИЙ ==================== */
         .game-controls-panel {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 8px;
+            margin-top: 8px;
             flex-shrink: 0;
         }
         
@@ -387,6 +363,7 @@
             transform: scale(0.95);
         }
         
+        /* ==================== СТАТИСТИКА ==================== */
         .stats-container {
             flex: 1;
             overflow-y: auto;
@@ -422,6 +399,7 @@
             color: #66ffaa;
         }
         
+        /* ==================== УРОВНИ ==================== */
         .levels-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -437,7 +415,6 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.2s;
-            border: 2px solid transparent;
             min-height: 110px;
             display: flex;
             flex-direction: column;
@@ -450,6 +427,23 @@
             border-color: rgba(102, 204, 153, 0.4);
         }
         
+        .level-icon {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+        
+        .level-name {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .level-desc {
+            font-size: 0.75rem;
+            color: #aaccff;
+        }
+        
+        /* ==================== ЛИДЕРБОРД ==================== */
         .leaderboard-list {
             flex: 1;
             overflow-y: auto;
@@ -488,6 +482,52 @@
             font-size: 1rem;
         }
         
+        /* ==================== ПИТОМЦЫ В ЛИДЕРБОРДЕ ==================== */
+        .leaderboard-pets {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        
+        /* ==================== БЛОК ПИТОМЦЕВ В СТАТИСТИКЕ ==================== */
+        .pets-stats-block {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 182, 193, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 182, 193, 0.15);
+        }
+        
+        .pets-stats-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #ff99aa;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .pets-stats-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .pet-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        /* ==================== ФУТЕР ==================== */
         .footer {
             padding: 12px 10px;
             text-align: center;
@@ -496,19 +536,7 @@
             flex-shrink: 0;
         }
         
-        .back-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: background 0.3s;
-            font-size: 0.85rem;
-            min-width: 100px;
-            min-height: 40px;
-        }
-        
+        /* ==================== УВЕДОМЛЕНИЯ ==================== */
         .notification {
             position: fixed;
             top: 20px;
@@ -529,18 +557,111 @@
             opacity: 1;
         }
         
+        /* ==================== УВЕДОМЛЕНИЕ ДЛЯ ПИТОМЦА ==================== */
+        .pet-notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(10, 15, 30, 0.95);
+            backdrop-filter: blur(10px);
+            border-left: 4px solid;
+            border-radius: 12px;
+            padding: 10px 18px;
+            color: white;
+            font-size: 0.85rem;
+            z-index: 10000;
+            animation: petNotify 2.5s ease forwards;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        @keyframes petNotify {
+            0% { opacity: 0; transform: translateX(50px); }
+            10% { opacity: 1; transform: translateX(0); }
+            90% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(20px); }
+        }
+        
+        /* ==================== АНИМАЦИИ ==================== */
+        @keyframes lineClear {
+            0% { opacity: 1; transform: scaleY(1); }
+            50% { opacity: 0.5; transform: scaleY(1.1); background: rgba(255, 255, 255, 0.6); }
+            100% { opacity: 0; transform: scaleY(1); }
+        }
+        
+        @keyframes pieceLand {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+            100% { transform: translateY(0); }
+        }
+        
+        @keyframes pieceSpawn {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .line-clearing {
+            animation: lineClear 0.4s ease-out;
+        }
+        
+        .piece-landing {
+            animation: pieceLand 0.2s ease;
+        }
+        
+        .piece-spawning {
+            animation: pieceSpawn 0.2s ease;
+        }
+        
+        /* ==================== АДАПТИВНОСТЬ ==================== */
         @media (max-width: 400px) {
             .game-title { font-size: 1.6rem; }
             .menu-btn { padding: 14px 10px; font-size: 0.9rem; }
-            .info-value { font-size: 1.1rem; }
-            .control-btn { font-size: 1.2rem; padding: 12px 5px; }
+            .info-value { font-size: 0.85rem; }
+            .control-btn { font-size: 1.2rem; padding: 12px 3px; }
+            .game-btn { font-size: 0.75rem; padding: 8px 2px; }
+            
+            .game-header {
+                padding: 2px 6px;
+                min-height: 34px;
+            }
+            
+            .back-btn {
+                padding: 3px 8px;
+                min-width: 58px;
+                font-size: 0.75rem;
+            }
+            
+            .info-box {
+                padding: 2px 6px;
+                height: 26px;
+            }
+            
+            .pet-badge {
+                padding: 2px 6px;
+                height: 26px;
+            }
         }
         
         @media (max-height: 700px) {
-            .game-area { min-height: 250px; }
-            .menu-btn { padding: 12px 10px; min-height: 50px; }
+            .game-container {
+                max-height: 650px;
+                min-height: 550px;
+            }
+            
+            .game-area {
+                min-height: 360px;
+            }
+            
+            .game-header {
+                min-height: 34px;
+                margin-bottom: 3px;
+            }
         }
         
+        /* ==================== SCROLLBAR ==================== */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -592,7 +713,9 @@
         <div class="screen" id="game-screen">
             <div class="game-header">
                 <div>
-                    <button class="back-btn" onclick="showMenu()">← МЕНЮ</button>
+                    <button class="back-btn" onclick="showMenu()">
+                        <span>МЕНЮ</span>
+                    </button>
                 </div>
                 <div class="game-info" id="game-info-container">
                     <div class="info-box">
@@ -607,7 +730,7 @@
                         <div class="info-label">ЛИНИИ</div>
                         <div class="info-value" id="lines-display">0</div>
                     </div>
-                    <!-- Панелька питомца будет добавлена сюда через JS -->
+                    <!-- Панелька питомца будет добавлена через JS -->
                 </div>
             </div>
             
@@ -777,10 +900,6 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // ==================== ТВОЙ ОРИГИНАЛЬНЫЙ КОД ====================
-        // ВЕСЬ ТВОЙ СУЩЕСТВУЮЩИЙ КОД ИГРЫ ОСТАЕТСЯ БЕЗ ИЗМЕНЕНИЙ
-        // НИЖЕ ДОБАВЛЕНЫ ТОЛЬКО ПИТОМЦЫ, НИЧЕГО НЕ УДАЛЕНО
-        
         // ==================== ПОЛУЧАЕМ ID ИЗ URL ПАРАМЕТРОВ ====================
         function getUrlParams() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1034,19 +1153,9 @@
                         const boardRow = y + row;
                         const boardCol = x + col;
                         
-                        if (boardCol < 0 || boardCol >= COLS) {
-                            return true;
-                        }
-                        
-                        if (boardRow >= ROWS) {
-                            return true;
-                        }
-                        
-                        if (boardRow >= 0) {
-                            if (board[boardRow] && board[boardRow][boardCol]) {
-                                return true;
-                            }
-                        }
+                        if (boardCol < 0 || boardCol >= COLS) return true;
+                        if (boardRow >= ROWS) return true;
+                        if (boardRow >= 0 && board[boardRow] && board[boardRow][boardCol]) return true;
                     }
                 }
             }
@@ -1056,10 +1165,8 @@
         function mergePiece() {
             for (let y = 0; y < currentPiece.shape.length; y++) {
                 for (let x = 0; x < currentPiece.shape[y].length; x++) {
-                    if (currentPiece.shape[y][x]) {
-                        if (currentY + y >= 0) {
-                            board[currentY + y][currentX + x] = currentPiece.color;
-                        }
+                    if (currentPiece.shape[y][x] && currentY + y >= 0) {
+                        board[currentY + y][currentX + x] = currentPiece.color;
                     }
                 }
             }
@@ -1664,12 +1771,13 @@
             const gameArea = document.querySelector('.game-area');
             if (!gameArea) return;
             
-            const maxWidth = gameArea.clientWidth - 20;
-            const maxHeight = gameArea.clientHeight - 20;
+            const maxWidth = gameArea.clientWidth - 10;
+            const maxHeight = gameArea.clientHeight - 10;
             
             const scale = Math.min(
                 maxWidth / (COLS * BLOCK_SIZE),
-                maxHeight / (ROWS * BLOCK_SIZE)
+                maxHeight / (ROWS * BLOCK_SIZE),
+                1.5
             );
             
             const newWidth = Math.floor(COLS * BLOCK_SIZE * scale);
@@ -1679,9 +1787,7 @@
             canvas.style.height = newHeight + 'px';
         }
 
-        // ==================== НОВАЯ СИСТЕМА ПИТОМЦЕВ ====================
-        // ТОЛЬКО ВИЗУАЛ! НЕ ТРОГАЕТ БАЗУ! НЕ ЛОМАЕТ БОТА!
-        
+        // ==================== СИСТЕМА ПИТОМЦЕВ ====================
         const PETS = [
             { id: 'cat', name: 'Котенок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🍣' },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1500, food: '🦴' },
@@ -1763,7 +1869,6 @@
             petPanel.className = 'pet-badge';
             petPanel.innerHTML = `
                 <span id="pet-emoji-header" class="pet-emoji">🐾</span>
-                <span id="pet-name-header" class="pet-name" style="color: #aaa;">нет</span>
                 <span id="pet-food-header" class="pet-food-count">0</span>
             `;
             
@@ -1772,23 +1877,18 @@
 
         function updatePetHeaderPanel() {
             const emojiEl = document.getElementById('pet-emoji-header');
-            const nameEl = document.getElementById('pet-name-header');
             const foodEl = document.getElementById('pet-food-header');
             const panel = document.getElementById('pet-header-panel');
             
-            if (!emojiEl || !nameEl || !foodEl || !panel) return;
+            if (!emojiEl || !foodEl || !panel) return;
             
             if (activePet) {
                 emojiEl.textContent = activePet.emoji;
-                nameEl.textContent = activePet.name;
-                nameEl.style.color = activePet.color;
                 foodEl.textContent = activePet.rewards || 0;
                 panel.style.borderColor = activePet.color + '80';
                 panel.style.background = `rgba(${hexToRgb(activePet.color)}, 0.15)`;
             } else {
                 emojiEl.textContent = '🐾';
-                nameEl.textContent = 'нет';
-                nameEl.style.color = '#aaa';
                 foodEl.textContent = '0';
                 panel.style.borderColor = 'rgba(255,182,193,0.3)';
                 panel.style.background = 'rgba(255,182,193,0.15)';
