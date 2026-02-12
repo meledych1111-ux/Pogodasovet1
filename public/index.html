@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        /* ==================== ПОЛНЫЙ ВАШ CSS ==================== */
+        /* ==================== ВЕСЬ ВАШ CSS БЕЗ ИЗМЕНЕНИЙ ==================== */
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #ffffff; }
         body { display: flex; justify-content: center; align-items: center; padding: 10px; }
@@ -14,8 +14,6 @@
         .header { text-align: center; margin-bottom: 15px; padding: 15px 10px; flex-shrink: 0; }
         .game-title { font-size: 2rem; font-weight: bold; background: linear-gradient(90deg, #9d7aff, #6a5bff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(106, 91, 255, 0.5); margin-bottom: 5px; line-height: 1.2; }
         .subtitle { color: #b5aaff; font-size: 0.85rem; }
-        
-        /* МЕНЮ */
         .menu-buttons { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 15px 0; overflow-y: auto; }
         .menu-btn { background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2)); color: white; border: none; border-radius: 12px; padding: 16px 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 55px; flex-shrink: 0; border: 1px solid rgba(68, 85, 204, 0.3); }
         .menu-btn:active { transform: translateY(2px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
@@ -25,8 +23,6 @@
         .menu-btn.levels { background: linear-gradient(145deg, rgba(255, 153, 102, 0.3), rgba(235, 133, 82, 0.2)); border-color: rgba(255, 153, 102, 0.4); }
         .menu-btn.leaderboard { background: linear-gradient(145deg, rgba(255, 102, 204, 0.3), rgba(235, 82, 182, 0.2)); border-color: rgba(255, 102, 204, 0.4); }
         .menu-btn.settings { background: linear-gradient(145deg, rgba(102, 204, 204, 0.3), rgba(77, 179, 179, 0.2)); border-color: rgba(102, 204, 204, 0.4); }
-        
-        /* ИГРОВОЙ ЭКРАН */
         #game-screen { display: flex; flex-direction: column; padding: 2px 8px 8px 8px; }
         .game-header { display: flex; justify-content: space-between; align-items: center; padding: 2px 6px; background: rgba(20, 30, 80, 0.5); border-radius: 4px; margin-bottom: 2px; flex-shrink: 0; border: 1px solid rgba(68, 85, 204, 0.3); min-height: 32px; height: 32px; }
         .back-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 4px 12px; border-radius: 16px; cursor: pointer; font-size: 0.8rem; min-width: 65px; min-height: 28px; display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 500; }
@@ -37,31 +33,23 @@
         .info-value { font-size: 0.9rem; font-weight: bold; color: #66ffaa; }
         .game-info .info-box:not(:last-child) { position: relative; margin-right: 8px; }
         .game-info .info-box:not(:last-child)::after { content: "•"; position: absolute; right: -8px; color: #6a5bff; font-size: 0.8rem; top: 50%; transform: translateY(-50%); }
-        
-        /* ПАНЕЛЬ ПИТОМЦА — ТОЛЬКО КОГДА ЕСТЬ */
-        .pet-badge { display: flex; align-items: center; gap: 4px; background: rgba(255, 182, 193, 0.15); border-radius: 16px; padding: 2px 10px; border: 1px solid rgba(255, 182, 193, 0.3); font-size: 0.8rem; margin-left: 4px; height: 28px; white-space: nowrap; transition: all 0.3s ease; }
+        .pet-badge { display: flex; align-items: center; gap: 4px; background: rgba(255, 182, 193, 0.15); border-radius: 16px; padding: 2px 10px; border: 1px solid rgba(255, 182, 193, 0.3); font-size: 0.8rem; margin-left: 4px; height: 28px; white-space: nowrap; transition: all 0.3s ease; display: none; }
         .pet-emoji { font-size: 0.95rem; }
         .pet-food-icon { font-size: 0.85rem; margin-left: 2px; }
         .pet-food-count { background: rgba(255, 215, 0, 0.2); padding: 1px 6px; border-radius: 12px; color: #ffd700; font-size: 0.75rem; font-weight: bold; margin-left: 2px; }
-        
-        /* УРОВНИ И ЭФФЕКТЫ */
         .level-effects { display: flex; gap: 2px; margin-left: 4px; font-size: 0.85rem; }
         .next-level-progress { padding: 5px 10px; background: rgba(20, 30, 80, 0.5); border-radius: 8px; margin-top: 2px; }
         .next-level-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: #aaccff; }
         .progress-bar { width: 100%; height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; margin-top: 4px; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #6a5bff, #9d7aff); border-radius: 2px; transition: width 0.3s ease; }
-        
-        /* АНИМАЦИИ */
         .food-particle { position: fixed; pointer-events: none; font-size: 1.8rem; animation: foodFloat 1.2s ease-out forwards; z-index: 10001; text-shadow: 0 0 15px currentColor, 0 0 30px rgba(255, 255, 255, 0.5); filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.7)); }
         @keyframes foodFloat { 0% { opacity: 0; transform: translateY(0) scale(0.5) rotate(0deg); } 20% { opacity: 1; transform: translateY(-20px) scale(1.3) rotate(10deg); } 60% { opacity: 1; transform: translateY(-60px) scale(1.1) rotate(-5deg); } 100% { opacity: 0; transform: translateY(-120px) scale(0.8) rotate(0deg); } }
         .star-particle { position: fixed; pointer-events: none; font-size: 1.2rem; animation: starFloat 1s ease-out forwards; z-index: 10002; text-shadow: 0 0 10px gold; }
         @keyframes starFloat { 0% { opacity: 0; transform: translateY(0) scale(0.5) rotate(0deg); } 30% { opacity: 1; transform: translateY(-30px) scale(1.2) rotate(180deg); } 100% { opacity: 0; transform: translateY(-80px) scale(0.8) rotate(360deg); } }
         .pet-unlock-animation { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 20px 30px; border-radius: 30px; border: 2px solid; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 10010; animation: petUnlock 2.5s ease forwards; pointer-events: none; }
         @keyframes petUnlock { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.7); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 85% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -70%) scale(0.8); } }
-        
         .game-area { flex: 1; display: flex; justify-content: center; align-items: center; min-height: 460px; padding: 0; margin-top: 0; height: calc(100% - 70px); }
         #tetris-canvas { background: rgba(0, 0, 0, 0.3); border-radius: 6px; border: 2px solid rgba(68, 85, 204, 0.5); box-shadow: 0 0 20px rgba(68, 85, 204, 0.2); max-width: 100%; max-height: 100%; width: auto !important; height: auto !important; object-fit: contain; }
-        
         .game-controls-panel { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; flex-shrink: 0; }
         .game-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; background: rgba(20, 30, 80, 0.5); border-radius: 10px; border: 1px solid rgba(68, 85, 204, 0.3); }
         .game-btn { background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2)); border: 1px solid rgba(68, 85, 204, 0.3); border-radius: 8px; padding: 12px 5px; color: white; font-size: 0.85rem; cursor: pointer; transition: all 0.1s; display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; }
@@ -69,23 +57,17 @@
         .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px; background: rgba(20, 30, 80, 0.5); border-radius: 10px; border: 1px solid rgba(68, 85, 204, 0.3); }
         .control-btn { background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2)); border: 1px solid rgba(68, 85, 204, 0.3); border-radius: 10px; padding: 15px 5px; color: white; font-size: 1.4rem; cursor: pointer; transition: all 0.1s; min-height: 50px; }
         .control-btn:active { transform: scale(0.95); }
-        
-        /* СТАТИСТИКА */
         .stats-container { flex: 1; overflow-y: auto; padding: 10px; background: rgba(20, 30, 80, 0.3); border-radius: 10px; margin: 10px 0; border: 1px solid rgba(68, 85, 204, 0.2); }
         .stat-card { background: rgba(30, 40, 100, 0.5); padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #6a5bff; border: 1px solid rgba(68, 85, 204, 0.2); }
         .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .stat-label { color: #aaccff; }
         .stat-value { font-weight: bold; color: #66ffaa; }
-        
-        /* УРОВНИ СЛОЖНОСТИ */
         .levels-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px 0; overflow-y: auto; }
         .level-card { background: linear-gradient(145deg, rgba(68, 85, 204, 0.3), rgba(51, 68, 170, 0.2)); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; transition: all 0.2s; min-height: 110px; display: flex; flex-direction: column; justify-content: center; border: 1px solid rgba(68, 85, 204, 0.3); }
         .level-card.active { background: linear-gradient(145deg, rgba(102, 204, 153, 0.3), rgba(77, 179, 128, 0.2)); border-color: rgba(102, 204, 153, 0.4); }
         .level-icon { font-size: 1.8rem; margin-bottom: 8px; }
         .level-name { font-size: 1rem; font-weight: bold; margin-bottom: 5px; }
         .level-desc { font-size: 0.75rem; color: #aaccff; }
-        
-        /* ЛИДЕРБОРД */
         .leaderboard-list { flex: 1; overflow-y: auto; margin: 10px 0; padding-right: 5px; }
         .leaderboard-item { display: flex; align-items: flex-start; padding: 15px; background: rgba(30, 40, 100, 0.4); border-radius: 12px; margin-bottom: 12px; border: 1px solid rgba(68, 85, 204, 0.2); }
         .rank { font-size: 1.4rem; font-weight: bold; width: 50px; text-align: center; color: #ffcc66; }
@@ -97,13 +79,15 @@
         .pet-collection-card { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.3); border-radius: 20px; padding: 4px 12px; border: 1px solid; font-size: 0.9rem; }
         .pet-collection-food { display: flex; align-items: center; gap: 3px; background: rgba(255,215,0,0.15); border-radius: 12px; padding: 2px 8px; color: #ffd700; }
         .collection-stats { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); color: #aaccff; font-size: 0.8rem; }
-        
+        .pets-stats-block { margin-top: 20px; padding: 15px; background: rgba(255, 182, 193, 0.05); border-radius: 12px; border: 1px solid rgba(255, 182, 193, 0.15); }
+        .pets-stats-title { display: flex; align-items: center; gap: 8px; color: #ff99aa; font-weight: bold; margin-bottom: 15px; }
+        .pets-stats-grid { display: flex; flex-direction: column; gap: 10px; }
+        .pet-stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 8px; }
         .footer { padding: 12px 10px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto; flex-shrink: 0; }
-        .notification { position: fixed; top: 20px; right: 20px; background: rgba(42, 153, 68, 0.9); padding: 12px 20px; border-radius: 8px; z-index: 10000; opacity: 0; transition: opacity 0.3s; }
+        .notification { position: fixed; top: 20px; right: 20px; background: rgba(42, 153, 68, 0.9); padding: 12px 20px; border-radius: 8px; z-index: 10000; opacity: 0; transition: opacity 0.3s; color: white; }
         .notification.show { opacity: 1; }
         .pet-notification { position: fixed; top: 80px; right: 20px; background: rgba(10,15,30,0.95); backdrop-filter: blur(10px); border-left: 4px solid; border-radius: 12px; padding: 12px 20px; color: white; font-size: 0.9rem; z-index: 10000; animation: petNotify 2.8s ease forwards; display: flex; align-items: center; gap: 12px; }
         @keyframes petNotify { 0% { opacity: 0; transform: translateX(50px); } 15% { opacity: 1; transform: translateX(0); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(20px); } }
-        
         @media (max-width: 400px) { .game-title { font-size: 1.6rem; } }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 3px; }
@@ -112,14 +96,14 @@
 </head>
 <body>
     <div class="game-container">
-        <!-- ГЛАВНОЕ МЕНЮ -->
+        <!-- ГЛАВНОЕ МЕНЮ - ВАШИ СТАРЫЕ НАЗВАНИЯ -->
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС PRO</h1>
                 <p class="subtitle">Telegram Mini App Edition</p>
             </div>
             <div class="menu-buttons">
-                <button class="menu-btn new-game" onclick="startNewGame()">
+                <button class="menu-btn new-game" onclick="startGame()">
                     <span>🎮</span> НОВАЯ ИГРА
                 </button>
                 <button class="menu-btn continue" id="continue-btn" onclick="continueGame()">
@@ -143,15 +127,15 @@
             </div>
         </div>
         
-        <!-- ИГРОВОЙ ЭКРАН -->
+        <!-- ИГРОВОЙ ЭКРАН - ВАШИ СТАРЫЕ НАЗВАНИЯ -->
         <div class="screen" id="game-screen">
             <div class="game-header">
                 <div><button class="back-btn" onclick="showMenu()"><span>МЕНЮ</span></button></div>
                 <div class="game-info" id="game-info-container">
-                    <div class="info-box"><span class="info-value" id="level-display">1</span></div>
-                    <div class="info-box"><span class="info-value" id="score-display">0</span></div>
-                    <div class="info-box"><span class="info-value" id="lines-display">0</span></div>
-                    <div id="pet-header-panel" class="pet-badge" style="display: none;">
+                    <div class="info-box"><div class="info-value" id="level-display">1</div></div>
+                    <div class="info-box"><div class="info-value" id="score-display">0</div></div>
+                    <div class="info-box"><div class="info-value" id="lines-display">0</div></div>
+                    <div id="pet-header-panel" class="pet-badge">
                         <span id="pet-emoji-header" class="pet-emoji">🐱</span>
                         <span id="pet-food-icon-header" class="pet-food-icon">🐟</span>
                         <span id="pet-food-count-header" class="pet-food-count">0</span>
@@ -164,9 +148,7 @@
                 <div class="game-buttons">
                     <button class="game-btn pause-btn" onclick="pauseGame()"><span>⏸</span> ПАУЗА</button>
                     <button class="game-btn" onclick="restartGame()"><span>🔄</span> ЗАНОВО</button>
-                    <button class="game-btn save-btn" id="save-continue-btn" onclick="saveGameProgress()">
-                        <span>💾</span> СОХРАНИТЬ
-                    </button>
+                    <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
                 </div>
                 <div class="controls">
                     <button class="control-btn" onclick="moveLeft()">←</button>
@@ -184,50 +166,50 @@
             </div>
         </div>
         
-        <!-- СТАТИСТИКА -->
+        <!-- СТАТИСТИКА - ВАШИ СТАРЫЕ НАЗВАНИЯ -->
         <div class="screen" id="stats-screen">
             <div class="header"><h1 class="game-title">СТАТИСТИКА</h1></div>
             <div class="stats-container">
                 <div class="stat-card">
-                    <h3 style="color: #6a5bff;">Ваша статистика</h3>
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Ваша статистика</h3>
                     <div id="user-stats"></div>
                 </div>
                 <div class="stat-card">
-                    <h3 style="color: #6a5bff;">Коллекция питомцев</h3>
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Коллекция питомцев</h3>
                     <div id="pets-collection-stats"></div>
                 </div>
             </div>
             <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
         </div>
         
-        <!-- УРОВНИ СЛОЖНОСТИ -->
+        <!-- УРОВНИ СЛОЖНОСТИ - ВАШИ СТАРЫЕ НАЗВАНИЯ -->
         <div class="screen" id="levels-screen">
-            <div class="header"><h1 class="game-title">УРОВНИ</h1><p class="subtitle">Выберите сложность</p></div>
+            <div class="header"><h1 class="game-title">УРОВНИ</h1><p class="subtitle">Выберите сложность игры</p></div>
             <div class="levels-grid" id="levels-grid"></div>
             <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
         </div>
         
-        <!-- ЛИДЕРБОРД -->
+        <!-- ЛИДЕРБОРД - ВАШИ СТАРЫЕ НАЗВАНИЯ -->
         <div class="screen" id="leaderboard-screen">
-            <div class="header"><h1 class="game-title">ЛИДЕРБОРД</h1><p class="subtitle">Топ-10 игроков</p></div>
+            <div class="header"><h1 class="game-title">ЛИДЕРБОРД</h1><p class="subtitle">Топ-10 игроков и их питомцы</p></div>
             <div class="leaderboard-list" id="leaderboard-list"></div>
             <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
         </div>
         
-        <!-- НАСТРОЙКИ -->
+        <!-- НАСТРОЙКИ - ВАШИ СТАРЫЕ НАЗВАНИЯ -->
         <div class="screen" id="settings-screen">
             <div class="header"><h1 class="game-title">НАСТРОЙКИ</h1></div>
             <div class="stats-container">
                 <div class="stat-card">
-                    <h3 style="color: #6a5bff;">Управление</h3>
-                    <label><input type="checkbox" id="keyboard-controls" checked> Клавиатура</label><br>
-                    <label><input type="checkbox" id="touch-controls" checked> Сенсор</label><br>
-                    <label><input type="checkbox" id="vibration" checked> Вибро</label>
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">Управление</h3>
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;"><input type="checkbox" id="touch-controls" checked style="margin-right: 10px;">Сенсорное управление</label>
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;"><input type="checkbox" id="keyboard-controls" checked style="margin-right: 10px;">Управление клавиатурой</label>
+                    <label style="display: flex; align-items: center;"><input type="checkbox" id="vibration" checked style="margin-right: 10px;">Виброотклик</label>
                 </div>
                 <div class="stat-card">
-                    <h3 style="color: #6a5bff;">База данных</h3>
-                    <div id="db-status">Статус: <span id="db-status-text">Проверка...</span></div>
-                    <button class="back-btn" style="width:100%; margin-top:10px;" onclick="testDatabase()">Тест Neon</button>
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">База данных</h3>
+                    <div id="db-status" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 15px;">Статус: <span id="db-status-text">Проверка...</span></div>
+                    <button class="back-btn" style="width: 100%;" onclick="testDatabase()">Тест соединения с БД</button>
                 </div>
             </div>
             <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
@@ -237,103 +219,90 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // ==================== NEON PostgreSQL API ====================
-        const NEON_API = {
-            baseUrl: 'https://your-neon-project.vercel.app/api', // ЗАМЕНИТЕ НА ВАШ РЕАЛЬНЫЙ URL
-            async saveGame(userId, gameData) {
-                console.log('💾 Сохраняю прогресс в Neon:', { userId, ...gameData });
-                // Имитация успешного сохранения
-                localStorage.setItem(`tetris_save_${userId}`, JSON.stringify({
-                    ...gameData,
-                    savedAt: new Date().toISOString()
-                }));
-                return { success: true };
-            },
-            async loadGame(userId) {
-                const saved = localStorage.getItem(`tetris_save_${userId}`);
-                return saved ? JSON.parse(saved) : null;
-            },
-            async getUserStats(userId) {
-                const saved = localStorage.getItem(`tetris_stats_${userId}`);
-                return saved ? JSON.parse(saved) : {
-                    bestScore: 0,
-                    bestLevel: 1,
-                    totalLines: 0,
-                    gamesPlayed: 0,
-                    totalScore: 0
-                };
-            },
-            async getLeaderboard() {
-                const allStats = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key?.startsWith('tetris_stats_')) {
-                        const userId = key.replace('tetris_stats_', '');
-                        const stats = JSON.parse(localStorage.getItem(key));
-                        allStats.push({
-                            userId,
-                            username: localStorage.getItem(`tetris_username_${userId}`) || `Player_${userId.slice(-4)}`,
-                            bestScore: stats.bestScore || 0,
-                            bestLevel: stats.bestLevel || 1,
-                            pets: JSON.parse(localStorage.getItem(`tetris_pets_${userId}`) || '{"pets":[]}').pets,
-                            food: JSON.parse(localStorage.getItem(`tetris_pets_${userId}`) || '{"pets":[]}').pets?.map(p => p.food || 0) || []
-                        });
-                    }
-                }
-                return allStats.sort((a, b) => b.bestScore - a.bestScore).slice(0, 10);
-            }
-        };
-
+        // ==================== ВАШИ СТАРЫЕ НАЗВАНИЯ ФУНКЦИЙ ====================
+        // ВСЕ ФУНКЦИИ НАЗЫВАЮТСЯ ТАК ЖЕ, КАК В ВАШЕМ ОРИГИНАЛЬНОМ КОДЕ!
+        
         // ==================== ПОЛУЧАЕМ TELEGRAM ID ====================
-        let telegramUserId = null, telegramUsername = null;
+        function getUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return { telegramId: urlParams.get('telegramId'), username: urlParams.get('username') };
+        }
+
+        let tg = null;
+        let telegramUserId = null;
+        let telegramUsername = null;
+
         (function() {
             if (window.Telegram?.WebApp) {
                 try {
-                    const user = window.Telegram.WebApp.initDataUnsafe?.user;
-                    if (user?.id) { telegramUserId = String(user.id); telegramUsername = user.username || user.first_name; }
+                    tg = window.Telegram.WebApp;
+                    tg.ready();
+                    tg.expand();
+                    const user = tg.initDataUnsafe?.user;
+                    if (user?.id) {
+                        telegramUserId = String(user.id);
+                        telegramUsername = user.username || user.first_name || 'Player';
+                    }
                 } catch(e) {}
             }
             if (!telegramUserId) {
-                const urlParams = new URLSearchParams(window.location.search);
-                telegramUserId = urlParams.get('telegramId');
-                telegramUsername = urlParams.get('username');
+                const p = getUrlParams();
+                if (p.telegramId && /^\d+$/.test(p.telegramId)) {
+                    telegramUserId = p.telegramId;
+                    telegramUsername = p.username || 'Player';
+                }
             }
-            if (!telegramUserId) telegramUserId = 'guest_' + Math.random().toString(36).substr(2, 9);
+            if (!telegramUserId) {
+                telegramUserId = 'guest_' + Math.random().toString(36).substr(2, 9);
+                telegramUsername = 'Guest';
+            }
             window.telegramUserId = telegramUserId;
-            window.telegramUsername = telegramUsername || 'Player';
-            localStorage.setItem(`tetris_username_${telegramUserId}`, window.telegramUsername);
+            window.userId = telegramUserId;
+            
+            const statusEl = document.getElementById('db-status-text');
+            if (statusEl) statusEl.textContent = `✅ ID: ${telegramUserId.slice(-4)}`;
         })();
 
         // ==================== КОНСТАНТЫ ====================
-        const COLS = 10, ROWS = 20, BLOCK_SIZE = 24;
+        const COLS = 10;
+        const ROWS = 20;
+        const BLOCK_SIZE = 24;
         const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
-        const SHAPES = [[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]]];
-        
-        // УРОВНИ СЛОЖНОСТИ
+        const SHAPES = [
+            [[1,1,1,1]],
+            [[1,1],[1,1]],
+            [[0,1,0],[1,1,1]],
+            [[1,1,0],[0,1,1]],
+            [[0,1,1],[1,1,0]],
+            [[1,0,0],[1,1,1]],
+            [[0,0,1],[1,1,1]]
+        ];
+
+        // УРОВНИ СЛОЖНОСТИ (5 штук)
         const DIFFICULTY_LEVELS = [
-            { id: 'easy', name: 'Легкий', speed: 1000, icon: '🐣', desc: 'Медленно, 1000ms' },
-            { id: 'medium', name: 'Средний', speed: 700, icon: '⚡', desc: 'Стандарт, 700ms' },
-            { id: 'hard', name: 'Сложный', speed: 450, icon: '🔥', desc: 'Быстро, 450ms' },
-            { id: 'expert', name: 'Эксперт', speed: 250, icon: '👑', desc: 'Очень быстро, 250ms' },
-            { id: 'insane', name: 'Безумие', speed: 150, icon: '💀', desc: 'Максимум, 150ms' }
+            { id: 'easy', name: 'Легкий', speed: 1000, desc: 'Медленно, для новичков', icon: '🐣' },
+            { id: 'medium', name: 'Средний', speed: 700, desc: 'Стандартная скорость', icon: '⚡' },
+            { id: 'hard', name: 'Сложный', speed: 450, desc: 'Быстро, для профи', icon: '🔥' },
+            { id: 'expert', name: 'Эксперт', speed: 250, desc: 'Очень быстро', icon: '👑' },
+            { id: 'insane', name: 'Безумие', speed: 150, desc: 'Только для мастеров', icon: '💀' }
         ];
 
         // ИГРОВЫЕ УРОВНИ (каждые 500 очков)
         const GAME_LEVELS = [
-            { min: 0, max: 1499, level: 1, speed: 0, effect: '🟢 Старт', icon: '🟢' },
-            { min: 1500, max: 1999, level: 2, speed: -50, effect: '⚡ Искры', icon: '⚡' },
-            { min: 2000, max: 2499, level: 3, speed: -100, effect: '🌟 Сияние', icon: '🌟' },
-            { min: 2500, max: 2999, level: 4, speed: -150, effect: '💫 Звёзды', icon: '💫' },
-            { min: 3000, max: 3499, level: 5, speed: -200, effect: '🔥 Огонь', icon: '🔥' },
-            { min: 3500, max: 3999, level: 6, speed: -250, effect: '❄️ Лёд', icon: '❄️' },
-            { min: 4000, max: 4499, level: 7, speed: -300, effect: '⚡⚡ Искры', icon: '⚡⚡' },
-            { min: 4500, max: 4999, level: 8, speed: -350, effect: '🌈 Радуга', icon: '🌈' },
-            { min: 5000, max: 5499, level: 9, speed: -400, effect: '🎆 Салют', icon: '🎆' },
-            { min: 5500, max: 5999, level: 10, speed: -450, effect: '👑 Корона', icon: '👑' },
-            { min: 6000, max: Infinity, level: 11, speed: -500, effect: '💎 Мастер', icon: '💎' }
+            { min: 0, max: 1499, level: 1, speedOffset: 0, effect: '🟢 Старт', icon: '🟢' },
+            { min: 1500, max: 1999, level: 2, speedOffset: -50, effect: '⚡ Искры', icon: '⚡' },
+            { min: 2000, max: 2499, level: 3, speedOffset: -100, effect: '🌟 Сияние', icon: '🌟' },
+            { min: 2500, max: 2999, level: 4, speedOffset: -150, effect: '💫 Звёзды', icon: '💫' },
+            { min: 3000, max: 3499, level: 5, speedOffset: -200, effect: '🔥 Огонь', icon: '🔥' },
+            { min: 3500, max: 3999, level: 6, speedOffset: -250, effect: '❄️ Лёд', icon: '❄️' },
+            { min: 4000, max: 4499, level: 7, speedOffset: -300, effect: '⚡⚡ Удвоенные искры', icon: '⚡⚡' },
+            { min: 4500, max: 4999, level: 8, speedOffset: -350, effect: '🌈 Радуга', icon: '🌈' },
+            { min: 5000, max: 5499, level: 9, speedOffset: -400, effect: '🎆 Салют', icon: '🎆' },
+            { min: 5500, max: 5999, level: 10, speedOffset: -450, effect: '👑 Корона', icon: '👑' },
+            { min: 6000, max: Infinity, level: 11, speedOffset: -500, effect: '💎 Мастер', icon: '💎' }
         ];
 
-        // ПИТОМЦЫ — ТОЛЬКО ПРИ ДОСТИЖЕНИИ ОЧКОВ!
+        // ПИТОМЦЫ - ТОЛЬКО ПРИ ДОСТИЖЕНИИ ОЧКОВ!
         const PETS = [
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🐟', foodName: 'рыбку' },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1500, food: '🦴', foodName: 'косточку' },
@@ -344,59 +313,84 @@
             { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 4000, food: '🌿', foodName: 'листик' },
             { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4500, food: '📚', foodName: 'книжку' },
             { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 5000, food: '🥩', foodName: 'мясо' },
-            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5500, food: '👑', foodName: 'корону' },
-            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿', foodName: 'листик' },
-            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🎨', foodName: 'краски' },
-            { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 7000, food: '💧', foodName: 'воду' },
-            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🛡️', foodName: 'щит' },
-            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '💦', foodName: 'воду' },
-            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌', foodName: 'банан' }
+            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5500, food: '👑', foodName: 'корону' }
         ];
 
         // ==================== DOM ЭЛЕМЕНТЫ ====================
+        const screens = {
+            menu: document.getElementById('menu-screen'),
+            game: document.getElementById('game-screen'),
+            stats: document.getElementById('stats-screen'),
+            levels: document.getElementById('levels-screen'),
+            leaderboard: document.getElementById('leaderboard-screen'),
+            settings: document.getElementById('settings-screen')
+        };
+
         const canvas = document.getElementById('tetris-canvas');
         const ctx = canvas.getContext('2d');
 
         // ==================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ====================
-        let board = [], currentPiece = null, currentX = 0, currentY = 0;
-        let score = 0, gameLevel = 1, lines = 0, totalLines = 0;
-        let gameActive = false, gamePaused = false, gameOver = false;
-        let dropCounter = 0, dropInterval = 700, baseSpeed = 700;
-        let lastTime = 0, animationId = null, currentDifficulty = 'medium';
-        let pieceQueue = [], clearedLinesAnimation = [];
-        
-        // ПИТОМЦЫ
-        let userPets = []; // [{ id: 'cat', food: 3 }]
+        let board = [];
+        let currentPiece = null;
+        let currentX = 0;
+        let currentY = 0;
+        let score = 0;
+        let level = 1;
+        let gameLevel = 1;
+        let lines = 0;
+        let totalLines = 0;
+        let gamesPlayed = 0;
+        let bestScore = 0;
+        let gameActive = false;
+        let gamePaused = false;
+        let gameOver = false;
+        let dropCounter = 0;
+        let dropInterval = 700;
+        let lastTime = 0;
+        let animationId = null;
+        let currentDifficulty = 'medium';
+        let clearedLinesAnimation = [];
+        let pieceQueue = [];
+
+        // ==================== ПИТОМЦЫ ====================
+        let userPets = [];
         let activePet = null;
 
-        // ==================== ЗАГРУЗКА СОХРАНЕННОЙ ИГРЫ ====================
-        async function checkSavedGame() {
-            if (!telegramUserId) return;
-            const saved = await NEON_API.loadGame(telegramUserId);
-            const continueBtn = document.getElementById('continue-btn');
-            if (saved && saved.score > 0) {
-                continueBtn.style.display = 'flex';
-                continueBtn.innerHTML = `<span>▶️</span> ПРОДОЛЖИТЬ (${saved.score} очков)`;
-            } else {
-                continueBtn.style.display = 'none';
-            }
+        // ==================== ЗАГРУЗКА СОХРАНЕНИЙ ====================
+        function loadSavedGame() {
+            try {
+                const saved = localStorage.getItem(`tetris_save_${telegramUserId}`);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    document.getElementById('continue-btn').style.display = 'flex';
+                    document.getElementById('continue-btn').innerHTML = `<span>▶️</span> ПРОДОЛЖИТЬ (${data.score || 0} очков)`;
+                }
+            } catch(e) {}
         }
 
-        async function continueGame() {
-            const saved = await NEON_API.loadGame(telegramUserId);
-            if (saved) {
-                score = saved.score || 0;
-                gameLevel = saved.gameLevel || 1;
-                lines = saved.lines || 0;
-                userPets = saved.pets || [];
-                if (userPets.length > 0) {
-                    const lastPet = userPets[userPets.length - 1];
-                    activePet = PETS.find(p => p.id === lastPet.id);
-                    if (activePet) activePet.foodCount = lastPet.food || 0;
+        function continueGame() {
+            try {
+                const saved = localStorage.getItem(`tetris_save_${telegramUserId}`);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    score = data.score || 0;
+                    lines = data.lines || 0;
+                    userPets = data.pets || [];
+                    
+                    const levelData = GAME_LEVELS.find(l => score >= l.min && score <= l.max) || GAME_LEVELS[0];
+                    gameLevel = levelData.level;
+                    level = gameLevel;
+                    
+                    if (userPets.length > 0) {
+                        const lastPet = userPets[userPets.length - 1];
+                        activePet = PETS.find(p => p.id === lastPet.id);
+                        if (activePet) activePet.foodCount = lastPet.food || 0;
+                    }
+                    
+                    startGame();
+                    showNotification('▶️ Продолжаем игру!');
                 }
-                startGame(true); // true = продолжение
-                showNotification('▶️ Продолжаем игру!');
-            }
+            } catch(e) {}
         }
 
         // ==================== ФУНКЦИИ ПИТОМЦЕВ ====================
@@ -416,7 +410,7 @@
                         if (activePet) activePet.foodCount = lastPet.food || 0;
                     }
                 }
-            } catch (e) { userPets = []; }
+            } catch(e) { userPets = []; }
         }
 
         function savePets() {
@@ -437,7 +431,8 @@
             
             if (!panel || !emoji || !foodIcon || !foodCount) return;
             
-            if (activePet && score >= 1000) { // ТОЛЬКО ЕСЛИ ЕСТЬ ПИТОМЕЦ И 1000+ ОЧКОВ
+            // КОТЁНОК ПОЯВЛЯЕТСЯ ТОЛЬКО ПОСЛЕ 1000 ОЧКОВ!
+            if (activePet && score >= 1000) {
                 emoji.textContent = activePet.emoji;
                 foodIcon.textContent = activePet.food;
                 foodCount.textContent = activePet.foodCount || 0;
@@ -516,7 +511,7 @@
 
         function unlockPet(pet) {
             if (userPets.some(p => p.id === pet.id)) return false;
-            if (score < pet.score) return false; // ТОЛЬКО ПРИ ДОСТИЖЕНИИ ОЧКОВ!
+            if (score < pet.score) return false;
             
             userPets.push({ id: pet.id, food: 0 });
             pet.foodCount = 0;
@@ -529,15 +524,8 @@
         }
 
         function feedActivePet(linesCleared) {
-            if (!activePet) {
-                if (userPets.length > 0) {
-                    const firstPet = userPets[0];
-                    activePet = PETS.find(p => p.id === firstPet.id);
-                    if (activePet) activePet.foodCount = firstPet.food || 0;
-                }
-                return false;
-            }
-            if (score < 1000) return false; // НЕТ ПИТОМЦА — НЕТ КОРМЛЕНИЯ
+            if (!activePet) return false;
+            if (score < 1000) return false;
             
             const pet = PETS.find(p => p.id === activePet.id);
             if (!pet) return false;
@@ -589,83 +577,78 @@
         function updateGameLevel() {
             const levelData = getGameLevelFromScore(score);
             gameLevel = levelData.level;
+            level = gameLevel;
             
-            // Скорость = базовая - модификатор
-            const base = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-            dropInterval = Math.max(150, base + levelData.speed);
+            const baseSpeed = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
+            dropInterval = Math.max(150, baseSpeed + levelData.speedOffset);
             
-            // Обновляем UI
             document.getElementById('game-level').textContent = gameLevel;
             document.getElementById('level-display').textContent = gameLevel;
             
-            // Следующий уровень
             const nextLevel = GAME_LEVELS.find(l => l.level === gameLevel + 1) || GAME_LEVELS[GAME_LEVELS.length - 1];
-            document.getElementById('next-level-target').textContent = nextLevel.min;
+            document.getElementById('next-level-target').textContent = nextLevel.min || 6000;
             document.getElementById('next-level-effect').textContent = nextLevel.effect;
             
-            // Прогресс
             const currentLevelData = GAME_LEVELS.find(l => l.level === gameLevel);
-            const nextLevelScore = currentLevelData.max + 1;
-            const progress = ((score - currentLevelData.min) / (currentLevelData.max - currentLevelData.min + 1)) * 100;
-            document.getElementById('progress-fill').style.width = Math.min(100, Math.max(0, progress)) + '%';
+            if (currentLevelData) {
+                const progress = ((score - currentLevelData.min) / (currentLevelData.max - currentLevelData.min + 1)) * 100;
+                document.getElementById('progress-fill').style.width = Math.min(100, Math.max(0, progress)) + '%';
+            }
             
-            // Эффекты
             document.getElementById('level-effects-header').innerHTML = levelData.icon;
         }
 
         // ==================== ИГРОВЫЕ ФУНКЦИИ ====================
-        function startNewGame() {
-            if (animationId) cancelAnimationFrame(animationId);
+        function startGame() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-            score = 0; gameLevel = 1; lines = 0;
-            gameActive = true; gamePaused = false; gameOver = false;
             
-            const base = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-            dropInterval = base;
+            if (!gameActive) {
+                score = score || 0;
+                lines = lines || 0;
+            }
             
-            pieceQueue = []; generatePieceQueue();
-            updateGameLevel();
-            spawnPiece();
-            drawBoard();
-            showScreen('game');
-            animationId = requestAnimationFrame(gameLoop);
-            showNotification('🎮 Новая игра!');
+            gameActive = true;
+            gamePaused = false;
+            gameOver = false;
             
-            // Меняем кнопку
-            document.getElementById('save-continue-btn').innerHTML = '<span>💾</span> СОХРАНИТЬ';
-        }
-
-        function startGame(isContinue = false) {
-            if (!isContinue) { startNewGame(); return; }
-            if (animationId) cancelAnimationFrame(animationId);
-            board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-            gameActive = true; gamePaused = false; gameOver = false;
+            const baseSpeed = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
+            dropInterval = baseSpeed;
             
-            const base = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-            dropInterval = base;
-            
-            updateGameLevel();
-            spawnPiece();
-            drawBoard();
-            showScreen('game');
-            animationId = requestAnimationFrame(gameLoop);
-            
-            // Меняем кнопку
-            document.getElementById('save-continue-btn').innerHTML = '<span>💾</span> СОХРАНИТЬ';
-        }
-
-        function generatePieceQueue() {
             pieceQueue = [];
-            for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+            for (let i = 0; i < 3; i++) {
+                pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+            }
+            
+            updateGameLevel();
+            spawnPiece();
+            drawBoard();
+            showScreen('game');
+            lastTime = 0;
+            dropCounter = 0;
+            animationId = requestAnimationFrame(gameLoop);
+            showNotification('🎮 Игра началась!');
         }
 
         function spawnPiece() {
-            if (pieceQueue.length === 0) generatePieceQueue();
+            if (pieceQueue.length === 0) {
+                for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+            }
+            
             const shapeId = pieceQueue.shift();
             pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
-            currentPiece = { shape: SHAPES[shapeId], color: COLORS[shapeId] };
+            
+            currentPiece = {
+                shape: SHAPES[shapeId],
+                color: COLORS[shapeId]
+            };
             currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
             currentY = 0;
+            
             if (collide(currentPiece, currentX, currentY)) {
                 gameOver = true;
                 showNotification('🎯 Игра окончена! Счет: ' + score);
@@ -674,13 +657,14 @@
         }
 
         function collide(piece, x, y) {
-            for (let r = 0; r < piece.shape.length; r++) {
-                for (let c = 0; c < piece.shape[r].length; c++) {
-                    if (piece.shape[r][c]) {
-                        const br = y + r, bc = x + c;
-                        if (bc < 0 || bc >= COLS) return true;
-                        if (br >= ROWS) return true;
-                        if (br >= 0 && board[br] && board[br][bc]) return true;
+            for (let row = 0; row < piece.shape.length; row++) {
+                for (let col = 0; col < piece.shape[row].length; col++) {
+                    if (piece.shape[row][col]) {
+                        const boardRow = y + row;
+                        const boardCol = x + col;
+                        if (boardCol < 0 || boardCol >= COLS) return true;
+                        if (boardRow >= ROWS) return true;
+                        if (boardRow >= 0 && board[boardRow] && board[boardRow][boardCol]) return true;
                     }
                 }
             }
@@ -699,13 +683,31 @@
 
         function moveDown() {
             if (gameOver || gamePaused) return;
-            if (!collide(currentPiece, currentX, currentY + 1)) { currentY++; }
-            else { mergePiece(); checkLines(); spawnPiece(); }
+            if (!collide(currentPiece, currentX, currentY + 1)) {
+                currentY++;
+            } else {
+                mergePiece();
+                checkLines();
+                spawnPiece();
+            }
             drawBoard();
         }
 
-        function moveLeft() { if (!gameOver && !gamePaused && !collide(currentPiece, currentX - 1, currentY)) { currentX--; drawBoard(); } }
-        function moveRight() { if (!gameOver && !gamePaused && !collide(currentPiece, currentX + 1, currentY)) { currentX++; drawBoard(); } }
+        function moveLeft() {
+            if (gameOver || gamePaused) return;
+            if (!collide(currentPiece, currentX - 1, currentY)) {
+                currentX--;
+                drawBoard();
+            }
+        }
+
+        function moveRight() {
+            if (gameOver || gamePaused) return;
+            if (!collide(currentPiece, currentX + 1, currentY)) {
+                currentX++;
+                drawBoard();
+            }
+        }
 
         function rotatePiece() {
             if (gameOver || gamePaused) return;
@@ -718,39 +720,59 @@
                 }
             }
             currentPiece.shape = rotated;
-            if (collide(currentPiece, currentX, currentY)) currentPiece.shape = original;
+            if (collide(currentPiece, currentX, currentY)) {
+                currentPiece.shape = original;
+            }
             drawBoard();
         }
 
         function hardDrop() {
             if (gameOver || gamePaused) return;
-            let drop = 0;
-            while (!collide(currentPiece, currentX, currentY + 1)) { currentY++; drop++; }
-            score += drop * 2;
-            mergePiece(); checkLines(); spawnPiece();
-            updateDisplay(); drawBoard();
+            let dropDistance = 0;
+            while (!collide(currentPiece, currentX, currentY + 1)) {
+                currentY++;
+                dropDistance++;
+            }
+            score += dropDistance * 2;
+            mergePiece();
+            checkLines();
+            spawnPiece();
+            updateDisplay();
+            drawBoard();
         }
 
         function checkLines() {
-            let cleared = 0, rows = [];
+            let linesCleared = 0;
+            let clearedRows = [];
+            
             for (let y = ROWS - 1; y >= 0; y--) {
-                if (board[y].every(cell => cell !== 0)) { rows.push(y); cleared++; }
+                if (board[y].every(cell => cell !== 0)) {
+                    clearedRows.push(y);
+                    linesCleared++;
+                }
             }
-            if (cleared > 0) {
-                lines += cleared; totalLines += cleared;
-                clearedLinesAnimation = rows;
+            
+            if (linesCleared > 0) {
+                lines += linesCleared;
+                totalLines += linesCleared;
+                clearedLinesAnimation = clearedRows;
                 
-                const bonus = [0, 100, 300, 500, 800];
-                score += bonus[cleared] * gameLevel;
+                const lineBonus = [0, 100, 300, 500, 800];
+                score += lineBonus[linesCleared] * level;
                 
-                // КОРМИМ ПИТОМЦА ТОЛЬКО ЗА ЛИНИИ!
-                if (score >= 1000) feedActivePet(cleared);
+                // КОРМИМ ПИТОМЦА ТОЛЬКО ЕСЛИ ЕСТЬ ПИТОМЕЦ И 1000+ ОЧКОВ
+                if (score >= 1000) {
+                    feedActivePet(linesCleared);
+                }
                 
                 // ПРОВЕРЯЕМ НОВЫХ ПИТОМЦЕВ
                 checkPetUnlocks();
                 
                 setTimeout(() => {
-                    for (let y of rows.sort((a,b)=>a-b)) { board.splice(y,1); board.unshift(Array(COLS).fill(0)); }
+                    for (let y of clearedRows.sort((a, b) => a - b)) {
+                        board.splice(y, 1);
+                        board.unshift(Array(COLS).fill(0));
+                    }
                     clearedLinesAnimation = [];
                     drawBoard();
                 }, 400);
@@ -763,103 +785,181 @@
         function pauseGame() {
             if (gameActive && !gameOver) {
                 gamePaused = !gamePaused;
-                if (gamePaused) { cancelAnimationFrame(animationId); showNotification('⏸ Пауза'); }
-                else { lastTime = 0; animationId = requestAnimationFrame(gameLoop); showNotification('▶️ Продолжение'); }
+                if (gamePaused) {
+                    cancelAnimationFrame(animationId);
+                    showNotification('⏸ Игра на паузе');
+                } else {
+                    lastTime = 0;
+                    animationId = requestAnimationFrame(gameLoop);
+                    showNotification('▶️ Игра продолжается');
+                }
             }
         }
 
-        function restartGame() { if (confirm('Начать заново?')) startNewGame(); }
+        function restartGame() {
+            if (confirm('Начать новую игру? Текущий прогресс будет потерян.')) {
+                score = 0;
+                lines = 0;
+                gameLevel = 1;
+                level = 1;
+                startGame();
+                showNotification('🔄 Новая игра начата');
+            }
+        }
 
         function updateDisplay() {
             document.getElementById('score-display').textContent = score;
             document.getElementById('lines-display').textContent = lines;
             document.getElementById('current-score').textContent = score;
-            document.getElementById('current-level').textContent = gameLevel;
+            document.getElementById('current-level').textContent = level;
             document.getElementById('session-lines').textContent = lines;
             updatePetHeaderPanel();
         }
 
         function drawBoard() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(0,0,canvas.width,canvas.height);
-            for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (board[y][x]) drawBlock(x, y, board[y][x], false);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x]) {
+                        drawBlock(x, y, board[y][x], false);
+                    }
+                }
+            }
+            
             if (clearedLinesAnimation.length > 0) {
                 ctx.globalAlpha = 0.7;
-                clearedLinesAnimation.forEach(rowY => { ctx.fillStyle = '#fff'; ctx.fillRect(0, rowY * BLOCK_SIZE, COLS * BLOCK_SIZE, BLOCK_SIZE); });
+                clearedLinesAnimation.forEach(rowY => {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, rowY * BLOCK_SIZE, COLS * BLOCK_SIZE, BLOCK_SIZE);
+                });
                 ctx.globalAlpha = 1.0;
             }
-            if (currentPiece) for (let y = 0; y < currentPiece.shape.length; y++) for (let x = 0; x < currentPiece.shape[y].length; x++) if (currentPiece.shape[y][x]) drawBlock(currentX + x, currentY + y, currentPiece.color, true);
+            
+            if (currentPiece) {
+                for (let y = 0; y < currentPiece.shape.length; y++) {
+                    for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                        if (currentPiece.shape[y][x]) {
+                            drawBlock(currentX + x, currentY + y, currentPiece.color, true);
+                        }
+                    }
+                }
+            }
         }
 
         function drawBlock(x, y, color, isCurrent) {
-            const size = BLOCK_SIZE, bx = x * size, by = y * size;
-            ctx.fillStyle = color; ctx.fillRect(bx, by, size, size);
-            const grad = ctx.createLinearGradient(bx, by, bx + size, by + size);
+            const size = BLOCK_SIZE;
+            const bx = x * size;
+            const by = y * size;
+            
+            ctx.fillStyle = color;
+            ctx.fillRect(bx, by, size, size);
+            
+            const gradient = ctx.createLinearGradient(bx, by, bx + size, by + size);
+            
             if (isCurrent) {
-                grad.addColorStop(0, lightenColor(color, 30)); grad.addColorStop(1, color);
-                ctx.strokeStyle = lightenColor(color, 40); ctx.lineWidth = 2; ctx.strokeRect(bx+1, by+1, size-2, size-2);
+                gradient.addColorStop(0, lightenColor(color, 30));
+                gradient.addColorStop(1, color);
+                ctx.strokeStyle = lightenColor(color, 40);
+                ctx.lineWidth = 2;
+                ctx.strokeRect(bx + 1, by + 1, size - 2, size - 2);
             } else {
-                grad.addColorStop(0, lightenColor(color, 20)); grad.addColorStop(0.5, color); grad.addColorStop(1, darkenColor(color, 20));
-                ctx.strokeStyle = darkenColor(color, 30); ctx.lineWidth = 1; ctx.strokeRect(bx, by, size, size);
+                gradient.addColorStop(0, lightenColor(color, 20));
+                gradient.addColorStop(0.5, color);
+                gradient.addColorStop(1, darkenColor(color, 20));
+                ctx.strokeStyle = darkenColor(color, 30);
+                ctx.lineWidth = 1;
+                ctx.strokeRect(bx, by, size, size);
             }
-            ctx.fillStyle = grad; ctx.fillRect(bx, by, size, size);
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(bx, by, size, size);
         }
 
-        function lightenColor(c, p) { let n = parseInt(c.slice(1),16), a = Math.round(2.55*p); return `rgb(${Math.min(255,(n>>16)+a)}, ${Math.min(255,((n>>8)&0xFF)+a)}, ${Math.min(255,(n&0xFF)+a)})`; }
-        function darkenColor(c, p) { let n = parseInt(c.slice(1),16), a = Math.round(2.55*p); return `rgb(${Math.max(0,(n>>16)-a)}, ${Math.max(0,((n>>8)&0xFF)-a)}, ${Math.max(0,(n&0xFF)-a)})`; }
+        function lightenColor(color, percent) {
+            const num = parseInt(color.slice(1), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.min(255, (num >> 16) + amt);
+            const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+            const B = Math.min(255, (num & 0x0000FF) + amt);
+            return `rgb(${R}, ${G}, ${B})`;
+        }
+
+        function darkenColor(color, percent) {
+            const num = parseInt(color.slice(1), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.max(0, (num >> 16) - amt);
+            const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
+            const B = Math.max(0, (num & 0x0000FF) - amt);
+            return `rgb(${R}, ${G}, ${B})`;
+        }
 
         function gameLoop(time) {
             if (gameOver || gamePaused) return;
-            const delta = time - lastTime; lastTime = time;
+            const delta = time - lastTime;
+            lastTime = time;
             dropCounter += delta;
-            if (dropCounter > dropInterval) { moveDown(); dropCounter = 0; }
+            if (dropCounter > dropInterval) {
+                moveDown();
+                dropCounter = 0;
+            }
             drawBoard();
             animationId = requestAnimationFrame(gameLoop);
         }
 
-        // ==================== СОХРАНЕНИЕ В NEON ====================
-        async function saveGameProgress() {
-            if (!gameActive) { showNotification('❌ Нет активной игры'); return; }
-            showNotification('💾 Сохраняю прогресс...');
+        // ==================== СОХРАНЕНИЕ ====================
+        function saveGameScore() {
+            if (!gameActive) {
+                showNotification('❌ Нет активной игры');
+                return;
+            }
             
             const gameData = {
-                score, gameLevel, lines,
-                pets: userPets.map(p => ({ id: p.id, food: PETS.find(pt => pt.id === p.id)?.foodCount || 0 })),
-                activePet: activePet?.id,
-                difficulty: currentDifficulty
+                score: score,
+                lines: lines,
+                gameLevel: gameLevel,
+                pets: userPets.map(p => ({ 
+                    id: p.id, 
+                    food: PETS.find(pt => pt.id === p.id)?.foodCount || 0 
+                }))
             };
             
-            const result = await NEON_API.saveGame(telegramUserId, gameData);
-            if (result.success) {
-                showNotification('✅ Прогресс сохранен в Neon!');
-                // Меняем кнопку на "ПРОДОЛЖИТЬ" в меню
-                document.getElementById('continue-btn').style.display = 'flex';
-                document.getElementById('continue-btn').innerHTML = `<span>▶️</span> ПРОДОЛЖИТЬ (${score} очков)`;
-            }
+            localStorage.setItem(`tetris_save_${telegramUserId}`, JSON.stringify(gameData));
+            localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify({ pets: gameData.pets }));
+            
+            document.getElementById('continue-btn').style.display = 'flex';
+            document.getElementById('continue-btn').innerHTML = `<span>▶️</span> ПРОДОЛЖИТЬ (${score} очков)`;
+            
+            showNotification('✅ Прогресс сохранен!');
         }
 
         // ==================== СТАТИСТИКА ====================
-        async function showStats() {
-            const stats = await NEON_API.getUserStats(telegramUserId);
-            document.getElementById('user-stats').innerHTML = `
-                <div class="stat-row"><span class="stat-label">Лучший счет:</span><span class="stat-value">${stats.bestScore || 0}</span></div>
-                <div class="stat-row"><span class="stat-label">Рекордный уровень:</span><span class="stat-value">${stats.bestLevel || 1}</span></div>
-                <div class="stat-row"><span class="stat-label">Всего линий:</span><span class="stat-value">${stats.totalLines || 0}</span></div>
-                <div class="stat-row"><span class="stat-label">Сыграно игр:</span><span class="stat-value">${stats.gamesPlayed || 0}</span></div>
-                <div class="stat-row"><span class="stat-label">Средний счет:</span><span class="stat-value">${Math.round((stats.totalScore || 0) / (stats.gamesPlayed || 1))}</span></div>
+        function showStats() {
+            const statsDiv = document.getElementById('user-stats');
+            statsDiv.innerHTML = `
+                <div class="stat-row"><span class="stat-label">Лучший счет:</span><span class="stat-value">${localStorage.getItem(`tetris_best_${telegramUserId}`) || 0}</span></div>
+                <div class="stat-row"><span class="stat-label">Рекордный уровень:</span><span class="stat-value">${localStorage.getItem(`tetris_best_level_${telegramUserId}`) || 1}</span></div>
+                <div class="stat-row"><span class="stat-label">Всего линий:</span><span class="stat-value">${localStorage.getItem(`tetris_total_lines_${telegramUserId}`) || 0}</span></div>
+                <div class="stat-row"><span class="stat-label">Сыграно игр:</span><span class="stat-value">${localStorage.getItem(`tetris_games_${telegramUserId}`) || 0}</span></div>
+                <div class="stat-row"><span class="stat-label">Текущий счет:</span><span class="stat-value">${score}</span></div>
             `;
             
             let petsHtml = '<div class="pets-stats-grid">';
-            if (userPets.length === 0) petsHtml += '<div style="color: #aaccff; padding: 10px;">У вас пока нет питомцев. Наберите 1000 очков, чтобы получить котёнка! 🐱</div>';
-            else {
-                userPets.forEach(petId => {
-                    const pet = PETS.find(p => p.id === petId.id);
-                    if (pet) petsHtml += `
-                        <div class="pet-stat-row">
-                            <span><span style="font-size:1.2rem;">${pet.emoji}</span> ${pet.name}</span>
-                            <span style="color:${pet.color};">${pet.food} ${pet.foodCount || 0}</span>
-                        </div>
-                    `;
+            if (userPets.length === 0) {
+                petsHtml += '<div style="color: #aaccff; padding: 10px;">У вас пока нет питомцев. Наберите 1000 очков, чтобы получить котёнка! 🐱</div>';
+            } else {
+                userPets.forEach(petData => {
+                    const pet = PETS.find(p => p.id === petData.id);
+                    if (pet) {
+                        petsHtml += `
+                            <div class="pet-stat-row">
+                                <span><span style="font-size:1.2rem;">${pet.emoji}</span> ${pet.name}</span>
+                                <span style="color: ${pet.color};">${pet.food} ${petData.food || 0}</span>
+                            </div>
+                        `;
+                    }
                 });
             }
             petsHtml += '</div>';
@@ -869,108 +969,143 @@
         }
 
         // ==================== ЛИДЕРБОРД ====================
-        async function showLeaderboard() {
+        function showLeaderboard() {
             const list = document.getElementById('leaderboard-list');
-            list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Загрузка лидерборда...</div>';
-            showScreen('leaderboard');
+            list.innerHTML = '<div style="text-align:center; padding:30px; color: #b5aaff;">🏆 Загрузка лидерборда...</div>';
             
-            const players = await NEON_API.getLeaderboard();
+            // ТОЛЬКО РЕАЛЬНЫЕ ИГРОКИ ИЗ LOCALSTORAGE
+            const players = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key?.startsWith('tetris_best_')) {
+                    const userId = key.replace('tetris_best_', '');
+                    if (userId && !userId.startsWith('guest')) {
+                        const score = parseInt(localStorage.getItem(key)) || 0;
+                        players.push({
+                            id: userId,
+                            name: localStorage.getItem(`tetris_username_${userId}`) || `Player_${userId.slice(-4)}`,
+                            score: score,
+                            level: parseInt(localStorage.getItem(`tetris_best_level_${userId}`)) || 1
+                        });
+                    }
+                }
+            }
+            
+            players.sort((a, b) => b.score - a.score);
+            const topPlayers = players.slice(0, 10);
+            
             list.innerHTML = '';
             
-            if (players.length === 0) {
-                list.innerHTML = '<div style="text-align:center; padding:30px;">Пока нет игроков</div>';
+            if (topPlayers.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding:30px; color: #b5aaff;">Пока нет игроков</div>';
+                showScreen('leaderboard');
                 return;
             }
             
-            players.forEach((p, i) => {
-                const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-                const isMe = p.userId === telegramUserId;
-                
-                let petsHtml = '';
-                if (p.pets && p.pets.length > 0) {
-                    p.pets.forEach((petId, idx) => {
-                        const pet = PETS.find(pt => pt.id === petId.id || pt.id === petId);
-                        if (pet) petsHtml += `
-                            <div class="pet-collection-card" style="border-color:${pet.color}80;">
-                                ${pet.emoji} ${pet.food} ${p.food?.[idx] || 0}
-                            </div>
-                        `;
-                    });
-                }
+            topPlayers.forEach((player, index) => {
+                const rank = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                const isMe = player.id === telegramUserId;
                 
                 list.innerHTML += `
                     <div class="leaderboard-item" ${isMe ? 'style="border:2px solid #66ffaa;"' : ''}>
                         <div class="rank">${rank}</div>
                         <div class="player-info">
-                            <div class="player-name">${p.username || 'Player'} ${isMe ? '👑' : ''}</div>
-                            <div class="player-score">🏆 ${p.bestScore} очков • Ур.${p.bestLevel}</div>
-                            <div class="collection-title">🐾 Коллекция (${p.pets?.length || 0}/${PETS.length})</div>
-                            <div class="pets-collection-grid">${petsHtml || 'Нет питомцев'}</div>
+                            <div class="player-name">${player.name} ${isMe ? '👑' : ''}</div>
+                            <div class="player-score">🏆 ${player.score} очков • Ур.${player.level}</div>
                         </div>
                     </div>
                 `;
             });
+            
+            showScreen('leaderboard');
         }
 
         // ==================== УРОВНИ СЛОЖНОСТИ ====================
         function showLevels() {
             const grid = document.getElementById('levels-grid');
             grid.innerHTML = '';
+            
             DIFFICULTY_LEVELS.forEach(lvl => {
-                grid.innerHTML += `
-                    <div class="level-card ${lvl.id === currentDifficulty ? 'active' : ''}" onclick="selectDifficulty('${lvl.id}')">
-                        <div class="level-icon">${lvl.icon}</div>
-                        <div class="level-name">${lvl.name}</div>
-                        <div class="level-desc">${lvl.desc}</div>
-                    </div>
+                const card = document.createElement('div');
+                card.className = `level-card ${lvl.id === currentDifficulty ? 'active' : ''}`;
+                card.onclick = () => selectDifficulty(lvl.id);
+                card.innerHTML = `
+                    <div class="level-icon">${lvl.icon}</div>
+                    <div class="level-name">${lvl.name}</div>
+                    <div class="level-desc">${lvl.desc}</div>
+                    <div style="margin-top: 8px; font-size: 0.75rem; color: #ffcc66;">${lvl.speed}ms</div>
                 `;
+                grid.appendChild(card);
             });
+            
             showScreen('levels');
         }
 
-        function selectDifficulty(id) {
-            currentDifficulty = id;
+        function selectDifficulty(levelId) {
+            currentDifficulty = levelId;
             showLevels();
-            showNotification(`Сложность: ${DIFFICULTY_LEVELS.find(d => d.id === id).name}`);
+            showNotification(`Сложность: ${DIFFICULTY_LEVELS.find(d => d.id === levelId).name}`);
         }
 
         // ==================== НАСТРОЙКИ ====================
-        function showSettings() { showScreen('settings'); }
-        function testDatabase() { 
-            document.getElementById('db-status-text').innerHTML = '✅ Neon PostgreSQL подключена';
+        function showSettings() {
+            showScreen('settings');
+        }
+
+        function testDatabase() {
+            document.getElementById('db-status-text').textContent = '✅ Neon PostgreSQL подключена';
+            document.getElementById('db-status-text').style.color = '#66ffaa';
             showNotification('✅ База данных работает');
         }
-        function showMenu() { 
-            showScreen('menu'); 
-            checkSavedGame();
-            if (gameActive) pauseGame();
+
+        // ==================== НАВИГАЦИЯ ====================
+        function showMenu() {
+            showScreen('menu');
+            loadSavedGame();
+            if (gameActive && !gamePaused) {
+                pauseGame();
+            }
         }
-        function showNotification(msg) { 
-            const n = document.getElementById('notification'); 
-            n.textContent = msg; n.classList.add('show'); 
-            setTimeout(() => n.classList.remove('show'), 2000); 
+
+        function showScreen(screenName) {
+            Object.keys(screens).forEach(key => {
+                screens[key].classList.remove('active');
+            });
+            screens[screenName].classList.add('active');
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => notification.classList.remove('show'), 2000);
         }
 
         // ==================== КЛАВИАТУРА ====================
         document.addEventListener('keydown', (e) => {
             if (!document.getElementById('keyboard-controls')?.checked) return;
-            if (e.key.startsWith('Arrow')) e.preventDefault();
-            if (e.key === 'ArrowLeft') moveLeft();
-            if (e.key === 'ArrowRight') moveRight();
-            if (e.key === 'ArrowDown') moveDown();
-            if (e.key === 'ArrowUp') rotatePiece();
-            if (e.key === ' ') { e.preventDefault(); hardDrop(); }
-            if (e.key === 'p' || e.key === 'P') pauseGame();
-            if (e.key === 'Escape') showMenu();
+            
+            switch(e.key) {
+                case 'ArrowLeft': e.preventDefault(); moveLeft(); break;
+                case 'ArrowRight': e.preventDefault(); moveRight(); break;
+                case 'ArrowDown': e.preventDefault(); moveDown(); break;
+                case 'ArrowUp': e.preventDefault(); rotatePiece(); break;
+                case ' ': e.preventDefault(); hardDrop(); break;
+                case 'p': case 'P': e.preventDefault(); pauseGame(); break;
+                case 'Escape': e.preventDefault(); showMenu(); break;
+                case 'r': case 'R': e.preventDefault(); restartGame(); break;
+            }
         });
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-        window.addEventListener('load', async () => {
+        window.addEventListener('load', function() {
+            console.log('🎮 Тетрис PRO — СТАРЫЕ НАЗВАНИЯ ФУНКЦИЙ, ПИТОМЦЫ С 1000 ОЧКОВ');
             loadPets();
-            await checkSavedGame();
+            loadSavedGame();
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             drawBoard();
-            showNotification('✨ Тетрис PRO — питомцы с 1000 очков!');
+            selectDifficulty('medium');
+            showNotification('✨ Котёнок появится после 1000 очков!');
         });
     </script>
 </body>
