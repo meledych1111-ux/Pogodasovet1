@@ -2,6 +2,7 @@ import { Bot, Keyboard } from 'grammy';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import express from 'express';  // ✅ 1. ДОБАВИТЬ!
 
 // ===================== ИМПОРТ ФУНКЦИЙ ИЗ БАЗЫ ДАННЫХ =====================
 import {
@@ -21,6 +22,10 @@ import {
   getTopPlayersWithCities,
   getGameStats
 } from './db.js';
+
+// ===================== СОЗДАЕМ EXPRESS APP =====================
+const app = express();      // ✅ 2. ДОБАВИТЬ!
+app.use(express.json());    // ✅ 3. ДОБАВИТЬ!
 
 // ===================== ЗАГРУЗКА ПЕРЕМЕННЫХ ОКРУЖЕНИЯ =====================
 const __filename = fileURLToPath(import.meta.url);
