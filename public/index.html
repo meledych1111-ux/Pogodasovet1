@@ -362,10 +362,11 @@
         ];
 
         // ==================== ДАННЫЕ ИГРОКА ====================
-        let userPets = {};      // { "cat": 1, "dog": 1, ... } - БЕЗ ПРЕФИКСОВ ДЛЯ ОБЫЧНЫХ
-        let petFood = {};       // { "cat": 3, "dog": 3, ... }
+        let userPets = {};
+        let petFood = {};
         let activePet = null;
         let currentSessionPets = [];
+        let receivedPetThresholds = []; // Храним пороги, за которые получили питомцев
 
         // ==================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ====================
         let board = [];
@@ -450,30 +451,19 @@
         function getPetByScore(score) {
             if (score < 1000) return null;
             
-            // Сколько питомцев должно быть при этом счёте?
-            const expectedPetsCount = Math.floor(score / 1000);
+            // Какой порог только что пересекли?
+            const threshold = Math.floor(score / 1000) * 1000;
             
-            // Сколько питомцев уже получили в этой сессии?
-            const receivedPetsCount = currentSessionPets.length;
-            
-            // Если уже получили всех питомцев для этого счёта - не даём нового
-            if (receivedPetsCount >= expectedPetsCount) {
+            // Проверяем, получали ли питомца за этот порог в текущей сессии
+            if (receivedPetThresholds.includes(threshold)) {
                 return null;
             }
             
-            // Индекс следующего питомца (0,1,2,3,4...)
-            const petIndex = receivedPetsCount;
+            const petIndex = threshold / 1000 - 1;
             const basePet = BASE_PETS[petIndex % BASE_PETS.length];
-            
-            // Только после 25+ питомцев появляются ранги
             const tier = Math.floor(petIndex / BASE_PETS.length);
-            let rank = PET_RANKS[0]; // По умолчанию обычный
+            const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
             
-            if (tier > 0) {
-                rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
-            }
-            
-            // Для обычных питомцев не добавляем префикс
             const prefix = rank.prefix || '';
             const petId = prefix ? `${prefix}_${basePet.id}` : basePet.id;
             
@@ -483,7 +473,8 @@
                 emoji: prefix ? `${prefix}${basePet.emoji}` : basePet.emoji,
                 color: rank.color,
                 tier: tier,
-                petId: petId
+                petId: petId,
+                threshold: threshold
             };
         }
 
@@ -492,6 +483,10 @@
             if (!pet) return false;
             
             const petId = pet.petId;
+            const threshold = pet.threshold;
+            
+            // Отмечаем, что получили питомца за этот порог
+            receivedPetThresholds.push(threshold);
             
             // Увеличиваем счётчик питомца
             userPets[petId] = (userPets[petId] || 0) + 1;
@@ -501,7 +496,6 @@
             
             // Запоминаем, что получили питомца в этой сессии
             activePet = pet;
-            currentSessionPets.push(petId);
             
             // Сохраняем
             savePets();
@@ -539,6 +533,9 @@
             
             console.log(`🍖 +${linesCleared} еды для ${petId}, теперь: ${petFood[petId]}`);
             showFoodAnimation(activePet.food, linesCleared, activePet.color);
+            
+            // Обновляем интерфейс
+            updateCollectionInUI();
         }
 
         // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ (ИСПРАВЛЕНО) ====================
@@ -652,9 +649,8 @@
                                 <span style="font-size: 1.6rem;">${emoji}</span>
                                 <span style="color: white; font-weight: bold;">${pet.prefix ? pet.prefix : ''}${pet.name}</span>
                             </span>
-                            <span style="color: #ffd700; font-weight: bold; font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
-                                <span style="font-size: 1.2rem;">${pet.food}</span>
-                                <span>${pet.foodCount}</span>
+                            <span style="color: #ffd700; font-weight: bold; font-size: 1.3rem;">
+                                ${pet.foodCount}
                             </span>
                         </div>
                     `;
@@ -749,7 +745,11 @@
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             score = 0; lines = 0; gameLevel = 0; level = 0;
             gameActive = true; gamePaused = false; gameOver = false;
-            currentSessionPets = []; activePet = null;
+            
+            // ОЧИЩАЕМ ДАННЫЕ СЕССИИ
+            currentSessionPets = [];
+            receivedPetThresholds = [];
+            activePet = null;
             
             dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 800;
             
