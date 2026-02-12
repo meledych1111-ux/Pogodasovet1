@@ -735,14 +735,12 @@
         lines += linesCleared;
         clearedLinesAnimation = clearedRows;
         
-        // ✅ БОНУС ЗА ЛИНИИ - ИСПОЛЬЗУЕМ lines ДЛЯ РАСЧЕТА УРОВНЯ!
-        const currentLevel = Math.floor(lines / 10) + 1; // 0-9 = 1, 10-19 = 2, 20-29 = 3...
-        const bonus = [0, 100, 300, 500, 800];
-        score += bonus[linesCleared] * currentLevel;
+        // ✅ 100 ОЧКОВ ЗА КАЖДУЮ ЛИНИЮ!
+        score += linesCleared * 100;  // 1 линия = 100, 2 линии = 200, 3 = 300, 4 = 400
         
-        // ✅ ПОКАЗЫВАЕМ НОВЫЙ УРОВЕНЬ
-        if (currentLevel > level) {
-            level = currentLevel;
+        // Повышение уровня (для эффектов)
+        if (lines >= level * 10) {
+            level = Math.floor(lines / 10) + 1;
             showNotification(`🎉 Уровень ${level}!`);
         }
         
