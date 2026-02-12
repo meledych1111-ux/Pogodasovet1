@@ -721,66 +721,52 @@
         }
 
         function checkLines() {
-            let linesCleared = 0;
-            let clearedRows = [];
-            
-            for (let y = ROWS - 1; y >= 0; y--) {
-                if (board[y].every(cell => cell !== 0)) {
-                    clearedRows.push(y);
-                    linesCleared++;
-                }
-            }
-            
-            if (linesCleared > 0) {
-                lines += linesCleared;
-                clearedLinesAnimation = clearedRows;
-                
-                // ✅ БОНУС ЗА ЛИНИИ (РАСТЁТ С УРОВНЕМ!)
-                const bonus = [0, 100, 300, 500, 800];
-                score += bonus[linesCleared] * level;
-                
-                // ✅ ПОВЫШЕНИЕ УРОВНЯ - КАЖДЫЕ 10 ЛИНИЙ!
-                if (lines >= level * 10) {
-                    level = Math.floor(lines / 10) + 1;
-                    showNotification(`🎉 Уровень ${level}!`);
-                }
-                
-                // Кормим питомца
-                if (activePet && score >= 1000) {
-                    feedActivePet(linesCleared);
-                }
-                
-                // Проверяем получение питомцев
-                checkPetUnlocks();
-                
-                setTimeout(() => {
-                    for (let y of clearedRows.sort((a,b) => a - b)) {
-                        board.splice(y, 1);
-                        board.unshift(Array(COLS).fill(0));
-                    }
-                    clearedLinesAnimation = [];
-                    drawBoard();
-                }, 400);
-                
-                updateGameLevel();
-                updateDisplay();
-            }
+    let linesCleared = 0;
+    let clearedRows = [];
+    
+    for (let y = ROWS - 1; y >= 0; y--) {
+        if (board[y].every(cell => cell !== 0)) {
+            clearedRows.push(y);
+            linesCleared++;
         }
-
-        function pauseGame() {
-            if (gameActive && !gameOver) {
-                gamePaused = !gamePaused;
-                if (gamePaused) {
-                    cancelAnimationFrame(animationId);
-                    showNotification('⏸ Пауза');
-                } else {
-                    lastTime = 0;
-                    animationId = requestAnimationFrame(gameLoop);
-                    showNotification('▶️ Продолжение');
-                }
-            }
+    }
+    
+    if (linesCleared > 0) {
+        lines += linesCleared;
+        clearedLinesAnimation = clearedRows;
+        
+        // ✅ БОНУС ЗА ЛИНИИ - ИСПОЛЬЗУЕМ lines ДЛЯ РАСЧЕТА УРОВНЯ!
+        const currentLevel = Math.floor(lines / 10) + 1; // 0-9 = 1, 10-19 = 2, 20-29 = 3...
+        const bonus = [0, 100, 300, 500, 800];
+        score += bonus[linesCleared] * currentLevel;
+        
+        // ✅ ПОКАЗЫВАЕМ НОВЫЙ УРОВЕНЬ
+        if (currentLevel > level) {
+            level = currentLevel;
+            showNotification(`🎉 Уровень ${level}!`);
         }
-
+        
+        // Кормим питомца
+        if (activePet && score >= 1000) {
+            feedActivePet(linesCleared);
+        }
+        
+        // Проверяем получение питомцев
+        checkPetUnlocks();
+        
+        setTimeout(() => {
+            for (let y of clearedRows.sort((a,b) => a - b)) {
+                board.splice(y, 1);
+                board.unshift(Array(COLS).fill(0));
+            }
+            clearedLinesAnimation = [];
+            drawBoard();
+        }, 400);
+        
+        updateGameLevel();
+        updateDisplay();
+    }
+}
         function restartGame() { 
             if (confirm('Начать новую игру?')) {
                 startGame(); 
