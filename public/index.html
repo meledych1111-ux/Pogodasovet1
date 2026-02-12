@@ -531,7 +531,7 @@
             }
         }
 
-        // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ ====================
+        // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ С ЭМОДЗИ ====================
         function updateCollectionInUI() {
             const petsStats = document.getElementById('pets-collection-stats');
             const foodStats = document.getElementById('food-collection-stats');
@@ -571,24 +571,28 @@
                 
                 petList.forEach(pet => {
                     const emoji = `${pet.prefix}${pet.emoji}`;
+                    
+                    // КОЛЛЕКЦИЯ ПИТОМЦЕВ - ЭМОДЗИ + ИМЯ + ×КОЛИЧЕСТВО
                     petsHtml += `
                         <div class="pet-stat-row">
                             <span style="display: flex; align-items: center; gap: 8px;">
                                 <span style="font-size: 1.3rem;">${emoji}</span>
                                 <span style="color: white;">${pet.prefix}${pet.name}</span>
                             </span>
-                            <span style="color: #ffcc66; font-weight: bold;">×${pet.count}</span>
+                            <span style="color: #ffcc66; font-weight: bold; font-size: 1.1rem;">×${pet.count}</span>
                         </div>
                     `;
                     
+                    // ЗАПАСЫ ЕДЫ - ЭМОДЗИ ПИТОМЦА + ИКОНКА ЕДЫ + КОЛИЧЕСТВО
                     foodHtml += `
                         <div class="pet-stat-row">
                             <span style="display: flex; align-items: center; gap: 8px;">
                                 <span style="font-size: 1.3rem;">${emoji}</span>
                                 <span style="color: white;">${pet.prefix}${pet.name}</span>
                             </span>
-                            <span style="color: ${pet.color || '#ffd700'}; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-                                ${pet.food} ${pet.food}
+                            <span style="color: ${pet.color || '#ffd700'}; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 1.2rem;">${pet.food}</span>
+                                <span style="font-size: 1.2rem;">${pet.food}</span>
                             </span>
                         </div>
                     `;
@@ -1028,7 +1032,7 @@
                 .catch(() => {});
         }
 
-        // ==================== ЛИДЕРБОРД ====================
+        // ==================== ЛИДЕРБОРД С ПИТОМЦАМИ ====================
         function showLeaderboard() {
             const list = document.getElementById('leaderboard-list');
             list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Загрузка...</div>';
