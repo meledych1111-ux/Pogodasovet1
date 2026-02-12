@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тетрис PRO — 15 уровней, эффекты, коллекция от счёта</title>
+    <title>Тетрис PRO — ПОЛНАЯ ВЕРСИЯ</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #fff; }
@@ -56,7 +56,7 @@
         .game-area { flex: 1; display: flex; justify-content: center; align-items: center; min-height: 460px; height: calc(100% - 70px); position: relative; }
         #tetris-canvas { background: rgba(0,0,0,0.3); border-radius: 6px; border: 2px solid rgba(68,85,204,0.5); max-width: 100%; max-height: 100%; transition: all 0.3s; }
         
-        /* ==================== ЭФФЕКТЫ УРОВНЕЙ ==================== */
+        /* Эффекты уровней */
         .effect-sparks { box-shadow: 0 0 15px rgba(255,255,100,0.7); }
         .effect-glow { filter: drop-shadow(0 0 8px #00ffff); }
         .effect-stars { position: relative; }
@@ -132,7 +132,7 @@
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС PRO</h1>
-                <p class="subtitle">15 уровней • Эффекты • Коллекция от счёта</p>
+                <p class="subtitle">15 уровней • Эффекты • Коллекция</p>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startGame()">🎮 НОВАЯ ИГРА</button>
@@ -228,7 +228,7 @@
                     <p style="color:#aaccff; margin-bottom:10px;">От всего линий: <span id="total-lines-for-food" style="color:#66ffaa; font-weight:bold;">0</span></p>
                     <div id="food-collection-grid" class="pets-collection-grid"></div>
                     <p style="color:#aaccff; font-size:0.8rem; margin-top:10px; text-align:center;">
-                        ⭐ Всего линий = Всего еды: <span id="total-food-amount">0</span>
+                        ⭐ 1 линия = 1 еда • Всего еды: <span id="total-food-amount">0</span>
                     </p>
                 </div>
             </div>
@@ -301,7 +301,7 @@
         // ==================== 15 УРОВНЕЙ С ЭФФЕКТАМИ ====================
         const GAME_LEVELS = [
             { level: 1, min: 0, max: 1499, effect: '🟢', name: 'Старт', effectClass: '' },
-            { level: 2, min: 1500, max: 1999, effect: '⚡', name: 'Искры', effectClass: 'effect-sparks', speedBoost: -50 },
+            { level: 2, min: 1500, max: 1999, effect: '⚡', name: 'Искры', effectClass: 'effect-sparks' },
             { level: 3, min: 2000, max: 2499, effect: '🌟', name: 'Сияние', effectClass: 'effect-glow' },
             { level: 4, min: 2500, max: 2999, effect: '💫', name: 'Звёзды', effectClass: 'effect-stars' },
             { level: 5, min: 3000, max: 3499, effect: '🔥', name: 'Огонь', effectClass: 'effect-fire' },
@@ -412,11 +412,10 @@
         function updateGameLevel() {
             const levelData = getGameLevelFromScore(score);
             gameLevel = levelData.level;
-            level = gameLevel;
             
             const baseSpeed = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
             
-            // ТОЛЬКО 2 УРОВЕНЬ ДАЁТ УСКОРЕНИЕ!
+            // ТОЛЬКО 2 УРОВЕНЬ ДАЁТ УСКОРЕНИЕ
             if (gameLevel === 2) {
                 dropInterval = Math.max(150, baseSpeed - 50);
             } else {
@@ -453,7 +452,6 @@
             currentSessionPets.push(pet.id);
             activePet = pet;
             
-            // АНИМАЦИЯ
             showPetUnlockAnimation(pet);
             showPetNotification(`✨ +1 ${pet.name}`, pet.color);
             showFoodAnimation(pet.food, 3, pet.color);
@@ -493,7 +491,7 @@
             if (activePet && score >= 1000) {
                 document.getElementById('pet-emoji-header').textContent = activePet.emoji;
                 document.getElementById('pet-food-icon-header').textContent = activePet.food;
-                document.getElementById('pet-food-count-header').textContent = '0'; // Временная еда
+                document.getElementById('pet-food-count-header').textContent = '0';
                 panel.style.borderColor = activePet.color + '80';
                 panel.style.display = 'flex';
             } else {
@@ -508,10 +506,10 @@
             
             if (!petsGrid || !foodGrid) return;
             
-            // ПОЛУЧАЕМ ПИТОМЦЕВ ОТ ЛУЧШЕГО СЧЁТА
             const pets = getPetsFromScore(bestScore);
+            const foodAmount = getFoodFromLines(totalLinesAll);
             
-            // ОТОБРАЖАЕМ ПИТОМЦЕВ
+            // ПИТОМЦЫ
             let petsHtml = '';
             pets.forEach(pet => {
                 petsHtml += `
@@ -523,8 +521,7 @@
             });
             petsGrid.innerHTML = petsHtml || '<div style="color:#aaccff; padding:10px;">🐾 Нет питомцев. Наберите 1000 очков!</div>';
             
-            // ОТОБРАЖАЕМ ЕДУ ОТ ЛИНИЙ
-            const foodAmount = getFoodFromLines(totalLinesAll);
+            // ЕДА
             let foodHtml = '';
             pets.forEach(pet => {
                 foodHtml += `
@@ -537,7 +534,7 @@
             });
             foodGrid.innerHTML = foodHtml || '<div style="color:#aaccff; padding:10px;">🍖 Нет еды</div>';
             
-            // ОБНОВЛЯЕМ СЧЁТЧИКИ
+            // СЧЁТЧИКИ
             document.getElementById('best-score-for-pets').textContent = bestScore;
             document.getElementById('total-lines-for-food').textContent = totalLinesAll;
             document.getElementById('total-pets-count').textContent = pets.length;
@@ -738,16 +735,22 @@
                 lines += linesCleared;
                 clearedLinesAnimation = clearedRows;
                 
-                // ТОЛЬКО БОНУС ЗА ЛИНИИ!
+                // ✅ БОНУС ЗА ЛИНИИ (РАСТЁТ С УРОВНЕМ!)
                 const bonus = [0, 100, 300, 500, 800];
                 score += bonus[linesCleared] * level;
                 
-                // КОРМИМ ПИТОМЦА
+                // ✅ ПОВЫШЕНИЕ УРОВНЯ - КАЖДЫЕ 10 ЛИНИЙ!
+                if (lines >= level * 10) {
+                    level = Math.floor(lines / 10) + 1;
+                    showNotification(`🎉 Уровень ${level}!`);
+                }
+                
+                // Кормим питомца
                 if (activePet && score >= 1000) {
                     feedActivePet(linesCleared);
                 }
                 
-                // ПРОВЕРЯЕМ ПОЛУЧЕНИЕ НОВЫХ ПИТОМЦЕВ
+                // Проверяем получение питомцев
                 checkPetUnlocks();
                 
                 setTimeout(() => {
@@ -798,7 +801,6 @@
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // СЕТКА
             ctx.strokeStyle = 'rgba(106,91,255,0.15)';
             ctx.lineWidth = 1;
             for (let x = 0; x <= COLS; x++) {
@@ -954,7 +956,6 @@
                         document.getElementById('total-lines').textContent = totalLinesAll;
                         document.getElementById('avg-score').textContent = avgScore;
                         
-                        // ОБНОВЛЯЕМ КОЛЛЕКЦИЮ ПРИ ЗАГРУЗКЕ
                         updateCollectionInUI();
                     }
                 })
@@ -1052,6 +1053,7 @@
         // ==================== СТАТИСТИКА ====================
         function showStats() {
             loadUserStats();
+            updateCollectionInUI();
             showScreen('stats');
         }
 
@@ -1089,12 +1091,12 @@
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис PRO — 15 уровней, эффекты, коллекция от счёта');
+            console.log('🎮 Тетрис PRO — ИСПРАВЛЕНА ВСЯ ЛОГИКА!');
             loadUserStats();
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             drawBoard();
             selectDifficulty('medium');
-            showNotification('✨ Очки только за линии! Эффекты на уровнях!');
+            showNotification('✨ Очки растут с уровнем! Питомцы от счёта!');
         });
     </script>
 </body>
