@@ -537,137 +537,137 @@
             // Обновляем интерфейс
             updateCollectionInUI();
         }
-
-        // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ (ИСПРАВЛЕНО) ====================
-        function updateCollectionInUI() {
-            const petsStats = document.getElementById('pets-collection-stats');
-            const foodStats = document.getElementById('food-collection-stats');
-            
-            if (!petsStats || !foodStats) return;
-            
-            // Загружаем актуальные данные
-            loadPets();
-            
-            const totalPets = getTotalPetsCount();
-            const totalFood = getTotalFoodCount();
-            
-            console.log('📊 ОТОБРАЖЕНИЕ СТАТИСТИКИ:');
-            console.log('   Питомцы:', userPets);
-            console.log('   Еда:', petFood);
-            console.log('   Всего питомцев:', totalPets);
-            console.log('   Всего еды:', totalFood);
-            
-            // ----- ПИТОМЦЫ -----
-            let petsHtml = '';
-            if (totalPets === 0) {
-                petsHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🐾 У вас пока нет питомцев. Достигните 1000 очков, чтобы получить котёнка!</div>';
-            } else {
-                const petList = [];
+// ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ (ПОЛНОСТЬЮ ИСПРАВЛЕНО) ====================
+function updateCollectionInUI() {
+    const petsStats = document.getElementById('pets-collection-stats');
+    const foodStats = document.getElementById('food-collection-stats');
+    
+    if (!petsStats || !foodStats) return;
+    
+    // Загружаем актуальные данные
+    loadPets();
+    
+    const totalPets = getTotalPetsCount();
+    const totalFood = getTotalFoodCount();
+    
+    console.log('📊 ОТОБРАЖЕНИЕ СТАТИСТИКИ:');
+    console.log('   Питомцы:', userPets);
+    console.log('   Еда:', petFood);
+    console.log('   Всего питомцев:', totalPets);
+    console.log('   Всего еды:', totalFood);
+    
+    // ----- ПИТОМЦЫ -----
+    let petsHtml = '';
+    if (totalPets === 0) {
+        petsHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🐾 У вас пока нет питомцев. Достигните 1000 очков, чтобы получить котёнка!</div>';
+    } else {
+        const petList = [];
+        
+        for (let petId in userPets) {
+            const count = userPets[petId];
+            if (count > 0) {
+                // Разбираем ID питомца
+                let prefix = '';
+                let id = petId;
                 
-                for (let petId in userPets) {
-                    const count = userPets[petId];
-                    if (count > 0) {
-                        // Разбираем ID питомца
-                        let prefix = '';
-                        let id = petId;
-                        
-                        if (petId.includes('_')) {
-                            const parts = petId.split('_');
-                            prefix = parts[0];
-                            id = parts[1];
-                        }
-                        
-                        const basePet = BASE_PETS.find(p => p.id === id);
-                        if (basePet) {
-                            petList.push({
-                                ...basePet,
-                                prefix: prefix,
-                                count: count,
-                                fullId: petId
-                            });
-                        }
-                    }
+                if (petId.includes('_')) {
+                    const parts = petId.split('_');
+                    prefix = parts[0];
+                    id = parts[1];
                 }
                 
-                // Сортируем по очкам
-                petList.sort((a, b) => a.score - b.score);
-                
-                petList.forEach(pet => {
-                    const emoji = pet.prefix ? `${pet.prefix}${pet.emoji}` : pet.emoji;
-                    petsHtml += `
-                        <div class="pet-stat-row" style="border-left: 4px solid ${pet.color};">
-                            <span style="display: flex; align-items: center; gap: 12px;">
-                                <span style="font-size: 1.6rem;">${emoji}</span>
-                                <span style="color: white; font-weight: bold;">${pet.prefix ? pet.prefix : ''}${pet.name}</span>
-                            </span>
-                            <span style="color: #ffcc66; font-weight: bold; font-size: 1.3rem;">×${pet.count}</span>
-                        </div>
-                    `;
-                });
-            }
-            
-            // ----- ЕДА -----
-            let foodHtml = '';
-            if (totalFood === 0) {
-                foodHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🍖 Нет запасов еды</div>';
-            } else {
-                const foodList = [];
-                
-                for (let petId in petFood) {
-                    const count = petFood[petId];
-                    if (count > 0) {
-                        // Разбираем ID питомца
-                        let prefix = '';
-                        let id = petId;
-                        
-                        if (petId.includes('_')) {
-                            const parts = petId.split('_');
-                            prefix = parts[0];
-                            id = parts[1];
-                        }
-                        
-                        const basePet = BASE_PETS.find(p => p.id === id);
-                        if (basePet) {
-                            foodList.push({
-                                ...basePet,
-                                prefix: prefix,
-                                foodCount: count,
-                                fullId: petId
-                            });
-                        }
-                    }
+                const basePet = BASE_PETS.find(p => p.id === id);
+                if (basePet) {
+                    petList.push({
+                        ...basePet,
+                        prefix: prefix,
+                        count: count,
+                        fullId: petId
+                    });
                 }
-                
-                // Сортируем по очкам
-                foodList.sort((a, b) => a.score - b.score);
-                
-                foodList.forEach(pet => {
-                    const emoji = pet.prefix ? `${pet.prefix}${pet.emoji}` : pet.emoji;
-                    foodHtml += `
-                        <div class="pet-stat-row" style="border-left: 4px solid ${pet.color};">
-                            <span style="display: flex; align-items: center; gap: 12px;">
-                                <span style="font-size: 1.6rem;">${emoji}</span>
-                                <span style="color: white; font-weight: bold;">${pet.prefix ? pet.prefix : ''}${pet.name}</span>
-                            </span>
-                            <span style="color: #ffd700; font-weight: bold; font-size: 1.3rem;">
-                                ${pet.foodCount}
-                            </span>
-                        </div>
-                    `;
-                });
             }
-            
-            petsStats.innerHTML = petsHtml;
-            foodStats.innerHTML = foodHtml;
-            
-            // Обновляем счётчики
-            const totalPetsEl = document.getElementById('total-pets-count');
-            const totalFoodEl = document.getElementById('total-food-amount');
-            
-            if (totalPetsEl) totalPetsEl.textContent = totalPets;
-            if (totalFoodEl) totalFoodEl.textContent = totalFood;
         }
-
+        
+        // Сортируем по очкам
+        petList.sort((a, b) => a.score - b.score);
+        
+        petList.forEach(pet => {
+            const emoji = pet.prefix ? `${pet.prefix}${pet.emoji}` : pet.emoji;
+            petsHtml += `
+                <div class="pet-stat-row" style="border-left: 4px solid ${pet.color};">
+                    <span style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 1.6rem;">${emoji}</span>
+                        <span style="color: white; font-weight: bold;">${pet.prefix ? pet.prefix : ''}${pet.name}</span>
+                    </span>
+                    <span style="color: #ffcc66; font-weight: bold; font-size: 1.3rem;">×${pet.count}</span>
+                </div>
+            `;
+        });
+    }
+    
+    // ----- ЕДА (ИСПРАВЛЕНО - ДОБАВЛЕНА ИКОНКА) -----
+    let foodHtml = '';
+    if (totalFood === 0) {
+        foodHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🍖 Нет запасов еды</div>';
+    } else {
+        const foodList = [];
+        
+        for (let petId in petFood) {
+            const count = petFood[petId];
+            if (count > 0) {
+                // Разбираем ID питомца
+                let prefix = '';
+                let id = petId;
+                
+                if (petId.includes('_')) {
+                    const parts = petId.split('_');
+                    prefix = parts[0];
+                    id = parts[1];
+                }
+                
+                const basePet = BASE_PETS.find(p => p.id === id);
+                if (basePet) {
+                    foodList.push({
+                        ...basePet,
+                        prefix: prefix,
+                        foodCount: count,
+                        foodIcon: basePet.food, // ИКОНКА ЕДЫ!
+                        fullId: petId
+                    });
+                }
+            }
+        }
+        
+        // Сортируем по очкам
+        foodList.sort((a, b) => a.score - b.score);
+        
+        foodList.forEach(pet => {
+            const emoji = pet.prefix ? `${pet.prefix}${pet.emoji}` : pet.emoji;
+            foodHtml += `
+                <div class="pet-stat-row" style="border-left: 4px solid ${pet.color};">
+                    <span style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 1.6rem;">${emoji}</span>
+                        <span style="color: white; font-weight: bold;">${pet.prefix ? pet.prefix : ''}${pet.name}</span>
+                    </span>
+                    <span style="color: #ffd700; font-weight: bold; font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2rem;">${pet.foodIcon}</span>
+                        <span>${pet.foodCount}</span>
+                    </span>
+                </div>
+            `;
+        });
+    }
+    
+    petsStats.innerHTML = petsHtml;
+    foodStats.innerHTML = foodHtml;
+    
+    // Обновляем счётчики
+    const totalPetsEl = document.getElementById('total-pets-count');
+    const totalFoodEl = document.getElementById('total-food-amount');
+    
+    if (totalPetsEl) totalPetsEl.textContent = totalPets;
+    if (totalFoodEl) totalFoodEl.textContent = totalFood;
+}
         // ==================== ПАНЕЛЬ ПИТОМЦА ====================
         function updatePetHeaderPanel() {
             const panel = document.getElementById('pet-header-panel');
