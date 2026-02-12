@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Тетрис PRO — Уровни, питомцы, Neon статистика</title>
     <style>
         /* ==================== ПОЛНЫЙ ВАШ CSS ==================== */
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
@@ -36,48 +37,18 @@
         .game-info .info-box:not(:last-child) { position: relative; margin-right: 8px; }
         .game-info .info-box:not(:last-child)::after { content: "•"; position: absolute; right: -8px; color: #6a5bff; font-size: 0.8rem; top: 50%; transform: translateY(-50%); }
         
-        /* ==================== ПАНЕЛЬ ПИТОМЦА - ПОЯВЛЯЕТСЯ ТОЛЬКО ПОСЛЕ 1000 ОЧКОВ ==================== */
-        .pet-badge { 
-            display: none; 
-            align-items: center; 
-            gap: 6px; 
-            background: rgba(255, 182, 193, 0.15); 
-            border-radius: 20px; 
-            padding: 2px 12px 2px 8px; 
-            border: 1px solid; 
-            font-size: 0.8rem; 
-            margin-left: 6px; 
-            height: 28px; 
-            white-space: nowrap; 
-            transition: all 0.3s ease; 
-        }
+        .pet-badge { display: none; align-items: center; gap: 6px; background: rgba(255, 182, 193, 0.15); border-radius: 20px; padding: 2px 12px 2px 8px; border: 1px solid; font-size: 0.8rem; margin-left: 6px; height: 28px; white-space: nowrap; transition: all 0.3s ease; }
         .pet-emoji { font-size: 1rem; }
-        .pet-food-wrapper { 
-            display: flex; 
-            align-items: center; 
-            gap: 4px; 
-            background: rgba(255, 215, 0, 0.15); 
-            border-radius: 14px; 
-            padding: 2px 8px; 
-            margin-left: 2px; 
-        }
+        .pet-food-wrapper { display: flex; align-items: center; gap: 4px; background: rgba(255, 215, 0, 0.15); border-radius: 14px; padding: 2px 8px; margin-left: 2px; }
         .pet-food-icon { font-size: 0.85rem; }
-        .pet-food-count { 
-            font-weight: bold; 
-            color: #ffd700; 
-            font-size: 0.8rem; 
-            min-width: 18px; 
-            text-align: center; 
-        }
+        .pet-food-count { font-weight: bold; color: #ffd700; font-size: 0.8rem; min-width: 18px; text-align: center; }
         
-        /* ==================== ЭФФЕКТЫ УРОВНЕЙ ==================== */
         .level-effects { display: flex; gap: 2px; margin-left: 4px; font-size: 0.9rem; }
         .next-level-progress { padding: 5px 10px; background: rgba(20, 30, 80, 0.5); border-radius: 8px; margin-top: 2px; }
         .next-level-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: #aaccff; }
         .progress-bar { width: 100%; height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; margin-top: 4px; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #6a5bff, #9d7aff); border-radius: 2px; transition: width 0.3s ease; }
         
-        /* ==================== АНИМАЦИИ ==================== */
         .food-particle { position: fixed; pointer-events: none; font-size: 1.8rem; animation: foodFloat 1.2s ease-out forwards; z-index: 10001; text-shadow: 0 0 15px currentColor, 0 0 30px rgba(255, 255, 255, 0.5); filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.7)); }
         @keyframes foodFloat { 0% { opacity: 0; transform: translateY(0) scale(0.5) rotate(0deg); } 20% { opacity: 1; transform: translateY(-20px) scale(1.3) rotate(10deg); } 60% { opacity: 1; transform: translateY(-60px) scale(1.1) rotate(-5deg); } 100% { opacity: 0; transform: translateY(-120px) scale(0.8) rotate(0deg); } }
         .star-particle { position: fixed; pointer-events: none; font-size: 1.2rem; animation: starFloat 1s ease-out forwards; z-index: 10002; text-shadow: 0 0 10px gold; }
@@ -136,6 +107,8 @@
         @keyframes petNotify { 0% { opacity: 0; transform: translateX(50px); } 15% { opacity: 1; transform: translateX(0); } 85% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(20px); } }
         
         @media (max-width: 400px) { .game-title { font-size: 1.6rem; } .menu-btn { padding: 14px 10px; font-size: 0.9rem; } }
+        @media (max-height: 700px) { .game-container { max-height: 650px; min-height: 550px; } .game-area { min-height: 400px; } }
+        
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 3px; }
         ::-webkit-scrollbar-thumb { background: rgba(106, 91, 255, 0.5); border-radius: 3px; }
@@ -147,7 +120,7 @@
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС PRO</h1>
-                <p class="subtitle">Neon PostgreSQL • Коллекция 25 питомцев</p>
+                <p class="subtitle">Neon PostgreSQL • Уровни • Питомцы</p>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startGame()">
@@ -182,8 +155,6 @@
                     <div class="info-box"><div class="info-value" id="level-display">1</div></div>
                     <div class="info-box"><div class="info-value" id="score-display">0</div></div>
                     <div class="info-box"><div class="info-value" id="lines-display">0</div></div>
-                    
-                    <!-- ПАНЕЛЬ ПИТОМЦА - ИЗНАЧАЛЬНО СКРЫТА, ПОЯВИТСЯ ТОЛЬКО ПОСЛЕ 1000 ОЧКОВ -->
                     <div id="pet-header-panel" class="pet-badge">
                         <span id="pet-emoji-header" class="pet-emoji">🐱</span>
                         <span class="pet-food-wrapper">
@@ -191,30 +162,24 @@
                             <span id="pet-food-count-header" class="pet-food-count">0</span>
                         </span>
                     </div>
-                    
                     <div id="level-effects-header" class="level-effects">🟢</div>
                 </div>
             </div>
-            
             <div class="game-area">
                 <canvas id="tetris-canvas" width="240" height="480"></canvas>
             </div>
-            
             <div class="game-controls-panel">
                 <div class="game-buttons">
                     <button class="game-btn pause-btn" onclick="pauseGame()"><span>⏸</span> ПАУЗА</button>
                     <button class="game-btn" onclick="restartGame()"><span>🔄</span> ЗАНОВО</button>
                     <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
                 </div>
-                
                 <div class="controls">
                     <button class="control-btn" onclick="moveLeft()">←</button>
                     <button class="control-btn" onclick="hardDrop()">↓</button>
                     <button class="control-btn" onclick="rotatePiece()">↻</button>
                     <button class="control-btn" onclick="moveRight()">→</button>
                 </div>
-                
-                <!-- ПРОГРЕСС УРОВНЯ -->
                 <div class="next-level-progress">
                     <div class="next-level-info">
                         <span>✨ УРОВЕНЬ <span id="game-level">1</span> • <span id="next-level-target">1500</span> очков</span>
@@ -229,24 +194,67 @@
         
         <!-- СТАТИСТИКА -->
         <div class="screen" id="stats-screen">
-            <div class="header"><h1 class="game-title">СТАТИСТИКА</h1></div>
+            <div class="header">
+                <h1 class="game-title">СТАТИСТИКА</h1>
+                <p class="subtitle">Ваши достижения и коллекция</p>
+            </div>
             <div class="stats-container">
                 <div class="stat-card">
-                    <h3 style="color: #6a5bff; margin-bottom: 15px;">📊 Ваша статистика (Neon)</h3>
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">📊 Игровая статистика (Neon)</h3>
                     <div id="user-stats">
-                        <div class="stat-row"><span class="stat-label">🏆 Лучший счет:</span><span class="stat-value" id="best-score">0</span></div>
-                        <div class="stat-row"><span class="stat-label">⭐ Рекордный уровень:</span><span class="stat-value" id="best-level">1</span></div>
-                        <div class="stat-row"><span class="stat-label">📏 Всего линий:</span><span class="stat-value" id="total-lines">0</span></div>
-                        <div class="stat-row"><span class="stat-label">🎮 Сыграно игр:</span><span class="stat-value" id="games-played">0</span></div>
-                        <div class="stat-row"><span class="stat-label">💰 Средний счет:</span><span class="stat-value" id="avg-score">0</span></div>
+                        <div class="stat-row">
+                            <span class="stat-label">🏆 Лучший счет:</span>
+                            <span class="stat-value" id="best-score">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">⭐ Рекордный уровень:</span>
+                            <span class="stat-value" id="best-level">1</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">📏 Всего линий:</span>
+                            <span class="stat-value" id="total-lines">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">🎮 Сыграно игр:</span>
+                            <span class="stat-value" id="games-played">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">💰 Средний счет:</span>
+                            <span class="stat-value" id="avg-score">0</span>
+                        </div>
                     </div>
                 </div>
+                
                 <div class="stat-card">
-                    <h3 style="color: #ff99aa; margin-bottom: 15px;">🐾 МОЯ КОЛЛЕКЦИЯ <span id="pets-collection-count">0/25</span></h3>
+                    <h3 style="color: #6a5bff; margin-bottom: 15px;">🎮 Текущая сессия</h3>
+                    <div id="session-stats">
+                        <div class="stat-row">
+                            <span class="stat-label">🎯 Текущий счет:</span>
+                            <span class="stat-value" id="current-score">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">⭐ Текущий уровень:</span>
+                            <span class="stat-value" id="current-level">1</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">📏 Линии в сессии:</span>
+                            <span class="stat-value" id="session-lines">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">🐾 Активный питомец:</span>
+                            <span class="stat-value" id="active-pet">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3 style="color: #ff99aa; margin-bottom: 15px;">🐾 КОЛЛЕКЦИЯ ПИТОМЦЕВ <span id="pets-collection-count">0/25</span></h3>
                     <div id="pets-collection-stats" class="pets-stats-grid"></div>
                 </div>
             </div>
-            <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
+            <div class="footer">
+                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+            </div>
         </div>
         
         <!-- УРОВНИ СЛОЖНОСТИ -->
@@ -269,9 +277,15 @@
             <div class="stats-container">
                 <div class="stat-card">
                     <h3 style="color: #6a5bff; margin-bottom: 15px;">⚙️ Управление</h3>
-                    <label style="display: flex; align-items: center; margin-bottom: 10px;"><input type="checkbox" id="touch-controls" checked style="margin-right: 10px;"> Сенсорное управление</label>
-                    <label style="display: flex; align-items: center; margin-bottom: 10px;"><input type="checkbox" id="keyboard-controls" checked style="margin-right: 10px;"> Управление клавиатурой</label>
-                    <label style="display: flex; align-items: center;"><input type="checkbox" id="vibration" checked style="margin-right: 10px;"> Виброотклик</label>
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="touch-controls" checked style="margin-right: 10px;"> Сенсорное управление
+                    </label>
+                    <label style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <input type="checkbox" id="keyboard-controls" checked style="margin-right: 10px;"> Управление клавиатурой
+                    </label>
+                    <label style="display: flex; align-items: center;">
+                        <input type="checkbox" id="vibration" checked style="margin-right: 10px;"> Виброотклик
+                    </label>
                 </div>
                 <div class="stat-card">
                     <h3 style="color: #6a5bff; margin-bottom: 15px;">🗄️ База данных Neon</h3>
@@ -356,52 +370,43 @@
             { id: 'insane', name: 'Безумие', speed: 150, desc: 'Только для мастеров', icon: '💀' }
         ];
 
-        // ИГРОВЫЕ УРОВНИ (КАЖДЫЕ 500 ОЧКОВ)
+        // ИГРОВЫЕ УРОВНИ (каждые 500 очков) - С ЭФФЕКТАМИ!
         const GAME_LEVELS = [
-            { min: 0, max: 1499, level: 1, speedOffset: 0, effect: '🟢', name: 'Старт' },
-            { min: 1500, max: 1999, level: 2, speedOffset: -50, effect: '⚡', name: 'Искры' },
-            { min: 2000, max: 2499, level: 3, speedOffset: -100, effect: '🌟', name: 'Сияние' },
-            { min: 2500, max: 2999, level: 4, speedOffset: -150, effect: '💫', name: 'Звёзды' },
-            { min: 3000, max: 3499, level: 5, speedOffset: -200, effect: '🔥', name: 'Огонь' },
-            { min: 3500, max: 3999, level: 6, speedOffset: -250, effect: '❄️', name: 'Лёд' },
-            { min: 4000, max: 4499, level: 7, speedOffset: -300, effect: '⚡⚡', name: 'Удвоенные искры' },
-            { min: 4500, max: 4999, level: 8, speedOffset: -350, effect: '🌈', name: 'Радуга' },
-            { min: 5000, max: 5499, level: 9, speedOffset: -400, effect: '🎆', name: 'Салют' },
-            { min: 5500, max: 5999, level: 10, speedOffset: -450, effect: '👑', name: 'Корона' },
-            { min: 6000, max: Infinity, level: 11, speedOffset: -500, effect: '💎', name: 'Мастер' }
+            { min: 0, max: 1499, level: 1, speedOffset: 0, effect: '🟢', name: 'Старт', icon: '🟢' },
+            { min: 1500, max: 1999, level: 2, speedOffset: -50, effect: '⚡', name: 'Искры', icon: '⚡' },
+            { min: 2000, max: 2499, level: 3, speedOffset: -100, effect: '🌟', name: 'Сияние', icon: '🌟' },
+            { min: 2500, max: 2999, level: 4, speedOffset: -150, effect: '💫', name: 'Звёзды', icon: '💫' },
+            { min: 3000, max: 3499, level: 5, speedOffset: -200, effect: '🔥', name: 'Огонь', icon: '🔥' },
+            { min: 3500, max: 3999, level: 6, speedOffset: -250, effect: '❄️', name: 'Лёд', icon: '❄️' },
+            { min: 4000, max: 4499, level: 7, speedOffset: -300, effect: '⚡⚡', name: 'Удвоенные искры', icon: '⚡⚡' },
+            { min: 4500, max: 4999, level: 8, speedOffset: -350, effect: '🌈', name: 'Радуга', icon: '🌈' },
+            { min: 5000, max: 5499, level: 9, speedOffset: -400, effect: '🎆', name: 'Салют', icon: '🎆' },
+            { min: 5500, max: 5999, level: 10, speedOffset: -450, effect: '👑', name: 'Корона', icon: '👑' },
+            { min: 6000, max: Infinity, level: 11, speedOffset: -500, effect: '💎', name: 'Мастер', icon: '💎' }
         ];
 
-        // ==================== ПОЛНАЯ КОЛЛЕКЦИЯ ПИТОМЦЕВ - 25 ШТУК, ВСЯ ЕДА РАЗНАЯ! ====================
+        // ==================== ПОЛНАЯ КОЛЛЕКЦИЯ ПИТОМЦЕВ ====================
         const PETS = [
-            // 1-5: Базовые (1000-3000)
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🐟', foodName: 'рыбку' },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1500, food: '🦴', foodName: 'косточку' },
             { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 2000, food: '🥕', foodName: 'морковку' },
             { id: 'fox', name: 'Лисёнок', emoji: '🦊', color: '#FF8C42', score: 2500, food: '🍇', foodName: 'виноград' },
             { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 3000, food: '🎋', foodName: 'бамбук' },
-            
-            // 6-10: Птицы и лесные (3500-5500)
             { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 3500, food: '🦐', foodName: 'криль' },
             { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 4000, food: '🌿', foodName: 'эвкалипт' },
             { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4500, food: '🐭', foodName: 'мышку' },
             { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 5000, food: '🥩', foodName: 'мясо' },
             { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5500, food: '🥩', foodName: 'мясо' },
-            
-            // 11-15: Саванна (6000-8000)
             { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿', foodName: 'листья' },
             { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🌿', foodName: 'траву' },
             { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 7000, food: '🍌', foodName: 'бананы' },
             { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🌿', foodName: 'траву' },
             { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '🌿', foodName: 'траву' },
-            
-            // 16-20: Джунгли (8500-10500)
             { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌', foodName: 'банан' },
             { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '🌿', foodName: 'листья' },
             { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎', foodName: 'яблочко' },
             { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰', foodName: 'орешек' },
             { id: 'deer', name: 'Оленёнок', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿', foodName: 'листья' },
-            
-            // 21-25: Водные и редкие (11000-13000)
             { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 11000, food: '🌿', foodName: 'кору' },
             { id: 'otter', name: 'Выдра', emoji: '🦦', color: '#8B4513', score: 11500, food: '🐟', foodName: 'рыбку' },
             { id: 'seal', name: 'Тюлень', emoji: '🦭', color: '#808080', score: 12000, food: '🐟', foodName: 'рыбку' },
@@ -448,107 +453,94 @@
         // ==================== ПИТОМЦЫ ====================
         let userPets = [];
         let activePet = null;
+        let petFood = {};
 
-        // ==================== NEON API - ВАШИ РЕАЛЬНЫЕ ЗАПРОСЫ ====================
-        const NEON_API = {
-            async saveGame(userId, gameData) {
-                const response = await fetch('/api/save-score', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        telegramId: userId,
-                        gameType: 'tetris',
-                        score: gameData.score,
-                        level: gameData.gameLevel,
-                        lines: gameData.lines,
-                        pets: gameData.pets
-                    })
-                });
-                return await response.json();
-            },
-            
-            async getUserStats(userId) {
-                const response = await fetch(`/api/user-stats?telegramId=${userId}&gameType=tetris`);
-                const data = await response.json();
-                return data.stats || {
-                    bestScore: 0, bestLevel: 1, totalLines: 0,
-                    gamesPlayed: 0, totalScore: 0, avgScore: 0
-                };
-            },
-            
-            async saveUserStats(userId, stats) {
-                const response = await fetch('/api/update-stats', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        telegramId: userId,
-                        gameType: 'tetris',
-                        ...stats
-                    })
-                });
-                return await response.json();
-            },
-            
-            async getLeaderboard() {
-                const response = await fetch('/api/top-players?gameType=tetris&limit=10');
-                const data = await response.json();
-                return data.players || [];
-            },
-            
-            async checkConnection() {
-                try {
-                    const response = await fetch('/api/check-db');
-                    return response.ok;
-                } catch {
-                    return false;
+        // ==================== ФУНКЦИЯ ПОЛУЧЕНИЯ ПИТОМЦЕВ ОТ СЧЁТА ====================
+        function getPetsFromScore(score) {
+            const pets = [];
+            PETS.forEach(pet => {
+                if (score >= pet.score) {
+                    pets.push({
+                        ...pet,
+                        foodCount: petFood[pet.id] || 0
+                    });
                 }
+            });
+            return pets;
+        }
+
+        // ==================== ФУНКЦИЯ ДЛЯ ЛИДЕРБОРДА ====================
+        function getPetsCollectionFromScore(score) {
+            if (!score || score < 1000) return { emojis: '🐾', count: 0, pets: [] };
+            
+            const pets = getPetsFromScore(score);
+            
+            let displayEmojis = '';
+            if (pets.length > 3) {
+                displayEmojis = pets.slice(0, 3).map(p => p.emoji).join(' ') + ` +${pets.length - 3}`;
+            } else {
+                displayEmojis = pets.map(p => p.emoji).join(' ');
             }
-        };
+            
+            return { 
+                emojis: displayEmojis, 
+                count: pets.length,
+                pets: pets.slice(0, 5)
+            };
+        }
 
         // ==================== ЗАГРУЗКА СТАТИСТИКИ ИЗ NEON ====================
-        async function loadUserStatsFromNeon() {
-            try {
-                const stats = await NEON_API.getUserStats(telegramUserId);
-                
-                document.getElementById('best-score').textContent = stats.bestScore || 0;
-                document.getElementById('best-level').textContent = stats.bestLevel || 1;
-                document.getElementById('total-lines').textContent = stats.totalLines || 0;
-                document.getElementById('games-played').textContent = stats.gamesPlayed || 0;
-                
-                const avg = stats.gamesPlayed > 0 ? Math.round(stats.totalScore / stats.gamesPlayed) : 0;
-                document.getElementById('avg-score').textContent = avg;
-                
-                return stats;
-            } catch(e) {
-                console.log('Ошибка загрузки статистики:', e);
-                return null;
+        function loadUserStats() {
+            console.log('📊 Загрузка статистики из Neon');
+            
+            let telegramId = window.telegramUserId;
+            
+            if (!telegramId || telegramId.startsWith('guest_')) {
+                console.log('⚠️ Гостевой режим, пропускаем загрузку');
+                return;
             }
+            
+            fetch(`/api/user-stats?telegramId=${telegramId}&gameType=tetris`)
+                .then(response => response.json())
+                .then(result => {
+                    console.log('📊 Статистика получена:', result);
+                    
+                    if (result.success && result.stats) {
+                        const stats = result.stats;
+                        
+                        document.getElementById('best-score').textContent = stats.best_score || 0;
+                        document.getElementById('best-level').textContent = stats.best_level || 1;
+                        document.getElementById('total-lines').textContent = stats.best_lines || 0;
+                        document.getElementById('games-played').textContent = stats.games_played || 0;
+                        document.getElementById('avg-score').textContent = Math.round(stats.avg_score || 0);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Ошибка загрузки статистики:', error);
+                });
         }
 
-        async function saveUserStatsToNeon() {
-            try {
-                const stats = await NEON_API.getUserStats(telegramUserId);
-                
-                stats.gamesPlayed = (stats.gamesPlayed || 0) + 1;
-                stats.totalScore = (stats.totalScore || 0) + score;
-                stats.totalLines = (stats.totalLines || 0) + lines;
-                
-                if (score > (stats.bestScore || 0)) {
-                    stats.bestScore = score;
-                    stats.bestLevel = gameLevel;
-                }
-                
-                stats.avgScore = stats.gamesPlayed > 0 ? Math.round(stats.totalScore / stats.gamesPlayed) : 0;
-                
-                await NEON_API.saveUserStats(telegramUserId, stats);
-                console.log('✅ Статистика сохранена в Neon');
-            } catch(e) {
-                console.log('Ошибка сохранения статистики:', e);
-            }
+        // ==================== СОХРАНЕНИЕ СТАТИСТИКИ В NEON ====================
+        function saveUserStats() {
+            let telegramId = window.telegramUserId;
+            if (!telegramId || telegramId.startsWith('guest_')) return;
+            
+            fetch('/api/save-score', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telegramId: telegramId,
+                    gameType: 'tetris',
+                    score: score,
+                    level: gameLevel,
+                    lines: lines,
+                    isWin: gameOver
+                })
+            }).catch(error => console.error('Ошибка сохранения:', error));
         }
 
-        // ==================== ЗАГРУЗКА СОХРАНЕНИЙ ====================
-        async function checkSavedGame() {
+        // ==================== ЗАГРУЗКА СОХРАНЕНИЯ ====================
+        function checkSavedGame() {
             try {
                 const saved = localStorage.getItem(`tetris_save_${telegramUserId}`);
                 const continueBtn = document.getElementById('continue-btn');
@@ -558,42 +550,41 @@
                     if (data.score > 0) {
                         continueBtn.style.display = 'flex';
                         continueBtn.innerHTML = `<span>▶️</span> ПРОДОЛЖИТЬ (${data.score} очков)`;
-                    } else {
-                        continueBtn.style.display = 'none';
+                        return true;
                     }
-                } else {
-                    continueBtn.style.display = 'none';
                 }
+                continueBtn.style.display = 'none';
+                return false;
             } catch(e) {
-                console.log('Ошибка загрузки сохранения:', e);
+                return false;
             }
         }
 
-        async function continueGame() {
+        // ==================== ПРОДОЛЖИТЬ ИГРУ ====================
+        function continueGame() {
             try {
                 const saved = localStorage.getItem(`tetris_save_${telegramUserId}`);
                 if (saved) {
                     const data = JSON.parse(saved);
                     score = data.score || 0;
                     lines = data.lines || 0;
-                    userPets = data.pets || [];
-                    
-                    const levelData = GAME_LEVELS.find(l => score >= l.min && score <= l.max) || GAME_LEVELS[0];
-                    gameLevel = levelData.level;
+                    gameLevel = data.gameLevel || 1;
                     level = gameLevel;
                     
-                    if (userPets.length > 0) {
-                        const lastPet = userPets[userPets.length - 1];
-                        activePet = PETS.find(p => p.id === lastPet.id);
-                        if (activePet) activePet.foodCount = lastPet.food || 0;
+                    if (data.petFood) {
+                        petFood = data.petFood;
                     }
                     
-                    savePets();
+                    userPets = getPetsFromScore(score);
+                    if (userPets.length > 0) {
+                        activePet = userPets[userPets.length - 1];
+                    }
+                    
+                    updateDisplay();
                     startGame();
                     showNotification('▶️ Продолжаем игру!');
                 }
             } catch(e) {
-                console.log('Ошибка продолжения игры:', e);
                 showNotification('❌ Ошибка загрузки');
             }
         }
@@ -604,51 +595,31 @@
                 const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
                 if (saved) {
                     const data = JSON.parse(saved);
-                    userPets = data.pets || [];
-                    
-                    userPets.forEach(savedPet => {
-                        const pet = PETS.find(p => p.id === savedPet.id);
-                        if (pet) pet.foodCount = savedPet.food || 0;
-                    });
-                    
-                    if (userPets.length > 0) {
-                        const lastPet = userPets[userPets.length - 1];
-                        activePet = PETS.find(p => p.id === lastPet.id);
-                        if (activePet) activePet.foodCount = lastPet.food || 0;
-                    }
+                    petFood = data.food || {};
                 }
-                
-                document.getElementById('pets-collection-count').textContent = `${userPets.length}/${PETS.length}`;
-            } catch(e) {
-                userPets = [];
+            } catch(e) {}
+            
+            userPets = getPetsFromScore(score);
+            if (userPets.length > 0) {
+                activePet = userPets[userPets.length - 1];
             }
-        }
-
-        function savePets() {
-            const saveData = {
-                pets: userPets.map(pet => ({
-                    id: pet.id,
-                    food: PETS.find(p => p.id === pet.id)?.foodCount || 0
-                }))
-            };
-            localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
+            
             document.getElementById('pets-collection-count').textContent = `${userPets.length}/${PETS.length}`;
         }
 
-        // ==================== ПАНЕЛЬ ПИТОМЦА - ПОЯВЛЯЕТСЯ ТОЛЬКО ПОСЛЕ 1000 ОЧКОВ ====================
+        function savePets() {
+            const saveData = { food: petFood };
+            localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
+        }
+
         function updatePetHeaderPanel() {
             const panel = document.getElementById('pet-header-panel');
-            const emoji = document.getElementById('pet-emoji-header');
-            const foodIcon = document.getElementById('pet-food-icon-header');
-            const foodCount = document.getElementById('pet-food-count-header');
+            if (!panel) return;
             
-            if (!panel || !emoji || !foodIcon || !foodCount) return;
-            
-            // КОТЁНОК ПОЯВЛЯЕТСЯ ТОЛЬКО ПОСЛЕ 1000 ОЧКОВ!
             if (activePet && score >= 1000) {
-                emoji.textContent = activePet.emoji;
-                foodIcon.textContent = activePet.food;
-                foodCount.textContent = activePet.foodCount || 0;
+                document.getElementById('pet-emoji-header').textContent = activePet.emoji;
+                document.getElementById('pet-food-icon-header').textContent = activePet.food;
+                document.getElementById('pet-food-count-header').textContent = petFood[activePet.id] || 0;
                 panel.style.borderColor = activePet.color + '80';
                 panel.style.background = `rgba(${hexToRgb(activePet.color)}, 0.15)`;
                 panel.style.display = 'flex';
@@ -671,7 +642,6 @@
             return `${r}, ${g}, ${b}`;
         }
 
-        // ==================== АНИМАЦИЯ ПОЛУЧЕНИЯ ПИТОМЦА ====================
         function showPetUnlockAnimation(pet) {
             const gameArea = document.querySelector('.game-area');
             if (!gameArea) return;
@@ -682,11 +652,8 @@
             animDiv.innerHTML = `
                 <div style="font-size: 3rem;">✨✨✨</div>
                 <div style="font-size: 4rem;">${pet.emoji}</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: ${pet.color};">${pet.name}</div>
-                <div style="font-size: 1.2rem; display: flex; gap: 15px;">
-                    <span>+3 ${pet.food}</span>
-                    <span style="color: #ffd700;">✨✨✨</span>
-                </div>
+                <div style="font-size: 1.5rem; color: ${pet.color};">${pet.name}</div>
+                <div style="font-size: 1.2rem;">+3 ${pet.food}</div>
             `;
             gameArea.appendChild(animDiv);
             
@@ -729,47 +696,34 @@
             }
         }
 
-        // ==================== ПОЛУЧЕНИЕ ПИТОМЦА ====================
         function unlockPet(pet) {
-            if (userPets.some(p => p.id === pet.id)) return false;
+            if (!pet) return false;
             if (score < pet.score) return false;
             
-            userPets.push({
-                id: pet.id,
-                food: 0
-            });
-            
-            pet.foodCount = 0;
-            activePet = pet;
-            
-            savePets();
-            showPetUnlockAnimation(pet);
-            showPetNotification(`✨ Новый питомец: ${pet.name} ${pet.emoji}`, pet.color);
-            updatePetHeaderPanel();
-            
-            if (screens.stats.classList.contains('active')) {
-                showStats();
+            if (!petFood[pet.id]) {
+                petFood[pet.id] = 0;
+                showPetUnlockAnimation(pet);
+                showPetNotification(`✨ Новый питомец: ${pet.name} ${pet.emoji}`, pet.color);
             }
             
+            userPets = getPetsFromScore(score);
+            if (userPets.length > 0) {
+                activePet = userPets[userPets.length - 1];
+            }
+            
+            savePets();
+            updatePetHeaderPanel();
             return true;
         }
 
-        // ==================== КОРМЛЕНИЕ ПИТОМЦА ====================
         function feedActivePet(linesCleared) {
             if (!activePet) return false;
             if (score < 1000) return false;
             
-            const pet = PETS.find(p => p.id === activePet.id);
-            if (!pet) return false;
-            
-            pet.foodCount = (pet.foodCount || 0) + linesCleared;
-            activePet.foodCount = pet.foodCount;
-            
-            const userPet = userPets.find(p => p.id === pet.id);
-            if (userPet) userPet.food = pet.foodCount;
+            petFood[activePet.id] = (petFood[activePet.id] || 0) + linesCleared;
             
             savePets();
-            showFoodAnimation(pet.food, linesCleared, pet.color);
+            showFoodAnimation(activePet.food, linesCleared, activePet.color);
             
             for (let i = 0; i < linesCleared; i++) {
                 setTimeout(() => showStarAnimation(), i * 50);
@@ -783,7 +737,6 @@
             if (!score) return;
             
             PETS.forEach(pet => {
-                if (userPets.some(p => p.id === pet.id)) return;
                 if (score >= pet.score) {
                     unlockPet(pet);
                 }
@@ -794,10 +747,7 @@
             const notif = document.createElement('div');
             notif.className = 'pet-notification';
             notif.style.borderLeftColor = color;
-            notif.innerHTML = `
-                <span style="font-size: 1.5rem;">✨</span>
-                <span style="font-weight: bold;">${message}</span>
-            `;
+            notif.innerHTML = `<span style="font-size:1.5rem;">✨</span><span>${message}</span>`;
             document.body.appendChild(notif);
             setTimeout(() => notif.remove(), 2800);
         }
@@ -836,7 +786,6 @@
             document.getElementById('level-effects-header').innerHTML = levelData.effect;
             
             // Эффект короны для 10+ уровня
-            const canvas = document.getElementById('tetris-canvas');
             if (gameLevel >= 10) {
                 canvas.classList.add('crown-border');
             } else {
@@ -846,16 +795,15 @@
 
         // ==================== ИГРОВЫЕ ФУНКЦИИ ====================
         function startGame() {
+            console.log('🚀 Начало новой игры');
+            
             if (animationId) {
                 cancelAnimationFrame(animationId);
                 animationId = null;
             }
             
-            board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-            
             if (!gameActive) {
-                score = score || 0;
-                lines = lines || 0;
+                board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             }
             
             gameActive = true;
@@ -870,7 +818,13 @@
                 pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
             }
             
+            userPets = getPetsFromScore(score);
+            if (userPets.length > 0) {
+                activePet = userPets[userPets.length - 1];
+            }
+            
             updateGameLevel();
+            updatePetHeaderPanel();
             spawnPiece();
             
             if (!gameOver) {
@@ -902,11 +856,13 @@
             
             if (collide(currentPiece, currentX, currentY)) {
                 gameOver = true;
-                saveUserStatsToNeon();
+                saveUserStats();
                 showNotification('🎯 Игра окончена! Счет: ' + score);
                 setTimeout(() => {
                     showMenu();
+                    loadUserStats();
                 }, 1500);
+                return;
             }
         }
 
@@ -916,7 +872,6 @@
                     if (piece.shape[row][col]) {
                         const boardRow = y + row;
                         const boardCol = x + col;
-                        
                         if (boardCol < 0 || boardCol >= COLS) return true;
                         if (boardRow >= ROWS) return true;
                         if (boardRow >= 0 && board[boardRow] && board[boardRow][boardCol]) return true;
@@ -938,7 +893,6 @@
 
         function moveDown() {
             if (gameOver || gamePaused) return;
-            
             if (!collide(currentPiece, currentX, currentY + 1)) {
                 currentY++;
             } else {
@@ -1023,12 +977,10 @@
                 const lineBonus = [0, 100, 300, 500, 800];
                 score += lineBonus[linesCleared] * level;
                 
-                // КОРМИМ ПИТОМЦА ТОЛЬКО ЕСЛИ ЕСТЬ ПИТОМЕЦ И 1000+ ОЧКОВ
                 if (score >= 1000) {
                     feedActivePet(linesCleared);
                 }
                 
-                // ПРОВЕРЯЕМ НОВЫХ ПИТОМЦЕВ
                 checkPetUnlocks();
                 
                 setTimeout(() => {
@@ -1065,6 +1017,11 @@
                 lines = 0;
                 gameLevel = 1;
                 level = 1;
+                petFood = {};
+                userPets = [];
+                activePet = null;
+                savePets();
+                updateDisplay();
                 startGame();
                 showNotification('🔄 Новая игра начата');
             }
@@ -1073,15 +1030,42 @@
         function updateDisplay() {
             document.getElementById('score-display').textContent = score;
             document.getElementById('lines-display').textContent = lines;
+            
+            // Обновляем текущую сессию в статистике
+            document.getElementById('current-score').textContent = score;
+            document.getElementById('current-level').textContent = gameLevel;
+            document.getElementById('session-lines').textContent = lines;
+            document.getElementById('active-pet').textContent = activePet ? `${activePet.emoji} ${activePet.name}` : '-';
+            
             updatePetHeaderPanel();
         }
 
         function drawBoard() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            // Фон
             ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            // СЕТКА! - вертикальные линии
+            ctx.strokeStyle = 'rgba(106, 91, 255, 0.15)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= COLS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * BLOCK_SIZE, 0);
+                ctx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
+                ctx.stroke();
+            }
+            
+            // СЕТКА! - горизонтальные линии
+            for (let y = 0; y <= ROWS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * BLOCK_SIZE);
+                ctx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
+                ctx.stroke();
+            }
+            
+            // Блоки на доске
             for (let y = 0; y < ROWS; y++) {
                 for (let x = 0; x < COLS; x++) {
                     if (board[y][x]) {
@@ -1090,6 +1074,7 @@
                 }
             }
             
+            // Анимация очищенных линий
             if (clearedLinesAnimation.length > 0) {
                 ctx.globalAlpha = 0.7;
                 clearedLinesAnimation.forEach(rowY => {
@@ -1099,6 +1084,7 @@
                 ctx.globalAlpha = 1.0;
             }
             
+            // Текущая фигура
             if (currentPiece) {
                 for (let y = 0; y < currentPiece.shape.length; y++) {
                     for (let x = 0; x < currentPiece.shape[y].length; x++) {
@@ -1123,7 +1109,6 @@
             if (isCurrent) {
                 gradient.addColorStop(0, lightenColor(color, 30));
                 gradient.addColorStop(1, color);
-                
                 ctx.strokeStyle = lightenColor(color, 40);
                 ctx.lineWidth = 2;
                 ctx.strokeRect(bx + 1, by + 1, size - 2, size - 2);
@@ -1131,7 +1116,6 @@
                 gradient.addColorStop(0, lightenColor(color, 20));
                 gradient.addColorStop(0.5, color);
                 gradient.addColorStop(1, darkenColor(color, 20));
-                
                 ctx.strokeStyle = darkenColor(color, 30);
                 ctx.lineWidth = 1;
                 ctx.strokeRect(bx, by, size, size);
@@ -1176,127 +1160,154 @@
         }
 
         // ==================== СОХРАНЕНИЕ ====================
-        async function saveGameScore() {
+        function saveGameScore() {
             if (!gameActive) {
                 showNotification('❌ Нет активной игры');
                 return;
             }
             
-            showNotification('💾 Сохраняю в Neon...');
+            showNotification('💾 Сохраняем прогресс...');
             
+            // Сохраняем в Neon
+            saveUserStats();
+            
+            // Сохраняем в localStorage для продолжения
             const gameData = {
                 score: score,
                 lines: lines,
                 gameLevel: gameLevel,
-                pets: userPets.map(p => ({ 
-                    id: p.id, 
-                    food: PETS.find(pt => pt.id === p.id)?.foodCount || 0 
-                }))
+                petFood: petFood,
+                savedAt: new Date().toISOString()
             };
             
-            const result = await NEON_API.saveGame(telegramUserId, gameData);
+            localStorage.setItem(`tetris_save_${telegramUserId}`, JSON.stringify(gameData));
+            savePets();
             
-            if (result.success) {
-                localStorage.setItem(`tetris_save_${telegramUserId}`, JSON.stringify({
-                    ...gameData,
-                    savedAt: new Date().toISOString()
-                }));
-                
-                const continueBtn = document.getElementById('continue-btn');
-                continueBtn.style.display = 'flex';
-                continueBtn.innerHTML = `<span>▶️</span> ПРОДОЛЖИТЬ (${score} очков)`;
-                
-                showNotification('✅ Прогресс сохранен в Neon!');
-            } else {
-                showNotification('❌ Ошибка сохранения');
-            }
+            // Показываем кнопку ПРОДОЛЖИТЬ
+            const continueBtn = document.getElementById('continue-btn');
+            continueBtn.style.display = 'flex';
+            continueBtn.innerHTML = `<span>▶️</span> ПРОДОЛЖИТЬ (${score} очков)`;
+            
+            showNotification('✅ Прогресс сохранен!');
         }
 
         // ==================== СТАТИСТИКА ====================
-        async function showStats() {
-            await loadUserStatsFromNeon();
+        function showStats() {
+            loadUserStats();
+            updatePetsStatsInUI();
+            showScreen('stats');
+        }
+
+        function updatePetsStatsInUI() {
+            const statsContainer = document.getElementById('pets-collection-stats');
+            if (!statsContainer) return;
             
-            const petsStats = document.getElementById('pets-collection-stats');
             let petsHtml = '';
             
             if (userPets.length === 0) {
                 petsHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🐾 У вас пока нет питомцев.<br>Наберите 1000 очков, чтобы получить котёнка!</div>';
             } else {
-                const sortedPets = [...userPets].sort((a, b) => {
-                    const petA = PETS.find(p => p.id === a.id);
-                    const petB = PETS.find(p => p.id === b.id);
-                    return (petB?.score || 0) - (petA?.score || 0);
-                });
+                const sortedPets = [...userPets].sort((a, b) => a.score - b.score);
                 
-                sortedPets.forEach(petData => {
-                    const pet = PETS.find(p => p.id === petData.id);
-                    if (pet) {
-                        petsHtml += `
-                            <div class="pet-stat-row">
-                                <span style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 1.3rem;">${pet.emoji}</span>
-                                    <span style="color: white;">${pet.name}</span>
-                                    ${activePet?.id === pet.id ? '<span style="color: #ffd700;">⭐</span>' : ''}
-                                </span>
-                                <span style="color: ${pet.color}; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-                                    ${pet.food} ${petData.food || 0}
-                                </span>
-                            </div>
-                        `;
-                    }
+                sortedPets.forEach(pet => {
+                    petsHtml += `
+                        <div class="pet-stat-row">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.3rem;">${pet.emoji}</span>
+                                <span style="color: white;">${pet.name}</span>
+                                ${activePet?.id === pet.id ? '<span style="color: #ffd700;">⭐</span>' : ''}
+                            </span>
+                            <span style="color: ${pet.color}; font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                                ${pet.food} ${pet.foodCount || 0}
+                            </span>
+                        </div>
+                    `;
                 });
             }
             
-            petsStats.innerHTML = petsHtml;
-            showScreen('stats');
+            statsContainer.innerHTML = petsHtml;
+            document.getElementById('pets-collection-count').textContent = `${userPets.length}/${PETS.length}`;
         }
 
         // ==================== ЛИДЕРБОРД ====================
-        async function showLeaderboard() {
+        function showLeaderboard() {
             const leaderboardList = document.getElementById('leaderboard-list');
             leaderboardList.innerHTML = '<div style="text-align: center; padding: 30px; color: #b5aaff;">🏆 Загрузка лидерборда...</div>';
             
             showScreen('leaderboard');
             
-            const players = await NEON_API.getLeaderboard();
+            let telegramId = window.telegramUserId;
             
-            leaderboardList.innerHTML = '';
-            
-            if (players.length === 0) {
-                leaderboardList.innerHTML = '<div style="text-align: center; padding: 30px; color: #b5aaff;">🏆 Пока нет игроков в лидерборде</div>';
-                return;
-            }
-            
-            players.forEach((player, index) => {
-                const isCurrentUser = player.user_id === telegramUserId || player.telegram_id === telegramUserId;
-                const rankColor = index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#ffcc66';
-                const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-                
-                let petsHtml = '';
-                
-                const item = document.createElement('div');
-                item.className = 'leaderboard-item';
-                
-                if (isCurrentUser) {
-                    item.style.background = 'linear-gradient(145deg, rgba(102, 204, 153, 0.2), rgba(77, 179, 128, 0.1))';
-                    item.style.border = '2px solid #66ffaa';
-                }
-                
-                item.innerHTML = `
-                    <div class="rank" style="color: ${rankColor};">${rankIcon}</div>
-                    <div class="player-info">
-                        <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'};">
-                            ${player.username || player.display_name || `Игрок ${String(player.user_id || player.telegram_id).slice(-4)}`}
-                            ${isCurrentUser ? ' 👑' : ''}
-                        </div>
-                        <div class="player-score">
-                            🏆 ${player.best_score || player.score || 0} очков • Ур.${player.best_level || player.level || 1}
-                        </div>
-                    </div>
-                `;
-                
-                leaderboardList.appendChild(item);
-            });
+            fetch(`/api/top-players?gameType=tetris&limit=10`)
+                .then(response => response.json())
+                .then(result => {
+                    const players = result.players || [];
+                    
+                    leaderboardList.innerHTML = '';
+                    
+                    if (players.length === 0) {
+                        leaderboardList.innerHTML = '<div style="text-align: center; padding: 30px; color: #b5aaff;">🏆 Пока нет игроков</div>';
+                        return;
+                    }
+                    
+                    players.forEach((player, index) => {
+                        const playerId = player.user_id || player.telegram_id || '';
+                        const isCurrentUser = playerId === telegramUserId;
+                        const rankColor = index === 0 ? '#ffd700' : index === 1 ? '#c0c0c0' : index === 2 ? '#cd7f32' : '#ffcc66';
+                        const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                        const playerScore = player.best_score || player.score || 0;
+                        
+                        // Получаем коллекцию питомцев от счёта
+                        const collection = getPetsCollectionFromScore(playerScore);
+                        
+                        const item = document.createElement('div');
+                        item.className = 'leaderboard-item';
+                        
+                        if (isCurrentUser) {
+                            item.style.background = 'linear-gradient(145deg, rgba(102, 204, 153, 0.2), rgba(77, 179, 128, 0.1))';
+                            item.style.border = '2px solid #66ffaa';
+                        }
+                        
+                        let petsHtml = '';
+                        if (collection.pets.length > 0) {
+                            collection.pets.forEach(pet => {
+                                petsHtml += `
+                                    <div class="pet-collection-card" style="border-color: ${pet.color}80;">
+                                        <span class="pet-collection-emoji">${pet.emoji}</span>
+                                        <span class="pet-collection-food">${pet.food} 0</span>
+                                    </div>
+                                `;
+                            });
+                        }
+                        
+                        item.innerHTML = `
+                            <div class="rank" style="color: ${rankColor};">${rankIcon}</div>
+                            <div class="player-info">
+                                <div class="player-name" style="color: ${isCurrentUser ? '#66ffaa' : 'white'};">
+                                    ${player.username || player.display_name || `Игрок ${String(playerId).slice(-4)}`}
+                                    ${isCurrentUser ? ' 👑' : ''}
+                                </div>
+                                <div class="player-score">
+                                    🏆 ${playerScore} очков • Ур.${player.best_level || player.level || 1}
+                                </div>
+                                ${petsHtml ? `
+                                    <div class="collection-title">
+                                        <span>🐾 Коллекция (${collection.count})</span>
+                                    </div>
+                                    <div class="pets-collection-grid">
+                                        ${petsHtml}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                        
+                        leaderboardList.appendChild(item);
+                    });
+                })
+                .catch(error => {
+                    console.error('❌ Ошибка загрузки лидерборда:', error);
+                    leaderboardList.innerHTML = '<div style="text-align: center; padding: 30px; color: #ff6666;">❌ Ошибка загрузки</div>';
+                });
         }
 
         // ==================== УРОВНИ СЛОЖНОСТИ ====================
@@ -1340,21 +1351,26 @@
             showScreen('settings');
         }
 
-        async function testDatabase() {
+        function testDatabase() {
             const statusEl = document.getElementById('db-status-text');
             statusEl.textContent = 'Проверка...';
             statusEl.style.color = '#ffcc66';
             
-            const isConnected = await NEON_API.checkConnection();
-            
-            if (isConnected) {
-                statusEl.textContent = '✅ Neon PostgreSQL подключена';
-                statusEl.style.color = '#66ffaa';
-                showNotification('✅ База данных работает');
-            } else {
-                statusEl.textContent = '❌ Ошибка подключения';
-                statusEl.style.color = '#ff6666';
-            }
+            fetch('/api/check-db')
+                .then(response => {
+                    if (response.ok) {
+                        statusEl.textContent = '✅ Neon PostgreSQL подключена';
+                        statusEl.style.color = '#66ffaa';
+                        showNotification('✅ База данных работает');
+                    } else {
+                        statusEl.textContent = '❌ Ошибка подключения';
+                        statusEl.style.color = '#ff6666';
+                    }
+                })
+                .catch(() => {
+                    statusEl.textContent = '❌ Сервер недоступен';
+                    statusEl.style.color = '#ff6666';
+                });
         }
 
         // ==================== НАВИГАЦИЯ ====================
@@ -1378,10 +1394,7 @@
             const notification = document.getElementById('notification');
             notification.textContent = message;
             notification.classList.add('show');
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 2000);
+            setTimeout(() => notification.classList.remove('show'), 2000);
         }
 
         // ==================== КЛАВИАТУРА ====================
@@ -1401,17 +1414,19 @@
         });
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-        window.addEventListener('load', async function() {
-            console.log('🎮 Тетрис PRO — Neon PostgreSQL, 25 питомцев с разной едой!');
-            
-            await loadUserStatsFromNeon();
-            loadPets();
-            await checkSavedGame();
+        window.addEventListener('load', function() {
+            console.log('🎮 Тетрис PRO — Уровни с эффектами, питомцы, Neon статистика');
             
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             drawBoard();
             
+            loadPets();
+            checkSavedGame();
+            loadUserStats();
             selectDifficulty('medium');
+            
+            // Обновляем текущую сессию
+            updateDisplay();
             
             showNotification('✨ Котёнок появится после 1000 очков!');
         });
