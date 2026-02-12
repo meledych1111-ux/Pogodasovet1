@@ -150,8 +150,8 @@
         #game-screen {
             display: flex;
             flex-direction: column;
-            padding: 8px;
-        }
+            padding: 2px 8px 8px 8px; /* Верхний padding всего 2px! */
+}
         
         .game-header {
             display: flex;
@@ -160,7 +160,7 @@
             padding: 2px 8px;
             background: rgba(20, 30, 80, 0.5);
             border-radius: 6px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
             flex-shrink: 0;
             border: 1px solid rgba(68, 85, 204, 0.3);
             min-height: 36px;
@@ -270,16 +270,17 @@
             font-weight: bold;
         }
         
-        /* ==================== ИГРОВОЕ ПОЛЕ - БОЛЬШЕ! ==================== */
-        .game-area {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 440px;
-            padding: 2px 0;
-            height: calc(100% - 80px);
-        }
+    /* ==================== ИГРОВОЕ ПОЛЕ - ПРАКТИЧЕСКИ ПОД ХЕДЕРОМ ==================== */
+.game-area {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 460px; /* Еще больше! */
+    padding: 0; /* Убрали padding полностью */
+    margin-top: 0; /* Нет отступа */
+    height: calc(100% - 70px);
+}
         
         #tetris-canvas {
             background: rgba(0, 0, 0, 0.3);
@@ -293,15 +294,16 @@
             object-fit: contain;
         }
         
-        /* ==================== НИЖНЯЯ ПАНЕЛЬ - БЕЗ ИЗМЕНЕНИЙ ==================== */
-        .game-controls-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-top: 8px;
-            flex-shrink: 0;
-        }
-        
+/* ==================== НИЖНЯЯ ПАНЕЛЬ - МИНИМАЛЬНЫЙ ОТСТУП ==================== */
+.game-controls-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 2px; /* Был 8px, стал 2px */
+    flex-shrink: 0;
+}
+
+
         .game-buttons {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -615,51 +617,161 @@
             animation: pieceSpawn 0.2s ease;
         }
         
-        /* ==================== АДАПТИВНОСТЬ ==================== */
-        @media (max-width: 400px) {
-            .game-title { font-size: 1.6rem; }
-            .menu-btn { padding: 14px 10px; font-size: 0.9rem; }
-            .info-value { font-size: 0.85rem; }
-            .control-btn { font-size: 1.2rem; padding: 12px 3px; }
-            .game-btn { font-size: 0.75rem; padding: 8px 2px; }
-            
-            .game-header {
-                padding: 2px 6px;
-                min-height: 34px;
-            }
-            
-            .back-btn {
-                padding: 3px 8px;
-                min-width: 58px;
-                font-size: 0.75rem;
-            }
-            
-            .info-box {
-                padding: 2px 6px;
-                height: 26px;
-            }
-            
-            .pet-badge {
-                padding: 2px 6px;
-                height: 26px;
-            }
-        }
-        
-        @media (max-height: 700px) {
-            .game-container {
-                max-height: 650px;
-                min-height: 550px;
-            }
-            
-            .game-area {
-                min-height: 360px;
-            }
-            
-            .game-header {
-                min-height: 34px;
-                margin-bottom: 3px;
-            }
-        }
+        //* ==================== АДАПТИВНОСТЬ ==================== */
+@media (max-width: 400px) {
+    .game-title { font-size: 1.6rem; }
+    .menu-btn { padding: 14px 10px; font-size: 0.9rem; }
+    .info-value { font-size: 0.85rem; }
+    .control-btn { font-size: 1.2rem; padding: 12px 3px; }
+    .game-btn { font-size: 0.75rem; padding: 8px 2px; }
+    
+    .game-header {
+        padding: 2px 6px;
+        min-height: 32px; /* Уменьшили */
+        height: 32px;
+        margin-bottom: 2px; /* Добавили */
+    }
+    
+    .back-btn {
+        padding: 2px 8px; /* Уменьшили */
+        min-width: 54px; /* Уменьшили */
+        font-size: 0.7rem; /* Уменьшили */
+        min-height: 24px; /* Добавили */
+    }
+    
+    .info-box {
+        padding: 2px 5px; /* Уменьшили */
+        height: 24px; /* Уменьшили */
+    }
+    
+    .info-value {
+        font-size: 0.8rem; /* Уменьшили */
+    }
+    
+    .pet-badge {
+        padding: 2px 6px;
+        height: 24px; /* Уменьшили */
+        font-size: 0.7rem; /* Уменьшили */
+    }
+    
+    .pet-emoji {
+        font-size: 0.85rem; /* Уменьшили */
+    }
+    
+    .pet-food-count {
+        padding: 1px 5px; /* Уменьшили */
+        font-size: 0.65rem; /* Уменьшили */
+    }
+}
+
+@media (max-height: 700px) {
+    .game-container {
+        max-height: 650px;
+        min-height: 550px;
+    }
+    
+    .game-header {
+        min-height: 32px;
+        height: 32px;
+        margin-bottom: 1px; /* МИНИМУМ! */
+        padding: 2px 6px;
+    }
+    
+    .game-area {
+        min-height: 400px; /* УВЕЛИЧИЛИ! */
+        padding: 0;
+        margin-top: 0;
+    }
+    
+    .back-btn {
+        min-height: 24px;
+        padding: 2px 8px;
+    }
+    
+    .info-box {
+        height: 24px;
+    }
+    
+    .pet-badge {
+        height: 24px;
+    }
+    
+    .game-controls-panel {
+        margin-top: 1px; /* МИНИМУМ! */
+        gap: 2px;
+    }
+    
+    .game-buttons {
+        padding: 6px; /* Уменьшили */
+        gap: 4px;
+    }
+    
+    .game-btn {
+        min-height: 36px; /* Уменьшили */
+        padding: 6px 2px;
+    }
+    
+    .controls {
+        padding: 6px; /* Уменьшили */
+        gap: 4px;
+    }
+    
+    .control-btn {
+        min-height: 42px; /* Уменьшили */
+        padding: 8px 2px;
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-height: 600px) {
+    .game-container {
+        max-height: 550px;
+        min-height: 500px;
+    }
+    
+    .game-header {
+        min-height: 30px;
+        height: 30px;
+        margin-bottom: 1px;
+    }
+    
+    .game-area {
+        min-height: 340px;
+    }
+    
+    .back-btn {
+        min-height: 22px;
+        padding: 2px 6px;
+        min-width: 48px;
+        font-size: 0.65rem;
+    }
+    
+    .info-box {
+        height: 22px;
+        padding: 1px 4px;
+    }
+    
+    .info-value {
+        font-size: 0.75rem;
+    }
+    
+    .pet-badge {
+        height: 22px;
+        padding: 1px 5px;
+    }
+    
+    .control-btn {
+        min-height: 38px;
+        padding: 6px 2px;
+        font-size: 1.1rem;
+    }
+    
+    .game-btn {
+        min-height: 32px;
+        padding: 4px 2px;
+        font-size: 0.7rem;
+    }
+}
         
         /* ==================== SCROLLBAR ==================== */
         ::-webkit-scrollbar {
