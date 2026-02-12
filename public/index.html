@@ -362,8 +362,8 @@
         ];
 
         // ==================== ДАННЫЕ ИГРОКА ====================
-        let userPets = {};
-        let petFood = {};
+        let userPets = {};      // { "cat": 1, "dog": 1, ... } - БЕЗ ПРЕФИКСОВ ДЛЯ ОБЫЧНЫХ
+        let petFood = {};       // { "cat": 3, "dog": 3, ... }
         let activePet = null;
         let currentSessionPets = [];
 
@@ -401,8 +401,9 @@
                 userPets = {};
                 petFood = {};
             }
-            console.log('📦 Загружено питомцев:', userPets);
-            console.log('📦 Загружено еды:', petFood);
+            
+            console.log('📦 ЗАГРУЖЕНО ПИТОМЦЕВ:', JSON.stringify(userPets));
+            console.log('📦 ЗАГРУЖЕНО ЕДЫ:', JSON.stringify(petFood));
         }
 
         // ==================== СОХРАНЕНИЕ КОЛЛЕКЦИИ ====================
@@ -413,9 +414,11 @@
                 lastUpdated: new Date().toISOString()
             };
             localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
+            console.log('💾 СОХРАНЕНО ПИТОМЦЕВ:', userPets);
+            console.log('💾 СОХРАНЕНО ЕДЫ:', petFood);
         }
 
-        // ==================== ПОДСЧЁТ ПИТОМЦЕВ ====================
+        // ==================== ПОДСЧЁТ ВСЕХ ПИТОМЦЕВ ====================
         function getTotalPetsCount() {
             let total = 0;
             if (userPets && typeof userPets === 'object') {
@@ -429,7 +432,7 @@
             return total;
         }
 
-        // ==================== ПОДСЧЁТ ЕДЫ ====================
+        // ==================== ПОДСЧЁТ ВСЕЙ ЕДЫ ====================
         function getTotalFoodCount() {
             let total = 0;
             if (petFood && typeof petFood === 'object') {
@@ -443,51 +446,79 @@
             return total;
         }
 
-        // ==================== ПОЛУЧИТЬ ПИТОМЦА ПО СЧЁТУ ====================
+        // ==================== ПОЛУЧИТЬ ПИТОМЦА ПО СЧЁТУ (ИСПРАВЛЕНО) ====================
         function getPetByScore(score) {
             if (score < 1000) return null;
             
-            const petIndex = Math.floor((score - 1000) / 1000);
+            // Сколько питомцев должно быть при этом счёте?
+            const expectedPetsCount = Math.floor(score / 1000);
+            
+            // Сколько питомцев уже получили в этой сессии?
+            const receivedPetsCount = currentSessionPets.length;
+            
+            // Если уже получили всех питомцев для этого счёта - не даём нового
+            if (receivedPetsCount >= expectedPetsCount) {
+                return null;
+            }
+            
+            // Индекс следующего питомца (0,1,2,3,4...)
+            const petIndex = receivedPetsCount;
             const basePet = BASE_PETS[petIndex % BASE_PETS.length];
+            
+            // Только после 25+ питомцев появляются ранги
             const tier = Math.floor(petIndex / BASE_PETS.length);
-            const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+            let rank = PET_RANKS[0]; // По умолчанию обычный
+            
+            if (tier > 0) {
+                rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+            }
+            
+            // Для обычных питомцев не добавляем префикс
+            const prefix = rank.prefix || '';
+            const petId = prefix ? `${prefix}_${basePet.id}` : basePet.id;
             
             return {
                 ...basePet,
                 rank: rank,
-                emoji: `${rank.prefix}${basePet.emoji}`,
+                emoji: prefix ? `${prefix}${basePet.emoji}` : basePet.emoji,
                 color: rank.color,
                 tier: tier,
-                petId: `${rank.prefix}_${basePet.id}`
+                petId: petId
             };
         }
 
         // ==================== ПОЛУЧЕНИЕ ПИТОМЦА ====================
         function unlockPet(pet) {
             if (!pet) return false;
-            if (score < pet.score) return false;
             
             const petId = pet.petId;
             
+            // Увеличиваем счётчик питомца
             userPets[petId] = (userPets[petId] || 0) + 1;
+            
+            // Даём 3 еды
             petFood[petId] = (petFood[petId] || 0) + 3;
             
+            // Запоминаем, что получили питомца в этой сессии
             activePet = pet;
-            if (!currentSessionPets.includes(petId)) {
-                currentSessionPets.push(petId);
-            }
+            currentSessionPets.push(petId);
             
+            // Сохраняем
             savePets();
             
+            // Показываем анимацию
             showPetUnlockAnimation(pet);
-            showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name} (Всего: ${userPets[petId]})`, pet.color);
+            showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name}`, pet.color);
             showFoodAnimation(pet.food, 3, pet.color);
             
+            // Обновляем интерфейс
             updatePetHeaderPanel();
             updateCollectionInUI();
             
+            console.log(`🎉 Получен питомец: ${petId}, Всего: ${userPets[petId]}`);
             return true;
         }
+
         // ==================== ПРОВЕРКА ПИТОМЦЕВ ====================
         function checkPetUnlocks() {
             const pet = getPetByScore(score);
@@ -496,68 +527,134 @@
             }
         }
 
-        // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ ====================
+        // ==================== ДОБАВЛЕНИЕ ЕДЫ ЗА ЛИНИИ ====================
+        function addFoodForLines(linesCleared) {
+            if (!activePet) return;
+            
+            const petId = activePet.petId;
+            petFood[petId] = (petFood[petId] || 0) + linesCleared;
+            
+            // Сохраняем
+            savePets();
+            
+            console.log(`🍖 +${linesCleared} еды для ${petId}, теперь: ${petFood[petId]}`);
+            showFoodAnimation(activePet.food, linesCleared, activePet.color);
+        }
+
+        // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ (ИСПРАВЛЕНО) ====================
         function updateCollectionInUI() {
             const petsStats = document.getElementById('pets-collection-stats');
             const foodStats = document.getElementById('food-collection-stats');
             
             if (!petsStats || !foodStats) return;
             
-            let petsHtml = '';
-            let foodHtml = '';
-            
+            // Загружаем актуальные данные
             loadPets();
             
             const totalPets = getTotalPetsCount();
             const totalFood = getTotalFoodCount();
             
+            console.log('📊 ОТОБРАЖЕНИЕ СТАТИСТИКИ:');
+            console.log('   Питомцы:', userPets);
+            console.log('   Еда:', petFood);
+            console.log('   Всего питомцев:', totalPets);
+            console.log('   Всего еды:', totalFood);
+            
+            // ----- ПИТОМЦЫ -----
+            let petsHtml = '';
             if (totalPets === 0) {
                 petsHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🐾 У вас пока нет питомцев. Достигните 1000 очков, чтобы получить котёнка!</div>';
-                foodHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🍖 Нет запасов еды</div>';
             } else {
                 const petList = [];
                 
                 for (let petId in userPets) {
                     const count = userPets[petId];
                     if (count > 0) {
-                        const [prefix, id] = petId.split('_');
+                        // Разбираем ID питомца
+                        let prefix = '';
+                        let id = petId;
+                        
+                        if (petId.includes('_')) {
+                            const parts = petId.split('_');
+                            prefix = parts[0];
+                            id = parts[1];
+                        }
+                        
                         const basePet = BASE_PETS.find(p => p.id === id);
                         if (basePet) {
                             petList.push({
                                 ...basePet,
                                 prefix: prefix,
                                 count: count,
-                                food: petFood[petId] || 0,
                                 fullId: petId
                             });
                         }
                     }
                 }
                 
+                // Сортируем по очкам
                 petList.sort((a, b) => a.score - b.score);
                 
                 petList.forEach(pet => {
-                    const emoji = `${pet.prefix}${pet.emoji}`;
-                    
+                    const emoji = pet.prefix ? `${pet.prefix}${pet.emoji}` : pet.emoji;
                     petsHtml += `
                         <div class="pet-stat-row" style="border-left: 4px solid ${pet.color};">
                             <span style="display: flex; align-items: center; gap: 12px;">
                                 <span style="font-size: 1.6rem;">${emoji}</span>
-                                <span style="color: white; font-weight: bold;">${pet.prefix}${pet.name}</span>
+                                <span style="color: white; font-weight: bold;">${pet.prefix ? pet.prefix : ''}${pet.name}</span>
                             </span>
                             <span style="color: #ffcc66; font-weight: bold; font-size: 1.3rem;">×${pet.count}</span>
                         </div>
                     `;
-                    
+                });
+            }
+            
+            // ----- ЕДА -----
+            let foodHtml = '';
+            if (totalFood === 0) {
+                foodHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🍖 Нет запасов еды</div>';
+            } else {
+                const foodList = [];
+                
+                for (let petId in petFood) {
+                    const count = petFood[petId];
+                    if (count > 0) {
+                        // Разбираем ID питомца
+                        let prefix = '';
+                        let id = petId;
+                        
+                        if (petId.includes('_')) {
+                            const parts = petId.split('_');
+                            prefix = parts[0];
+                            id = parts[1];
+                        }
+                        
+                        const basePet = BASE_PETS.find(p => p.id === id);
+                        if (basePet) {
+                            foodList.push({
+                                ...basePet,
+                                prefix: prefix,
+                                foodCount: count,
+                                fullId: petId
+                            });
+                        }
+                    }
+                }
+                
+                // Сортируем по очкам
+                foodList.sort((a, b) => a.score - b.score);
+                
+                foodList.forEach(pet => {
+                    const emoji = pet.prefix ? `${pet.prefix}${pet.emoji}` : pet.emoji;
                     foodHtml += `
                         <div class="pet-stat-row" style="border-left: 4px solid ${pet.color};">
                             <span style="display: flex; align-items: center; gap: 12px;">
                                 <span style="font-size: 1.6rem;">${emoji}</span>
-                                <span style="color: white; font-weight: bold;">${pet.prefix}${pet.name}</span>
+                                <span style="color: white; font-weight: bold;">${pet.prefix ? pet.prefix : ''}${pet.name}</span>
                             </span>
                             <span style="color: #ffd700; font-weight: bold; font-size: 1.3rem; display: flex; align-items: center; gap: 8px;">
-                                <span>${pet.food}</span>
                                 <span style="font-size: 1.2rem;">${pet.food}</span>
+                                <span>${pet.foodCount}</span>
                             </span>
                         </div>
                     `;
@@ -567,8 +664,12 @@
             petsStats.innerHTML = petsHtml;
             foodStats.innerHTML = foodHtml;
             
-            document.getElementById('total-pets-count').textContent = totalPets;
-            document.getElementById('total-food-amount').textContent = totalFood;
+            // Обновляем счётчики
+            const totalPetsEl = document.getElementById('total-pets-count');
+            const totalFoodEl = document.getElementById('total-food-amount');
+            
+            if (totalPetsEl) totalPetsEl.textContent = totalPets;
+            if (totalFoodEl) totalFoodEl.textContent = totalFood;
         }
 
         // ==================== ПАНЕЛЬ ПИТОМЦА ====================
@@ -580,7 +681,7 @@
                 document.getElementById('pet-emoji-header').textContent = activePet.emoji;
                 document.getElementById('pet-food-icon-header').textContent = activePet.food;
                 
-                const petId = `${activePet.rank.prefix}_${activePet.id}`;
+                const petId = activePet.petId;
                 document.getElementById('pet-food-count-header').textContent = petFood[petId] || 0;
                 
                 panel.style.borderColor = activePet.color + '80';
@@ -601,7 +702,6 @@
                 <div style="font-size:3rem;">✨✨✨</div>
                 <div style="font-size:4rem;">${pet.emoji}</div>
                 <div style="font-size:1.5rem;color:${pet.color};">+1 ${pet.rank.prefix}${pet.name}</div>
-                <div style="font-size:1.2rem;">Всего: ${userPets[pet.petId]}</div>
                 <div style="font-size:1.2rem;">+3 ${pet.food}</div>
             `;
             gameArea.appendChild(div);
@@ -789,13 +889,10 @@
                     level = Math.floor(lines / 10);
                 }
                 
-                if (activePet) {
-                    const petId = `${activePet.rank.prefix}_${activePet.id}`;
-                    petFood[petId] = (petFood[petId] || 0) + linesCleared;
-                    savePets();
-                    showFoodAnimation(activePet.food, linesCleared, activePet.color);
-                }
+                // Добавляем еду за линии
+                addFoodForLines(linesCleared);
                 
+                // Проверяем новых питомцев
                 checkPetUnlocks();
                 
                 setTimeout(() => {
@@ -1070,14 +1167,17 @@
                         
                         let petsHtml = '';
                         if (playerScore >= 1000) {
-                            const petCount = Math.floor((playerScore - 1000) / 1000) + 1;
+                            const petCount = Math.floor(playerScore / 1000);
                             const displayCount = Math.min(petCount, 8);
                             
                             for (let j = 0; j < displayCount; j++) {
                                 const basePet = BASE_PETS[j % BASE_PETS.length];
                                 const tier = Math.floor(j / BASE_PETS.length);
-                                const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
-                                const emoji = `${rank.prefix}${basePet.emoji}`;
+                                let rank = PET_RANKS[0];
+                                if (tier > 0) {
+                                    rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+                                }
+                                const emoji = rank.prefix ? `${rank.prefix}${basePet.emoji}` : basePet.emoji;
                                 petsHtml += `<span class="leaderboard-pet" style="border-color: ${rank.color}80;">${emoji}</span>`;
                             }
                             if (petCount > 8) {
