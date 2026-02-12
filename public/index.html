@@ -83,7 +83,7 @@
         .level-name { font-size: 1rem; font-weight: bold; }
         
         .footer { padding: 12px 10px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); }
-        .back-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; min-width: 100px; }
+        .footer .back-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; min-width: 100px; }
         
         .notification { position: fixed; top: 20px; right: 20px; background: rgba(42,153,68,0.9); color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; opacity: 0; transition: opacity 0.3s; }
         .notification.show { opacity: 1; }
@@ -226,17 +226,18 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // ==================== ПОЛУЧАЕМ TELEGRAM ID ====================
-        function getUrlParams() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return { telegramId: urlParams.get('telegramId'), username: urlParams.get('username') };
-        }
-
+        // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
         let tg = null;
         let telegramUserId = null;
         let telegramUsername = null;
-
-        (function() {
+        
+        // DOM элементы
+        let screens = {};
+        let canvas = null;
+        let ctx = null;
+        
+        // ==================== ПОЛУЧАЕМ TELEGRAM ID ====================
+        function initTelegram() {
             if (window.Telegram?.WebApp) {
                 try {
                     tg = window.Telegram.WebApp;
@@ -249,19 +250,24 @@
                     }
                 } catch(e) {}
             }
+            
             if (!telegramUserId) {
-                const p = getUrlParams();
-                if (p.telegramId && /^\d+$/.test(p.telegramId)) {
-                    telegramUserId = p.telegramId;
-                    telegramUsername = p.username || 'Player';
+                const urlParams = new URLSearchParams(window.location.search);
+                const tgId = urlParams.get('telegramId');
+                if (tgId && /^\d+$/.test(tgId)) {
+                    telegramUserId = tgId;
+                    telegramUsername = urlParams.get('username') || 'Player';
                 }
             }
+            
             if (!telegramUserId) {
                 telegramUserId = 'guest_' + Math.random().toString(36).substr(2, 9);
                 telegramUsername = 'Гость';
             }
+            
             window.telegramUserId = telegramUserId;
-        })();
+            console.log('👤 Пользователь:', telegramUserId, telegramUsername);
+        }
 
         // ==================== КОНСТАНТЫ ====================
         const COLS = 10, ROWS = 20, BLOCK_SIZE = 24;
@@ -280,7 +286,7 @@
             { id: 'insane', name: 'Безумие', speed: 200, icon: '💀' }
         ];
 
-        // ==================== КЛАССИЧЕСКИЕ УРОВНИ (29 УРОВНЕЙ) ====================
+        // ==================== КЛАССИЧЕСКИЕ УРОВНИ ====================
         const GAME_LEVELS = [
             { level: 0, min: 0, max: 999, speed: 800 },
             { level: 1, min: 1000, max: 1999, speed: 720 },
@@ -314,7 +320,7 @@
             { level: 29, min: 29000, max: Infinity, speed: 80 }
         ];
 
-        // ==================== БАЗОВЫЕ ПИТОМЦЫ (25 ШТУК) ====================
+        // ==================== БАЗОВЫЕ ПИТОМЦЫ ====================
         const BASE_PETS = [
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🐟' },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 2000, food: '🦴' },
@@ -343,7 +349,7 @@
             { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 25000, food: '🐟' }
         ];
 
-        // ==================== РАНГИ ПИТОМЦЕВ (БЕСКОНЕЧНО) ====================
+        // ==================== РАНГИ ПИТОМЦЕВ ====================
         const PET_RANKS = [
             { prefix: '', name: 'Обычный', min: 0, max: 24, color: '#FFFFFF' },
             { prefix: '✨', name: 'Блестящий', min: 25, max: 49, color: '#FFD700' },
@@ -355,28 +361,30 @@
             { prefix: '♾️', name: 'Бесконечный', min: 175, max: Infinity, color: '#00FFFF' }
         ];
 
-        // ==================== ДАННЫЕ ИГРОКА (ГЛОБАЛЬНЫЕ) ====================
-        let userPets = {};  // { "✨_cat": 5, "🌟_dog": 3, ... } - НАВСЕГДА
-        let petFood = {};   // { "✨_cat": 42, "🌟_dog": 17, ... } - НАВСЕГДА
+        // ==================== ДАННЫЕ ИГРОКА ====================
+        let userPets = {};
+        let petFood = {};
         let activePet = null;
         let currentSessionPets = [];
 
         // ==================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ====================
-        let board = [], currentPiece = null, currentX = 0, currentY = 0;
+        let board = [];
+        let currentPiece = null;
+        let currentX = 0, currentY = 0;
         let score = 0, level = 0, gameLevel = 0, lines = 0;
         let gameActive = false, gamePaused = false, gameOver = false;
         let dropCounter = 0, dropInterval = 800, lastTime = 0, animationId = null;
         let currentDifficulty = 'classic';
         let clearedLinesAnimation = [], pieceQueue = [];
 
-        // ==================== СТАТИСТИКА ИЗ NEON ====================
+        // ==================== СТАТИСТИКА ====================
         let gamesPlayed = 0;
         let totalLinesAll = 0;
         let bestScore = 0;
         let bestLevel = 0;
         let avgScore = 0;
 
-        // ==================== ЗАГРУЗКА КОЛЛЕКЦИИ (ИСПРАВЛЕНО) ====================
+        // ==================== ЗАГРУЗКА КОЛЛЕКЦИИ ====================
         function loadPets() {
             try {
                 const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
@@ -393,10 +401,8 @@
                 userPets = {};
                 petFood = {};
             }
-            
-            // Отладка
-            console.log(`📦 ЗАГРУЖЕНО ПИТОМЦЕВ (${telegramUserId}):`, userPets);
-            console.log(`📦 ЗАГРУЖЕНО ЕДЫ (${telegramUserId}):`, petFood);
+            console.log('📦 Загружено питомцев:', userPets);
+            console.log('📦 Загружено еды:', petFood);
         }
 
         // ==================== СОХРАНЕНИЕ КОЛЛЕКЦИИ ====================
@@ -407,10 +413,9 @@
                 lastUpdated: new Date().toISOString()
             };
             localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
-            console.log('💾 Сохранено питомцев:', userPets);
         }
 
-        // ==================== ПОДСЧЁТ ВСЕХ ПИТОМЦЕВ ЗА ВСЮ ИГРУ ====================
+        // ==================== ПОДСЧЁТ ПИТОМЦЕВ ====================
         function getTotalPetsCount() {
             let total = 0;
             if (userPets && typeof userPets === 'object') {
@@ -424,7 +429,7 @@
             return total;
         }
 
-        // ==================== ПОДСЧЁТ ВСЕЙ ЕДЫ ЗА ВСЮ ИГРУ ====================
+        // ==================== ПОДСЧЁТ ЕДЫ ====================
         function getTotalFoodCount() {
             let total = 0;
             if (petFood && typeof petFood === 'object') {
@@ -457,38 +462,30 @@
             };
         }
 
-        // ==================== ПОЛУЧЕНИЕ ПИТОМЦА (НАВСЕГДА) ====================
+        // ==================== ПОЛУЧЕНИЕ ПИТОМЦА ====================
         function unlockPet(pet) {
             if (!pet) return false;
             if (score < pet.score) return false;
             
             const petId = pet.petId;
             
-            // УВЕЛИЧИВАЕМ СЧЁТЧИК ПИТОМЦА НАВСЕГДА
             userPets[petId] = (userPets[petId] || 0) + 1;
-            
-            // ДАЁМ ЕДУ (3 штуки)
             petFood[petId] = (petFood[petId] || 0) + 3;
             
-            // Запоминаем активного питомца для сессии
             activePet = pet;
             if (!currentSessionPets.includes(petId)) {
                 currentSessionPets.push(petId);
             }
             
-            // СОХРАНЯЕМ НАВСЕГДА
             savePets();
             
-            // Показываем анимации
             showPetUnlockAnimation(pet);
             showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name} (Всего: ${userPets[petId]})`, pet.color);
             showFoodAnimation(pet.food, 3, pet.color);
             
-            // Обновляем интерфейс
             updatePetHeaderPanel();
             updateCollectionInUI();
             
-            console.log(`🎉 ПОЛУЧЕН ПИТОМЕЦ: ${petId}, ВСЕГО: ${userPets[petId]}, ЕДА: ${petFood[petId]}`);
             return true;
         }
 
@@ -500,7 +497,7 @@
             }
         }
 
-        // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ (ИСПРАВЛЕНО) ====================
+        // ==================== ОТОБРАЖЕНИЕ КОЛЛЕКЦИИ ====================
         function updateCollectionInUI() {
             const petsStats = document.getElementById('pets-collection-stats');
             const foodStats = document.getElementById('food-collection-stats');
@@ -510,17 +507,10 @@
             let petsHtml = '';
             let foodHtml = '';
             
-            // ЗАГРУЖАЕМ АКТУАЛЬНЫЕ ДАННЫЕ
             loadPets();
             
             const totalPets = getTotalPetsCount();
             const totalFood = getTotalFoodCount();
-            
-            console.log('📊 ОБНОВЛЕНИЕ СТАТИСТИКИ:');
-            console.log('   Питомцы:', userPets);
-            console.log('   Еда:', petFood);
-            console.log('   Всего питомцев:', totalPets);
-            console.log('   Всего еды:', totalFood);
             
             if (totalPets === 0) {
                 petsHtml = '<div style="color: #aaccff; padding: 15px; text-align: center;">🐾 У вас пока нет питомцев. Достигните 1000 очков, чтобы получить котёнка!</div>';
@@ -528,7 +518,6 @@
             } else {
                 const petList = [];
                 
-                // Собираем всех питомцев
                 for (let petId in userPets) {
                     const count = userPets[petId];
                     if (count > 0) {
@@ -546,14 +535,11 @@
                     }
                 }
                 
-                // Сортируем по очкам (порядку получения)
                 petList.sort((a, b) => a.score - b.score);
                 
-                // Отображаем питомцев
                 petList.forEach(pet => {
                     const emoji = `${pet.prefix}${pet.emoji}`;
                     
-                    // КОЛЛЕКЦИЯ ПИТОМЦЕВ
                     petsHtml += `
                         <div class="pet-stat-row" style="border-left: 4px solid ${pet.color};">
                             <span style="display: flex; align-items: center; gap: 12px;">
@@ -564,7 +550,6 @@
                         </div>
                     `;
                     
-                    // ЗАПАСЫ ЕДЫ
                     foodHtml += `
                         <div class="pet-stat-row" style="border-left: 4px solid ${pet.color};">
                             <span style="display: flex; align-items: center; gap: 12px;">
@@ -583,7 +568,6 @@
             petsStats.innerHTML = petsHtml;
             foodStats.innerHTML = foodHtml;
             
-            // ОБНОВЛЯЕМ СЧЁТЧИКИ
             document.getElementById('total-pets-count').textContent = totalPets;
             document.getElementById('total-food-amount').textContent = totalFood;
         }
@@ -806,15 +790,13 @@
                     level = Math.floor(lines / 10);
                 }
                 
-                // ДАЁМ ЕДУ ЗА ЛИНИИ (НАВСЕГДА)
                 if (activePet) {
                     const petId = `${activePet.rank.prefix}_${activePet.id}`;
                     petFood[petId] = (petFood[petId] || 0) + linesCleared;
-                    savePets(); // СОХРАНЯЕМ СРАЗУ!
+                    savePets();
                     showFoodAnimation(activePet.food, linesCleared, activePet.color);
                 }
                 
-                // ПРОВЕРЯЕМ НОВЫХ ПИТОМЦЕВ
                 checkPetUnlocks();
                 
                 setTimeout(() => {
@@ -896,6 +878,7 @@
         }
 
         function drawBoard() {
+            if (!ctx) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -944,6 +927,7 @@
         }
 
         function drawBlock(x, y, color, isCurrent) {
+            if (!ctx) return;
             const s = BLOCK_SIZE, bx = x * s, by = y * s;
             ctx.fillStyle = color;
             ctx.fillRect(bx, by, s, s);
@@ -1062,6 +1046,7 @@
         // ==================== ЛИДЕРБОРД ====================
         function showLeaderboard() {
             const list = document.getElementById('leaderboard-list');
+            if (!list) return;
             list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Загрузка...</div>';
             showScreen('leaderboard');
             
@@ -1136,6 +1121,7 @@
         // ==================== УРОВНИ СЛОЖНОСТИ ====================
         function showLevels() {
             const grid = document.getElementById('levels-grid');
+            if (!grid) return;
             grid.innerHTML = '';
             DIFFICULTY_LEVELS.forEach(l => {
                 grid.innerHTML += `<div class="level-card ${l.id === currentDifficulty ? 'active' : ''}" onclick="selectDifficulty('${l.id}')">
@@ -1155,8 +1141,8 @@
 
         // ==================== СТАТИСТИКА ====================
         function showStats() {
-            loadPets(); // ЗАГРУЖАЕМ АКТУАЛЬНЫЕ ДАННЫЕ
-            updateCollectionInUI(); // ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ
+            loadPets();
+            updateCollectionInUI();
             loadUserStats();
             showScreen('stats');
         }
@@ -1168,9 +1154,20 @@
             }
         }
         
-        function showScreen(s) { 
-            Object.keys(screens).forEach(k => screens[k].classList.remove('active')); 
-            screens[s].classList.add('active'); 
+        function showScreen(screenId) { 
+            if (!screens.menu) {
+                screens = {
+                    menu: document.getElementById('menu-screen'),
+                    game: document.getElementById('game-screen'),
+                    stats: document.getElementById('stats-screen'),
+                    levels: document.getElementById('levels-screen'),
+                    leaderboard: document.getElementById('leaderboard-screen')
+                };
+            }
+            Object.keys(screens).forEach(k => {
+                if (screens[k]) screens[k].classList.remove('active');
+            });
+            if (screens[screenId]) screens[screenId].classList.add('active');
         }
 
         // ==================== КЛАВИАТУРА ====================
@@ -1186,18 +1183,38 @@
         });
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
-        window.addEventListener('load', () => {
-            loadPets(); // ЗАГРУЖАЕМ ПИТОМЦЕВ ПРИ СТАРТЕ
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Инициализация игры...');
+            
+            initTelegram();
+            
+            screens = {
+                menu: document.getElementById('menu-screen'),
+                game: document.getElementById('game-screen'),
+                stats: document.getElementById('stats-screen'),
+                levels: document.getElementById('levels-screen'),
+                leaderboard: document.getElementById('leaderboard-screen')
+            };
+            
+            canvas = document.getElementById('tetris-canvas');
+            ctx = canvas ? canvas.getContext('2d') : null;
+            
+            if (!ctx) {
+                console.error('❌ Canvas не найден!');
+                return;
+            }
+            
+            loadPets();
             loadUserStats();
+            
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             drawBoard();
+            
             selectDifficulty('classic');
+            
             showNotification('✨ Классический тетрис! Питомцы каждые 1000 очков!');
             
-            // ПРОВЕРЯЕМ, ЧТО ВСЁ ЗАГРУЗИЛОСЬ
-            console.log('✅ Игра загружена!');
-            console.log('📊 Питомцы:', userPets);
-            console.log('🍖 Еда:', petFood);
+            console.log('✅ Игра инициализирована!');
         });
     </script>
 </body>
