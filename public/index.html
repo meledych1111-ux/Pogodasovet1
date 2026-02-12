@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тетрис PRO — Статистика, питомцы, еда</title>
+    <title>Тетрис PRO — Общая коллекция питомцев и еды</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #fff; }
@@ -87,11 +87,6 @@
         .player-name { font-weight: bold; margin-bottom: 3px; }
         .player-score { color: #66ffaa; font-size: 1rem; }
         
-        .pets-collection-badge { background: rgba(255,182,193,0.15); border-radius: 12px; padding: 8px; margin-top: 8px; }
-        .collection-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
-        .pet-card { display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); border-radius: 16px; padding: 4px 10px; border: 1px solid; font-size: 0.85rem; }
-        .pet-food-amount { background: rgba(255,215,0,0.2); border-radius: 10px; padding: 2px 6px; color: #ffd700; font-size: 0.75rem; margin-left: 4px; }
-        
         .footer { padding: 12px 10px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); }
         .back-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; min-width: 100px; }
         
@@ -113,7 +108,7 @@
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС PRO</h1>
-                <p class="subtitle">Neon • Статистика • Питомцы</p>
+                <p class="subtitle">Общая коллекция питомцев • Neon</p>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startGame()">🎮 НОВАЯ ИГРА</button>
@@ -383,14 +378,14 @@
                 userPets = {};
                 petFood = {};
             }
-            console.log('✅ Загружены питомцы:', userPets);
-            console.log('✅ Загружена еда:', petFood);
+            console.log('✅ Загружена коллекция питомцев:', userPets);
+            console.log('✅ Загружены запасы еды:', petFood);
         }
 
         function savePets() {
             const saveData = { pets: userPets, food: petFood };
             localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
-            console.log('💾 Сохранены питомцы:', userPets);
+            console.log('💾 Сохранена коллекция:', userPets);
         }
 
         // ==================== ФУНКЦИЯ ДЛЯ ЛИДЕРБОРДА ====================
@@ -401,7 +396,7 @@
                     pets.push({
                         emoji: pet.emoji,
                         food: pet.food,
-                        amount: Math.floor(score / 500) // Примерное количество еды
+                        amount: Math.floor(score / 500)
                     });
                 }
             });
@@ -410,18 +405,26 @@
 
         // ==================== ПОЛУЧЕНИЕ ПИТОМЦА ====================
         function unlockPet(pet) {
+            // ✅ ПРОВЕРЯЕМ, ДОСТИГЛИ ЛИ МИНИМУМА
             if (score < pet.score) return false;
+            
+            // ✅ ПРОВЕРЯЕМ, НЕ ПОЛУЧАЛИ ЛИ В ЭТОЙ СЕССИИ
             if (currentSessionPets.includes(pet.id)) return false;
             
-            // УВЕЛИЧИВАЕМ СЧЁТЧИК ПИТОМЦА ЗА ВСЕ ИГРЫ!
+            // ✅ УВЕЛИЧИВАЕМ СЧЁТЧИК ПИТОМЦА ЗА ВСЕ ИГРЫ!
             userPets[pet.id] = (userPets[pet.id] || 0) + 1;
+            
+            // ✅ ДОБАВЛЯЕМ В ТЕКУЩУЮ СЕССИЮ
             currentSessionPets.push(pet.id);
             activePet = pet;
             
-            // +3 ЕДЫ ЗА ПОЛУЧЕНИЕ ПИТОМЦА
+            // ✅ +3 ЕДЫ ЗА ПОЛУЧЕНИЕ ПИТОМЦА
             petFood[pet.id] = (petFood[pet.id] || 0) + 3;
             
+            // ✅ СОХРАНЯЕМ
             savePets();
+            
+            // ✅ АНИМАЦИЯ
             showPetUnlockAnimation(pet);
             showPetNotification(`✨ +1 ${pet.name} (Всего: ${userPets[pet.id]})`, pet.color);
             showFoodAnimation(pet.food, 3, pet.color);
@@ -432,13 +435,19 @@
 
         // ==================== КОРМЛЕНИЕ ПИТОМЦА ====================
         function feedActivePet(linesCleared) {
+            // ✅ ТОЛЬКО ЕСЛИ ЕСТЬ АКТИВНЫЙ ПИТОМЕЦ
             if (!activePet) return false;
+            
+            // ✅ ТОЛЬКО ПОСЛЕ 1000 ОЧКОВ
             if (score < 1000) return false;
             
-            // ДОБАВЛЯЕМ ЕДУ ЗА ЛИНИИ В ОБЩИЙ ЗАПАС!
+            // ✅ ДОБАВЛЯЕМ ЕДУ ЗА ЛИНИИ В ОБЩИЙ ЗАПАС!
             petFood[activePet.id] = (petFood[activePet.id] || 0) + linesCleared;
             
+            // ✅ СОХРАНЯЕМ
             savePets();
+            
+            // ✅ АНИМАЦИЯ
             showFoodAnimation(activePet.food, linesCleared, activePet.color);
             
             for (let i = 0; i < linesCleared; i++) {
@@ -452,6 +461,7 @@
         // ==================== ПРОВЕРКА ПИТОМЦЕВ ====================
         function checkPetUnlocks() {
             PETS.forEach(pet => {
+                // ✅ ПРОВЕРЯЕМ КАЖДОГО ПИТОМЦА
                 if (score >= pet.score && !currentSessionPets.includes(pet.id)) {
                     unlockPet(pet);
                 }
@@ -484,6 +494,7 @@
             let foodHtml = '';
             let totalFood = 0;
             
+            // ✅ СОРТИРУЕМ ПИТОМЦЕВ ПО ID
             const sortedPets = Object.keys(userPets).sort();
             
             if (sortedPets.length === 0) {
@@ -497,6 +508,7 @@
                         const food = petFood[petId] || 0;
                         totalFood += food;
                         
+                        // ✅ ЭМОДЗИ ПИТОМЦА + ИМЯ + КОЛИЧЕСТВО
                         petsHtml += `
                             <div class="pet-stat-row">
                                 <span style="display: flex; align-items: center; gap: 8px;">
@@ -507,6 +519,7 @@
                             </div>
                         `;
                         
+                        // ✅ ЭМОДЗИ ПИТОМЦА + ИКОНКА ЕДЫ + КОЛИЧЕСТВО
                         foodHtml += `
                             <div class="pet-stat-row">
                                 <span style="display: flex; align-items: center; gap: 8px;">
@@ -525,6 +538,7 @@
             petsStats.innerHTML = petsHtml;
             foodStats.innerHTML = foodHtml;
             
+            // ✅ ОБНОВЛЯЕМ СЧЁТЧИКИ
             document.getElementById('total-pets-count').textContent = Object.keys(userPets).length;
             document.getElementById('total-lines-count').textContent = totalLinesAll;
             document.getElementById('total-food-count').textContent = totalFood;
@@ -627,7 +641,10 @@
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             score = 0; lines = 0; gameLevel = 1; level = 1;
             gameActive = true; gamePaused = false; gameOver = false;
-            currentSessionPets = []; activePet = null;
+            
+            // ✅ СБРАСЫВАЕМ ТОЛЬКО ТЕКУЩУЮ СЕССИЮ, НЕ ОБЩУЮ КОЛЛЕКЦИЮ!
+            currentSessionPets = [];
+            activePet = null;
             
             dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
             
@@ -764,10 +781,12 @@
                 const bonus = [0, 100, 300, 500, 800];
                 score += bonus[linesCleared] * level;
                 
-                if (score >= 1000) {
+                // ✅ КОРМИМ ПИТОМЦА ТОЛЬКО ЕСЛИ ЕСТЬ АКТИВНЫЙ И 1000+ ОЧКОВ
+                if (activePet && score >= 1000) {
                     feedActivePet(linesCleared);
                 }
                 
+                // ✅ ПРОВЕРЯЕМ ПОЛУЧЕНИЕ НОВЫХ ПИТОМЦЕВ
                 checkPetUnlocks();
                 
                 setTimeout(() => {
@@ -819,7 +838,6 @@
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Сетка
             ctx.strokeStyle = 'rgba(106,91,255,0.15)';
             ctx.lineWidth = 1;
             for (let x = 0; x <= COLS; x++) {
@@ -1075,8 +1093,16 @@
 
         // ==================== СТАТИСТИКА ====================
         function showStats() {
+            // ✅ ЗАГРУЖАЕМ СТАТИСТИКУ ИЗ NEON
             loadUserStats();
+            
+            // ✅ ЗАГРУЖАЕМ КОЛЛЕКЦИЮ ИЗ LOCALSTORAGE
+            loadPets();
+            
+            // ✅ ОБНОВЛЯЕМ UI
             updatePetsStatsInUI();
+            
+            // ✅ ПОКАЗЫВАЕМ ЭКРАН
             showScreen('stats');
         }
 
@@ -1114,13 +1140,16 @@
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис PRO — Общая статистика, питомцы, еда');
+            console.log('🎮 Тетрис PRO — Общая коллекция питомцев и еды!');
+            
+            // ✅ ЗАГРУЖАЕМ КОЛЛЕКЦИЮ ПРИ СТАРТЕ
             loadPets();
             loadUserStats();
+            
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             drawBoard();
             selectDifficulty('medium');
-            showNotification('✨ Коллекция питомцев за ВСЕ игры!');
+            showNotification('✨ Коллекция питомцев сохраняется навсегда!');
         });
     </script>
 </body>
