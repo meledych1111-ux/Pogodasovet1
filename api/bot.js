@@ -2360,69 +2360,6 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
   }
 }
 // ===================== ОСНОВНЫЕ КОМАНДЫ =====================
-// ===================== 🔴 ДОБАВЬТЕ ЭТОТ КОД В bot.js =====================
-// Найдите место после других app.get/app.post и вставьте:
-
-/**
- * ✅ ПОЛУЧИТЬ ВСЕ ИГРЫ ПОЛЬЗОВАТЕЛЯ ДЛЯ СТАТИСТИКИ ПИТОМЦЕВ
- * Использует существующую таблицу game_scores
- * Возвращает ВСЕ игры, а не только статистику
- */
-app.get('/api/user-all-games', async (req, res) => {
-    const { telegramId, gameType } = req.query;
-    
-    console.log(`🎮 [user-all-games] Запрос всех игр для: ${telegramId}`);
-    
-    if (!telegramId) {
-        return res.status(400).json({ 
-            success: false, 
-            games: [], 
-            error: 'telegramId is required' 
-        });
-    }
-
-    const client = await pool.connect();
-    
-    try {
-        // Запрос ВСЕХ игр пользователя из таблицы game_scores
-        const query = `
-            SELECT 
-                score,
-                lines,
-                created_at
-            FROM game_scores 
-            WHERE user_id = $1 
-                AND game_type = $2 
-                AND score > 0
-            ORDER BY created_at DESC
-        `;
-        
-        const result = await client.query(query, [
-            telegramId.toString(), 
-            gameType || 'tetris'
-        ]);
-        
-        console.log(`✅ [user-all-games] Найдено игр: ${result.rows.length} для ${telegramId}`);
-        
-        // Возвращаем ВСЕ игры
-        res.json({
-            success: true,
-            games: result.rows,
-            count: result.rows.length
-        });
-        
-    } catch (error) {
-        console.error('❌ [user-all-games] Ошибка:', error);
-        res.status(500).json({ 
-            success: false, 
-            games: [], 
-            error: error.message 
-        });
-        
-    } finally {
-        client.release();
-    }
-});
 bot.command('start', async (ctx) => {
   console.log(`🚀 /start от ${ctx.from.id}`);
   
@@ -3677,6 +3614,31 @@ bot.catch((err) => {
 
 // ===================== ЭКСПОРТ ДЛЯ VERCEL =====================
 let botInitialized = false;
+app.get('/api/user-all-games', async (req, res) => {
+    const { telegramId, gameType } = req.query;
+    console.log(`🎮 Запрос всех игр для: ${telegramId}`);
+    
+    if (!telegramId) {
+        return res.json({ success: false, games: [] });
+    }
+
+    const client = await pool.connect();
+    try {
+        const query = `
+            SELECT score, lines 
+            FROM game_scores 
+            WHERE user_id = $1 AND game_type = $2 AND score > 0
+            ORDER BY created_at DESC
+        `;
+        const result = await client.query(query, [telegramId.toString(), gameType || 'tetris']);
+        res.json({ success: true, games: result.rows });
+    } catch (error) {
+        res.json({ success: false, games: [] });
+    } finally {
+        client.release();
+    }
+});
+// 
 
 async function initializeBot() {
   if (!botInitialized) {
