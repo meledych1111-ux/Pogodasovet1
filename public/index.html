@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тетрис PRO — ПОЛНАЯ ВЕРСИЯ</title>
+    <title>Тетрис PRO — Классика + Питомцы + Эффекты</title>
     <style>
+        /* ==================== ПОЛНЫЙ CSS ==================== */
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #fff; }
         body { display: flex; justify-content: center; align-items: center; padding: 10px; }
@@ -15,6 +16,7 @@
         .game-title { font-size: 2rem; font-weight: bold; background: linear-gradient(90deg, #9d7aff, #6a5bff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(106,91,255,0.5); margin-bottom: 5px; }
         .subtitle { color: #b5aaff; font-size: 0.85rem; }
         
+        /* ==================== МЕНЮ ==================== */
         .menu-buttons { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 15px 0; overflow-y: auto; }
         .menu-btn { background: linear-gradient(145deg, rgba(68,85,204,0.3), rgba(51,68,170,0.2)); color: white; border: none; border-radius: 12px; padding: 16px 12px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 55px; border: 1px solid rgba(68,85,204,0.3); }
         .menu-btn:active { transform: translateY(2px); }
@@ -23,6 +25,7 @@
         .menu-btn.levels { background: linear-gradient(145deg, rgba(255,153,102,0.3), rgba(235,133,82,0.2)); border-color: rgba(255,153,102,0.4); }
         .menu-btn.leaderboard { background: linear-gradient(145deg, rgba(255,102,204,0.3), rgba(235,82,182,0.2)); border-color: rgba(255,102,204,0.4); }
         
+        /* ==================== ИГРОВОЙ ЭКРАН ==================== */
         #game-screen { display: flex; flex-direction: column; padding: 2px 8px 8px 8px; }
         .game-header { display: flex; justify-content: space-between; align-items: center; padding: 2px 6px; background: rgba(20,30,80,0.5); border-radius: 4px; margin-bottom: 2px; border: 1px solid rgba(68,85,204,0.3); min-height: 32px; height: 32px; }
         .back-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 4px 12px; border-radius: 16px; cursor: pointer; font-size: 0.8rem; min-width: 65px; min-height: 28px; display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 500; }
@@ -33,48 +36,71 @@
         .game-info .info-box:not(:last-child) { position: relative; margin-right: 8px; }
         .game-info .info-box:not(:last-child)::after { content: "•"; position: absolute; right: -8px; color: #6a5bff; font-size: 0.8rem; top: 50%; transform: translateY(-50%); }
         
+        /* ==================== ПАНЕЛЬ ПИТОМЦА ==================== */
         .pet-badge { display: none; align-items: center; gap: 6px; background: rgba(255,182,193,0.15); border-radius: 20px; padding: 2px 12px 2px 8px; border: 1px solid; font-size: 0.8rem; margin-left: 6px; height: 28px; white-space: nowrap; }
         .pet-emoji { font-size: 1rem; }
         .pet-food-wrapper { display: flex; align-items: center; gap: 4px; background: rgba(255,215,0,0.15); border-radius: 14px; padding: 2px 8px; margin-left: 2px; }
         .pet-food-icon { font-size: 0.85rem; }
         .pet-food-count { font-weight: bold; color: #ffd700; font-size: 0.8rem; min-width: 18px; text-align: center; }
         
+        /* ==================== УРОВНИ И ЭФФЕКТЫ ==================== */
         .level-effects { display: flex; gap: 2px; margin-left: 4px; font-size: 0.9rem; }
         .next-level-progress { padding: 5px 10px; background: rgba(20,30,80,0.5); border-radius: 8px; margin-top: 2px; }
         .next-level-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: #aaccff; }
         .progress-bar { width: 100%; height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; margin-top: 4px; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #6a5bff, #9d7aff); transition: width 0.3s; }
         
-        .food-particle { position: fixed; pointer-events: none; font-size: 2rem; animation: foodFloat 1s ease-out forwards; z-index: 10001; }
-        @keyframes foodFloat { 0% { opacity: 0; transform: translateY(0) scale(0.5); } 20% { opacity: 1; transform: translateY(-20px) scale(1.3); } 100% { opacity: 0; transform: translateY(-100px) scale(0.8); } }
-        .star-particle { position: fixed; pointer-events: none; font-size: 1.2rem; animation: starFloat 0.8s ease-out forwards; z-index: 10002; }
-        @keyframes starFloat { 0% { opacity: 0; transform: translateY(0) scale(0.5) rotate(0deg); } 30% { opacity: 1; transform: translateY(-30px) scale(1.2) rotate(180deg); } 100% { opacity: 0; transform: translateY(-80px) scale(0.8) rotate(360deg); } }
+        /* ==================== ЭФФЕКТЫ УРОВНЕЙ ==================== */
+        .effect-sparks canvas { box-shadow: 0 0 15px rgba(255,255,100,0.7); }
+        .effect-glow canvas { filter: drop-shadow(0 0 8px #00ffff); }
+        .effect-stars canvas { position: relative; }
+        .effect-fire canvas { box-shadow: 0 0 25px rgba(255,69,0,0.8); }
+        .effect-ice canvas { filter: hue-rotate(180deg) brightness(1.2); }
+        .effect-double-sparks canvas { box-shadow: 0 0 30px rgba(255,255,100,0.9); }
+        .effect-rainbow canvas { animation: rainbowGlow 3s infinite; }
+        @keyframes rainbowGlow { 
+            0% { box-shadow: 0 0 20px #ff0000; } 
+            25% { box-shadow: 0 0 20px #ffff00; } 
+            50% { box-shadow: 0 0 20px #00ff00; } 
+            75% { box-shadow: 0 0 20px #0000ff; } 
+            100% { box-shadow: 0 0 20px #ff00ff; } 
+        }
+        .effect-crown canvas { border: 3px solid gold !important; box-shadow: 0 0 30px gold !important; }
+        .effect-master canvas { animation: sparkle 1s infinite; }
+        @keyframes sparkle { 
+            0% { opacity: 1; filter: brightness(1); } 
+            50% { opacity: 0.9; filter: brightness(1.3); } 
+            100% { opacity: 1; filter: brightness(1); } 
+        }
         
-        .pet-unlock-animation { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,0.9); padding: 20px 30px; border-radius: 30px; border: 2px solid; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10010; animation: petUnlock 2s forwards; pointer-events: none; }
-        @keyframes petUnlock { 0% { opacity: 0; transform: translate(-50%,-30%) scale(0.7); } 15% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-70%) scale(0.8); } }
+        /* ==================== АНИМАЦИИ ==================== */
+        .food-particle { position: fixed; pointer-events: none; font-size: 2rem; animation: foodFloat 1s ease-out forwards; z-index: 10001; }
+        @keyframes foodFloat { 
+            0% { opacity: 0; transform: translateY(0) scale(0.5); } 
+            20% { opacity: 1; transform: translateY(-20px) scale(1.3); } 
+            100% { opacity: 0; transform: translateY(-100px) scale(0.8); } 
+        }
+        .star-particle { position: fixed; pointer-events: none; font-size: 1.2rem; animation: starFloat 0.8s ease-out forwards; z-index: 10002; }
+        @keyframes starFloat { 
+            0% { opacity: 0; transform: translateY(0) scale(0.5) rotate(0deg); } 
+            30% { opacity: 1; transform: translateY(-30px) scale(1.2) rotate(180deg); } 
+            100% { opacity: 0; transform: translateY(-80px) scale(0.8) rotate(360deg); } 
+        }
+        .pet-unlock-animation { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); 
+            background: rgba(0,0,0,0.9); padding: 20px 30px; border-radius: 30px; 
+            border: 2px solid; display: flex; flex-direction: column; align-items: center; 
+            gap: 10px; z-index: 10010; animation: petUnlock 2s forwards; pointer-events: none; 
+        }
+        @keyframes petUnlock { 
+            0% { opacity: 0; transform: translate(-50%,-30%) scale(0.7); } 
+            15% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); } 
+            85% { opacity: 1; } 
+            100% { opacity: 0; transform: translate(-50%,-70%) scale(0.8); } 
+        }
         
         .game-area { flex: 1; display: flex; justify-content: center; align-items: center; min-height: 460px; height: calc(100% - 70px); position: relative; }
         #tetris-canvas { background: rgba(0,0,0,0.3); border-radius: 6px; border: 2px solid rgba(68,85,204,0.5); max-width: 100%; max-height: 100%; transition: all 0.3s; }
-        
-        /* Эффекты уровней */
-        .effect-sparks { box-shadow: 0 0 15px rgba(255,255,100,0.7); }
-        .effect-glow { filter: drop-shadow(0 0 8px #00ffff); }
-        .effect-stars { position: relative; }
-        .effect-fire { box-shadow: 0 0 25px rgba(255,69,0,0.8); }
-        .effect-ice { filter: hue-rotate(180deg) brightness(1.2); }
-        .effect-double-sparks { box-shadow: 0 0 30px rgba(255,255,100,0.9); }
-        .effect-rainbow { animation: rainbowGlow 3s infinite; }
-        @keyframes rainbowGlow { 0% { box-shadow: 0 0 20px #ff0000; } 25% { box-shadow: 0 0 20px #ffff00; } 50% { box-shadow: 0 0 20px #00ff00; } 75% { box-shadow: 0 0 20px #0000ff; } 100% { box-shadow: 0 0 20px #ff00ff; } }
-        .effect-crown { border: 3px solid gold !important; box-shadow: 0 0 30px gold !important; }
-        .effect-master { animation: sparkle 1s infinite; }
-        @keyframes sparkle { 0% { opacity: 1; } 50% { opacity: 0.8; filter: brightness(1.3); } 100% { opacity: 1; } }
-        .effect-vortex { animation: vortex 4s linear infinite; }
-        @keyframes vortex { 0% { transform: scale(1); } 50% { transform: scale(0.98); } 100% { transform: scale(1); } }
-        .effect-lightning { animation: lightning 2s infinite; }
-        @keyframes lightning { 0% { filter: brightness(1); } 95% { filter: brightness(1); } 100% { filter: brightness(1.5); } }
-        .effect-champion { border: 3px solid #ffcc00 !important; box-shadow: 0 0 40px #ffaa00 !important; }
-        .effect-legend { animation: legendPulse 2s infinite; }
-        @keyframes legendPulse { 0% { border-color: #ff00ff; box-shadow: 0 0 30px #ff00ff; } 50% { border-color: #00ffff; box-shadow: 0 0 30px #00ffff; } 100% { border-color: #ff00ff; box-shadow: 0 0 30px #ff00ff; } }
         
         .game-controls-panel { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
         .game-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; background: rgba(20,30,80,0.5); border-radius: 10px; }
@@ -117,7 +143,12 @@
         .notification { position: fixed; top: 20px; right: 20px; background: rgba(42,153,68,0.9); color: white; padding: 12px 20px; border-radius: 8px; z-index: 10000; opacity: 0; transition: opacity 0.3s; }
         .notification.show { opacity: 1; }
         .pet-notification { position: fixed; top: 80px; right: 20px; background: rgba(10,15,30,0.95); border-left: 4px solid; border-radius: 12px; padding: 12px 20px; color: white; font-size: 0.9rem; z-index: 10000; animation: petNotify 2s forwards; pointer-events: none; display: flex; align-items: center; gap: 12px; }
-        @keyframes petNotify { 0% { opacity: 0; transform: translateX(50px); } 15% { opacity: 1; transform: translateX(0); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(20px); } }
+        @keyframes petNotify { 
+            0% { opacity: 0; transform: translateX(50px); } 
+            15% { opacity: 1; transform: translateX(0); } 
+            85% { opacity: 1; } 
+            100% { opacity: 0; transform: translateX(20px); } 
+        }
         
         @media (max-width: 400px) { .game-title { font-size: 1.6rem; } }
         @media (max-height: 700px) { .game-container { max-height: 650px; } .game-area { min-height: 400px; } }
@@ -132,7 +163,7 @@
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС PRO</h1>
-                <p class="subtitle">15 уровней • Эффекты • Коллекция</p>
+                <p class="subtitle">Классика • Питомцы • Эффекты</p>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startGame()">🎮 НОВАЯ ИГРА</button>
@@ -190,7 +221,6 @@
         <div class="screen" id="stats-screen">
             <div class="header"><h1 class="game-title">СТАТИСТИКА</h1></div>
             <div class="stats-container">
-                <!-- ОБЩАЯ СТАТИСТИКА ИЗ NEON -->
                 <div class="stat-card">
                     <h3 style="color:#6a5bff;">🏆 ОБЩАЯ СТАТИСТИКА (Neon)</h3>
                     <div id="user-stats">
@@ -202,7 +232,6 @@
                     </div>
                 </div>
                 
-                <!-- ТЕКУЩАЯ СЕССИЯ -->
                 <div class="stat-card">
                     <h3 style="color:#6a5bff;">🎮 ТЕКУЩАЯ СЕССИЯ</h3>
                     <div id="session-stats">
@@ -212,7 +241,6 @@
                     </div>
                 </div>
                 
-                <!-- КОЛЛЕКЦИЯ ПИТОМЦЕВ ОТ ОБЩЕГО СЧЁТА -->
                 <div class="stat-card">
                     <h3 style="color:#ff99aa;">🐾 МОЯ КОЛЛЕКЦИЯ ПИТОМЦЕВ</h3>
                     <p style="color:#aaccff; margin-bottom:10px;">От лучшего счета: <span id="best-score-for-pets" style="color:#66ffaa; font-weight:bold;">0</span> очков</p>
@@ -222,7 +250,6 @@
                     </p>
                 </div>
                 
-                <!-- ЗАПАСЫ ЕДЫ ОТ ЛИНИЙ -->
                 <div class="stat-card">
                     <h3 style="color:#ffd700;">🍖 ЗАПАСЫ ЕДЫ</h3>
                     <p style="color:#aaccff; margin-bottom:10px;">От всего линий: <span id="total-lines-for-food" style="color:#66ffaa; font-weight:bold;">0</span></p>
@@ -298,23 +325,19 @@
             [[1,1,0],[0,1,1]], [[0,1,1],[1,1,0]], [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]]
         ];
 
-        // ==================== 15 УРОВНЕЙ С ЭФФЕКТАМИ ====================
+        // ==================== УРОВНИ СКОРОСТИ (КЛАССИКА) ====================
         const GAME_LEVELS = [
-            { level: 1, min: 0, max: 1499, effect: '🟢', name: 'Старт', effectClass: '' },
-            { level: 2, min: 1500, max: 1999, effect: '⚡', name: 'Искры', effectClass: 'effect-sparks' },
-            { level: 3, min: 2000, max: 2499, effect: '🌟', name: 'Сияние', effectClass: 'effect-glow' },
-            { level: 4, min: 2500, max: 2999, effect: '💫', name: 'Звёзды', effectClass: 'effect-stars' },
-            { level: 5, min: 3000, max: 3499, effect: '🔥', name: 'Огонь', effectClass: 'effect-fire' },
-            { level: 6, min: 3500, max: 3999, effect: '❄️', name: 'Лёд', effectClass: 'effect-ice' },
-            { level: 7, min: 4000, max: 4499, effect: '⚡⚡', name: 'Удвоенные искры', effectClass: 'effect-double-sparks' },
-            { level: 8, min: 4500, max: 4999, effect: '🌈', name: 'Радуга', effectClass: 'effect-rainbow' },
-            { level: 9, min: 5000, max: 5499, effect: '🎆', name: 'Салют', effectClass: '' },
-            { level: 10, min: 5500, max: 5999, effect: '👑', name: 'Корона', effectClass: 'effect-crown' },
-            { level: 11, min: 6000, max: 6499, effect: '💎', name: 'Мастер', effectClass: 'effect-master' },
-            { level: 12, min: 6500, max: 6999, effect: '🌪️', name: 'Вихрь', effectClass: 'effect-vortex' },
-            { level: 13, min: 7000, max: 7499, effect: '⚡💫', name: 'Молнии', effectClass: 'effect-lightning' },
-            { level: 14, min: 7500, max: 7999, effect: '🏆', name: 'Чемпион', effectClass: 'effect-champion' },
-            { level: 15, min: 8000, max: Infinity, effect: '👾', name: 'Легенда', effectClass: 'effect-legend' }
+            { level: 1, min: 0, max: 1499, speed: 800, effect: '🟢', name: 'Старт', effectClass: '' },
+            { level: 2, min: 1500, max: 2999, speed: 720, effect: '⚡', name: 'Искры', effectClass: 'effect-sparks' },
+            { level: 3, min: 3000, max: 4499, speed: 630, effect: '🌟', name: 'Сияние', effectClass: 'effect-glow' },
+            { level: 4, min: 4500, max: 5999, speed: 550, effect: '💫', name: 'Звёзды', effectClass: 'effect-stars' },
+            { level: 5, min: 6000, max: 7499, speed: 470, effect: '🔥', name: 'Огонь', effectClass: 'effect-fire' },
+            { level: 6, min: 7500, max: 8999, speed: 380, effect: '❄️', name: 'Лёд', effectClass: 'effect-ice' },
+            { level: 7, min: 9000, max: 10499, speed: 300, effect: '⚡⚡', name: 'Искры', effectClass: 'effect-double-sparks' },
+            { level: 8, min: 10500, max: 11999, speed: 220, effect: '🌈', name: 'Радуга', effectClass: 'effect-rainbow' },
+            { level: 9, min: 12000, max: 13499, speed: 150, effect: '🎆', name: 'Салют', effectClass: '' },
+            { level: 10, min: 13500, max: 14999, speed: 100, effect: '👑', name: 'Корона', effectClass: 'effect-crown' },
+            { level: 11, min: 15000, max: Infinity, speed: 80, effect: '💎', name: 'Мастер', effectClass: 'effect-master' }
         ];
 
         // ==================== 25 ПИТОМЦЕВ (КАЖДЫЕ 500 ОЧКОВ) ====================
@@ -348,9 +371,9 @@
 
         // ==================== УРОВНИ СЛОЖНОСТИ ====================
         const DIFFICULTY_LEVELS = [
-            { id: 'easy', name: 'Легкий', speed: 1000, icon: '🐣' },
-            { id: 'medium', name: 'Средний', speed: 700, icon: '⚡' },
-            { id: 'hard', name: 'Сложный', speed: 450, icon: '🔥' },
+            { id: 'easy', name: 'Легкий', speed: 800, icon: '🐣' },
+            { id: 'medium', name: 'Средний', speed: 600, icon: '⚡' },
+            { id: 'hard', name: 'Сложный', speed: 400, icon: '🔥' },
             { id: 'expert', name: 'Эксперт', speed: 250, icon: '👑' },
             { id: 'insane', name: 'Безумие', speed: 150, icon: '💀' }
         ];
@@ -370,13 +393,15 @@
         let board = [], currentPiece = null, currentX = 0, currentY = 0;
         let score = 0, level = 1, gameLevel = 1, lines = 0;
         let gameActive = false, gamePaused = false, gameOver = false;
-        let dropCounter = 0, dropInterval = 700, lastTime = 0, animationId = null;
+        let dropCounter = 0, dropInterval = 800, lastTime = 0, animationId = null;
         let currentDifficulty = 'medium';
         let clearedLinesAnimation = [], pieceQueue = [];
 
         // ==================== ПИТОМЦЫ В ТЕКУЩЕЙ СЕССИИ ====================
         let activePet = null;
         let currentSessionPets = [];
+        let petFood = {}; // Еда за ВСЕ игры
+        let userPets = {}; // Счетчик питомцев за ВСЕ игры
 
         // ==================== СТАТИСТИКА ИЗ NEON ====================
         let gamesPlayed = 0;
@@ -384,6 +409,26 @@
         let bestScore = 0;
         let bestLevel = 1;
         let avgScore = 0;
+
+        // ==================== ЗАГРУЗКА КОЛЛЕКЦИИ ====================
+        function loadPets() {
+            try {
+                const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    userPets = data.pets || {};
+                    petFood = data.food || {};
+                }
+            } catch(e) {
+                userPets = {};
+                petFood = {};
+            }
+        }
+
+        function savePets() {
+            const saveData = { pets: userPets, food: petFood };
+            localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
+        }
 
         // ==================== ПОЛУЧИТЬ ПИТОМЦЕВ ОТ СЧЁТА ====================
         function getPetsFromScore(score) {
@@ -396,11 +441,6 @@
             return pets;
         }
 
-        // ==================== ПОЛУЧИТЬ КОЛИЧЕСТВО ЕДЫ ====================
-        function getFoodFromLines(lines) {
-            return lines; // 1 линия = 1 еда
-        }
-
         // ==================== ФУНКЦИИ УРОВНЕЙ ====================
         function getGameLevelFromScore(score) {
             for (let lvl of GAME_LEVELS) {
@@ -410,23 +450,24 @@
         }
 
         function updateGameLevel() {
+            const oldLevel = gameLevel;
             const levelData = getGameLevelFromScore(score);
             gameLevel = levelData.level;
             
-            const baseSpeed = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
-            
-            // ТОЛЬКО 2 УРОВЕНЬ ДАЁТ УСКОРЕНИЕ
-            if (gameLevel === 2) {
-                dropInterval = Math.max(150, baseSpeed - 50);
-            } else {
-                dropInterval = baseSpeed;
+            // ✅ НОВЫЙ УРОВЕНЬ - ОЧИЩАЕМ ПОЛЕ!
+            if (gameLevel > oldLevel) {
+                board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+                showNotification(`✨ УРОВЕНЬ ${gameLevel}! ПОЛЕ ОЧИЩЕНО! ✨`);
+                score += 500; // Бонус за новый уровень
             }
+            
+            dropInterval = levelData.speed;
             
             document.getElementById('game-level').textContent = gameLevel;
             document.getElementById('level-display').textContent = gameLevel;
             
             const nextLevel = GAME_LEVELS.find(l => l.level === gameLevel + 1) || GAME_LEVELS[GAME_LEVELS.length - 1];
-            document.getElementById('next-level-target').textContent = nextLevel.min || 8000;
+            document.getElementById('next-level-target').textContent = nextLevel.min || 15000;
             document.getElementById('next-level-effect').textContent = `${nextLevel.effect} ${nextLevel.name}`;
             
             const currentLevelData = GAME_LEVELS.find(l => l.level === gameLevel);
@@ -449,11 +490,15 @@
             if (score < pet.score) return false;
             if (currentSessionPets.includes(pet.id)) return false;
             
+            userPets[pet.id] = (userPets[pet.id] || 0) + 1;
             currentSessionPets.push(pet.id);
             activePet = pet;
             
+            petFood[pet.id] = (petFood[pet.id] || 0) + 3;
+            savePets();
+            
             showPetUnlockAnimation(pet);
-            showPetNotification(`✨ +1 ${pet.name}`, pet.color);
+            showPetNotification(`✨ +1 ${pet.name} (Всего: ${userPets[pet.id]})`, pet.color);
             showFoodAnimation(pet.food, 3, pet.color);
             
             updatePetHeaderPanel();
@@ -465,12 +510,15 @@
             if (!activePet) return false;
             if (score < 1000) return false;
             
-            showFoodAnimation(activePet.food, linesCleared, activePet.color);
+            petFood[activePet.id] = (petFood[activePet.id] || 0) + linesCleared;
+            savePets();
             
+            showFoodAnimation(activePet.food, linesCleared, activePet.color);
             for (let i = 0; i < linesCleared; i++) {
                 setTimeout(() => showStarAnimation(), i * 50);
             }
             
+            updatePetHeaderPanel();
             return true;
         }
 
@@ -491,7 +539,7 @@
             if (activePet && score >= 1000) {
                 document.getElementById('pet-emoji-header').textContent = activePet.emoji;
                 document.getElementById('pet-food-icon-header').textContent = activePet.food;
-                document.getElementById('pet-food-count-header').textContent = '0';
+                document.getElementById('pet-food-count-header').textContent = petFood[activePet.id] || 0;
                 panel.style.borderColor = activePet.color + '80';
                 panel.style.display = 'flex';
             } else {
@@ -507,38 +555,38 @@
             if (!petsGrid || !foodGrid) return;
             
             const pets = getPetsFromScore(bestScore);
-            const foodAmount = getFoodFromLines(totalLinesAll);
+            const foodAmount = totalLinesAll;
             
-            // ПИТОМЦЫ
             let petsHtml = '';
             pets.forEach(pet => {
+                const count = userPets[pet.id] || 0;
                 petsHtml += `
                     <div class="pet-card" style="border-color: ${pet.color}80;">
                         <span class="pet-emoji">${pet.emoji}</span>
                         <span>${pet.name}</span>
+                        <span style="color:#ffcc66; margin-left:4px;">×${count}</span>
                     </div>
                 `;
             });
             petsGrid.innerHTML = petsHtml || '<div style="color:#aaccff; padding:10px;">🐾 Нет питомцев. Наберите 1000 очков!</div>';
             
-            // ЕДА
             let foodHtml = '';
             pets.forEach(pet => {
+                const food = petFood[pet.id] || 0;
                 foodHtml += `
                     <div class="pet-card" style="border-color: ${pet.color}80;">
                         <span class="pet-emoji">${pet.emoji}</span>
                         <span>${pet.food}</span>
-                        <span class="pet-food">${foodAmount}</span>
+                        <span class="pet-food">${food}</span>
                     </div>
                 `;
             });
             foodGrid.innerHTML = foodHtml || '<div style="color:#aaccff; padding:10px;">🍖 Нет еды</div>';
             
-            // СЧЁТЧИКИ
             document.getElementById('best-score-for-pets').textContent = bestScore;
             document.getElementById('total-lines-for-food').textContent = totalLinesAll;
             document.getElementById('total-pets-count').textContent = pets.length;
-            document.getElementById('total-food-amount').textContent = foodAmount;
+            document.getElementById('total-food-amount').textContent = totalLinesAll;
         }
 
         // ==================== АНИМАЦИИ ====================
@@ -548,7 +596,7 @@
             const div = document.createElement('div');
             div.className = 'pet-unlock-animation';
             div.style.borderColor = pet.color;
-            div.innerHTML = `<div style="font-size:3rem;">✨✨✨</div><div style="font-size:4rem;">${pet.emoji}</div><div style="font-size:1.5rem;color:${pet.color};">+1 ${pet.name}</div><div style="font-size:1.2rem;">+3 ${pet.food}</div>`;
+            div.innerHTML = `<div style="font-size:3rem;">✨✨✨</div><div style="font-size:4rem;">${pet.emoji}</div><div style="font-size:1.5rem;color:${pet.color};">+1 ${pet.name}</div><div style="font-size:1.2rem;">Всего: ${userPets[pet.id]}</div><div style="font-size:1.2rem;">+3 ${pet.food}</div>`;
             gameArea.appendChild(div);
             setTimeout(() => div.remove(), 2000);
         }
@@ -603,7 +651,7 @@
             gameActive = true; gamePaused = false; gameOver = false;
             currentSessionPets = []; activePet = null;
             
-            dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 700;
+            dropInterval = GAME_LEVELS[0].speed;
             
             pieceQueue = [];
             for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
@@ -712,7 +760,8 @@
                 currentY++;
                 drop++;
             }
-            // БЕЗ БОНУСА ЗА DROP!
+            // ОЧКИ ЗА ПАДЕНИЕ (10 за клетку)
+            score += drop * 10;
             mergePiece();
             checkLines();
             spawnPiece();
@@ -721,50 +770,65 @@
         }
 
         function checkLines() {
-    let linesCleared = 0;
-    let clearedRows = [];
-    
-    for (let y = ROWS - 1; y >= 0; y--) {
-        if (board[y].every(cell => cell !== 0)) {
-            clearedRows.push(y);
-            linesCleared++;
-        }
-    }
-    
-    if (linesCleared > 0) {
-        lines += linesCleared;
-        clearedLinesAnimation = clearedRows;
-        
-        // ✅ 100 ОЧКОВ ЗА КАЖДУЮ ЛИНИЮ!
-        score += linesCleared * 100;  // 1 линия = 100, 2 линии = 200, 3 = 300, 4 = 400
-        
-        // Повышение уровня (для эффектов)
-        if (lines >= level * 10) {
-            level = Math.floor(lines / 10) + 1;
-            showNotification(`🎉 Уровень ${level}!`);
-        }
-        
-        // Кормим питомца
-        if (activePet && score >= 1000) {
-            feedActivePet(linesCleared);
-        }
-        
-        // Проверяем получение питомцев
-        checkPetUnlocks();
-        
-        setTimeout(() => {
-            for (let y of clearedRows.sort((a,b) => a - b)) {
-                board.splice(y, 1);
-                board.unshift(Array(COLS).fill(0));
+            let linesCleared = 0;
+            let clearedRows = [];
+            
+            for (let y = ROWS - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    clearedRows.push(y);
+                    linesCleared++;
+                }
             }
-            clearedLinesAnimation = [];
-            drawBoard();
-        }, 400);
-        
-        updateGameLevel();
-        updateDisplay();
-    }
-}
+            
+            if (linesCleared > 0) {
+                lines += linesCleared;
+                clearedLinesAnimation = clearedRows;
+                
+                // ✅ 100 ОЧКОВ ЗА КАЖДУЮ ЛИНИЮ!
+                score += linesCleared * 100;
+                
+                // Повышение уровня сложности (для скорости)
+                if (lines >= level * 10) {
+                    level = Math.floor(lines / 10) + 1;
+                    showNotification(`🎉 Уровень сложности ${level}!`);
+                }
+                
+                // Кормим питомца
+                if (activePet && score >= 1000) {
+                    feedActivePet(linesCleared);
+                }
+                
+                // Проверяем получение питомцев
+                checkPetUnlocks();
+                
+                setTimeout(() => {
+                    for (let y of clearedRows.sort((a,b) => a - b)) {
+                        board.splice(y, 1);
+                        board.unshift(Array(COLS).fill(0));
+                    }
+                    clearedLinesAnimation = [];
+                    drawBoard();
+                }, 400);
+                
+                updateGameLevel();
+                updateDisplay();
+            }
+        }
+
+        function pauseGame() {
+            if (gameActive && !gameOver) {
+                gamePaused = !gamePaused;
+                if (gamePaused) {
+                    cancelAnimationFrame(animationId);
+                    showNotification('⏸ Пауза');
+                } else {
+                    lastTime = 0;
+                    animationId = requestAnimationFrame(gameLoop);
+                    showNotification('▶️ Продолжение');
+                }
+            }
+        }
+
         function restartGame() { 
             if (confirm('Начать новую игру?')) {
                 startGame(); 
@@ -888,7 +952,7 @@
                         telegramId: telegramUserId,
                         gameType: 'tetris',
                         score: score,
-                        level: level,
+                        level: gameLevel,
                         lines: lines,
                         gameOver: gameOverFlag,
                         username: telegramUsername
@@ -1029,13 +1093,13 @@
 
         function selectDifficulty(id) {
             currentDifficulty = id;
-            dropInterval = DIFFICULTY_LEVELS.find(d => d.id === id).speed;
             showLevels();
             showNotification(`Сложность: ${DIFFICULTY_LEVELS.find(d => d.id === id).name}`);
         }
 
         // ==================== СТАТИСТИКА ====================
         function showStats() {
+            loadPets();
             loadUserStats();
             updateCollectionInUI();
             showScreen('stats');
@@ -1075,12 +1139,13 @@
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис PRO — ИСПРАВЛЕНА ВСЯ ЛОГИКА!');
+            console.log('🎮 Тетрис PRO — Классика + Питомцы + Эффекты + Очистка поля!');
+            loadPets();
             loadUserStats();
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             drawBoard();
             selectDifficulty('medium');
-            showNotification('✨ Очки растут с уровнем! Питомцы от счёта!');
+            showNotification('✨ 100 очков за линию! Новый уровень = чистое поле!');
         });
     </script>
 </body>
