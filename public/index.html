@@ -150,24 +150,23 @@
         #game-screen {
             display: flex;
             flex-direction: column;
-            padding: 2px 8px 8px 8px; /* Верхний padding всего 2px! */
-}
+            padding: 2px 8px 8px 8px;
+        }
         
         .game-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 2px 8px;
+            padding: 2px 6px;
             background: rgba(20, 30, 80, 0.5);
-            border-radius: 6px;
+            border-radius: 4px;
             margin-bottom: 2px;
             flex-shrink: 0;
             border: 1px solid rgba(68, 85, 204, 0.3);
-            min-height: 36px;
-            height: 36px;
+            min-height: 32px;
+            height: 32px;
         }
         
-        /* КНОПКА МЕНЮ - СО СЛОВОМ! */
         .back-btn {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
@@ -190,7 +189,6 @@
             margin-right: 2px;
         }
         
-        /* КОНТЕЙНЕР СТАТИСТИКИ - ОДНА СТРОКА */
         .game-info {
             display: flex;
             gap: 4px;
@@ -199,7 +197,6 @@
             height: 32px;
         }
         
-        /* МИКРО-БОКСЫ - БЕЗ ТЕКСТА, ТОЛЬКО ЦИФРЫ */
         .info-box {
             background: rgba(10, 20, 60, 0.7);
             padding: 2px 8px;
@@ -213,7 +210,7 @@
         }
         
         .info-label {
-            display: none; /* Прячем "УРОВЕНЬ", "ОЧКИ", "ЛИНИИ" */
+            display: none;
         }
         
         .info-value {
@@ -222,7 +219,6 @@
             color: #66ffaa;
         }
         
-        /* РАЗДЕЛИТЕЛЬ - ТОЧКА МЕЖДУ БЛОКАМИ */
         .game-info .info-box:not(:last-child) {
             position: relative;
             margin-right: 8px;
@@ -238,7 +234,6 @@
             transform: translateY(-50%);
         }
         
-        /* КОМПАКТНАЯ ПАНЕЛЬКА ПИТОМЦА - БЕЗ ИМЕНИ */
         .pet-badge {
             display: flex;
             align-items: center;
@@ -258,7 +253,7 @@
         }
         
         .pet-name {
-            display: none; /* Прячем имя питомца */
+            display: none;
         }
         
         .pet-food-count {
@@ -270,17 +265,47 @@
             font-weight: bold;
         }
         
-    /* ==================== ИГРОВОЕ ПОЛЕ - ПРАКТИЧЕСКИ ПОД ХЕДЕРОМ ==================== */
-.game-area {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 460px; /* Еще больше! */
-    padding: 0; /* Убрали padding полностью */
-    margin-top: 0; /* Нет отступа */
-    height: calc(100% - 70px);
-}
+        /* ==================== АНИМАЦИЯ ЕДЫ ==================== */
+        .food-particle {
+            position: fixed;
+            pointer-events: none;
+            font-size: 1.5rem;
+            animation: foodFloat 1s ease-out forwards;
+            z-index: 10001;
+            text-shadow: 0 0 10px currentColor;
+            filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+        }
+        
+        @keyframes foodFloat {
+            0% {
+                opacity: 0;
+                transform: translateY(0) scale(0.5);
+            }
+            20% {
+                opacity: 1;
+                transform: translateY(-20px) scale(1.2);
+            }
+            80% {
+                opacity: 1;
+                transform: translateY(-60px) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(0.8);
+            }
+        }
+        
+        /* ==================== ИГРОВОЕ ПОЛЕ ==================== */
+        .game-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 460px;
+            padding: 0;
+            margin-top: 0;
+            height: calc(100% - 70px);
+        }
         
         #tetris-canvas {
             background: rgba(0, 0, 0, 0.3);
@@ -294,16 +319,15 @@
             object-fit: contain;
         }
         
-/* ==================== НИЖНЯЯ ПАНЕЛЬ - МИНИМАЛЬНЫЙ ОТСТУП ==================== */
-.game-controls-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 2px; /* Был 8px, стал 2px */
-    flex-shrink: 0;
-}
-
-
+        /* ==================== НИЖНЯЯ ПАНЕЛЬ ==================== */
+        .game-controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+        
         .game-buttons {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -332,11 +356,6 @@
         
         .game-btn:active {
             transform: scale(0.95);
-        }
-        
-        .game-btn.save-btn {
-            background: linear-gradient(145deg, rgba(102, 204, 153, 0.4), rgba(77, 179, 128, 0.3));
-            border-color: rgba(102, 204, 153, 0.6);
         }
         
         .controls {
@@ -460,6 +479,12 @@
             border-radius: 10px;
             margin-bottom: 8px;
             border: 1px solid rgba(68, 85, 204, 0.2);
+            transition: all 0.2s;
+        }
+        
+        .leaderboard-item:hover {
+            background: rgba(30, 40, 100, 0.6);
+            transform: translateX(5px);
         }
         
         .rank {
@@ -477,6 +502,9 @@
         .player-name {
             font-weight: bold;
             margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .player-score {
@@ -484,16 +512,32 @@
             font-size: 1rem;
         }
         
-        /* ==================== ПИТОМЦЫ В ЛИДЕРБОРДЕ ==================== */
-        .leaderboard-pets {
+        /* ==================== КОЛЛЕКЦИЯ ПИТОМЦЕВ В ЛИДЕРБОРДЕ ==================== */
+        .pets-collection-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 182, 193, 0.15);
+            border-radius: 20px;
+            padding: 3px 10px;
+            margin-top: 5px;
+            font-size: 0.8rem;
+            border: 1px solid rgba(255, 182, 193, 0.2);
+        }
+        
+        .collection-pets {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-top: 6px;
-            padding: 4px 10px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 20px;
-            font-size: 0.85rem;
+            gap: 2px;
+        }
+        
+        .collection-count {
+            background: rgba(255, 215, 0, 0.2);
+            border-radius: 12px;
+            padding: 1px 6px;
+            color: #ffd700;
+            font-size: 0.7rem;
+            margin-left: 4px;
         }
         
         /* ==================== БЛОК ПИТОМЦЕВ В СТАТИСТИКЕ ==================== */
@@ -559,7 +603,6 @@
             opacity: 1;
         }
         
-        /* ==================== УВЕДОМЛЕНИЕ ДЛЯ ПИТОМЦА ==================== */
         .pet-notification {
             position: fixed;
             top: 80px;
@@ -600,11 +643,6 @@
             100% { transform: translateY(0); }
         }
         
-        @keyframes pieceSpawn {
-            0% { opacity: 0; transform: scale(0.8); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        
         .line-clearing {
             animation: lineClear 0.4s ease-out;
         }
@@ -613,167 +651,99 @@
             animation: pieceLand 0.2s ease;
         }
         
-        .piece-spawning {
-            animation: pieceSpawn 0.2s ease;
+        /* ==================== АДАПТИВНОСТЬ ==================== */
+        @media (max-width: 400px) {
+            .game-title { font-size: 1.6rem; }
+            .menu-btn { padding: 14px 10px; font-size: 0.9rem; }
+            .info-value { font-size: 0.85rem; }
+            .control-btn { font-size: 1.2rem; padding: 12px 3px; }
+            .game-btn { font-size: 0.75rem; padding: 8px 2px; }
+            
+            .game-header {
+                padding: 2px 6px;
+                min-height: 32px;
+                height: 32px;
+                margin-bottom: 2px;
+            }
+            
+            .back-btn {
+                padding: 2px 8px;
+                min-width: 54px;
+                font-size: 0.7rem;
+                min-height: 24px;
+            }
+            
+            .info-box {
+                padding: 2px 5px;
+                height: 24px;
+            }
+            
+            .info-value {
+                font-size: 0.8rem;
+            }
+            
+            .pet-badge {
+                padding: 2px 6px;
+                height: 24px;
+                font-size: 0.7rem;
+            }
         }
         
-        //* ==================== АДАПТИВНОСТЬ ==================== */
-@media (max-width: 400px) {
-    .game-title { font-size: 1.6rem; }
-    .menu-btn { padding: 14px 10px; font-size: 0.9rem; }
-    .info-value { font-size: 0.85rem; }
-    .control-btn { font-size: 1.2rem; padding: 12px 3px; }
-    .game-btn { font-size: 0.75rem; padding: 8px 2px; }
-    
-    .game-header {
-        padding: 2px 6px;
-        min-height: 32px; /* Уменьшили */
-        height: 32px;
-        margin-bottom: 2px; /* Добавили */
-    }
-    
-    .back-btn {
-        padding: 2px 8px; /* Уменьшили */
-        min-width: 54px; /* Уменьшили */
-        font-size: 0.7rem; /* Уменьшили */
-        min-height: 24px; /* Добавили */
-    }
-    
-    .info-box {
-        padding: 2px 5px; /* Уменьшили */
-        height: 24px; /* Уменьшили */
-    }
-    
-    .info-value {
-        font-size: 0.8rem; /* Уменьшили */
-    }
-    
-    .pet-badge {
-        padding: 2px 6px;
-        height: 24px; /* Уменьшили */
-        font-size: 0.7rem; /* Уменьшили */
-    }
-    
-    .pet-emoji {
-        font-size: 0.85rem; /* Уменьшили */
-    }
-    
-    .pet-food-count {
-        padding: 1px 5px; /* Уменьшили */
-        font-size: 0.65rem; /* Уменьшили */
-    }
-}
-
-@media (max-height: 700px) {
-    .game-container {
-        max-height: 650px;
-        min-height: 550px;
-    }
-    
-    .game-header {
-        min-height: 32px;
-        height: 32px;
-        margin-bottom: 1px; /* МИНИМУМ! */
-        padding: 2px 6px;
-    }
-    
-    .game-area {
-        min-height: 400px; /* УВЕЛИЧИЛИ! */
-        padding: 0;
-        margin-top: 0;
-    }
-    
-    .back-btn {
-        min-height: 24px;
-        padding: 2px 8px;
-    }
-    
-    .info-box {
-        height: 24px;
-    }
-    
-    .pet-badge {
-        height: 24px;
-    }
-    
-    .game-controls-panel {
-        margin-top: 1px; /* МИНИМУМ! */
-        gap: 2px;
-    }
-    
-    .game-buttons {
-        padding: 6px; /* Уменьшили */
-        gap: 4px;
-    }
-    
-    .game-btn {
-        min-height: 36px; /* Уменьшили */
-        padding: 6px 2px;
-    }
-    
-    .controls {
-        padding: 6px; /* Уменьшили */
-        gap: 4px;
-    }
-    
-    .control-btn {
-        min-height: 42px; /* Уменьшили */
-        padding: 8px 2px;
-        font-size: 1.2rem;
-    }
-}
-
-@media (max-height: 600px) {
-    .game-container {
-        max-height: 550px;
-        min-height: 500px;
-    }
-    
-    .game-header {
-        min-height: 30px;
-        height: 30px;
-        margin-bottom: 1px;
-    }
-    
-    .game-area {
-        min-height: 340px;
-    }
-    
-    .back-btn {
-        min-height: 22px;
-        padding: 2px 6px;
-        min-width: 48px;
-        font-size: 0.65rem;
-    }
-    
-    .info-box {
-        height: 22px;
-        padding: 1px 4px;
-    }
-    
-    .info-value {
-        font-size: 0.75rem;
-    }
-    
-    .pet-badge {
-        height: 22px;
-        padding: 1px 5px;
-    }
-    
-    .control-btn {
-        min-height: 38px;
-        padding: 6px 2px;
-        font-size: 1.1rem;
-    }
-    
-    .game-btn {
-        min-height: 32px;
-        padding: 4px 2px;
-        font-size: 0.7rem;
-    }
-}
+        @media (max-height: 700px) {
+            .game-container {
+                max-height: 650px;
+                min-height: 550px;
+            }
+            
+            .game-header {
+                min-height: 32px;
+                height: 32px;
+                margin-bottom: 1px;
+            }
+            
+            .game-area {
+                min-height: 400px;
+            }
+            
+            .back-btn {
+                min-height: 24px;
+            }
+            
+            .info-box {
+                height: 24px;
+            }
+            
+            .pet-badge {
+                height: 24px;
+            }
+            
+            .game-controls-panel {
+                margin-top: 1px;
+                gap: 2px;
+            }
+            
+            .game-buttons {
+                padding: 6px;
+                gap: 4px;
+            }
+            
+            .game-btn {
+                min-height: 36px;
+                padding: 6px 2px;
+            }
+            
+            .controls {
+                padding: 6px;
+                gap: 4px;
+            }
+            
+            .control-btn {
+                min-height: 42px;
+                padding: 8px 2px;
+                font-size: 1.2rem;
+            }
+        }
         
-        /* ==================== SCROLLBAR ==================== */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -842,7 +812,6 @@
                         <div class="info-label">ЛИНИИ</div>
                         <div class="info-value" id="lines-display">0</div>
                     </div>
-                    <!-- Панелька питомца будет добавлена через JS -->
                 </div>
             </div>
             
@@ -1144,7 +1113,291 @@
         let clearedLinesAnimation = [];
         let pieceQueue = [];
 
-        // ==================== ТВОИ ОРИГИНАЛЬНЫЕ ФУНКЦИИ ====================
+        // ==================== ПИТОМЦЫ ====================
+        const PETS = [
+            { id: 'cat', name: 'Котенок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🍣', foodName: '🍣' },
+            { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1500, food: '🦴', foodName: '🦴' },
+            { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 2000, food: '🥕', foodName: '🥕' },
+            { id: 'fox', name: 'Лисенок', emoji: '🦊', color: '#FF8C42', score: 2500, food: '🍇', foodName: '🍇' },
+            { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 3000, food: '🎋', foodName: '🎋' },
+            { id: 'owl', name: 'Совенок', emoji: '🦉', color: '#8B4513', score: 3500, food: '📚', foodName: '📚' },
+            { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 4000, food: '🐟', foodName: '🐟' },
+            { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 4500, food: '🌿', foodName: '🌿' },
+            { id: 'tiger', name: 'Тигренок', emoji: '🐯', color: '#FFA500', score: 5000, food: '🥩', foodName: '🥩' },
+            { id: 'lion', name: 'Львенок', emoji: '🦁', color: '#FFD700', score: 5500, food: '👑', foodName: '👑' },
+            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿', foodName: '🌿' },
+            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🎨', foodName: '🎨' },
+            { id: 'elephant', name: 'Слоненок', emoji: '🐘', color: '#808080', score: 7000, food: '💧', foodName: '💧' },
+            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🛡️', foodName: '🛡️' },
+            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '💦', foodName: '💦' },
+            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌', foodName: '🍌' },
+            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '⏰', foodName: '⏰' },
+            { id: 'hedgehog', name: 'Ежик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎', foodName: '🍎' },
+            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰', foodName: '🌰' },
+            { id: 'deer', name: 'Олененок', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿', foodName: '🌿' },
+            { id: 'unicorn', name: 'Единорог', emoji: '🦄', color: '#FF69B4', score: 11000, food: '✨', foodName: '✨' },
+            { id: 'dragon', name: 'Дракончик', emoji: '🐉', color: '#DC143C', score: 11500, food: '🔥', foodName: '🔥' },
+            { id: 'phoenix', name: 'Феникс', emoji: '🦅', color: '#FF4500', score: 12000, food: '🌅', foodName: '🌅' },
+            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 12500, food: '🌊', foodName: '🌊' },
+            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13000, food: '🏊', foodName: '🏊' }
+        ];
+
+        let userPets = [];
+        let activePet = null;
+
+        // ==================== ФУНКЦИИ ПИТОМЦЕВ ====================
+        function initPetSystem() {
+            loadPets();
+            createPetHeaderPanel();
+            updatePetHeaderPanel();
+        }
+
+        function loadPets() {
+            try {
+                const saved = localStorage.getItem(`tetris_pets_${window.telegramUserId || 'guest'}`);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    userPets = data.pets || [];
+                    
+                    userPets.forEach(savedPet => {
+                        const pet = PETS.find(p => p.id === savedPet.id);
+                        if (pet) pet.rewards = savedPet.rewards || 0;
+                    });
+                    
+                    if (userPets.length > 0) {
+                        const lastPet = userPets[userPets.length - 1];
+                        activePet = PETS.find(p => p.id === lastPet.id);
+                        if (activePet) activePet.rewards = lastPet.rewards || 0;
+                    }
+                }
+            } catch (e) {
+                userPets = [];
+            }
+        }
+
+        function savePets() {
+            const saveData = {
+                pets: userPets.map(pet => ({
+                    id: pet.id,
+                    rewards: PETS.find(p => p.id === pet.id)?.rewards || 0
+                }))
+            };
+            localStorage.setItem(`tetris_pets_${window.telegramUserId || 'guest'}`, JSON.stringify(saveData));
+        }
+
+        function createPetHeaderPanel() {
+            const gameInfo = document.getElementById('game-info-container');
+            if (!gameInfo) return;
+            
+            if (document.getElementById('pet-header-panel')) return;
+            
+            const petPanel = document.createElement('div');
+            petPanel.id = 'pet-header-panel';
+            petPanel.className = 'pet-badge';
+            petPanel.innerHTML = `
+                <span id="pet-emoji-header" class="pet-emoji">🐾</span>
+                <span id="pet-food-header" class="pet-food-count">0</span>
+            `;
+            
+            gameInfo.appendChild(petPanel);
+        }
+
+        function updatePetHeaderPanel() {
+            const emojiEl = document.getElementById('pet-emoji-header');
+            const foodEl = document.getElementById('pet-food-header');
+            const panel = document.getElementById('pet-header-panel');
+            
+            if (!emojiEl || !foodEl || !panel) return;
+            
+            if (activePet) {
+                emojiEl.textContent = activePet.emoji;
+                foodEl.textContent = activePet.rewards || 0;
+                panel.style.borderColor = activePet.color + '80';
+                panel.style.background = `rgba(${hexToRgb(activePet.color)}, 0.15)`;
+            } else {
+                emojiEl.textContent = '🐾';
+                foodEl.textContent = '0';
+                panel.style.borderColor = 'rgba(255,182,193,0.3)';
+                panel.style.background = 'rgba(255,182,193,0.15)';
+            }
+        }
+
+        function hexToRgb(hex) {
+            let r = 0, g = 0, b = 0;
+            if (hex.length === 4) {
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length === 7) {
+                r = parseInt(hex[1] + hex[2], 16);
+                g = parseInt(hex[3] + hex[4], 16);
+                b = parseInt(hex[5] + hex[6], 16);
+            }
+            return `${r}, ${g}, ${b}`;
+        }
+
+        // ==================== АНИМАЦИЯ ЕДЫ ====================
+        function showFoodAnimation(foodEmoji, count, color) {
+            for (let i = 0; i < Math.min(count, 5); i++) {
+                setTimeout(() => {
+                    const food = document.createElement('div');
+                    food.className = 'food-particle';
+                    food.style.left = (window.innerWidth - 150 + Math.random() * 100) + 'px';
+                    food.style.top = (window.innerHeight / 2 + Math.random() * 100 - 50) + 'px';
+                    food.style.color = color || '#ffd700';
+                    food.textContent = foodEmoji;
+                    document.body.appendChild(food);
+                    
+                    setTimeout(() => food.remove(), 1000);
+                }, i * 100);
+            }
+        }
+
+        function unlockPet(pet) {
+            if (userPets.some(p => p.id === pet.id)) return false;
+            
+            userPets.push({
+                id: pet.id,
+                rewards: 0
+            });
+            
+            activePet = pet;
+            activePet.rewards = 0;
+            
+            savePets();
+            updatePetHeaderPanel();
+            
+            // Анимация еды при получении питомца
+            showFoodAnimation(pet.food, 3, pet.color);
+            
+            showPetNotification(`✨ Новый питомец: ${pet.name} ${pet.emoji}`, pet.color);
+            
+            score += 100;
+            updateDisplay();
+            
+            return true;
+        }
+
+        function feedActivePet(linesCleared) {
+            if (!activePet) {
+                if (userPets.length > 0) {
+                    const firstPet = userPets[0];
+                    activePet = PETS.find(p => p.id === firstPet.id);
+                    if (activePet) activePet.rewards = firstPet.rewards || 0;
+                }
+                return false;
+            }
+            
+            const pet = PETS.find(p => p.id === activePet.id);
+            if (!pet) return false;
+            
+            pet.rewards = (pet.rewards || 0) + linesCleared;
+            activePet.rewards = pet.rewards;
+            
+            const userPet = userPets.find(p => p.id === pet.id);
+            if (userPet) userPet.rewards = pet.rewards;
+            savePets();
+            
+            // Анимация еды за каждую линию
+            showFoodAnimation(pet.food, linesCleared, pet.color);
+            
+            updatePetHeaderPanel();
+            score += linesCleared * 10;
+            updateDisplay();
+            
+            return true;
+        }
+
+        function checkPetUnlocks() {
+            if (!score) return;
+            
+            PETS.forEach(pet => {
+                if (userPets.some(p => p.id === pet.id)) return;
+                if (score >= pet.score) {
+                    unlockPet(pet);
+                }
+            });
+        }
+
+        function showPetNotification(message, color) {
+            const notif = document.createElement('div');
+            notif.className = 'pet-notification';
+            notif.style.borderLeftColor = color;
+            notif.innerHTML = `
+                <span style="font-size: 1.2rem;">✨</span>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 2500);
+        }
+
+        // ==================== СТАТИСТИКА ПИТОМЦЕВ ====================
+        function updatePetsStatsInUI() {
+            const statsContainer = document.getElementById('user-stats');
+            if (!statsContainer) return;
+            
+            const oldStats = document.querySelector('.pets-stats-block');
+            if (oldStats) oldStats.remove();
+            
+            if (userPets.length === 0) return;
+            
+            const petsBlock = document.createElement('div');
+            petsBlock.className = 'pets-stats-block';
+            
+            let petsHtml = `
+                <div class="pets-stats-title">
+                    <span>🐾</span> МОЯ КОЛЛЕКЦИЯ (${userPets.length}/${PETS.length})
+                </div>
+                <div class="pets-stats-grid">
+            `;
+            
+            const sortedPets = PETS
+                .filter(p => userPets.some(up => up.id === p.id))
+                .sort((a, b) => (b.rewards || 0) - (a.rewards || 0));
+            
+            sortedPets.forEach(pet => {
+                petsHtml += `
+                    <div class="pet-stat-row">
+                        <span style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.2rem;">${pet.emoji}</span>
+                            <span style="color: white;">${pet.name}</span>
+                            ${activePet?.id === pet.id ? '<span style="color: #ffd700;">⭐</span>' : ''}
+                        </span>
+                        <span style="color: ${pet.color}; font-weight: bold;">
+                            ${pet.rewards || 0} ${pet.food}
+                        </span>
+                    </div>
+                `;
+            });
+            
+            petsHtml += `</div>`;
+            petsBlock.innerHTML = petsHtml;
+            statsContainer.appendChild(petsBlock);
+        }
+
+        // ==================== КОЛЛЕКЦИЯ ПИТОМЦЕВ ДЛЯ ЛИДЕРБОРДА ====================
+        function getPetsCollectionFromScore(score) {
+            if (!score || score < 1000) return { emojis: '🐾', count: 0 };
+            
+            const petCount = Math.min(8, Math.floor((score - 500) / 500));
+            const allPets = ['🐱', '🐕', '🐇', '🦊', '🐼', '🐧', '🦄', '🐉'];
+            const collection = [];
+            
+            for (let i = 0; i < petCount; i++) {
+                collection.push(allPets[i % allPets.length]);
+            }
+            
+            let displayEmojis = '';
+            if (collection.length > 3) {
+                displayEmojis = collection.slice(0, 3).join(' ') + ` +${collection.length - 3}`;
+            } else {
+                displayEmojis = collection.join(' ');
+            }
+            
+            return { emojis: displayEmojis, count: petCount };
+        }
+
+        // ==================== ОРИГИНАЛЬНЫЕ ФУНКЦИИ ИГРЫ ====================
         function showScreen(screenName) {
             Object.keys(screens).forEach(key => {
                 screens[key].classList.remove('active');
@@ -1372,7 +1625,7 @@
                 const lineBonus = [0, 100, 300, 500, 800];
                 score += lineBonus[linesCleared] * level;
                 
-                // Кормим питомца за линии
+                // Кормим питомца за линии с анимацией еды
                 feedActivePet(linesCleared);
                 
                 if (lines >= level * 10) {
@@ -1666,6 +1919,7 @@
                 });
         }
 
+        // ==================== ЛИДЕРБОРД С КОЛЛЕКЦИЕЙ ПИТОМЦЕВ ====================
         function loadLeaderboard() {
             console.log('🏆 Загрузка лидерборда');
             
@@ -1689,6 +1943,7 @@
                     players.forEach((player, index) => {
                         const playerId = player.user_id || '';
                         const isCurrentUser = playerId === window.telegramUserId;
+                        const playerScore = player.best_score || 0;
                         
                         const rankColor = index === 0 ? '#ffd700' : 
                                          index === 1 ? '#c0c0c0' : 
@@ -1698,6 +1953,9 @@
                                         index === 1 ? '🥈' : 
                                         index === 2 ? '🥉' : `${index + 1}.`;
                         
+                        // Получаем коллекцию питомцев по очкам
+                        const collection = getPetsCollectionFromScore(playerScore);
+                        
                         const item = document.createElement('div');
                         item.className = 'leaderboard-item';
                         
@@ -1705,6 +1963,15 @@
                             item.style.background = 'linear-gradient(145deg, rgba(102, 204, 153, 0.2), rgba(77, 179, 128, 0.1))';
                             item.style.border = '2px solid #66ffaa';
                         }
+                        
+                        // Формируем HTML с коллекцией питомцев
+                        const petsCollectionHtml = collection.count > 0 ? `
+                            <div class="pets-collection-badge">
+                                <span style="color: #ffd700;">🐾</span>
+                                <span class="collection-pets">${collection.emojis}</span>
+                                <span class="collection-count">${collection.count}</span>
+                            </div>
+                        ` : '';
                         
                         item.innerHTML = `
                             <div class="rank" style="color: ${rankColor}; font-size: 1.3rem; width: 50px;">
@@ -1716,8 +1983,9 @@
                                     ${isCurrentUser ? ' (Вы)' : ''}
                                 </div>
                                 <div class="player-score" style="font-size: 1.1rem; color: #66ffaa; margin: 5px 0;">
-                                    ${player.best_score || 0} очков
+                                    ${playerScore} очков
                                 </div>
+                                ${petsCollectionHtml}
                                 ${player.city && player.city !== 'Не указан' ? 
                                     `<div style="color: #aaccff; font-size: 0.85rem; margin-top: 5px;">
                                         📍 ${player.city}
@@ -1731,9 +1999,6 @@
                         
                         leaderboardList.appendChild(item);
                     });
-                    
-                    // Добавляем питомцев в лидерборд
-                    addPetsToLeaderboard();
                     
                     const updateInfo = document.createElement('div');
                     updateInfo.style.cssText = 'text-align: center; margin-top: 15px; color: #aaccff; font-size: 0.8rem;';
@@ -1841,6 +2106,27 @@
             }
         });
 
+        function adaptCanvasSize() {
+            const gameArea = document.querySelector('.game-area');
+            if (!gameArea) return;
+            
+            const maxWidth = gameArea.clientWidth - 10;
+            const maxHeight = gameArea.clientHeight - 10;
+            
+            const scale = Math.min(
+                maxWidth / (COLS * BLOCK_SIZE),
+                maxHeight / (ROWS * BLOCK_SIZE),
+                1.5
+            );
+            
+            const newWidth = Math.floor(COLS * BLOCK_SIZE * scale);
+            const newHeight = Math.floor(ROWS * BLOCK_SIZE * scale);
+            
+            canvas.style.width = newWidth + 'px';
+            canvas.style.height = newHeight + 'px';
+        }
+
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         function init() {
             console.log('🎮 Игра инициализирована');
             console.log('👤 Telegram ID:', telegramUserId);
@@ -1877,298 +2163,6 @@
             initPetSystem();
             
             console.log('✅ Игра готова к запуску');
-        }
-
-        function adaptCanvasSize() {
-            const gameArea = document.querySelector('.game-area');
-            if (!gameArea) return;
-            
-            const maxWidth = gameArea.clientWidth - 10;
-            const maxHeight = gameArea.clientHeight - 10;
-            
-            const scale = Math.min(
-                maxWidth / (COLS * BLOCK_SIZE),
-                maxHeight / (ROWS * BLOCK_SIZE),
-                1.5
-            );
-            
-            const newWidth = Math.floor(COLS * BLOCK_SIZE * scale);
-            const newHeight = Math.floor(ROWS * BLOCK_SIZE * scale);
-            
-            canvas.style.width = newWidth + 'px';
-            canvas.style.height = newHeight + 'px';
-        }
-
-        // ==================== СИСТЕМА ПИТОМЦЕВ ====================
-        const PETS = [
-            { id: 'cat', name: 'Котенок', emoji: '🐱', color: '#FFB6C1', score: 1000, food: '🍣' },
-            { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1500, food: '🦴' },
-            { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 2000, food: '🥕' },
-            { id: 'fox', name: 'Лисенок', emoji: '🦊', color: '#FF8C42', score: 2500, food: '🍇' },
-            { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 3000, food: '🎋' },
-            { id: 'owl', name: 'Совенок', emoji: '🦉', color: '#8B4513', score: 3500, food: '📚' },
-            { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 4000, food: '🐟' },
-            { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 4500, food: '🌿' },
-            { id: 'tiger', name: 'Тигренок', emoji: '🐯', color: '#FFA500', score: 5000, food: '🥩' },
-            { id: 'lion', name: 'Львенок', emoji: '🦁', color: '#FFD700', score: 5500, food: '👑' },
-            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿' },
-            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🎨' },
-            { id: 'elephant', name: 'Слоненок', emoji: '🐘', color: '#808080', score: 7000, food: '💧' },
-            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🛡️' },
-            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '💦' },
-            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌' },
-            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '⏰' },
-            { id: 'hedgehog', name: 'Ежик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎' },
-            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰' },
-            { id: 'deer', name: 'Олененок', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿' },
-            { id: 'unicorn', name: 'Единорог', emoji: '🦄', color: '#FF69B4', score: 11000, food: '✨' },
-            { id: 'dragon', name: 'Дракончик', emoji: '🐉', color: '#DC143C', score: 11500, food: '🔥' },
-            { id: 'phoenix', name: 'Феникс', emoji: '🦅', color: '#FF4500', score: 12000, food: '🌅' },
-            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 12500, food: '🌊' },
-            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13000, food: '🏊' }
-        ];
-
-        let userPets = [];
-        let activePet = null;
-
-        function initPetSystem() {
-            loadPets();
-            createPetHeaderPanel();
-            updatePetHeaderPanel();
-        }
-
-        function loadPets() {
-            try {
-                const saved = localStorage.getItem(`tetris_pets_${window.telegramUserId || 'guest'}`);
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    userPets = data.pets || [];
-                    
-                    userPets.forEach(savedPet => {
-                        const pet = PETS.find(p => p.id === savedPet.id);
-                        if (pet) pet.rewards = savedPet.rewards || 0;
-                    });
-                    
-                    if (userPets.length > 0) {
-                        const lastPet = userPets[userPets.length - 1];
-                        activePet = PETS.find(p => p.id === lastPet.id);
-                        if (activePet) activePet.rewards = lastPet.rewards || 0;
-                    }
-                }
-            } catch (e) {
-                userPets = [];
-            }
-        }
-
-        function savePets() {
-            const saveData = {
-                pets: userPets.map(pet => ({
-                    id: pet.id,
-                    rewards: PETS.find(p => p.id === pet.id)?.rewards || 0
-                }))
-            };
-            localStorage.setItem(`tetris_pets_${window.telegramUserId || 'guest'}`, JSON.stringify(saveData));
-        }
-
-        function createPetHeaderPanel() {
-            const gameInfo = document.getElementById('game-info-container');
-            if (!gameInfo) return;
-            
-            if (document.getElementById('pet-header-panel')) return;
-            
-            const petPanel = document.createElement('div');
-            petPanel.id = 'pet-header-panel';
-            petPanel.className = 'pet-badge';
-            petPanel.innerHTML = `
-                <span id="pet-emoji-header" class="pet-emoji">🐾</span>
-                <span id="pet-food-header" class="pet-food-count">0</span>
-            `;
-            
-            gameInfo.appendChild(petPanel);
-        }
-
-        function updatePetHeaderPanel() {
-            const emojiEl = document.getElementById('pet-emoji-header');
-            const foodEl = document.getElementById('pet-food-header');
-            const panel = document.getElementById('pet-header-panel');
-            
-            if (!emojiEl || !foodEl || !panel) return;
-            
-            if (activePet) {
-                emojiEl.textContent = activePet.emoji;
-                foodEl.textContent = activePet.rewards || 0;
-                panel.style.borderColor = activePet.color + '80';
-                panel.style.background = `rgba(${hexToRgb(activePet.color)}, 0.15)`;
-            } else {
-                emojiEl.textContent = '🐾';
-                foodEl.textContent = '0';
-                panel.style.borderColor = 'rgba(255,182,193,0.3)';
-                panel.style.background = 'rgba(255,182,193,0.15)';
-            }
-        }
-
-        function hexToRgb(hex) {
-            if (hex.includes('gradient')) return '255, 182, 193';
-            let r = 0, g = 0, b = 0;
-            if (hex.length === 4) {
-                r = parseInt(hex[1] + hex[1], 16);
-                g = parseInt(hex[2] + hex[2], 16);
-                b = parseInt(hex[3] + hex[3], 16);
-            } else if (hex.length === 7) {
-                r = parseInt(hex[1] + hex[2], 16);
-                g = parseInt(hex[3] + hex[4], 16);
-                b = parseInt(hex[5] + hex[6], 16);
-            }
-            return `${r}, ${g}, ${b}`;
-        }
-
-        function unlockPet(pet) {
-            if (userPets.some(p => p.id === pet.id)) return false;
-            
-            userPets.push({
-                id: pet.id,
-                rewards: 0
-            });
-            
-            activePet = pet;
-            activePet.rewards = 0;
-            
-            savePets();
-            updatePetHeaderPanel();
-            showPetNotification(`✨ Новый питомец: ${pet.name} ${pet.emoji}`, pet.color);
-            
-            score += 100;
-            updateDisplay();
-            
-            return true;
-        }
-
-        function feedActivePet(linesCleared) {
-            if (!activePet) {
-                if (userPets.length > 0) {
-                    const firstPet = userPets[0];
-                    activePet = PETS.find(p => p.id === firstPet.id);
-                    if (activePet) activePet.rewards = firstPet.rewards || 0;
-                }
-                return false;
-            }
-            
-            const pet = PETS.find(p => p.id === activePet.id);
-            if (!pet) return false;
-            
-            pet.rewards = (pet.rewards || 0) + linesCleared;
-            activePet.rewards = pet.rewards;
-            
-            const userPet = userPets.find(p => p.id === pet.id);
-            if (userPet) userPet.rewards = pet.rewards;
-            savePets();
-            
-            updatePetHeaderPanel();
-            score += linesCleared * 10;
-            updateDisplay();
-            
-            return true;
-        }
-
-        function checkPetUnlocks() {
-            if (!score) return;
-            
-            PETS.forEach(pet => {
-                if (userPets.some(p => p.id === pet.id)) return;
-                if (score >= pet.score) {
-                    unlockPet(pet);
-                }
-            });
-        }
-
-        function showPetNotification(message, color) {
-            const notif = document.createElement('div');
-            notif.className = 'pet-notification';
-            notif.style.borderLeftColor = color;
-            notif.innerHTML = `
-                <span style="font-size: 1.2rem;">✨</span>
-                <span>${message}</span>
-            `;
-            document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 2500);
-        }
-
-        function updatePetsStatsInUI() {
-            const statsContainer = document.getElementById('user-stats');
-            if (!statsContainer) return;
-            
-            const oldStats = document.querySelector('.pets-stats-block');
-            if (oldStats) oldStats.remove();
-            
-            if (userPets.length === 0) return;
-            
-            const petsBlock = document.createElement('div');
-            petsBlock.className = 'pets-stats-block';
-            
-            let petsHtml = `
-                <div class="pets-stats-title">
-                    <span>🐾</span> МОИ ПИТОМЦЫ (${userPets.length}/${PETS.length})
-                </div>
-                <div class="pets-stats-grid">
-            `;
-            
-            const topPets = PETS
-                .filter(p => userPets.some(up => up.id === p.id))
-                .sort((a, b) => (b.rewards || 0) - (a.rewards || 0))
-                .slice(0, 5);
-            
-            topPets.forEach(pet => {
-                petsHtml += `
-                    <div class="pet-stat-row">
-                        <span style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 1.2rem;">${pet.emoji}</span>
-                            <span style="color: white;">${pet.name}</span>
-                            ${activePet?.id === pet.id ? '<span style="color: #ffd700;">⭐</span>' : ''}
-                        </span>
-                        <span style="color: ${pet.color}; font-weight: bold; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px;">
-                            ${pet.rewards || 0} ${pet.food}
-                        </span>
-                    </div>
-                `;
-            });
-            
-            if (userPets.length > 5) {
-                petsHtml += `<div style="text-align: center; margin-top: 10px; color: #aaa; font-size: 0.85rem;">
-                    и еще ${userPets.length - 5} питомцев...
-                </div>`;
-            }
-            
-            petsHtml += `</div>`;
-            petsBlock.innerHTML = petsHtml;
-            statsContainer.appendChild(petsBlock);
-        }
-
-        function addPetsToLeaderboard() {
-            const items = document.querySelectorAll('.leaderboard-item');
-            
-            items.forEach((item, index) => {
-                if (item.querySelector('.leaderboard-pets')) return;
-                
-                const scoreEl = item.querySelector('.player-score');
-                if (!scoreEl) return;
-                
-                const scoreText = scoreEl.textContent;
-                const score = parseInt(scoreText) || 0;
-                
-                const petCount = Math.min(8, Math.floor(score / 1000));
-                const pets = ['🐱', '🐕', '🐇', '🦊', '🐼', '🐧', '🦄', '🐉'];
-                
-                let petEmojis = '';
-                for (let i = 0; i < Math.min(3, petCount); i++) petEmojis += pets[i] + ' ';
-                if (petCount > 3) petEmojis += `+${petCount - 3}`;
-                
-                if (petEmojis) {
-                    const petDiv = document.createElement('div');
-                    petDiv.className = 'leaderboard-pets';
-                    petDiv.innerHTML = `<span style="color: #ffd700;">🐾</span> <span>${petEmojis}</span>`;
-                    item.querySelector('.player-info').appendChild(petDiv);
-                }
-            });
         }
 
         // Запуск игры
