@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тетрис PRO — Питомцы + Способности [ПОЛНАЯ ВЕРСИЯ]</title>
+    <title>Тетрис PRO — Питомцы + Способности [ФИНАЛ]</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #fff; }
@@ -33,28 +33,60 @@
         .game-info .info-box:not(:last-child) { position: relative; margin-right: 8px; }
         .game-info .info-box:not(:last-child)::after { content: "•"; position: absolute; right: -8px; color: #6a5bff; font-size: 0.8rem; top: 50%; transform: translateY(-50%); }
         
-        .pet-badge { display: none; align-items: center; gap: 6px; background: rgba(255,182,193,0.15); border-radius: 20px; padding: 2px 12px 2px 8px; border: 1px solid; font-size: 0.8rem; margin-left: 6px; height: 28px; white-space: nowrap; }
-        .pet-emoji { font-size: 1rem; }
-        .pet-food-wrapper { display: flex; align-items: center; gap: 4px; background: rgba(255,215,0,0.15); border-radius: 14px; padding: 2px 8px; margin-left: 2px; }
+        /* ПИТОМЕЦ В ШАПКЕ - ТОЛЬКО ИКОНКИ */
+        .pet-badge { display: none; align-items: center; gap: 2px; background: rgba(255,182,193,0.15); border-radius: 20px; padding: 2px 4px 2px 4px; border: 1px solid; font-size: 0.8rem; margin-left: 6px; height: 28px; white-space: nowrap; }
+        .pet-emoji { font-size: 1.1rem; padding: 0 2px; cursor: pointer; }
+        .pet-food-wrapper { display: flex; align-items: center; gap: 2px; background: rgba(255,215,0,0.15); border-radius: 14px; padding: 2px 6px; margin-left: 2px; cursor: pointer; }
         .pet-food-icon { font-size: 0.85rem; }
         .pet-food-count { font-weight: bold; color: #ffd700; font-size: 0.8rem; min-width: 18px; text-align: center; }
         
-        /* ИНДИКАТОР СЛЕДУЮЩЕЙ ФИГУРЫ */
-        .next-piece-mini { display: none; align-items: center; gap: 4px; background: rgba(255,215,0,0.15); border-radius: 16px; padding: 2px 8px; margin-left: 4px; border: 1px solid #ffd700; height: 28px; }
-        .next-piece-shape { display: flex; gap: 1px; }
-        .next-piece-timer { color: #aaccff; font-size: 0.7rem; min-width: 30px; }
+        /* ПИТОМЕЦ ПОДСВЕЧЕН - МОЖНО ИСПОЛЬЗОВАТЬ */
+        .pet-ready { border-color: #ffd700 !important; background: rgba(255,215,0,0.2) !important; }
         
-        .level-effects { display: flex; gap: 2px; margin-left: 4px; font-size: 0.9rem; }
-        .next-level-progress { padding: 5px 10px; background: rgba(20,30,80,0.5); border-radius: 8px; margin-top: 2px; }
-        .next-level-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: #aaccff; }
-        .progress-bar { width: 100%; height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; margin-top: 4px; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #6a5bff, #9d7aff); transition: width 0.3s; }
+        /* СЛЕДУЮЩАЯ ФИГУРА - СЛЕВА ОТ ПОЛЯ */
+        #next-piece-left {
+            position: absolute;
+            left: -70px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #ffd700;
+            border-radius: 12px;
+            padding: 12px;
+            z-index: 1000;
+        }
         
-        .game-area { flex: 1; display: flex; justify-content: center; align-items: center; min-height: 460px; height: calc(100% - 70px); position: relative; }
+        .next-piece-shape {
+            display: flex;
+            flex-wrap: wrap;
+            width: 60px;
+            height: 60px;
+            gap: 2px;
+        }
+        
+        .next-piece-timer {
+            color: #ffd700;
+            font-size: 0.8rem;
+        }
+        
+        .game-area { 
+            flex: 1; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 460px; 
+            height: calc(100% - 70px); 
+            position: relative;
+            margin-left: 70px; /* место для фигурки слева */
+        }
         #tetris-canvas { background: rgba(0,0,0,0.3); border-radius: 6px; border: 2px solid rgba(68,85,204,0.5); max-width: 100%; max-height: 100%; transition: all 0.3s; }
         
         .game-controls-panel { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
-        .game-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; background: rgba(20,30,80,0.5); border-radius: 10px; }
+        .game-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px; background: rgba(20,30,80,0.5); border-radius: 10px; }
         .game-btn { background: linear-gradient(145deg, rgba(68,85,204,0.3), rgba(51,68,170,0.2)); border: 1px solid rgba(68,85,204,0.3); border-radius: 8px; padding: 12px 5px; color: white; font-size: 0.85rem; cursor: pointer; min-height: 44px; }
         .game-btn:active { transform: scale(0.95); }
         .game-btn.pause-btn { background: linear-gradient(145deg, rgba(255,153,102,0.3), rgba(235,133,82,0.2)); }
@@ -73,14 +105,6 @@
         
         .pets-collection-grid { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 5px; }
         .pet-card { background: rgba(30,40,100,0.6); border-radius: 12px; padding: 12px; border-left: 6px solid; display: flex; align-items: center; justify-content: space-between; }
-        .pet-info { display: flex; align-items: center; gap: 12px; }
-        .pet-emoji-big { font-size: 2.2rem; }
-        .pet-details { display: flex; flex-direction: column; }
-        .pet-name-rank { font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .pet-score { font-size: 0.8rem; color: #aaccff; }
-        .pet-count-badge { background: rgba(255,215,0,0.2); padding: 2px 10px; border-radius: 20px; font-size: 0.85rem; color: #ffcc66; }
-        .pet-food-display { display: flex; align-items: center; gap: 8px; background: rgba(255,215,0,0.1); padding: 6px 16px; border-radius: 30px; }
-        .pet-food-amount { font-weight: bold; color: #ffd700; font-size: 1.1rem; }
         
         .leaderboard-list { flex: 1; overflow-y: auto; margin: 10px 0; }
         .leaderboard-item { display: flex; align-items: flex-start; padding: 12px; background: rgba(30,40,100,0.4); border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(68,85,204,0.2); }
@@ -89,13 +113,10 @@
         .player-name { font-weight: bold; margin-bottom: 3px; display: flex; align-items: center; gap: 8px; }
         .player-score { color: #66ffaa; font-size: 1rem; }
         .leaderboard-pets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-        .leaderboard-pet { display: flex; align-items: center; background: rgba(255,182,193,0.1); border-radius: 12px; padding: 2px 8px; font-size: 0.8rem; border: 1px solid rgba(255,182,193,0.2); }
         
         .levels-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px 0; }
         .level-card { background: rgba(68,85,204,0.2); border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; border: 1px solid rgba(68,85,204,0.3); }
         .level-card.active { background: rgba(102,204,153,0.2); border-color: rgba(102,204,153,0.4); }
-        .level-icon { font-size: 1.8rem; margin-bottom: 8px; }
-        .level-name { font-size: 1rem; font-weight: bold; }
         
         .footer { padding: 12px 10px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: center; gap: 10px; }
         
@@ -114,14 +135,13 @@
         .combo-counter { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 2rem; font-weight: bold; color: #FFD700; text-shadow: 0 0 20px orange; z-index: 1000; pointer-events: none; animation: comboPop 0.5s ease-out; }
         @keyframes comboPop { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); } 50% { opacity: 1; transform: translateX(-50%) scale(1.5); } 100% { opacity: 0; transform: translateX(-50%) scale(1); } }
         
-        .pet-menu-button { background: rgba(106,91,255,0.3); border: 1px solid #6a5bff; border-radius: 12px; padding: 12px 16px; margin: 8px 0; color: white; font-size: 1rem; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; }
-        .pet-menu-button:active { background: rgba(106,91,255,0.6); transform: scale(0.98); }
-        .pet-menu-button .emoji { font-size: 1.5rem; }
-        .pet-menu-button .title { font-weight: bold; color: #ffd700; }
-        .pet-menu-button .desc { font-size: 0.85rem; color: #aaccff; }
+        /* МЕНЮ ПАУЗЫ - ТОЛЬКО СМЕНИТЬ И ПРОДОЛЖИТЬ */
+        .pause-menu-item { background: rgba(106,91,255,0.3); border: 1px solid #6a5bff; border-radius: 12px; padding: 16px; margin: 8px 0; color: white; font-size: 1rem; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; }
+        .pause-menu-item:active { background: rgba(106,91,255,0.6); transform: scale(0.98); }
+        .pause-menu-item .emoji { font-size: 1.5rem; }
+        .pause-menu-item .title { font-weight: bold; color: #ffd700; }
         
         .pet-select-item { background: rgba(30,40,100,0.7); border-radius: 12px; padding: 12px; margin-bottom: 8px; border-left: 6px solid; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-        .pet-select-item:active { background: rgba(106,91,255,0.4); transform: scale(0.99); }
         .pet-select-item.active { border: 2px solid #ffd700; }
         
         .ability-hint { position: fixed; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); border-left: 6px solid #ffd700; border-radius: 12px; padding: 12px 16px; color: white; font-size: 0.9rem; z-index: 10050; animation: hintFade 3s forwards; pointer-events: none; }
@@ -148,7 +168,7 @@
                 <button class="menu-btn levels" onclick="showLevels()">⭐ УРОВНИ</button>
                 <button class="menu-btn leaderboard" onclick="showLeaderboard()">🏆 ЛИДЕРБОРД</button>
             </div>
-            <div class="footer"><p style="color: #aaccff;">🐾 Зажми питомца для способности!</p></div>
+            <div class="footer"><p style="color: #aaccff;">🐾 ТАП ПО ПИТОМЦУ = СПОСОБНОСТЬ</p></div>
         </div>
         
         <!-- ИГРА -->
@@ -160,20 +180,13 @@
                     <div class="info-box"><div class="info-value" id="score-display">0</div></div>
                     <div class="info-box"><div class="info-value" id="lines-display">0</div></div>
                     
-                    <!-- ПИТОМЕЦ В ШАПКЕ -->
+                    <!-- ПИТОМЕЦ В ШАПКЕ - ТОЛЬКО ИКОНКИ -->
                     <div id="pet-header-panel" class="pet-badge">
-                        <span id="pet-emoji-header" class="pet-emoji">🐱</span>
-                        <span class="pet-food-wrapper">
+                        <span id="pet-emoji-header" class="pet-emoji" onclick="usePetAbility()">🐱</span>
+                        <span class="pet-food-wrapper" onclick="feedActivePet()">
                             <span id="pet-food-icon-header" class="pet-food-icon">🐟</span>
                             <span id="pet-food-count-header" class="pet-food-count">0</span>
                         </span>
-                    </div>
-                    
-                    <!-- ИНДИКАТОР СЛЕДУЮЩЕЙ ФИГУРЫ (КОТЁНОК) -->
-                    <div id="next-piece-mini" class="next-piece-mini">
-                        <span style="font-size: 0.8rem; color: #ffd700;">🐱</span>
-                        <div id="next-piece-mini-shape" class="next-piece-shape"></div>
-                        <span id="next-piece-mini-timer" class="next-piece-timer">10с</span>
                     </div>
                     
                     <div id="level-effects-header" class="level-effects">🟢</div>
@@ -181,25 +194,20 @@
             </div>
             
             <div class="game-area">
+                <!-- СЛЕДУЮЩАЯ ФИГУРА СЛЕВА -->
+                <div id="next-piece-left">
+                    <span style="color: #ffd700; font-size: 0.8rem;">🐱 СЛЕДУЮЩАЯ</span>
+                    <div id="next-piece-left-shape" class="next-piece-shape"></div>
+                    <span id="next-piece-left-timer" class="next-piece-timer">10с</span>
+                </div>
+                
                 <canvas id="tetris-canvas" width="240" height="480"></canvas>
             </div>
             
             <div class="game-controls-panel">
-                <!-- КНОПКА БЫСТРОЙ СПОСОБНОСТИ -->
-                <div id="quick-ability-container" style="display: none; margin-bottom: 4px;">
-                    <button class="game-btn" id="quick-ability-btn" onclick="usePetAbility()" style="background: linear-gradient(145deg, #6a5bff, #4a3bdf); border: 2px solid #ffd700; width: 100%; padding: 16px; display: flex; align-items: center; justify-content: center; gap: 12px;">
-                        <span id="quick-ability-emoji" style="font-size: 1.5rem;">🐱</span>
-                        <span id="quick-ability-name" style="font-weight: bold; font-size: 1.1rem;">Мяу-буст</span>
-                        <span id="quick-ability-cost" style="background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 20px; font-size: 0.9rem;">🍖5</span>
-                    </button>
-                </div>
-                
                 <div class="game-buttons">
                     <button class="game-btn pause-btn" onclick="togglePause()"><span>⏸</span> ПАУЗА</button>
                     <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
-                    <button class="game-btn" onclick="showMenu()" style="background: linear-gradient(145deg, rgba(255,100,100,0.2), rgba(200,50,50,0.1)); border-color: rgba(255,100,100,0.3);">
-                        <span>🏠</span> МЕНЮ
-                    </button>
                 </div>
                 
                 <div class="controls">
@@ -533,7 +541,6 @@
             showFoodAnimation(pet.food, 3, pet.color);
             
             updatePetHeaderPanel();
-            updateQuickAbilityButton();
             return true;
         }
 
@@ -549,47 +556,25 @@
             if (!panel) return;
             
             if (activePet) {
+                const petId = `${activePet.rank.prefix}_${activePet.id}`;
+                const ability = PET_ABILITIES[activePet.id];
+                const foodCount = petFood[petId] || 0;
+                const foodNeeded = ability?.foodCost || 5;
+                
                 document.getElementById('pet-emoji-header').textContent = activePet.emoji;
                 document.getElementById('pet-food-icon-header').textContent = activePet.food;
-                document.getElementById('pet-food-count-header').textContent = petFood[`${activePet.rank.prefix}_${activePet.id}`] || 0;
+                document.getElementById('pet-food-count-header').textContent = foodCount;
                 panel.style.borderColor = activePet.color + '80';
                 panel.style.display = 'flex';
+                
+                // Подсветка если хватает еды
+                if (foodCount >= foodNeeded) {
+                    panel.classList.add('pet-ready');
+                } else {
+                    panel.classList.remove('pet-ready');
+                }
             } else {
                 panel.style.display = 'none';
-            }
-        }
-
-        // ==================== БЫСТРАЯ КНОПКА СПОСОБНОСТИ ====================
-        function updateQuickAbilityButton() {
-            const container = document.getElementById('quick-ability-container');
-            const btn = document.getElementById('quick-ability-btn');
-            const emoji = document.getElementById('quick-ability-emoji');
-            const name = document.getElementById('quick-ability-name');
-            const cost = document.getElementById('quick-ability-cost');
-            
-            if (!activePet) {
-                container.style.display = 'none';
-                return;
-            }
-            
-            const petId = `${activePet.rank.prefix}_${activePet.id}`;
-            const ability = PET_ABILITIES[activePet.id];
-            const foodCount = petFood[petId] || 0;
-            const foodNeeded = ability?.foodCost || 5;
-            
-            container.style.display = 'block';
-            emoji.textContent = activePet.emoji;
-            name.textContent = ability?.name || 'Способность';
-            cost.textContent = `🍖${foodNeeded}`;
-            
-            if (foodCount >= foodNeeded) {
-                btn.style.background = 'linear-gradient(145deg, #6a5bff, #4a3bdf)';
-                btn.style.borderColor = '#ffd700';
-                btn.style.opacity = '1';
-            } else {
-                btn.style.background = 'linear-gradient(145deg, #444, #333)';
-                btn.style.borderColor = '#666';
-                btn.style.opacity = '0.7';
             }
         }
 
@@ -608,68 +593,52 @@
             showFoodAnimation(activePet.food, 3, activePet.color);
             
             updatePetHeaderPanel();
-            updateQuickAbilityButton();
         }
 
-        // ==================== МЕНЮ ПИТОМЦА ====================
-        function showPetMenu() {
+        // ==================== МЕНЮ ПАУЗЫ - ТОЛЬКО СМЕНИТЬ И ПРОДОЛЖИТЬ ====================
+        function showPauseMenu() {
             if (!activePet) {
-                showNotification(`⏸️ ПАУЗА\n❌ НЕТ ПИТОМЦА\n🎮 Набери 500 очков\n🐱 Получишь котёнка!`);
+                showNotification(`⏸️ ПАУЗА\n❌ НЕТ ПИТОМЦА\n🎮 Набери 500 очков`);
                 return;
             }
             
             const petId = `${activePet.rank.prefix}_${activePet.id}`;
             const foodCount = petFood[petId] || 0;
-            const ability = PET_ABILITIES[activePet.id] || { name: 'Способность', foodCost: 5 };
+            const ability = PET_ABILITIES[activePet.id] || { name: 'Способность', foodCost: 5, effect: '' };
             
             const menuHTML = `
                 <div style="text-align: center;">
-                    <div style="font-size: 3rem; margin-bottom: 8px;">${activePet.emoji}</div>
-                    <div style="font-size: 1.3rem; font-weight: bold; color: ${activePet.color}; margin-bottom: 16px;">
+                    <div style="font-size: 2.5rem; margin-bottom: 8px;">${activePet.emoji}</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: ${activePet.color}; margin-bottom: 16px;">
                         ${activePet.rank.prefix}${activePet.name}
                     </div>
                     
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 16px; background: rgba(0,0,0,0.4); border-radius: 30px; padding: 12px; margin-bottom: 20px;">
-                        <span style="font-size: 1.5rem;">🍖</span>
-                        <span style="font-size: 1.8rem; font-weight: bold; color: #ffd700;">${foodCount}</span>
-                        <span style="color: #aaccff;">/</span>
-                        <span style="font-size: 1.3rem; color: #ffaa66;">${ability.foodCost}</span>
-                        <span style="color: #aaccff;">нужно</span>
+                    <div style="background: rgba(0,0,0,0.4); border-radius: 12px; padding: 12px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span>✨ ${ability.name}</span>
+                            <span style="color: #ffd700;">🍖 ${ability.foodCost}</span>
+                        </div>
+                        <div style="color: #aaccff; font-size: 0.9rem;">${ability.effect}</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 12px;">
+                            <span>🍖 Еда:</span>
+                            <span style="color: #ffd700; font-weight: bold;">${foodCount}</span>
+                        </div>
                     </div>
                     
                     <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <div class="pet-menu-button" onclick="usePetAbility(); removePetMenu();" style="background: ${foodCount >= ability.foodCost ? 'linear-gradient(145deg, #6a5bff, #4a3bdf)' : 'rgba(100,100,100,0.5)'}; border-color: #ffd700; justify-content: center; padding: 16px;">
-                            <span class="emoji">✨</span>
-                            <div>
-                                <div class="title">АКТИВИРОВАТЬ</div>
-                                <div class="desc">${ability.name} • 🍖${ability.foodCost}</div>
-                            </div>
-                        </div>
-                        
-                        <div class="pet-menu-button" onclick="feedActivePet(); removePetMenu();" style="background: rgba(255,215,0,0.2); border-color: #ffd700; justify-content: center; padding: 16px;">
-                            <span class="emoji">🍖</span>
-                            <div>
-                                <div class="title">ПОКОРМИТЬ</div>
-                                <div class="desc">+3 еды</div>
-                            </div>
-                        </div>
-                        
-                        <div class="pet-menu-button" onclick="showPetSelectMenu();" style="justify-content: center; padding: 16px;">
+                        <div class="pause-menu-item" onclick="showPetSelectMenu();">
                             <span class="emoji">🔄</span>
                             <div>
-                                <div class="title">СМЕНИТЬ</div>
-                                <div class="desc">Выбрать питомца</div>
+                                <div class="title">СМЕНИТЬ ПИТОМЦА</div>
+                                <div style="color: #aaccff; font-size: 0.85rem;">Выбрать другого питомца</div>
                             </div>
                         </div>
                         
-                        <div style="display: flex; gap: 12px; margin-top: 8px;">
-                            <div class="pet-menu-button" onclick="removePetMenu();" style="flex: 2; background: #2a3f5e; border-color: #6a5bff; justify-content: center;">
-                                <span class="emoji">▶️</span>
+                        <div class="pause-menu-item" onclick="removePauseMenu();" style="background: #2a3f5e; border-color: #6a5bff;">
+                            <span class="emoji">▶️</span>
+                            <div>
                                 <div class="title">ПРОДОЛЖИТЬ</div>
-                            </div>
-                            <div class="pet-menu-button" onclick="showMenu();" style="flex: 1; background: rgba(255,100,100,0.2); border-color: #ff6666; justify-content: center;">
-                                <span class="emoji">🏠</span>
-                                <div class="title">МЕНЮ</div>
+                                <div style="color: #aaccff; font-size: 0.85rem;">Вернуться в игру</div>
                             </div>
                         </div>
                     </div>
@@ -720,7 +689,7 @@
                 menuHTML += `
                     <div class="pet-select-item ${isActive ? 'active' : ''}" 
                          style="border-left-color: ${pet.color}; background: ${isActive ? 'rgba(255,215,0,0.2)' : 'rgba(30,40,100,0.7)'};"
-                         onclick="selectPet('${pet.id}'); showPetSelectMenu();">
+                         onclick="selectPet('${pet.id}'); showPauseMenu();">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <span style="font-size: 2rem;">${pet.emoji}</span>
                             <div>
@@ -737,7 +706,7 @@
                 `;
             });
             
-            menuHTML += `<div style="display: flex; justify-content: center; margin-top: 20px;"><div class="pet-menu-button" onclick="showPetMenu();" style="width: 100%; justify-content: center;"><span class="emoji">🔙</span><div><div class="title">НАЗАД</div></div></div></div>`;
+            menuHTML += `<div style="display: flex; justify-content: center; margin-top: 20px;"><div class="pause-menu-item" onclick="showPauseMenu();" style="width: 100%; justify-content: center; background: #2a3f5e;"><span class="emoji">🔙</span><div><div class="title">НАЗАД</div></div></div></div>`;
             
             const n = document.getElementById('notification');
             n.innerHTML = menuHTML;
@@ -761,12 +730,11 @@
                 };
                 savePets();
                 updatePetHeaderPanel();
-                updateQuickAbilityButton();
                 showNotification(`✅ АКТИВЕН: ${activePet.rank.prefix}${activePet.name}`);
             }
         }
 
-        function removePetMenu() {
+        function removePauseMenu() {
             const n = document.getElementById('notification');
             n.classList.remove('show');
             n.style.pointerEvents = 'none';
@@ -859,7 +827,6 @@
             petFood[petId] -= foodNeeded;
             savePets();
             updatePetHeaderPanel();
-            updateQuickAbilityButton();
 
             // Активация способности
             switch(activePet.id) {
@@ -895,16 +862,16 @@
             showHint(`✨ ${ability.name}: ${ability.effect}`);
         }
 
-        // --- КОТЁНОК: ПОКАЗ СЛЕДУЮЩЕЙ ФИГУРЫ (ЦВЕТНАЯ ФИГУРКА) ---
+        // --- КОТЁНОК: ПОКАЗ СЛЕДУЮЩЕЙ ФИГУРЫ СЛЕВА ---
         function abilityCat() {
             if (pieceQueue.length === 0) return;
             
             const nextShapeId = pieceQueue[0];
             const shape = SHAPES[nextShapeId];
             const color = COLORS[nextShapeId];
-            const container = document.getElementById('next-piece-mini');
-            const shapeContainer = document.getElementById('next-piece-mini-shape');
-            const timerEl = document.getElementById('next-piece-mini-timer');
+            const container = document.getElementById('next-piece-left');
+            const shapeContainer = document.getElementById('next-piece-left-shape');
+            const timerEl = document.getElementById('next-piece-left-timer');
             
             if (!container || !shapeContainer || !timerEl) return;
             
@@ -915,10 +882,10 @@
                 for (let c = 0; c < shape[r].length; c++) {
                     if (shape[r][c]) {
                         const block = document.createElement('div');
-                        block.style.width = '12px';
-                        block.style.height = '12px';
+                        block.style.width = '18px';
+                        block.style.height = '18px';
                         block.style.background = color;
-                        block.style.borderRadius = '2px';
+                        block.style.borderRadius = '3px';
                         block.style.margin = '1px';
                         block.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.3)';
                         shapeContainer.appendChild(block);
@@ -926,7 +893,7 @@
                 }
             }
             
-            // Показываем панель
+            // Показываем панель слева
             container.style.display = 'flex';
             
             // Таймер на 10 секунд
@@ -944,8 +911,8 @@
                 }
             }, 1000);
             
-            showNotification('🐱 МЯУ-БУСТ: следующая фигура показана!');
-            showHint('🐱 Смотри на иконку рядом с питомцем!');
+            showNotification('🐱 МЯУ-БУСТ: следующая фигура слева!');
+            showHint('🐱 Смотри слева от поля!');
         }
 
         function abilityDog() {
@@ -984,8 +951,8 @@
                     board.splice(y, 1);
                     board.unshift(Array(COLS).fill(0));
                     break;
+                }
             }
-        }
             showNotification('🐼 Спокойствие: линия удалена');
         }
 
@@ -998,7 +965,6 @@
             petFood[petId] = (petFood[petId] || 0) + 5;
             savePets();
             updatePetHeaderPanel();
-            updateQuickAbilityButton();
             showNotification('🐨 Обнимашки +5 еды');
         }
 
@@ -1112,7 +1078,6 @@
             petFood[petId] = (petFood[petId] || 0) + 10;
             savePets();
             updatePetHeaderPanel();
-            updateQuickAbilityButton();
             showNotification('🐿️ Запасы +10 еды');
         }
 
@@ -1246,9 +1211,6 @@
                     e.preventDefault();
                     e.stopPropagation();
                 }, { passive: false });
-                btn.onmousedown = null;
-                btn.onmouseup = null;
-                btn.onmouseleave = null;
             });
 
             btnLeft.addEventListener('touchstart', (e) => {
@@ -1309,26 +1271,6 @@
             }, { passive: false });
         }
 
-        // ==================== ДОЛГОЕ НАЖАТИЕ НА ПИТОМЦА ====================
-        function setupLongPress() {
-            const petHeader = document.getElementById('pet-header-panel');
-            if (!petHeader) return;
-            
-            let timer;
-            
-            petHeader.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (!gameActive || gamePaused || gameOver || !activePet) return;
-                
-                timer = setTimeout(() => {
-                    usePetAbility();
-                }, 500);
-            }, { passive: false });
-            
-            petHeader.addEventListener('touchend', () => clearTimeout(timer));
-            petHeader.addEventListener('touchcancel', () => clearTimeout(timer));
-        }
-
         // ==================== КЛАВИАТУРА ====================
         document.addEventListener('keydown', (e) => {
             if (e.key.startsWith('Arrow')) e.preventDefault();
@@ -1375,8 +1317,6 @@
                 animationId = requestAnimationFrame(gameLoop);
                 showNotification('🎮 ИГРА НАЧАЛАСЬ!');
             }
-            
-            updateQuickAbilityButton();
         }
 
         function spawnPiece() {
@@ -1523,7 +1463,6 @@
                     petFood[petId] = (petFood[petId] || 0) + linesCleared;
                     savePets();
                     showFoodAnimation(activePet.food, linesCleared, activePet.color);
-                    updateQuickAbilityButton();
                 }
                 
                 checkPetUnlocks();
@@ -1550,9 +1489,9 @@
                 
                 if (gamePaused) {
                     cancelAnimationFrame(animationId);
-                    showPetMenu();
+                    showPauseMenu();
                 } else {
-                    removePetMenu();
+                    removePauseMenu();
                     lastTime = 0;
                     animationId = requestAnimationFrame(gameLoop);
                 }
@@ -1713,11 +1652,11 @@
                             🍖 Еды: ${foodCount} → ${foodCount + 3}
                         </div>
                         <div style="display:flex;gap:15px;margin-top:20px;">
-                            <div class="pet-menu-button" onclick="feedActivePet(); document.getElementById('notification').classList.remove('show');" style="flex:1;justify-content:center;">
+                            <div class="pause-menu-item" onclick="feedActivePet(); document.getElementById('notification').classList.remove('show');" style="flex:1;justify-content:center;">
                                 <span class="emoji">✅</span>
                                 <div class="title">ДА</div>
                             </div>
-                            <div class="pet-menu-button" onclick="document.getElementById('notification').classList.remove('show'); saveGameScoreConfirm();" style="flex:1;justify-content:center;background:rgba(255,100,100,0.2);">
+                            <div class="pause-menu-item" onclick="document.getElementById('notification').classList.remove('show'); saveGameScoreConfirm();" style="flex:1;justify-content:center;background:rgba(255,100,100,0.2);">
                                 <span class="emoji">❌</span>
                                 <div class="title">НЕТ</div>
                             </div>
@@ -2103,17 +2042,6 @@
             }, 3000);
         }
 
-        function restartGame() {
-            showNotification('🔄 НОВАЯ ИГРА...');
-            setTimeout(() => {
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                    animationId = null;
-                }
-                startNewGame();
-            }, 500);
-        }
-
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         window.addEventListener('load', () => {
             console.log('🎮 Тетрис PRO — Питомцы + Способности [ФИНАЛ]');
@@ -2123,12 +2051,12 @@
             drawBoard();
             selectDifficulty('classic');
             setupControls();
-            setupLongPress();
-            showNotification('✨ ЗАЖМИ ПИТОМЦА ДЛЯ СПОСОБНОСТИ!');
             
             // Скрываем индикатор следующей фигуры
-            const nextPieceMini = document.getElementById('next-piece-mini');
-            if (nextPieceMini) nextPieceMini.style.display = 'none';
+            const nextPieceLeft = document.getElementById('next-piece-left');
+            if (nextPieceLeft) nextPieceLeft.style.display = 'none';
+            
+            showNotification('🐱 ТАП ПО ПИТОМЦУ = СПОСОБНОСТЬ');
         });
     </script>
 </body>
