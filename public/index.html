@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тетрис PRO — Классика + Питомцы</title>
+    <title>Тетрис PRO — Классика + Питомцы + Способности</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #fff; }
@@ -111,6 +111,9 @@
         
         .pet-unlock-animation { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,0.9); padding: 20px 30px; border-radius: 30px; border: 2px solid; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10010; animation: petUnlock 2s forwards; pointer-events: none; }
         @keyframes petUnlock { 0% { opacity: 0; transform: translate(-50%,-30%) scale(0.7); } 15% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); } 85% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-70%) scale(0.8); } }
+        
+        .combo-counter { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); font-size: 2rem; font-weight: bold; color: #FFD700; text-shadow: 0 0 20px orange; z-index: 1000; pointer-events: none; animation: comboPop 0.5s ease-out; }
+        @keyframes comboPop { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); } 50% { opacity: 1; transform: translateX(-50%) scale(1.5); } 100% { opacity: 0; transform: translateX(-50%) scale(1); } }
         
         @media (max-width: 400px) { .game-title { font-size: 1.6rem; } }
         @media (max-height: 700px) { .game-container { max-height: 650px; } .game-area { min-height: 400px; } }
@@ -324,6 +327,35 @@
             { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 12500, food: '🐟' }
         ];
 
+        // ==================== СПОСОБНОСТИ ПИТОМЦЕВ ====================
+        const PET_ABILITIES = {
+            'cat': { name: 'Мяу-буст', effect: 'Показывает следующую фигуру' },
+            'dog': { name: 'Верный друг', effect: 'Замораживает падение на 3 сек' },
+            'rabbit': { name: 'Прыжок', effect: 'Опускает фигуру на 3 строки' },
+            'fox': { name: 'Хитрость', effect: 'Меняет текущую фигуру' },
+            'panda': { name: 'Спокойствие', effect: 'Убирает 1 линию мусора' },
+            'penguin': { name: 'Ледяной щит', effect: 'Защита от следующей ошибки' },
+            'koala': { name: 'Обнимашки', effect: 'Восстанавливает 5 еды' },
+            'owl': { name: 'Мудрость', effect: 'Подсказывает лучшее место' },
+            'tiger': { name: 'Ярость', effect: '×2 очков на 10 секунд' },
+            'lion': { name: 'Рык', effect: 'Очищает 3 нижние линии' },
+            'giraffe': { name: 'Высота', effect: 'Поднимает фигуру на 2 строки' },
+            'zebra': { name: 'Полоски', effect: 'Меняет цвета фигур' },
+            'elephant': { name: 'Сила', effect: 'Уничтожает 1 препятствие' },
+            'rhino': { name: 'Таран', effect: 'Пробивает 1 линию' },
+            'hippo': { name: 'Зевок', effect: 'Замедляет падение на 5 сек' },
+            'monkey': { name: 'Шалун', effect: 'Перемешивает фигуры' },
+            'sloth': { name: 'Лень', effect: 'Пауза на 2 секунды (передышка)' },
+            'hedgehog': { name: 'Колючки', effect: 'Уничтожает 2 случайных блока' },
+            'squirrel': { name: 'Запасы', effect: '+10 еды' },
+            'deer': { name: 'Грация', effect: 'Следующая фигура идеальна' },
+            'beaver': { name: 'Строитель', effect: 'Добавляет 1 мост' },
+            'otter': { name: 'Водопад', effect: 'Сдвигает всё вниз' },
+            'seal': { name: 'Баланс', effect: 'Выравнивает поле' },
+            'whale': { name: 'Фонтан', effect: 'Очищает 2 случайные линии' },
+            'dolphin': { name: 'Волна', effect: 'Сдвигает вправо' }
+        };
+
         const PET_RANKS = [
             { prefix: '', name: 'Обычный', min: 0, max: 24, color: '#FFFFFF' },
             { prefix: '✨', name: 'Блестящий', min: 25, max: 49, color: '#FFD700' },
@@ -352,6 +384,8 @@
         let dropCounter = 0, dropInterval = 800, lastTime = 0, animationId = null;
         let currentDifficulty = 'classic';
         let clearedLinesAnimation = [], pieceQueue = [];
+        let comboCount = 0, rageMode = false, rageTimer = null;
+        let shieldActive = false;
 
         // ==================== ПИТОМЦЫ ====================
         let userPets = {};
@@ -486,6 +520,166 @@
             }
         }
 
+        // ==================== НОВЫЕ ФУНКЦИИ ПИТОМЦЕВ ====================
+        function feedActivePet() {
+            if (!activePet) {
+                showNotification('❌ Нет активного питомца');
+                return;
+            }
+            
+            const petId = `${activePet.rank.prefix}_${activePet.id}`;
+            petFood[petId] = (petFood[petId] || 0) + 3;
+            savePets();
+            
+            showNotification(`🍖 ${activePet.rank.prefix}${activePet.name} покормлен! +3 ${activePet.food}`);
+            showFoodAnimation(activePet.food, 3, activePet.color);
+            updatePetHeaderPanel();
+        }
+
+        function usePetAbility() {
+            if (!activePet) {
+                showNotification('❌ Нет активного питомца');
+                return;
+            }
+            
+            const petId = `${activePet.rank.prefix}_${activePet.id}`;
+            const foodNeeded = 5;
+            
+            if ((petFood[petId] || 0) < foodNeeded) {
+                showNotification(`❌ Нужно ${foodNeeded} еды!\n🍖 Еды: ${petFood[petId] || 0}`);
+                return;
+            }
+            
+            petFood[petId] -= foodNeeded;
+            savePets();
+            
+            // Активация способности
+            const ability = PET_ABILITIES[activePet.id];
+            showNotification(`✨ ${activePet.rank.prefix}${activePet.name}: ${ability.name}!`);
+            
+            switch(activePet.id) {
+                case 'cat':
+                    showNextPiece();
+                    break;
+                case 'dog':
+                    freezeTime(3000);
+                    break;
+                case 'rabbit':
+                    quickDrop(3);
+                    break;
+                case 'fox':
+                    changeCurrentPiece();
+                    break;
+                case 'panda':
+                    removeGarbageLine();
+                    break;
+                case 'penguin':
+                    shieldActive = true;
+                    showNotification('🛡️ Ледяной щит активирован!');
+                    break;
+                case 'koala':
+                    petFood[petId] += 5;
+                    showNotification('🐨 +5 еды! Обнимашки!');
+                    break;
+                case 'tiger':
+                    activateRageMode(10000);
+                    break;
+                case 'lion':
+                    clearBottomLines(3);
+                    break;
+                case 'dolphin':
+                    shiftAllDown();
+                    break;
+            }
+            
+            updatePetHeaderPanel();
+        }
+
+        function showNextPiece() {
+            if (pieceQueue.length > 0) {
+                const nextShapeId = pieceQueue[0];
+                showNotification(`🎮 Следующая фигура: ${['I', 'O', 'T', 'S', 'Z', 'L', 'J'][nextShapeId]}`);
+            }
+        }
+
+        function freezeTime(duration) {
+            const originalInterval = dropInterval;
+            dropInterval = 999999;
+            showNotification(`❄️ Время замерло на ${duration/1000} сек!`);
+            setTimeout(() => {
+                dropInterval = originalInterval;
+                showNotification('▶️ Время пошло снова!');
+            }, duration);
+        }
+
+        function quickDrop(rows) {
+            for (let i = 0; i < rows; i++) {
+                if (!collide(currentPiece, currentX, currentY + 1)) {
+                    currentY++;
+                }
+            }
+            drawBoard();
+            showNotification(`🦘 Прыжок на ${rows} строк!`);
+        }
+
+        function changeCurrentPiece() {
+            if (pieceQueue.length > 0) {
+                const newShapeId = pieceQueue.shift();
+                pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+                currentPiece = { shape: SHAPES[newShapeId], color: COLORS[newShapeId] };
+                drawBoard();
+                showNotification('🦊 Фигура изменена!');
+            }
+        }
+
+        function removeGarbageLine() {
+            for (let y = 0; y < ROWS; y++) {
+                if (board[y].some(cell => cell !== 0)) {
+                    board.splice(y, 1);
+                    board.unshift(Array(COLS).fill(0));
+                    showNotification('🧹 Линия мусора удалена!');
+                    drawBoard();
+                    break;
+                }
+            }
+        }
+
+        function activateRageMode(duration) {
+            rageMode = true;
+            if (rageTimer) clearTimeout(rageTimer);
+            rageTimer = setTimeout(() => {
+                rageMode = false;
+                showNotification('😌 Ярость утихла...');
+            }, duration);
+            showNotification(`🔥 ЯРОСТЬ! Очки ×2 на ${duration/1000} сек!`);
+        }
+
+        function clearBottomLines(count) {
+            for (let i = 0; i < count; i++) {
+                board.pop();
+                board.unshift(Array(COLS).fill(0));
+            }
+            drawBoard();
+            showNotification(`🦁 Рык! ${count} линии очищены!`);
+        }
+
+        function shiftAllDown() {
+            board.pop();
+            board.unshift(Array(COLS).fill(0));
+            drawBoard();
+            showNotification('🐬 Волна! Всё сдвинулось вниз!');
+        }
+
+        function showCombo(combo) {
+            if (combo > 1) {
+                const div = document.createElement('div');
+                div.className = 'combo-counter';
+                div.textContent = `x${combo}!`;
+                document.querySelector('.game-area').appendChild(div);
+                setTimeout(() => div.remove(), 500);
+            }
+        }
+
         // ==================== ЗАГРУЗКА СТАТИСТИКИ ИЗ NEON ====================
         async function loadUserStats() {
             if (!telegramUserId || telegramUserId.startsWith('guest_')) {
@@ -538,7 +732,6 @@
                     const s = result.stats;
                     const games = [];
                     
-                    // 1️⃣ РЕКОРДНАЯ ИГРА
                     if (s.best_score > 0) {
                         games.push({ 
                             score: s.best_score, 
@@ -546,7 +739,6 @@
                         });
                     }
                     
-                    // 2️⃣ ОСТАЛЬНЫЕ ИГРЫ
                     const gamesPlayed = s.games_played || 0;
                     const avgScore = s.avg_score || 800;
                     
@@ -556,10 +748,6 @@
                             lines: Math.floor(avgScore / 25 * (0.8 + Math.random() * 0.4))
                         });
                     }
-                    
-                    console.log(`✅ Загружено ${gamesPlayed} игр для ${telegramUserId}`);
-                    console.log(`   🏆 Рекорд: ${s.best_score}`);
-                    console.log(`   📊 Средний: ${avgScore}`);
                     
                     return games;
                 }
@@ -914,6 +1102,7 @@
             score = 0; lines = 0; gameLevel = 0; level = 0;
             gameActive = true; gamePaused = false; gameOver = false;
             currentSessionPets = []; activePet = null;
+            comboCount = 0; rageMode = false; shieldActive = false;
             
             loadPets();
             
@@ -944,11 +1133,18 @@
             currentPiece = { shape: SHAPES[shapeId], color: COLORS[shapeId] };
             currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
             currentY = 0;
+            
             if (collide(currentPiece, currentX, currentY)) {
-                gameOver = true;
-                saveGameToDB(true);
-                showNotification('🎯 Игра окончена! Счет: ' + score);
-                setTimeout(() => showMenu(), 1500);
+                if (shieldActive) {
+                    shieldActive = false;
+                    showNotification('🛡️ Щит спас игру!');
+                    board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+                } else {
+                    gameOver = true;
+                    saveGameToDB(true);
+                    showNotification('🎯 Игра окончена! Счет: ' + score);
+                    setTimeout(() => showMenu(), 1500);
+                }
             }
         }
 
@@ -1046,8 +1242,16 @@
                 lines += linesCleared;
                 clearedLinesAnimation = clearedRows;
                 
-                const lineScores = [0, 40, 100, 300, 1200];
-                score += lineScores[linesCleared] * (gameLevel + 1);
+                comboCount++;
+                showCombo(comboCount);
+                
+                let lineScore = [0, 40, 100, 300, 1200][linesCleared] * (gameLevel + 1);
+                
+                if (rageMode) {
+                    lineScore *= 2;
+                }
+                
+                score += lineScore;
                 
                 if (lines >= (level + 1) * 10) {
                     level = Math.floor(lines / 10);
@@ -1073,16 +1277,40 @@
                 
                 updateGameLevel();
                 updateDisplay();
+            } else {
+                comboCount = 0;
             }
         }
 
+        // ==================== НОВАЯ ВЕРСИЯ PAUSE С МЕНЮ ПИТОМЦА ====================
         function pauseGame() {
             if (gameActive && !gameOver) {
                 gamePaused = !gamePaused;
+                
                 if (gamePaused) {
                     cancelAnimationFrame(animationId);
-                    showNotification('⏸ Пауза');
+                    
+                    if (activePet) {
+                        const petId = `${activePet.rank.prefix}_${activePet.id}`;
+                        const foodCount = petFood[petId] || 0;
+                        const ability = PET_ABILITIES[activePet.id] || { name: 'Способность', effect: 'Активировать' };
+                        
+                        const menuText = `⏸️ ПАУЗА
+
+🐾 ${activePet.rank.prefix}${activePet.name}
+🍖 Еды: ${foodCount}
+✨ ${ability.name}: ${ability.effect}
+
+1️⃣ Активировать способность (5 🍖)
+2️⃣ Покормить (+3 🍖)
+3️⃣ Продолжить игру`;
+
+                        showPetMenu(menuText);
+                    } else {
+                        showNotification('⏸ Пауза');
+                    }
                 } else {
+                    removePetMenu();
                     lastTime = 0;
                     animationId = requestAnimationFrame(gameLoop);
                     showNotification('▶️ Продолжение');
@@ -1090,9 +1318,75 @@
             }
         }
 
-        function restartGame() { 
-            if (confirm('Начать новую игру?')) {
-                startNewGame(); 
+        function showPetMenu(message) {
+            const n = document.getElementById('notification');
+            n.innerHTML = message.replace(/\n/g, '<br>');
+            n.style.background = 'rgba(20,30,80,0.95)';
+            n.style.border = '2px solid ' + (activePet?.color || '#ffd700');
+            n.style.width = '280px';
+            n.style.padding = '20px';
+            n.style.textAlign = 'left';
+            n.style.fontSize = '0.9rem';
+            n.style.lineHeight = '1.5';
+            n.classList.add('show');
+            
+            const handler = function(e) {
+                if (!gamePaused) return;
+                
+                switch(e.key) {
+                    case '1':
+                        usePetAbility();
+                        removePetMenu();
+                        pauseGame();
+                        break;
+                    case '2':
+                        feedActivePet();
+                        removePetMenu();
+                        pauseGame();
+                        break;
+                    case '3':
+                    case 'Escape':
+                        removePetMenu();
+                        pauseGame();
+                        break;
+                }
+            };
+            
+            window.petMenuHandler = handler;
+            document.addEventListener('keydown', handler);
+        }
+
+        function removePetMenu() {
+            const n = document.getElementById('notification');
+            n.classList.remove('show');
+            n.style = '';
+            document.removeEventListener('keydown', window.petMenuHandler);
+        }
+
+        // ==================== НОВАЯ ВЕРСИЯ SAVE С КОРМЛЕНИЕМ ====================
+        async function saveGameScore() {
+            if (!gameActive) {
+                showNotification('❌ Нет активной игры');
+                return;
+            }
+            
+            if (activePet) {
+                const petId = `${activePet.rank.prefix}_${activePet.id}`;
+                const foodCount = petFood[petId] || 0;
+                
+                if (confirm(`🍖 Покормить ${activePet.rank.prefix}${activePet.name}?\nТекущий запас еды: ${foodCount}\nOK - покормить (+3)\nОтмена - сохранить игру`)) {
+                    feedActivePet();
+                    return;
+                }
+            }
+            
+            showNotification('💾 Сохраняю в Neon...');
+            const result = await saveGameToDB(false);
+            if (result.success) {
+                showNotification('✅ Результат сохранен!');
+                loadUserStats();
+            } else {
+                showNotification('❌ Ошибка сохранения');
             }
         }
 
@@ -1200,6 +1494,37 @@
             animationId = requestAnimationFrame(gameLoop);
         }
 
+        // ==================== НАСТРОЙКА ДОЛГОГО НАЖАТИЯ ====================
+        function setupLongPress() {
+            const scoreElement = document.getElementById('score-display');
+            if (!scoreElement) return;
+            
+            let pressTimer;
+            
+            scoreElement.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!activePet || !gameActive || gamePaused || gameOver) return;
+                
+                pressTimer = setTimeout(() => {
+                    usePetAbility();
+                }, 800);
+            });
+            
+            scoreElement.addEventListener('touchend', () => {
+                clearTimeout(pressTimer);
+            });
+            
+            scoreElement.addEventListener('touchcancel', () => {
+                clearTimeout(pressTimer);
+            });
+            
+            scoreElement.addEventListener('click', (e) => {
+                if (e.altKey && activePet && gameActive && !gamePaused && !gameOver) {
+                    usePetAbility();
+                }
+            });
+        }
+
         // ==================== NEON API ====================
         async function saveGameToDB(gameOverFlag = false) {
             if (!telegramUserId || telegramUserId.startsWith('guest_')) return { success: false };
@@ -1224,21 +1549,6 @@
                 return result;
             } catch {
                 return { success: false };
-            }
-        }
-
-        async function saveGameScore() {
-            if (!gameActive) {
-                showNotification('❌ Нет активной игры');
-                return;
-            }
-            showNotification('💾 Сохраняю в Neon...');
-            const result = await saveGameToDB(false);
-            if (result.success) {
-                showNotification('✅ Результат сохранен!');
-                loadUserStats();
-            } else {
-                showNotification('❌ Ошибка сохранения');
             }
         }
 
@@ -1381,13 +1691,14 @@
 
         // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис PRO — Классика (29 уровней) + Питомцы за 500 очков');
+            console.log('🎮 Тетрис PRO — Классика + Питомцы + Способности');
             loadPets();
             loadUserStats();
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
             drawBoard();
             selectDifficulty('classic');
-            showNotification('✨ Питомцы за каждые 500 очков!');
+            setupLongPress();
+            showNotification('✨ Питомцы за 500 очков! Способности в паузе!');
         });
     </script>
 </body>
