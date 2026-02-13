@@ -1456,15 +1456,6 @@ function drawBlock(x, y, color, isCurrent) {
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
     
-    // ===== 5. БЛИК — ЯРКИЙ, НО ПРОЗРАЧНЫЙ =====
-    ctx.beginPath();
-    ctx.moveTo(bx + 2, by + 2);
-    ctx.lineTo(bx + s - 4, by + 2);
-    ctx.lineTo(bx + 2, by + s - 4);
-    ctx.closePath();
-    ctx.fillStyle = lightenColor(color, 60);
-    ctx.globalAlpha = 0.5;
-    ctx.fill();
     
     // ===== 6. ТЕНЬ — ГЛУБОКАЯ, НО ПРОЗРАЧНАЯ =====
     ctx.beginPath();
