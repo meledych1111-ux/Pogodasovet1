@@ -1097,29 +1097,30 @@
         }
 
         function unlockPet(pet) {
-            if (!pet) return false;
-            if (score < pet.score) return false;
+    if (!pet) return false;
+    if (score < pet.score) return false;
 
-            const petId = `${pet.rank.prefix}_${pet.id}`;
-            if (currentSessionPets.includes(petId)) return false;
+    const petId = `${pet.rank.prefix}_${pet.id}`;
+    
+    // УБИРАЕМ ПРОВЕРКУ! Теперь можно получать несколько раз
+    // if (currentSessionPets.includes(petId)) return false; // ← УДАЛЕНО!
 
-            userPets[petId] = (userPets[petId] || 0) + 1;
-            currentSessionPets.push(petId);
+    userPets[petId] = (userPets[petId] || 0) + 1;
+    currentSessionPets.push(petId);
 
-            // +3 еды за получение
-            petFood[petId] = (petFood[petId] || 0) + 3;
-            
-            // АВТОМАТИЧЕСКИ АКТИВИРУЕМ ПИТОМЦА ПРИ ПОЛУЧЕНИИ
-            activePet = pet;
+    // +3 еды за получение
+    petFood[petId] = (petFood[petId] || 0) + 3;
+    
+    // ВАЖНО! АКТИВИРУЕМ ПИТОМЦА ПРИ ПОЛУЧЕНИИ!
+    activePet = pet;
 
-            savePets();
-            showPetUnlockAnimation(pet);
-            showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name}`, pet.color);
-            showFoodAnimation(pet.food, 3, pet.color);
-            updatePetHeaderPanel();
-            return true;
-        }
-
+    savePets();
+    showPetUnlockAnimation(pet);
+    showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name}`, pet.color);
+    showFoodAnimation(pet.food, 3, pet.color);
+    updatePetHeaderPanel();
+    return true;
+}
         function checkPetUnlocks() {
             const pet = getPetByScore(score);
             if (pet) {
