@@ -1,9 +1,10 @@
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тетрис PRO — Питомцы + Способности</title>
+    <title>Тетрис PRO — Классика + Питомцы</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #fff; }
@@ -99,8 +100,8 @@
         
         .footer { padding: 12px 10px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: center; gap: 10px; }
         
-        .notification { position: fixed; top: 20px; right: 20px; background: rgba(20,30,80,0.95); color: white; padding: 20px; border-radius: 16px; z-index: 10000; opacity: 0; transition: opacity 0.3s; border: 2px solid #ffd700; width: 300px; text-align: left; font-size: 0.95rem; line-height: 1.6; box-shadow: 0 0 30px rgba(0,0,0,0.8); pointer-events: none; }
-        .notification.show { opacity: 1; }
+        .notification { position: fixed; top: 20px; right: 20px; background: rgba(20,30,80,0.98); color: white; padding: 20px; border-radius: 16px; z-index: 10000; opacity: 0; transition: opacity 0.3s; border: 3px solid #ffd700; width: 320px; max-height: 90vh; overflow-y: auto; text-align: left; font-size: 0.95rem; line-height: 1.6; box-shadow: 0 0 30px rgba(0,0,0,0.8); pointer-events: none; }
+        .notification.show { opacity: 1; pointer-events: auto; }
         .pet-notification { position: fixed; top: 80px; right: 20px; background: rgba(10,15,30,0.95); border-left: 4px solid; border-radius: 12px; padding: 12px 20px; color: white; font-size: 0.9rem; z-index: 10000; animation: petNotify 2s forwards; pointer-events: none; display: flex; align-items: center; gap: 12px; }
         @keyframes petNotify { 0% { opacity: 0; transform: translateX(50px); } 15% { opacity: 1; transform: translateX(0); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(20px); } }
         
@@ -168,29 +169,45 @@
             <div class="game-area">
                 <canvas id="tetris-canvas" width="240" height="480"></canvas>
             </div>
+            
             <div class="game-controls-panel">
+                <!-- 1️⃣ ПАУЗА/ЗАНОВО/СОХРАНИТЬ -->
                 <div class="game-buttons">
                     <button class="game-btn pause-btn" onclick="pauseGame()"><span>⏸</span> ПАУЗА</button>
                     <button class="game-btn" onclick="restartGame()"><span>🔄</span> ЗАНОВО</button>
                     <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
                 </div>
-                <div class="controls">
-                    <button class="control-btn" onclick="moveLeft()">←</button>
-                    <button class="control-btn" onclick="hardDrop()">↓</button>
-                    <button class="control-btn" onclick="rotatePiece()">↻</button>
-                    <button class="control-btn" onclick="moveRight()">→</button>
-                </div>
-                <div class="keyboard-controls">
-                    <label>
-                        <input type="checkbox" id="keyboard-controls" checked> 🎮 Управление с клавиатуры
-                    </label>
-                </div>
+                
+                <!-- 2️⃣ УРОВЕНЬ И ПРОГРЕСС -->
                 <div class="next-level-progress">
                     <div class="next-level-info">
                         <span>✨ УРОВЕНЬ <span id="game-level">0</span> • <span id="next-level-target">500</span> очков</span>
                         <span id="next-level-effect">⚡</span>
                     </div>
                     <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width:0%;"></div></div>
+                </div>
+                
+                <!-- 3️⃣ УПРАВЛЕНИЕ С ЗАЖАТИЕМ -->
+                <div class="controls">
+                    <button class="control-btn" 
+                            ontouchstart="startMoveLeft()" 
+                            ontouchend="stopMoveLeft()"
+                            ontouchcancel="stopMoveLeft()"
+                            onmousedown="startMoveLeft()"
+                            onmouseup="stopMoveLeft()"
+                            onmouseleave="stopMoveLeft()">←</button>
+                    
+                    <button class="control-btn" onclick="hardDrop()">↓</button>
+                    
+                    <button class="control-btn" onclick="rotatePiece()">↻</button>
+                    
+                    <button class="control-btn" 
+                            ontouchstart="startMoveRight()" 
+                            ontouchend="stopMoveRight()"
+                            ontouchcancel="stopMoveRight()"
+                            onmousedown="startMoveRight()"
+                            onmouseup="stopMoveRight()"
+                            onmouseleave="stopMoveRight()">→</button>
                 </div>
             </div>
         </div>
@@ -397,6 +414,11 @@
         let comboCount = 0, rageMode = false, rageTimer = null;
         let shieldActive = false;
 
+        // ==================== ПЕРЕМЕННЫЕ ДЛЯ ЗАЖАТИЯ ====================
+        let leftPressed = false;
+        let rightPressed = false;
+        let moveInterval = null;
+
         // ==================== ПИТОМЦЫ ====================
         let userPets = {};
         let petFood = {};
@@ -579,7 +601,6 @@
             petFood[petId] -= foodNeeded;
             savePets();
             
-            // Активация способности
             switch(activePet.id) {
                 case 'cat':
                     showNextPiece();
@@ -767,7 +788,6 @@
             
             const maxFood = 100;
             const foodPercent = Math.min(100, (foodCount / maxFood) * 100);
-            const foodBar = '█'.repeat(Math.floor(foodPercent / 10)) + '░'.repeat(10 - Math.floor(foodPercent / 10));
             
             const menuHTML = `
                 <div style="text-align: center; margin-bottom: 16px;">
@@ -950,6 +970,75 @@
                 document.querySelector('.game-area').appendChild(div);
                 setTimeout(() => div.remove(), 500);
             }
+        }
+
+        // ==================== ФУНКЦИИ ДВИЖЕНИЯ ====================
+        function moveLeft() { 
+            if (!gameOver && !gamePaused && !collide(currentPiece, currentX - 1, currentY)) {
+                currentX--; 
+                drawBoard(); 
+            } 
+        }
+        
+        function moveRight() { 
+            if (!gameOver && !gamePaused && !collide(currentPiece, currentX + 1, currentY)) {
+                currentX++; 
+                drawBoard(); 
+            } 
+        }
+
+        function rotatePiece() {
+            if (gameOver || gamePaused) return;
+            const original = currentPiece.shape;
+            const rotated = [];
+            for (let i = 0; i < original[0].length; i++) {
+                rotated[i] = [];
+                for (let j = 0; j < original.length; j++) {
+                    rotated[i][j] = original[original.length - 1 - j][i];
+                }
+            }
+            currentPiece.shape = rotated;
+            if (collide(currentPiece, currentX, currentY)) {
+                currentPiece.shape = original;
+            }
+            drawBoard();
+        }
+
+        // ==================== ФУНКЦИИ ЗАЖАТИЯ ====================
+        function startMoveLeft() {
+            if (gameOver || gamePaused) return;
+            moveLeft();
+            leftPressed = true;
+            if (moveInterval) clearInterval(moveInterval);
+            moveInterval = setInterval(() => {
+                if (leftPressed && !gameOver && !gamePaused) {
+                    moveLeft();
+                }
+            }, 120);
+        }
+
+        function stopMoveLeft() {
+            leftPressed = false;
+            if (moveInterval) clearInterval(moveInterval);
+            moveInterval = null;
+        }
+
+        function startMoveRight() {
+            if (gameOver || gamePaused) return;
+            moveRight();
+            rightPressed = true;
+            if (moveInterval) clearInterval(moveInterval);
+            moveInterval = setInterval(() => {
+                if (rightPressed && !gameOver && !gamePaused) {
+                    moveRight();
+                }
+            }, 120);
+        }
+
+        function stopMoveRight() {
+            rightPressed = false;
+            if (moveInterval) clearInterval(moveInterval);
+            moveInterval = null;
         }
 
         // ==================== ЗАГРУЗКА СТАТИСТИКИ ====================
@@ -1337,37 +1426,6 @@
                 mergePiece();
                 checkLines();
                 spawnPiece();
-            }
-            drawBoard();
-        }
-
-        function moveLeft() { 
-            if (!gameOver && !gamePaused && !collide(currentPiece, currentX - 1, currentY)) {
-                currentX--; 
-                drawBoard(); 
-            } 
-        }
-        
-        function moveRight() { 
-            if (!gameOver && !gamePaused && !collide(currentPiece, currentX + 1, currentY)) {
-                currentX++; 
-                drawBoard(); 
-            } 
-        }
-
-        function rotatePiece() {
-            if (gameOver || gamePaused) return;
-            const original = currentPiece.shape;
-            const rotated = [];
-            for (let i = 0; i < original[0].length; i++) {
-                rotated[i] = [];
-                for (let j = 0; j < original.length; j++) {
-                    rotated[i][j] = original[original.length - 1 - j][i];
-                }
-            }
-            currentPiece.shape = rotated;
-            if (collide(currentPiece, currentX, currentY)) {
-                currentPiece.shape = original;
             }
             drawBoard();
         }
@@ -1822,6 +1880,7 @@
             }, 1000);
         }
 
+        // ==================== КЛАВИАТУРА ====================
         document.addEventListener('keydown', (e) => {
             if (e.key.startsWith('Arrow')) e.preventDefault();
             if (e.key === 'ArrowLeft') moveLeft();
@@ -1833,8 +1892,9 @@
             if (e.key === 'Escape') showMenu();
         });
 
+        // ==================== ИНИЦИАЛИЗАЦИЯ ====================
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис PRO — Питомцы + Способности');
+            console.log('🎮 Тетрис PRO — Питомцы + Зажимание');
             loadPets();
             loadUserStats();
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
@@ -1846,3 +1906,4 @@
     </script>
 </body>
 </html>
+```
