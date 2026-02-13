@@ -1490,90 +1490,73 @@
         };
 
         function drawBlock(x, y, color, isCurrent) {
-            const s = BLOCK_SIZE;
-            const bx = x * s;
-            const by = y * s;
-            
-            // БАРХАТНЫЕ ЦВЕТА (мягкие, матовые)
-            const velvetColors = {
-                '#D68B8B': '#D68B8B', // Приглушенный розовый
-                '#8FB5B0': '#8FB5B0', // Мятно-серый
-                '#8DA9B3': '#8DA9B3', // Голубовато-серый
-                '#9BB5A0': '#9BB5A0', // Мятно-оливковый
-                '#D9CEA3': '#D9CEA3', // Бежевый
-                '#C4A5C4': '#C4A5C4', // Сиреневый
-                '#9CB9B2': '#9CB9B2', // Морской
-                '#C9BC8F': '#C9BC8F'  // Золотисто-бежевый
-            };
-            
-            // Берем бархатный вариант цвета
-            const velvetColor = velvetColors[color] || color;
-            
-            // ===== 1. МЯГКАЯ ТЕНЬ =====
-            ctx.shadowColor = 'rgba(0,0,0,0.25)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
-            
-            // ===== 2. ОСНОВА - МАТОВЫЙ БАРХАТ (без градиента) =====
-            ctx.fillStyle = velvetColor;
-            
-            // ===== 3. СИЛЬНОЕ СКРУГЛЕНИЕ ДЛЯ МЯГКОСТИ =====
-            ctx.beginPath();
-            ctx.roundRect(bx + 1, by + 1, s - 2, s - 2, 10);
-            ctx.fill();
-            
-            // Убираем тень для деталей
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-            
-            // ===== 4. ОЧЕНЬ МЯГКИЙ БЛИК (едва заметный) =====
-            ctx.beginPath();
-            ctx.moveTo(bx + 3, by + 3);
-            ctx.lineTo(bx + s - 6, by + 3);
-            ctx.lineTo(bx + 3, by + s - 6);
-            ctx.closePath();
-            ctx.fillStyle = lightenColor(velvetColor, 15);
-            ctx.globalAlpha = 0.15;
-            ctx.fill();
-            
-            // ===== 5. МЯГКАЯ ТЕНЬ СНИЗУ =====
-            ctx.beginPath();
-            ctx.moveTo(bx + s - 3, by + s - 3);
-            ctx.lineTo(bx + 4, by + s - 3);
-            ctx.lineTo(bx + s - 3, by + 4);
-            ctx.closePath();
-            ctx.fillStyle = darkenColor(velvetColor, 20);
-            ctx.globalAlpha = 0.2;
-            ctx.fill();
-            
-            // ===== 6. БАРХАТИСТАЯ ТЕКСТУРА - МЯГКИЙ ВОРС (очень слабо) =====
-            ctx.globalAlpha = 0.08;
-            ctx.fillStyle = '#fff';
-            
-            // Только несколько мягких точек для намека на текстуру
-            for (let i = 0; i < 2; i++) {
-                for (let j = 0; j < 2; j++) {
-                    ctx.fillRect(bx + 5 + i * 8, by + 5 + j * 8, 2, 1);
-                }
-            }
-            
-            ctx.globalAlpha = 1;
-            
-            // ===== 7. ПОДСВЕТКА ТЕКУЩЕЙ ФИГУРЫ (очень мягкая) =====
-            if (isCurrent) {
-                ctx.shadowBlur = 12;
-                ctx.shadowColor = lightenColor(velvetColor, 20);
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1.5;
-                ctx.globalAlpha = 0.4;
-                ctx.strokeRect(bx + 2, by + 2, s - 5, s - 5);
-                ctx.shadowBlur = 0;
-                ctx.globalAlpha = 1;
-            }
+    const s = BLOCK_SIZE;
+    const bx = x * s;
+    const by = y * s;
+    
+    // БАРХАТНЫЕ ЦВЕТА
+    const velvetColors = {
+        '#FF6B6B': '#D68B8B',
+        '#4ECDC4': '#8FB5B0',
+        '#45B7D1': '#8DA9B3',
+        '#96CEB4': '#9BB5A0',
+        '#FFEAA7': '#D9CEA3',
+        '#DDA0DD': '#C4A5C4',
+        '#98D8C8': '#9CB9B2',
+        '#F7DC6F': '#C9BC8F'
+    };
+    
+    const mainColor = velvetColors[color] || color;
+    const lightColor = lightenColor(mainColor, 25);
+    const darkColor = darkenColor(mainColor, 25);
+    
+    // ТЕНЬ
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    
+    // ГРАДИЕНТ
+    const gradient = ctx.createLinearGradient(bx, by, bx + s, by + s);
+    gradient.addColorStop(0, lightColor);
+    gradient.addColorStop(0.5, mainColor);
+    gradient.addColorStop(1, darkColor);
+    
+    ctx.fillStyle = gradient;
+    
+    // МИНИМАЛЬНОЕ СКРУГЛЕНИЕ - ВСЕГО 2px!
+    ctx.beginPath();
+    ctx.roundRect(bx, by, s - 1, s - 1, 2);
+    ctx.fill();
+    
+    // Убираем тень
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // ТЕКСТУРА (очень легкая)
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 2; i++) {
+        for (let j = 0; j < 2; j++) {
+            ctx.fillRect(bx + 6 + i * 8, by + 6 + j * 8, 1, 1);
         }
-
+    }
+    
+    ctx.globalAlpha = 1;
+    
+    // ПОДСВЕТКА ТЕКУЩЕЙ ФИГУРЫ
+    if (isCurrent) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = lightColor;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.4;
+        ctx.strokeRect(bx + 1, by + 1, s - 3, s - 3);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+    }
+}
         // ==================== ОПТИМИЗИРОВАННЫЙ ИГРОВОЙ ЦИКЛ ====================
         function getBoardHash() {
             return JSON.stringify(board) +
