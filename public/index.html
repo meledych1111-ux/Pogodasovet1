@@ -1643,28 +1643,36 @@
         }
 
         function spawnPiece() {
-            if (pieceQueue.length === 0) {
-                for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
-            }
-            const shapeId = pieceQueue.shift();
-            pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
-            currentPiece = { shape: SHAPES[shapeId], color: COLORS[shapeId] };
-            currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
-            currentY = 0;
+    if (pieceQueue.length === 0) {
+        for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+    }
+    const shapeId = pieceQueue.shift();
+    pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+    currentPiece = { shape: SHAPES[shapeId], color: COLORS[shapeId] };
+    currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
+    currentY = 0;
 
-            if (collide(currentPiece, currentX, currentY)) {
-                if (shieldActive) {
-                    shieldActive = false;
-                    showNotification('🛡️ ЩИТ СПАС ИГРУ!');
-                    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-                } else {
-                    gameOver = true;
-                    saveGameToDB(true);
-                    showNotification('🎯 ИГРА ОКОНЧЕНА! Счет: ' + score);
-                    setTimeout(() => showMenu(), 1500);
-                }
-            }
+    // ===== ДОБАВЛЯЕМ ОБНОВЛЕНИЕ ДЛЯ КОТЁНКА =====
+    // Проверяем, активен ли сейчас котёнок (показывает ли он следующую фигуру)
+    const nextPieceContainer = document.getElementById('next-piece-left');
+    if (nextPieceContainer && nextPieceContainer.style.display === 'flex') {
+        // Если контейнер виден, значит котёнок активен - обновляем фигуру
+        updateCatNextPiece();
+    }
+
+    if (collide(currentPiece, currentX, currentY)) {
+        if (shieldActive) {
+            shieldActive = false;
+            showNotification('🛡️ ЩИТ СПАС ИГРУ!');
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+        } else {
+            gameOver = true;
+            saveGameToDB(true);
+            showNotification('🎯 ИГРА ОКОНЧЕНА! Счет: ' + score);
+            setTimeout(() => showMenu(), 1500);
         }
+    }
+}
 
         function collide(piece, x, y) {
             for (let r = 0; r < piece.shape.length; r++) {
@@ -1883,6 +1891,8 @@
         }
 
         // ==================== КОТЁНОК: ПОКАЗ СЛЕДУЮЩЕЙ ФИГУРЫ (МАЛЕНЬКОЙ, СЛЕВА) ====================// 
+// ==================== КОТЁНОК: ПОКАЗ СЛЕДУЮЩЕЙ ФИГУРЫ ====================
+function abilityCat() {
     if (pieceQueue.length === 0) return;
 
     const container = document.getElementById('next-piece-left');
@@ -1891,7 +1901,7 @@
 
     if (!container || !shapeContainer || !timerEl) return;
 
-    // ===== ПОЛНОСТЬЮ УНИЧТОЖАЕМ ВСЕ СТАРЫЕ ТАЙМЕРЫ =====
+    // Очищаем старые таймеры
     if (window.catTimer) {
         clearInterval(window.catTimer);
         window.catTimer = null;
@@ -1901,67 +1911,137 @@
         window.catUpdateTimer = null;
     }
 
-    // Показываем контейнер
-    container.style.display = 'flex';
+    // СООТВЕТСТВИЕ ЦВЕТОВ ФИГУРАМ
+    const FIGURE_COLORS = [
+        '#FF6B6B', // 0 - I (палка) - красный
+        '#4ECDC4', // 1 - O (квадрат) - бирюзовый
+        '#45B7D1', // 2 - T (буква Т) - голубой
+        '#96CEB4', // 3 - S (змейка) - мятный
+        '#FFEAA7', // 4 - Z (змейка) - желтый
+        '#DDA0DD', // 5 - L (буква Г) - сиреневый
+        '#F7DC6F'  // 6 - J (зеркальная Г) - золотой
+    ];
 
-    // Функция отображения текущей следующей фигуры
+    // Функция отображения ТЕКУЩЕЙ следующей фигуры
     function showCurrentNextPiece() {
         if (pieceQueue.length === 0) return;
         
-        const currentId = pieceQueue[0];
-        const shape = SHAPES[currentId];
-        const color = COLORS[currentId];
+        const nextId = pieceQueue[0]; // Берем ПЕРВУЮ в очереди (ту, что будет следующей)
+        const shape = SHAPES[nextId];
+        const color = FIGURE_COLORS[nextId];
         
         shapeContainer.innerHTML = '';
 
+        // Настройки контейнера
+        shapeContainer.style.display = 'flex';
+        shapeContainer.style.flexWrap = 'wrap';
+        shapeContainer.style.justifyContent = 'center';
+        shapeContainer.style.alignItems = 'center';
+        shapeContainer.style.width = '80px';
+        shapeContainer.style.height = '80px';
+        shapeContainer.style.gap = '2px';
+
+        // Рисуем фигуру
         for (let r = 0; r < shape.length; r++) {
             for (let c = 0; c < shape[r].length; c++) {
                 if (shape[r][c]) {
                     const block = document.createElement('div');
-                    block.style.width = '16px';
-                    block.style.height = '16px';
+                    block.style.width = '18px';
+                    block.style.height = '18px';
                     block.style.background = color;
                     block.style.borderRadius = '0px';
                     block.style.margin = '1px';
-                    block.style.boxShadow = '-2px -2px 4px rgba(255,255,255,0.1), 2px 2px 4px rgba(0,0,0,0.5)';
-                    block.style.border = '1px solid rgba(255,255,255,0.1)';
+                    block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.3), inset 2px 2px 5px rgba(255,255,255,0.3)';
+                    block.style.border = '1px solid rgba(255,255,255,0.2)';
                     shapeContainer.appendChild(block);
                 }
             }
         }
     }
 
-    // Показываем первую фигуру
+    // ПОКАЗЫВАЕМ контейнер и первую фигуру
+    container.style.display = 'flex';
     showCurrentNextPiece();
 
+    // ТАЙМЕР на 10 секунд
     let seconds = 10;
     timerEl.textContent = `${seconds}с`;
 
-    // Таймер обратного отсчета
     window.catTimer = setInterval(() => {
         seconds--;
         timerEl.textContent = `${seconds}с`;
         
         if (seconds <= 0) {
-            // ВРЕМЯ ВЫШЛО - убиваем ВСЕ таймеры и прячем
             clearInterval(window.catTimer);
             clearInterval(window.catUpdateTimer);
             window.catTimer = null;
             window.catUpdateTimer = null;
             container.style.display = 'none';
-            timerEl.textContent = '10с'; // Сброс для следующего раза
+            timerEl.textContent = '10с';
         }
     }, 1000);
 
-    // Обновляем фигуру каждую секунду (пока контейнер виден)
+    // Обновляем фигуру КАЖДУЮ СЕКУНДУ (следим за очередью)
     window.catUpdateTimer = setInterval(() => {
         if (container.style.display === 'flex' && pieceQueue.length > 0) {
             showCurrentNextPiece();
         }
     }, 1000);
 
-    showNotification('🐱 МЯУ-БУСТ: следующая фигура слева!');
+    showNotification('🐱 СЛЕДУЮЩАЯ ФИГУРА!');
 }
+       // Функция для обновления следующей фигуры у котёнка
+function updateCatNextPiece() {
+    const container = document.getElementById('next-piece-left');
+    const shapeContainer = document.getElementById('next-piece-left-shape');
+    
+    if (!container || container.style.display !== 'flex') return;
+    if (pieceQueue.length === 0) return;
+    
+    const nextId = pieceQueue[0];
+    const shape = SHAPES[nextId];
+    
+    // Цвета для фигур (должны совпадать с теми, что в abilityCat)
+    const FIGURE_COLORS = [
+        '#FF6B6B', // I - красный
+        '#4ECDC4', // O - бирюзовый
+        '#45B7D1', // T - голубой
+        '#96CEB4', // S - мятный
+        '#FFEAA7', // Z - желтый
+        '#DDA0DD', // L - сиреневый
+        '#F7DC6F'  // J - золотой
+    ];
+    
+    const color = FIGURE_COLORS[nextId];
+    
+    shapeContainer.innerHTML = '';
+
+    // Настройки контейнера
+    shapeContainer.style.display = 'flex';
+    shapeContainer.style.flexWrap = 'wrap';
+    shapeContainer.style.justifyContent = 'center';
+    shapeContainer.style.alignItems = 'center';
+    shapeContainer.style.width = '80px';
+    shapeContainer.style.height = '80px';
+    shapeContainer.style.gap = '2px';
+
+    // Рисуем фигуру
+    for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+            if (shape[r][c]) {
+                const block = document.createElement('div');
+                block.style.width = '18px';
+                block.style.height = '18px';
+                block.style.background = color;
+                block.style.borderRadius = '0px';
+                block.style.margin = '1px';
+                block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.3), inset 2px 2px 5px rgba(255,255,255,0.3)';
+                block.style.border = '1px solid rgba(255,255,255,0.2)';
+                shapeContainer.appendChild(block);
+            }
+        }
+    }
+} 
         // ==================== ИСПРАВЛЕННАЯ АКТИВАЦИЯ СПОСОБНОСТЕЙ ====================
         function usePetAbility() {
             if (!activePet) {
