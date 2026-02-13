@@ -1304,7 +1304,241 @@
             n.style.pointerEvents = 'auto';
             n.classList.add('show');
         }
+// ==================== ИСПРАВЛЕНИЕ: АКТИВАЦИЯ БУСТЕРОВ ====================
+function usePetAbility() {
+    if (!activePet) {
+        showNotification('❌ Нет активного питомца!');
+        return;
+    }
 
+    const petId = `${activePet.rank.prefix}_${activePet.id}`;
+    const foodCount = petFood[petId] || 0;
+    const ability = PET_ABILITIES[activePet.id];
+
+    if (!ability) {
+        showNotification('❌ У питомца нет способности');
+        return;
+    }
+
+    // Проверяем достаточно ли еды
+    if (foodCount < ability.foodCost) {
+        showNotification(`❌ Нужно ${ability.foodCost} еды! Есть: ${foodCount}`);
+        return;
+    }
+
+    // Списываем еду
+    petFood[petId] = foodCount - ability.foodCost;
+    savePets();
+    updatePetHeaderPanel();
+
+    // Активируем способность в зависимости от ID питомца
+    switch (activePet.id) {
+        case 'cat':
+            abilityCat();
+            break;
+        case 'dog':
+            abilityDog();
+            break;
+        case 'rabbit':
+            abilityRabbit();
+            break;
+        case 'fox':
+            abilityFox();
+            break;
+        case 'panda':
+            abilityPanda();
+            break;
+        case 'penguin':
+            abilityPenguin();
+            break;
+        case 'koala':
+            abilityKoala(petId);
+            break;
+        case 'owl':
+            abilityOwl();
+            break;
+        case 'tiger':
+            abilityTiger();
+            break;
+        case 'lion':
+            abilityLion();
+            break;
+        case 'giraffe':
+            abilityGiraffe();
+            break;
+        case 'zebra':
+            abilityZebra();
+            break;
+        case 'elephant':
+            abilityElephant();
+            break;
+        case 'rhino':
+            abilityRhino();
+            break;
+        case 'hippo':
+            abilityHippo();
+            break;
+        case 'monkey':
+            abilityMonkey();
+            break;
+        case 'sloth':
+            abilitySloth();
+            break;
+        case 'hedgehog':
+            abilityHedgehog();
+            break;
+        case 'squirrel':
+            abilitySquirrel(petId);
+            break;
+        case 'deer':
+            abilityDeer();
+            break;
+        case 'beaver':
+            abilityBeaver();
+            break;
+        case 'otter':
+            abilityOtter();
+            break;
+        case 'seal':
+            abilitySeal();
+            break;
+        case 'whale':
+            abilityWhale();
+            break;
+        case 'dolphin':
+            abilityDolphin();
+            break;
+        default:
+            showNotification(`✨ Активирована способность: ${ability.name}`);
+    }
+
+    // Показываем уведомление об активации
+    showNotification(`✨ ${ability.name} активирован! Осталось еды: ${petFood[petId] || 0}`);
+    showFoodAnimation('✨', 1, activePet.color);
+    
+    // Убираем меню паузы если оно открыто
+    removePauseMenu();
+}
+
+// ==================== ИСПРАВЛЕНИЕ: БАРХАТНЫЕ КУБИКИ (НОВЫЕ ЦВЕТА) ====================
+function drawBlock(x, y, color, isCurrent) {
+    const s = BLOCK_SIZE;
+    const bx = x * s;
+    const by = y * s;
+    
+    // ===== БАРХАТНЫЕ ЦВЕТА (МЯГКИЕ, ПРИГЛУШЕННЫЕ) =====
+    const velvetColors = {
+        '#FF6B6B': '#E6838C', // Мягкий красный
+        '#4ECDC4': '#7ACCC6', // Бирюзовый бархат
+        '#45B7D1': '#7BB8CC', // Небесный бархат
+        '#96CEB4': '#A8D0BA', // Мятный бархат
+        '#FFEAA7': '#F0E2B0', // Кремовый бархат
+        '#DDA0DD': '#D8B2D8', // Сиреневый бархат
+        '#98D8C8': '#A8D8CE', // Морской бархат
+        '#F7DC6F': '#E8D48A'  // Золотистый бархат
+    };
+    
+    // Берем бархатный вариант цвета или делаем оригинальный светлее
+    const velvetColor = velvetColors[color] || lightenColor(color, 20);
+    
+    // ===== 1. ТЕНЬ =====
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 3;
+    
+    // ===== 2. ОСНОВА - МАТОВЫЙ БАРХАТ =====
+    // Создаем более мягкий градиент без резких переходов
+    const gradient = ctx.createLinearGradient(bx, by, bx + s, by + s);
+    gradient.addColorStop(0, lightenColor(velvetColor, 15));  // Светлая часть
+    gradient.addColorStop(0.4, velvetColor);                  // Основной цвет
+    gradient.addColorStop(0.7, darkenColor(velvetColor, 10)); // Немного темнее
+    gradient.addColorStop(1, darkenColor(velvetColor, 25));   // Темная часть
+    
+    ctx.fillStyle = gradient;
+    
+    // ===== 3. СИЛЬНОЕ СКРУГЛЕНИЕ ДЛЯ МЯГКОСТИ =====
+    ctx.beginPath();
+    ctx.roundRect(bx + 2, by + 2, s - 4, s - 4, 8);
+    ctx.fill();
+    
+    // ===== 4. УБИРАЕМ ТЕНЬ ДЛЯ ДЕТАЛЕЙ =====
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // ===== 5. МЯГКИЙ БЛИК (менее контрастный) =====
+    ctx.beginPath();
+    ctx.moveTo(bx + 4, by + 4);
+    ctx.lineTo(bx + s - 6, by + 4);
+    ctx.lineTo(bx + 4, by + s - 6);
+    ctx.closePath();
+    ctx.fillStyle = lightenColor(velvetColor, 40);
+    ctx.globalAlpha = 0.25; // Очень прозрачный
+    ctx.fill();
+    
+    // ===== 6. МЯГКАЯ ТЕНЬ (менее контрастная) =====
+    ctx.beginPath();
+    ctx.moveTo(bx + s - 4, by + s - 4);
+    ctx.lineTo(bx + 6, by + s - 4);
+    ctx.lineTo(bx + s - 4, by + 6);
+    ctx.closePath();
+    ctx.fillStyle = darkenColor(velvetColor, 40);
+    ctx.globalAlpha = 0.2;
+    ctx.fill();
+    
+    // ===== 7. БАРХАТИСТАЯ ТЕКСТУРА - МЯГКИЕ ТОЧКИ =====
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#fff';
+    
+    // Создаем более мягкую текстуру - точки расположены реже
+    for (let i = 0; i < 6; i += 2) {
+        for (let j = 0; j < 6; j += 2) {
+            if ((i + j) % 4 === 0) {
+                ctx.fillRect(bx + 6 + i * 2, by + 6 + j * 2, 1, 1);
+            }
+        }
+    }
+    
+    // Темные точки для объема
+    ctx.fillStyle = '#000';
+    ctx.globalAlpha = 0.1;
+    for (let i = 1; i < 6; i += 2) {
+        for (let j = 1; j < 6; j += 2) {
+            ctx.fillRect(bx + 6 + i * 2, by + 6 + j * 2, 1, 1);
+        }
+    }
+    
+    ctx.globalAlpha = 1;
+    
+    // ===== 8. ПОДСВЕТКА ТЕКУЩЕЙ ФИГУРЫ (более мягкая) =====
+    if (isCurrent) {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = lightenColor(velvetColor, 30);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.8;
+        ctx.strokeRect(bx + 3, by + 3, s - 7, s - 7);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ==================== ИСПРАВЛЕНИЕ: МЕТОД ROUNDRECT ====================
+CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (w < 2 * r) r = w / 2;
+    if (h < 2 * r) r = h / 2;
+    this.moveTo(x + r, y);
+    this.lineTo(x + w - r, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + r);
+    this.lineTo(x + w, y + h - r);
+    this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    this.lineTo(x + r, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - r);
+    this.lineTo(x, y + r);
+    this.quadraticCurveTo(x, y, x + r, y);
+    return this;
+};
         function selectPet(petId) {
             const [prefix, id] = petId.split('_');
             const basePet = BASE_PETS.find(p => p.id === id);
