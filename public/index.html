@@ -168,33 +168,37 @@
             <div class="game-area">
                 <canvas id="tetris-canvas" width="240" height="480"></canvas>
             </div>
-            <div class="game-controls-panel">
-                <div class="game-buttons">
-                    <button class="game-btn pause-btn" onclick="pauseGame()"><span>⏸</span> ПАУЗА</button>
-                    <button class="game-btn" onclick="restartGame()"><span>🔄</span> ЗАНОВО</button>
-                    <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
-                </div>
-                <div class="controls">
-                    <button class="control-btn" onclick="moveLeft()">←</button>
-                    <button class="control-btn" onclick="hardDrop()">↓</button>
-                    <button class="control-btn" onclick="rotatePiece()">↻</button>
-                    <button class="control-btn" onclick="moveRight()">→</button>
-                </div>
-                <div class="keyboard-controls">
-                    <label>
-                        <input type="checkbox" id="keyboard-controls" checked> 🎮 Управление с клавиатуры
-                    </label>
-                </div>
-                <div class="next-level-progress">
-                    <div class="next-level-info">
-                        <span>✨ УРОВЕНЬ <span id="game-level">0</span> • <span id="next-level-target">500</span> очков</span>
-                        <span id="next-level-effect">⚡</span>
-                    </div>
-                    <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width:0%;"></div></div>
-                </div>
-            </div>
+           <div class="game-controls-panel">
+    <!-- 1️⃣ СНАЧАЛА ПАУЗА/ЗАНОВО/СОХРАНИТЬ -->
+    <div class="game-buttons">
+        <button class="game-btn pause-btn" onclick="pauseGame()"><span>⏸</span> ПАУЗА</button>
+        <button class="game-btn" onclick="restartGame()"><span>🔄</span> ЗАНОВО</button>
+        <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
+    </div>
+    
+    <!-- 2️⃣ ПОТОМ УРОВЕНЬ И ПРОГРЕСС -->
+    <div class="next-level-progress">
+        <div class="next-level-info">
+            <span>✨ УРОВЕНЬ <span id="game-level">0</span> • <span id="next-level-target">500</span> очков</span>
+            <span id="next-level-effect">⚡</span>
         </div>
-        
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width:0%;"></div></div>
+    </div>
+    
+    <!-- 3️⃣ УПРАВЛЕНИЕ - В САМОМ НИЗУ! -->
+    <div class="controls">
+        <button class="control-btn" onclick="moveLeft()">←</button>
+        <button class="control-btn" onclick="hardDrop()">↓</button>
+        <button class="control-btn" onclick="rotatePiece()">↻</button>
+        <button class="control-btn" onclick="moveRight()">→</button>
+    </div>
+    
+    <div class="keyboard-controls">
+        <label>
+            <input type="checkbox" id="keyboard-controls" checked> 🎮 Управление с клавиатуры
+        </label>
+    </div>
+</div>
         <div class="screen" id="stats-screen">
             <div class="header">
                 <h1 class="game-title">СТАТИСТИКА</h1>
