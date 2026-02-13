@@ -1424,79 +1424,82 @@
             setTimeout(() => hint.remove(), 3000);
         }
 
-        // ==================== 3D БАРХАТНЫЕ КУБИКИ ДЛЯ ПАДАЮЩИХ ФИГУРОК ====================
-        function drawBlock(x, y, color, isCurrent) {
-            const s = BLOCK_SIZE - 1;
-            const bx = x * BLOCK_SIZE;
-            const by = y * BLOCK_SIZE;
-            
-            // ОСНОВНОЙ 3D ГРАДИЕНТ — ВЫПУКЛЫЙ БАРХАТ
-            const gradient = ctx.createLinearGradient(bx, by, bx + s, by + s);
-            gradient.addColorStop(0, lightenColor(color, 40));  // Светлый верх
-            gradient.addColorStop(0.5, color);                  // Основной цвет
-            gradient.addColorStop(1, darkenColor(color, 40));   // Тёмный низ
-            
-            ctx.fillStyle = gradient;
-            
-            // ОБЪЁМНАЯ ТЕНЬ
-            ctx.shadowColor = 'rgba(0,0,0,0.9)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetX = 3;
-            ctx.shadowOffsetY = 3;
-            
-            // СКРУГЛЁННЫЕ УГЛЫ — БАРХАТИСТОСТЬ
-            ctx.beginPath();
-            ctx.roundRect(bx + 1, by + 1, s - 2, s - 2, 10);
-            ctx.fill();
-            
-            // БЛИК СВЕРХУ-СЛЕВА — ВЫПУКЛОСТЬ
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-            ctx.beginPath();
-            ctx.moveTo(bx + 2, by + 2);
-            ctx.lineTo(bx + s - 3, by + 2);
-            ctx.lineTo(bx + 2, by + s - 3);
-            ctx.closePath();
-            ctx.fillStyle = lightenColor(color, 50);
-            ctx.globalAlpha = 0.4;
-            ctx.fill();
-            
-            // ТЕНЬ СНИЗУ-СПРАВА — ГЛУБИНА
-            ctx.beginPath();
-            ctx.moveTo(bx + s - 2, by + s - 2);
-            ctx.lineTo(bx + 3, by + s - 2);
-            ctx.lineTo(bx + s - 2, by + 3);
-            ctx.closePath();
-            ctx.fillStyle = darkenColor(color, 50);
-            ctx.globalAlpha = 0.4;
-            ctx.fill();
-            
-            // БАРХАТИСТАЯ ТЕКСТУРА — МЯГКИЙ ШУМ
-            ctx.globalAlpha = 0.15;
-            ctx.fillStyle = '#fff';
-            for (let i = 0; i < 5; i++) {
-                ctx.fillRect(bx + 5 + i * 4, by + 5, 1, 1);
-                ctx.fillRect(bx + 5, by + 5 + i * 4, 1, 1);
-            }
-            ctx.fillStyle = '#000';
-            for (let i = 0; i < 5; i++) {
-                ctx.fillRect(bx + 7 + i * 4, by + 7, 1, 1);
-                ctx.fillRect(bx + 7, by + 7 + i * 4, 1, 1);
-            }
-            
-            ctx.globalAlpha = 1;
-            
-            // ПОДСВЕТКА ТЕКУЩЕЙ ФИГУРЫ
-            if (isCurrent) {
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = lightenColor(color, 40);
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(bx + 2, by + 2, s - 5, s - 5);
-                ctx.shadowBlur = 0;
-            }
-        }
+// ==================== 3D БАРХАТНЫЕ КУБИКИ — РЕАЛЬНЫЙ ОБЪЁМ ====================
+function drawBlock(x, y, color, isCurrent) {
+    const s = BLOCK_SIZE;
+    const bx = x * s;
+    const by = y * s;
+    
+    // ===== 1. ТЕНЬ (ОТДЕЛЬНО, ЧТОБЫ НЕ ПЕРЕКРЫВАТЬ) =====
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    
+    // ===== 2. ОСНОВНОЙ ГРАДИЕНТ — ВЫПУКЛЫЙ 3D =====
+    const gradient = ctx.createLinearGradient(bx, by, bx + s, by + s);
+    gradient.addColorStop(0, lightenColor(color, 30));   // Светлый угол
+    gradient.addColorStop(0.4, color);                   // Основной цвет
+    gradient.addColorStop(0.6, color);                   // Основной цвет
+    gradient.addColorStop(1, darkenColor(color, 30));    // Тёмный угол
+    
+    ctx.fillStyle = gradient;
+    
+    // ===== 3. СКРУГЛЕНИЕ — УМЕРЕННОЕ =====
+    ctx.beginPath();
+    ctx.roundRect(bx + 1, by + 1, s - 2, s - 2, 6);
+    ctx.fill();
+    
+    // ===== 4. УБИРАЕМ ТЕНЬ ДЛЯ ДЕТАЛЕЙ =====
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // ===== 5. БЛИК — ЯРКИЙ, НО ПРОЗРАЧНЫЙ =====
+    ctx.beginPath();
+    ctx.moveTo(bx + 2, by + 2);
+    ctx.lineTo(bx + s - 4, by + 2);
+    ctx.lineTo(bx + 2, by + s - 4);
+    ctx.closePath();
+    ctx.fillStyle = lightenColor(color, 60);
+    ctx.globalAlpha = 0.5;
+    ctx.fill();
+    
+    // ===== 6. ТЕНЬ — ГЛУБОКАЯ, НО ПРОЗРАЧНАЯ =====
+    ctx.beginPath();
+    ctx.moveTo(bx + s - 2, by + s - 2);
+    ctx.lineTo(bx + 4, by + s - 2);
+    ctx.lineTo(bx + s - 2, by + 4);
+    ctx.closePath();
+    ctx.fillStyle = darkenColor(color, 60);
+    ctx.globalAlpha = 0.5;
+    ctx.fill();
+    
+    // ===== 7. БАРХАТИСТАЯ ТЕКСТУРА =====
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 4; i++) {
+        ctx.fillRect(bx + 5 + i * 4, by + 5, 1, 1);
+        ctx.fillRect(bx + 5, by + 5 + i * 4, 1, 1);
+    }
+    ctx.fillStyle = '#000';
+    for (let i = 0; i < 4; i++) {
+        ctx.fillRect(bx + 7 + i * 4, by + 7, 1, 1);
+        ctx.fillRect(bx + 7, by + 7 + i * 4, 1, 1);
+    }
+    
+    ctx.globalAlpha = 1;
+    
+    // ===== 8. ПОДСВЕТКА ТЕКУЩЕЙ ФИГУРЫ =====
+    if (isCurrent) {
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = lightenColor(color, 40);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx + 2, by + 2, s - 5, s - 5);
+        ctx.shadowBlur = 0;
+    }
+}
 
         // Метод roundRect для скругления углов
         CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
