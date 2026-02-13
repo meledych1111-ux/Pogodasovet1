@@ -1882,39 +1882,46 @@
             }
         }
 
-        // ==================== КОТЁНОК: ПОКАЗ СЛЕДУЮЩЕЙ ФИГУРЫ (МАЛЕНЬКОЙ, СЛЕВА) ====================
-        // ==================== КОТЁНОК: ПОКАЗ СЛЕДУЮЩЕЙ ФИГУРЫ (С ОБНОВЛЕНИЕМ) ====================
-function abilityCat() {
+        // ==================== КОТЁНОК: ПОКАЗ СЛЕДУЮЩЕЙ ФИГУРЫ (МАЛЕНЬКОЙ, СЛЕВА) ====================// 
     if (pieceQueue.length === 0) return;
 
-    // Показываем СЛЕДУЮЩУЮ фигуру (первую в очереди)
-    const nextShapeId = pieceQueue[0];
-    const shape = SHAPES[nextShapeId];
     const container = document.getElementById('next-piece-left');
     const shapeContainer = document.getElementById('next-piece-left-shape');
     const timerEl = document.getElementById('next-piece-left-timer');
 
     if (!container || !shapeContainer || !timerEl) return;
 
-    // Функция для обновления отображения следующей фигуры
-    function updateNextPiece() {
+    // ===== ПОЛНОСТЬЮ УНИЧТОЖАЕМ ВСЕ СТАРЫЕ ТАЙМЕРЫ =====
+    if (window.catTimer) {
+        clearInterval(window.catTimer);
+        window.catTimer = null;
+    }
+    if (window.catUpdateTimer) {
+        clearInterval(window.catUpdateTimer);
+        window.catUpdateTimer = null;
+    }
+
+    // Показываем контейнер
+    container.style.display = 'flex';
+
+    // Функция отображения текущей следующей фигуры
+    function showCurrentNextPiece() {
         if (pieceQueue.length === 0) return;
         
-        const currentNextId = pieceQueue[0];
-        const currentShape = SHAPES[currentNextId];
-        const currentColor = COLORS[currentNextId];
+        const currentId = pieceQueue[0];
+        const shape = SHAPES[currentId];
+        const color = COLORS[currentId];
         
         shapeContainer.innerHTML = '';
 
-        // Рисуем маленькие бархатные кубики для следующей фигуры
-        for (let r = 0; r < currentShape.length; r++) {
-            for (let c = 0; c < currentShape[r].length; c++) {
-                if (currentShape[r][c]) {
+        for (let r = 0; r < shape.length; r++) {
+            for (let c = 0; c < shape[r].length; c++) {
+                if (shape[r][c]) {
                     const block = document.createElement('div');
                     block.style.width = '16px';
                     block.style.height = '16px';
-                    block.style.background = currentColor;
-                    block.style.borderRadius = '4px';
+                    block.style.background = color;
+                    block.style.borderRadius = '0px';
                     block.style.margin = '1px';
                     block.style.boxShadow = '-2px -2px 4px rgba(255,255,255,0.1), 2px 2px 4px rgba(0,0,0,0.5)';
                     block.style.border = '1px solid rgba(255,255,255,0.1)';
@@ -1924,39 +1931,36 @@ function abilityCat() {
         }
     }
 
-    // Первоначальное отображение
-    updateNextPiece();
-    container.style.display = 'flex';
+    // Показываем первую фигуру
+    showCurrentNextPiece();
 
     let seconds = 10;
     timerEl.textContent = `${seconds}с`;
-
-    // Очищаем предыдущий таймер если был
-    if (window.catTimer) {
-        clearInterval(window.catTimer);
-        clearInterval(window.catUpdateTimer);
-    }
 
     // Таймер обратного отсчета
     window.catTimer = setInterval(() => {
         seconds--;
         timerEl.textContent = `${seconds}с`;
+        
         if (seconds <= 0) {
+            // ВРЕМЯ ВЫШЛО - убиваем ВСЕ таймеры и прячем
             clearInterval(window.catTimer);
             clearInterval(window.catUpdateTimer);
+            window.catTimer = null;
+            window.catUpdateTimer = null;
             container.style.display = 'none';
+            timerEl.textContent = '10с'; // Сброс для следующего раза
         }
     }, 1000);
 
-    // Обновляем фигуру каждые 0.5 секунды (на случай если очередь изменится)
+    // Обновляем фигуру каждую секунду (пока контейнер виден)
     window.catUpdateTimer = setInterval(() => {
-        if (pieceQueue.length > 0) {
-            updateNextPiece();
+        if (container.style.display === 'flex' && pieceQueue.length > 0) {
+            showCurrentNextPiece();
         }
-    }, 500);
+    }, 1000);
 
     showNotification('🐱 МЯУ-БУСТ: следующая фигура слева!');
-    showHint('🐱 Слева от поля — следующая фигура!');
 }
         // ==================== ИСПРАВЛЕННАЯ АКТИВАЦИЯ СПОСОБНОСТЕЙ ====================
         function usePetAbility() {
