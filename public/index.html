@@ -168,61 +168,60 @@
             <div class="game-area">
                 <canvas id="tetris-canvas" width="240" height="480"></canvas>
             </div>
-            <div class="game-controls-panel">
-                <div class="game-buttons">
-                    <button class="game-btn pause-btn" onclick="pauseGame()"><span>⏸</span> ПАУЗА</button>
-                    <button class="game-btn" onclick="restartGame()"><span>🔄</span> ЗАНОВО</button>
-                    <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
-                </div>
-                <div class="controls">
-                    <button class="control-btn" onclick="moveLeft()">←</button>
-                    <button class="control-btn" onclick="hardDrop()">↓</button>
-                    <button class="control-btn" onclick="rotatePiece()">↻</button>
-                    <button class="control-btn" onclick="moveRight()">→</button>
-                </div>
-                <div class="keyboard-controls">
-                    <label>
-                        <input type="checkbox" id="keyboard-controls" checked> 🎮 Управление с клавиатуры
-                    </label>
-                </div>
-                <div class="next-level-progress">
-                    <div class="next-level-info">
-                        <span>✨ УРОВЕНЬ <span id="game-level">0</span> • <span id="next-level-target">500</span> очков</span>
-                        <span id="next-level-effect">⚡</span>
-                    </div>
-                    <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width:0%;"></div></div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="screen" id="stats-screen">
-            <div class="header">
-                <h1 class="game-title">СТАТИСТИКА</h1>
-                <p class="subtitle" id="stats-player-info">Загрузка...</p>
-            </div>
-            <div class="stats-container" id="stats-container"></div>
-            <div class="footer">
-                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
-                <button class="back-btn" onclick="refreshStats()">🔄 ОБНОВИТЬ</button>
-            </div>
-        </div>
-        
-        <div class="screen" id="levels-screen">
-            <div class="header"><h1 class="game-title">УРОВНИ</h1><p class="subtitle">Выберите сложность</p></div>
-            <div class="levels-grid" id="levels-grid"></div>
-            <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
-        </div>
-        
-        <div class="screen" id="leaderboard-screen">
-            <div class="header"><h1 class="game-title">ЛИДЕРБОРД</h1><p class="subtitle">Топ-10 игроков и их питомцы</p></div>
-            <div class="leaderboard-list" id="leaderboard-list"></div>
-            <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
-        </div>
+<div class="game-controls-panel">
+    <div class="game-buttons">
+        <button class="game-btn pause-btn" onclick="pauseGame()"><span>⏸</span> ПАУЗА</button>
+        <button class="game-btn" onclick="restartGame()"><span>🔄</span> ЗАНОВО</button>
+        <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
     </div>
+    <div class="controls">
+        <button class="control-btn" onclick="moveLeft()">←</button>
+        <button class="control-btn" onclick="hardDrop()">↓</button>
+        <button class="control-btn" onclick="rotatePiece()">↻</button>
+        <button class="control-btn" onclick="moveRight()">→</button>
+    </div>
+    <div class="keyboard-controls">
+        <label>
+            <input type="checkbox" id="keyboard-controls" checked> 🎮 Управление с клавиатуры
+        </label>
+    </div>
+    <div class="next-level-progress">
+        <div class="next-level-info">
+            <span>✨ УРОВЕНЬ <span id="game-level">0</span> • <span id="next-level-target">500</span> очков</span>
+            <span id="next-level-effect">⚡</span>
+        </div>
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width:0%;"></div></div>
+    </div>
+</div>
 
-    <div id="notification" class="notification"></div>
+<div class="screen" id="stats-screen">
+    <div class="header">
+        <h1 class="game-title">СТАТИСТИКА</h1>
+        <p class="subtitle" id="stats-player-info">Загрузка...</p>
+    </div>
+    <div class="stats-container" id="stats-container"></div>
+    <div class="footer">
+        <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+        <button class="back-btn" onclick="refreshStats()">🔄 ОБНОВИТЬ</button>
+    </div>
+</div>
 
-    <script>
+<div class="screen" id="levels-screen">
+    <div class="header"><h1 class="game-title">УРОВНИ</h1><p class="subtitle">Выберите сложность</p></div>
+    <div class="levels-grid" id="levels-grid"></div>
+    <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
+</div>
+
+<div class="screen" id="leaderboard-screen">
+    <div class="header"><h1 class="game-title">ЛИДЕРБОРД</h1><p class="subtitle">Топ-10 игроков и их питомцы</p></div>
+    <div class="leaderboard-list" id="leaderboard-list"></div>
+    <div class="footer"><button class="back-btn" onclick="showMenu()">← НАЗАД</button></div>
+</div>
+
+<div id="notification" class="notification"></div>
+
+<script>
+
         // ==================== ПОЛУЧАЕМ TELEGRAM ID ====================
         function getUrlParams() {
             const urlParams = new URLSearchParams(window.location.search);
