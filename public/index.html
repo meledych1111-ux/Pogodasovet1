@@ -1431,24 +1431,40 @@ function unlockPet(pet) {
     const petId = `${pet.rank.prefix}_${pet.id}`;
     userPets[petId] = (userPets[petId] || 0) + 1;
     
-    // ✅ +3 еды за получение питомца
+    // ✅ +3 еды
     petFood[petId] = (petFood[petId] || 0) + 3;
     
-    // ✅ Делаем нового питомца активным
+    // ✅ Новый питомец становится активным
     activePet = pet;
+    
+    // ✅ Сохраняем
+    savePets();
     
     // ✅ Показываем панель
     document.getElementById('pet-header-panel').style.display = 'flex';
     
-    // ✅ Сохраняем
-    savePets();
+    // ✅ ПРЯМОЕ ОБНОВЛЕНИЕ (гарантирует смену)
+    const headerEmoji = document.getElementById('pet-emoji-header');
+    if (headerEmoji) headerEmoji.textContent = pet.emoji;
+    
+    const headerFood = document.getElementById('pet-food-count-header');
+    if (headerFood) headerFood.textContent = petFood[petId] || 0;
+    
+    const leftEmoji = document.getElementById('pet-info-emoji');
+    if (leftEmoji) {
+        leftEmoji.textContent = pet.emoji;
+        leftEmoji.style.color = pet.color;
+    }
+    
+    const leftFood = document.getElementById('pet-info-food');
+    if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
     
     // ✅ Анимации
     showPetUnlockAnimation(pet);
     showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name}`, pet.color);
     showFoodAnimation(pet.food, 3, pet.color);
     
-    // ✅ ОБНОВЛЯЕМ ВСЕ ПАНЕЛИ!
+    // ✅ Стандартные функции обновления
     updatePetHeaderPanel();
     updatePetLeftPanel();
     
