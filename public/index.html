@@ -1186,13 +1186,17 @@
         let frameCount = 0;
         let lastBoardHash = '';
 
+        // ========== ИСПРАВЛЕНИЕ: Функции загрузки и сохранения питомцев ==========
         function loadPets() {
             try {
                 const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
                 if (saved) {
                     const data = JSON.parse(saved);
                     userPets = data.pets || {};
-                    petFood = data.food || {};
+                    petFood = data.food || {};  // Загружаем РЕАЛЬНУЮ еду
+                } else {
+                    userPets = {};
+                    petFood = {};
                 }
             } catch(e) {
                 userPets = {};
@@ -1203,8 +1207,161 @@
         }
 
         function savePets() {
-            const saveData = { pets: userPets, food: petFood };
+            const saveData = { pets: userPets, food: petFood };  // Сохраняем РЕАЛЬНУЮ еду
             localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
+        }
+
+        // ========== НОВОЕ: Отображение палки единым блоком ==========
+        function updateNextPieceDisplay() {
+            const shapeContainer = document.getElementById('next-piece-left-shape');
+            const levelSpan = document.getElementById('next-piece-level');
+            
+            if (!shapeContainer) return;
+            
+            shapeContainer.innerHTML = '';
+            
+            if (!pieceQueue || pieceQueue.length === 0) {
+                shapeContainer.style.display = 'flex';
+                shapeContainer.style.alignItems = 'center';
+                shapeContainer.style.justifyContent = 'center';
+                shapeContainer.innerHTML = '<div style="color:#aaccff; font-size:0.7rem;">нет</div>';
+                return;
+            }
+            
+            const nextId = pieceQueue[0];
+            
+            if (nextId === undefined || nextId < 0 || nextId >= SHAPES.length) {
+                shapeContainer.style.display = 'flex';
+                shapeContainer.style.alignItems = 'center';
+                shapeContainer.style.justifyContent = 'center';
+                shapeContainer.innerHTML = '<div style="color:#aaccff; font-size:0.7rem;">???</div>';
+                return;
+            }
+            
+            const shape = SHAPES[nextId];
+            
+            const FIGURE_COLORS = [
+                '#FF6B6B', // I - красный
+                '#4ECDC4', // O - бирюзовый
+                '#45B7D1', // T - голубой
+                '#96CEB4', // S - мятный
+                '#FFEAA7', // Z - желтый
+                '#DDA0DD', // L - сиреневый
+                '#F7DC6F'  // J - золотой
+            ];
+            
+            const color = FIGURE_COLORS[nextId];
+            
+            // ========== НОВОЕ: Специальное отображение для палки (I-фигура) ==========
+            if (nextId === 0) { // I-фигура (палка)
+                shapeContainer.innerHTML = '';
+                shapeContainer.style.display = 'flex';
+                shapeContainer.style.flexDirection = 'column';
+                shapeContainer.style.justifyContent = 'center';
+                shapeContainer.style.alignItems = 'center';
+                shapeContainer.style.gap = '0'; // Убираем зазоры между блоками
+                shapeContainer.style.width = '20px';
+                shapeContainer.style.height = '55px';
+                shapeContainer.style.margin = '0 auto';
+                shapeContainer.style.padding = '0';
+                shapeContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
+                shapeContainer.style.borderRadius = '6px';
+                
+                // Создаем единый блок с разделителями
+                const block = document.createElement('div');
+                block.style.width = '16px';
+                block.style.height = '48px'; // 4 блока по 12px
+                block.style.backgroundColor = color;
+                block.style.borderRadius = '4px';
+                block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.3)';
+                block.style.border = '1px solid rgba(255,255,255,0.2)';
+                
+                // Добавляем полоски-разделители для имитации 4 блоков
+                block.style.backgroundImage = `
+                    linear-gradient(0deg, 
+                        rgba(0,0,0,0.2) 0%, 
+                        rgba(0,0,0,0.2) 2px, 
+                        transparent 2px, 
+                        transparent 25%,
+                        rgba(0,0,0,0.2) 25%,
+                        rgba(0,0,0,0.2) 27%,
+                        transparent 27%,
+                        transparent 50%,
+                        rgba(0,0,0,0.2) 50%,
+                        rgba(0,0,0,0.2) 52%,
+                        transparent 52%,
+                        transparent 75%,
+                        rgba(0,0,0,0.2) 75%,
+                        rgba(0,0,0,0.2) 77%,
+                        transparent 77%,
+                        transparent 100%
+                    )
+                `;
+                block.style.backgroundSize = '100% 100%';
+                block.style.backgroundRepeat = 'no-repeat';
+                
+                shapeContainer.appendChild(block);
+                
+            } else {
+                // Для остальных фигур - стандартное отображение
+                let minRow = shape.length, maxRow = -1, minCol = shape[0].length, maxCol = -1;
+                
+                for (let r = 0; r < shape.length; r++) {
+                    for (let c = 0; c < shape[r].length; c++) {
+                        if (shape[r][c] === 1) {
+                            minRow = Math.min(minRow, r);
+                            maxRow = Math.max(maxRow, r);
+                            minCol = Math.min(minCol, c);
+                            maxCol = Math.max(maxCol, c);
+                        }
+                    }
+                }
+                
+                if (maxRow === -1) {
+                    shapeContainer.innerHTML = '<div style="color:#aaccff;">пусто</div>';
+                    return;
+                }
+                
+                const rows = maxRow - minRow + 1;
+                const cols = maxCol - minCol + 1;
+                
+                shapeContainer.style.display = 'grid';
+                shapeContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+                shapeContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                shapeContainer.style.gap = '1px';
+                shapeContainer.style.width = '55px';
+                shapeContainer.style.height = '55px';
+                shapeContainer.style.padding = '2px';
+                shapeContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
+                shapeContainer.style.borderRadius = '6px';
+                
+                for (let r = minRow; r <= maxRow; r++) {
+                    for (let c = minCol; c <= maxCol; c++) {
+                        const block = document.createElement('div');
+                        
+                        if (shape[r] && shape[r][c] === 1) {
+                            block.style.backgroundColor = color;
+                            block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.3)';
+                            block.style.borderRadius = '3px';
+                            block.style.border = '1px solid rgba(255,255,255,0.2)';
+                        } else {
+                            block.style.backgroundColor = 'transparent';
+                            block.style.boxShadow = 'none';
+                            block.style.border = 'none';
+                        }
+                        
+                        block.style.width = '100%';
+                        block.style.height = '100%';
+                        block.style.aspectRatio = '1 / 1';
+                        
+                        shapeContainer.appendChild(block);
+                    }
+                }
+            }
+            
+            if (levelSpan) {
+                levelSpan.textContent = `Ур.${gameLevel}`;
+            }
         }
 
         function getGameLevelFromScore(scoreValue) {
@@ -1268,12 +1425,13 @@
             };
         }
 
+        // ========== ИСПРАВЛЕНИЕ: Только 3 еды при получении ==========
         function unlockPet(pet) {
             if (!pet) return false;
             const petId = `${pet.rank.prefix}_${pet.id}`;
             userPets[petId] = (userPets[petId] || 0) + 1;
             
-            // ✅ ТОЛЬКО 3 ЕДЫ ПРИ ПОЛУЧЕНИИ!
+            // ✅ ТОЛЬКО 3 ЕДЫ ПРИ ПОЛУЧЕНИИ! (никаких лишних начислений)
             petFood[petId] = (petFood[petId] || 0) + 3;
             
             activePet = pet;
@@ -1359,128 +1517,56 @@
             updatePetLeftPanel();
         }
 
-        function updateNextPieceDisplay() {
-            const shapeContainer = document.getElementById('next-piece-left-shape');
-            const levelSpan = document.getElementById('next-piece-level');
+        // ========== ИСПРАВЛЕНИЕ: Убираем лишнее начисление еды за линии ==========
+        function checkLines() {
+            let linesCleared = 0;
+            let clearedRows = [];
             
-            if (!shapeContainer) return;
-            
-            shapeContainer.innerHTML = '';
-            
-            if (!pieceQueue || pieceQueue.length === 0) {
-                shapeContainer.style.display = 'flex';
-                shapeContainer.style.alignItems = 'center';
-                shapeContainer.style.justifyContent = 'center';
-                shapeContainer.innerHTML = '<div style="color:#aaccff; font-size:0.7rem;">нет</div>';
-                return;
-            }
-            
-            const nextId = pieceQueue[0];
-            
-            if (nextId === undefined || nextId < 0 || nextId >= SHAPES.length) {
-                shapeContainer.style.display = 'flex';
-                shapeContainer.style.alignItems = 'center';
-                shapeContainer.style.justifyContent = 'center';
-                shapeContainer.innerHTML = '<div style="color:#aaccff; font-size:0.7rem;">???</div>';
-                return;
-            }
-            
-            const shape = SHAPES[nextId];
-            
-            const FIGURE_COLORS = [
-                '#FF6B6B', // I - красный
-                '#4ECDC4', // O - бирюзовый
-                '#45B7D1', // T - голубой
-                '#96CEB4', // S - мятный
-                '#FFEAA7', // Z - желтый
-                '#DDA0DD', // L - сиреневый
-                '#F7DC6F'  // J - золотой
-            ];
-            
-            const color = FIGURE_COLORS[nextId];
-            
-            // Для I-фигуры (палка) - особый случай
-            if (nextId === 0) {
-                shapeContainer.style.display = 'flex';
-                shapeContainer.style.flexDirection = 'row';
-                shapeContainer.style.justifyContent = 'center';
-                shapeContainer.style.alignItems = 'center';
-                shapeContainer.style.gap = '2px';
-                shapeContainer.style.width = '55px';
-                shapeContainer.style.minHeight = '20px';
-                shapeContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
-                shapeContainer.style.borderRadius = '6px';
-                shapeContainer.style.padding = '4px 2px';
-                
-                for (let i = 0; i < 4; i++) {
-                    const block = document.createElement('div');
-                    block.style.width = '12px';
-                    block.style.height = '12px';
-                    block.style.backgroundColor = color;
-                    block.style.borderRadius = '3px';
-                    block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.3)';
-                    block.style.border = '1px solid rgba(255,255,255,0.2)';
-                    shapeContainer.appendChild(block);
+            for (let y = ROWS - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    clearedRows.push(y);
+                    linesCleared++;
                 }
+            }
+            
+            if (linesCleared > 0) {
+                lines += linesCleared;
+                clearedLinesAnimation = clearedRows;
+                
+                comboCount++;
+                showCombo(comboCount);
+                
+                let lineScore = [0, 40, 100, 300, 1200][linesCleared] * (gameLevel + 1);
+                const oldScore = score;
+                score += lineScore;
+                
+                if (lines >= (level + 1) * 10) level = Math.floor(lines / 10);
+                
+                // ========== ИСПРАВЛЕНИЕ: УБИРАЕМ начисление еды за линии ==========
+                // Раньше здесь было:
+                // if (activePet) {
+                //     const petId = `${activePet.rank.prefix}_${activePet.id}`;
+                //     petFood[petId] = (petFood[petId] || 0) + linesCleared;
+                //     savePets();
+                //     showFoodAnimation(activePet.food, linesCleared, activePet.color);
+                // }
+                // Теперь еда начисляется ТОЛЬКО при получении питомца (+3)
+                
+                checkPetUnlocks(oldScore);
+                
+                setTimeout(() => {
+                    clearedRows.sort((a, b) => a - b).forEach(y => {
+                        board.splice(y, 1);
+                        board.unshift(Array(COLS).fill(0));
+                    });
+                    clearedLinesAnimation = [];
+                }, 400);
+                
+                updateGameLevel();
+                updateDisplay();
+                updatePetLeftPanel();
             } else {
-                // Для остальных фигур - стандартное отображение
-                let minRow = shape.length, maxRow = -1, minCol = shape[0].length, maxCol = -1;
-                
-                for (let r = 0; r < shape.length; r++) {
-                    for (let c = 0; c < shape[r].length; c++) {
-                        if (shape[r][c] === 1) {
-                            minRow = Math.min(minRow, r);
-                            maxRow = Math.max(maxRow, r);
-                            minCol = Math.min(minCol, c);
-                            maxCol = Math.max(maxCol, c);
-                        }
-                    }
-                }
-                
-                if (maxRow === -1) {
-                    shapeContainer.innerHTML = '<div style="color:#aaccff;">пусто</div>';
-                    return;
-                }
-                
-                const rows = maxRow - minRow + 1;
-                const cols = maxCol - minCol + 1;
-                
-                shapeContainer.style.display = 'grid';
-                shapeContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-                shapeContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-                shapeContainer.style.gap = '1px';
-                shapeContainer.style.width = '55px';
-                shapeContainer.style.height = '55px';
-                shapeContainer.style.padding = '2px';
-                shapeContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
-                shapeContainer.style.borderRadius = '6px';
-                
-                for (let r = minRow; r <= maxRow; r++) {
-                    for (let c = minCol; c <= maxCol; c++) {
-                        const block = document.createElement('div');
-                        
-                        if (shape[r] && shape[r][c] === 1) {
-                            block.style.backgroundColor = color;
-                            block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.3)';
-                            block.style.borderRadius = '3px';
-                            block.style.border = '1px solid rgba(255,255,255,0.2)';
-                        } else {
-                            block.style.backgroundColor = 'transparent';
-                            block.style.boxShadow = 'none';
-                            block.style.border = 'none';
-                        }
-                        
-                        block.style.width = '100%';
-                        block.style.height = '100%';
-                        block.style.aspectRatio = '1 / 1';
-                        
-                        shapeContainer.appendChild(block);
-                    }
-                }
-            }
-            
-            if (levelSpan) {
-                levelSpan.textContent = `Ур.${gameLevel}`;
+                comboCount = 0;
             }
         }
 
@@ -1489,7 +1575,7 @@
                 showNotification('❌ Сначала получи питомца! (500 очков)');
                 return;
             }
-            showNotification('🍖 Еда дается только за линии!');
+            showNotification('🍖 Еда дается только за получение питомцев!');
         }
 
         function showPetBoostAnimation(pet, ability, power) {
@@ -1898,55 +1984,6 @@
             checkLines();
             spawnPiece();
             updateDisplay();
-        }
-
-        function checkLines() {
-            let linesCleared = 0;
-            let clearedRows = [];
-            
-            for (let y = ROWS - 1; y >= 0; y--) {
-                if (board[y].every(cell => cell !== 0)) {
-                    clearedRows.push(y);
-                    linesCleared++;
-                }
-            }
-            
-            if (linesCleared > 0) {
-                lines += linesCleared;
-                clearedLinesAnimation = clearedRows;
-                
-                comboCount++;
-                showCombo(comboCount);
-                
-                let lineScore = [0, 40, 100, 300, 1200][linesCleared] * (gameLevel + 1);
-                const oldScore = score;
-                score += lineScore;
-                
-                if (lines >= (level + 1) * 10) level = Math.floor(lines / 10);
-                
-                if (activePet) {
-                    const petId = `${activePet.rank.prefix}_${activePet.id}`;
-                    petFood[petId] = (petFood[petId] || 0) + linesCleared;
-                    savePets();
-                    showFoodAnimation(activePet.food, linesCleared, activePet.color);
-                }
-                
-                checkPetUnlocks(oldScore);
-                
-                setTimeout(() => {
-                    clearedRows.sort((a, b) => a - b).forEach(y => {
-                        board.splice(y, 1);
-                        board.unshift(Array(COLS).fill(0));
-                    });
-                    clearedLinesAnimation = [];
-                }, 400);
-                
-                updateGameLevel();
-                updateDisplay();
-                updatePetLeftPanel();
-            } else {
-                comboCount = 0;
-            }
         }
 
         function togglePause() {
@@ -2504,40 +2541,30 @@
             return { petCounts, totalLines };
         }
 
-        function calculateFood(petCounts, totalLines) {
-            const petFoodCalc = {};
-            const totalPets = Object.values(petCounts).reduce((a, b) => a + b, 0);
-            if (totalPets > 0) {
-                const foodPerPet = Math.floor(totalLines / totalPets);
-                const remainingFood = totalLines % totalPets;
-                let index = 0;
-                Object.keys(petCounts).forEach(petId => {
-                    const count = petCounts[petId];
-                    petFoodCalc[petId] = count * foodPerPet;
-                    if (index < remainingFood) {
-                        petFoodCalc[petId] += 1;
-                    }
-                    index++;
-                });
-            }
-            return petFoodCalc;
-        }
-
+        // ========== ИСПРАВЛЕНИЕ: Убираем calculateFood и используем реальную еду ==========
         async function updateStatsUI() {
             const statsContainer = document.getElementById('stats-container');
             if (!statsContainer) return;
+            
+            // Загружаем игры для подсчета питомцев (только для отображения, НЕ для еды)
             const allGames = await loadAllUserGames();
             const { petCounts, totalLines } = calculatePetsFromGames(allGames);
-            const petFoodCalculated = calculateFood(petCounts, totalLines);
+            
+            // ИСПРАВЛЕНИЕ: Используем РЕАЛЬНУЮ еду из petFood, а НЕ пересчитанную
+            const petFoodReal = petFood || {};
+            
             totalLinesAll = totalLines;
             const petGroups = {};
             let totalPetsEarned = 0;
+            
+            // Группируем питомцев для отображения
             Object.keys(petCounts).forEach(petId => {
                 const count = petCounts[petId];
                 if (count > 0) {
                     const [prefix, id] = petId.split('_');
                     const basePet = BASE_PETS.find(p => p.id === id);
                     const rank = PET_RANKS.find(r => r.prefix === prefix) || PET_RANKS[0];
+                    
                     if (basePet) {
                         const key = basePet.id;
                         if (!petGroups[key]) {
@@ -2547,19 +2574,26 @@
                                 foodTotal: 0,
                                 score: basePet.score,
                                 emoji: basePet.emoji,
-                                color: basePet.color
+                                color: basePet.color,
+                                prefix: prefix,
+                                rank: rank
                             };
                         }
                         petGroups[key].count += count;
-                        petGroups[key].foodTotal += petFoodCalculated[petId] || 0;
+                        // ИСПРАВЛЕНИЕ: Берем реальную еду, а НЕ пересчитанную
+                        petGroups[key].foodTotal += petFoodReal[petId] || 0;
                         totalPetsEarned += count;
                     }
                 }
             });
+            
             const sortedPets = Object.values(petGroups).sort((a, b) => a.score - b.score);
+            
+            // Следующий питомец
             let nextPet = null;
             let nextPetProgress = 0;
             let needPoints = 0;
+            
             if (bestScore < 13500) {
                 const petsEarned = Math.floor(bestScore / 500);
                 const nextScore = (petsEarned + 1) * 500;
@@ -2577,6 +2611,8 @@
                 nextPetProgress = bestScore > 0 ? ((bestScore / nextScore) * 100).toFixed(1) : 0;
                 needPoints = nextScore - bestScore;
             }
+            
+            // Формируем HTML статистики
             let html = `
                 <div class="stat-card" style="border-left-color: #6a5bff;">
                     <h3 style="color: #6a5bff;">🏆 СТАТИСТИКА</h3>
@@ -2593,6 +2629,7 @@
                     <div class="stat-row"><span class="stat-label">📏 Линии в сессии:</span><span class="stat-value">${lines}</span></div>
                 </div>
             `;
+            
             if (nextPet) {
                 html += `
                     <div class="stat-card" style="border-left-color: ${nextPet.color};">
@@ -2620,6 +2657,7 @@
                     </div>
                 `;
             }
+            
             if (sortedPets.length > 0) {
                 html += `<div class="stat-card"><h3 style="color: #ff99aa;">🐾 МОИ ПИТОМЦЫ</h3><div class="pets-collection-grid">`;
                 sortedPets.forEach(pet => {
@@ -2641,6 +2679,7 @@
             } else {
                 html += `<div class="stat-card" style="text-align: center; padding: 25px;"><span style="font-size: 3rem;">🐣</span><h3>У вас пока нет питомцев</h3><p>Сыграйте игру и наберите 500 очков!</p></div>`;
             }
+            
             statsContainer.innerHTML = html;
         }
 
