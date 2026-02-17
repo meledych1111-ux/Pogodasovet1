@@ -1431,20 +1431,29 @@ function unlockPet(pet) {
     const petId = `${pet.rank.prefix}_${pet.id}`;
     userPets[petId] = (userPets[petId] || 0) + 1;
     
-    // ✅ +3 еды за получение питомца (ПРИБАВЛЯЕМ к существующей)
+    // ✅ +3 еды за получение питомца
     petFood[petId] = (petFood[petId] || 0) + 3;
     
+    // ✅ Делаем нового питомца активным
     activePet = pet;
+    
+    // ✅ Показываем панель
     document.getElementById('pet-header-panel').style.display = 'flex';
+    
+    // ✅ Сохраняем
     savePets();
+    
+    // ✅ Анимации
     showPetUnlockAnimation(pet);
     showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name}`, pet.color);
     showFoodAnimation(pet.food, 3, pet.color);
+    
+    // ✅ ОБНОВЛЯЕМ ВСЕ ПАНЕЛИ!
     updatePetHeaderPanel();
     updatePetLeftPanel();
+    
     return true;
 }
-
 function checkPetUnlocks(oldScore) {
     const oldPetThreshold = Math.floor(oldScore / 500);
     const newPetThreshold = Math.floor(score / 500);
