@@ -1850,38 +1850,48 @@ function checkLines() {
             document.querySelectorAll('.hint-block, .direction-arrow').forEach(el => el.remove());
         }
 
-        function startNewGame() {
-            stopGameLoop();
-            
-            board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-            score = 0; lines = 0; gameLevel = 0; level = 0;
-            gameActive = true; gamePaused = false; gameOver = false;
-            comboCount = 0; shieldActive = false;
-            
-            activePet = null;
-            
-            document.getElementById('pet-header-panel').style.display = 'none';
-            
-            loadPets();
-            updateLeftPanelNewGame();
-            
-            dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 800;
-            originalSpeed = dropInterval;
-            
-            pieceQueue = [];
-            for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
-            
-            updateGameLevel();
-            updateDisplay();
-            spawnPiece();
-            
-            if (!gameOver) {
-                drawBoard();
-                showScreen('game');
-                startGameLoop();
-                showNotification('🎮 НОВАЯ ИГРА! Питомцы за 500 очков');
-            }
-        }
+      function startNewGame() {
+    stopGameLoop();
+    
+    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    score = 0; lines = 0; gameLevel = 0; level = 0;
+    gameActive = true; gamePaused = false; gameOver = false;
+    comboCount = 0; shieldActive = false;
+    
+    // ✅ Загружаем ВСЕХ питомцев из localStorage
+    loadPets();
+    
+    // ✅ ОБНУЛЯЕМ ВСЮ ЕДУ В НОВОЙ ИГРЕ!
+    petFood = {};
+    
+    // ✅ Сохраняем пустую еду в localStorage
+    savePets();
+    
+    // ✅ В начале игры активного питомца НЕТ
+    activePet = null;
+    
+    // ✅ Прячем панель питомца
+    document.getElementById('pet-header-panel').style.display = 'none';
+    
+    updateLeftPanelNewGame();
+    
+    dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 800;
+    originalSpeed = dropInterval;
+    
+    pieceQueue = [];
+    for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+    
+    updateGameLevel();
+    updateDisplay();
+    spawnPiece();
+    
+    if (!gameOver) {
+        drawBoard();
+        showScreen('game');
+        startGameLoop();
+        showNotification('🎮 НОВАЯ ИГРА! Питомцы за 500 очков');
+    }
+}  
 
         function spawnPiece() {
             if (pieceQueue.length === 0) {
