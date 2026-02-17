@@ -277,14 +277,15 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
             background: linear-gradient(145deg, rgba(20,30,80,0.95), rgba(10,20,60,0.95));
-            border: 2px solid #ffd700;
-            border-radius: 16px;
-            padding: 12px 8px;
+            border: 1px solid #ffd700;
+            border-radius: 12px;
+            padding: 6px 3px;
             z-index: 1000;
-            box-shadow: -5px -5px 15px rgba(255,255,255,0.1), 5px 5px 20px rgba(0,0,0,0.8);
-            width: 85px;
+            box-shadow: -3px -3px 10px rgba(255,255,255,0.1), 3px 3px 15px rgba(0,0,0,0.8);
+            width: 70px;
+            font-size: 0.6rem;
             backdrop-filter: blur(5px);
         }
 
@@ -293,15 +294,15 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 2px;
         }
 
         .section-title {
             color: #ffd700;
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             text-shadow: 0 0 10px rgba(255,215,0,0.5);
         }
 
@@ -309,24 +310,24 @@
             width: 80%;
             height: 1px;
             background: linear-gradient(90deg, transparent, #ffd700, transparent);
-            margin: 4px 0;
+            margin: 2px 0;
         }
 
         .next-piece-shape {
             display: grid;
-            width: 65px;
-            height: 65px;
+            width: 55px;
+            height: 55px;
             background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 3px;
+            border-radius: 6px;
+            padding: 2px;
             margin: 2px 0;
-            gap: 2px;
+            gap: 1px;
         }
 
         .next-piece-shape div {
             width: 100%;
             height: 100%;
-            border-radius: 4px;
+            border-radius: 3px;
             transition: all 0.1s ease;
         }
 
@@ -334,55 +335,55 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             background: rgba(0,0,0,0.4);
-            border-radius: 12px;
-            padding: 10px 5px;
+            border-radius: 8px;
+            padding: 6px 3px;
             width: 100%;
             animation: glowPulse 2s infinite;
         }
 
         .pet-animation-emoji {
-            font-size: 2.2rem;
+            font-size: 1.8rem;
             filter: drop-shadow(0 0 15px currentColor);
             animation: bounce 1s ease-in-out infinite;
         }
 
         .pet-animation-effect {
             color: white;
-            font-size: 0.7rem;
+            font-size: 0.6rem;
             font-weight: bold;
             text-align: center;
             background: rgba(255,215,0,0.3);
-            padding: 3px 6px;
+            padding: 2px 4px;
             border-radius: 20px;
             white-space: nowrap;
         }
 
         .pet-animation-progress {
             width: 100%;
-            height: 3px;
+            height: 2px;
             background: rgba(0,0,0,0.6);
-            border-radius: 2px;
+            border-radius: 1px;
             overflow: hidden;
-            margin-top: 3px;
+            margin-top: 2px;
         }
 
         .progress-bar-small {
             height: 100%;
             width: 0%;
             background: linear-gradient(90deg, #ffd700, #ffaa00);
-            border-radius: 2px;
+            border-radius: 1px;
             transition: width 0.1s linear;
         }
 
         .pet-info-mini {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             background: rgba(255,215,0,0.2);
-            border-radius: 30px;
-            padding: 5px 10px;
+            border-radius: 20px;
+            padding: 3px 8px;
             border: 1px solid rgba(255,215,0,0.5);
             cursor: pointer;
             transition: transform 0.1s;
@@ -393,14 +394,14 @@
         }
 
         .pet-info-emoji {
-            font-size: 1.2rem;
+            font-size: 1rem;
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.7));
         }
 
         .pet-info-food {
             color: #ffd700;
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             text-shadow: 0 0 10px rgba(255,215,0,0.7);
         }
 
@@ -412,7 +413,7 @@
             min-height: 460px;
             height: calc(100% - 70px);
             position: relative;
-            margin-left: 65px;
+            margin-left: 60px;
         }
 
         #tetris-canvas {
@@ -821,22 +822,22 @@
 
         @media (max-width: 480px) {
             #next-piece-left {
-                left: 3px;
-                width: 75px;
-                padding: 8px 4px;
+                left: 2px;
+                width: 65px;
+                padding: 5px 2px;
             }
             
             .next-piece-shape {
-                width: 55px;
-                height: 55px;
+                width: 50px;
+                height: 50px;
             }
             
             .game-area {
-                margin-left: 55px;
+                margin-left: 50px;
             }
             
             .pet-animation-emoji {
-                font-size: 1.8rem;
+                font-size: 1.5rem;
             }
         }
 
@@ -868,7 +869,7 @@
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС 3D</h1>
-                <p class="subtitle">Питомцы за 500 очков • Бустеры за еду</p>
+                <p class="subtitle">Питомцы за 500 очков • Чем выше уровень, тем мощнее бустеры</p>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startNewGame()">🎮 НОВАЯ ИГРА</button>
@@ -877,7 +878,7 @@
                 <button class="menu-btn leaderboard" onclick="showLeaderboard()">🏆 ЛИДЕРБОРД</button>
             </div>
             <div class="footer">
-                <p style="color: #aaccff;">🍖 Еда за линии • 🐾 Питомцы за 500 очков</p>
+                <p style="color: #aaccff;">🍖 1 линия = 1 еда • 🚀 Уровень влияет на силу бустеров</p>
             </div>
         </div>
 
@@ -1113,34 +1114,237 @@
             { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13500, food: '🐟' }
         ];
 
+        // Функция для получения силы бустера в зависимости от уровня
+        function getBoostPower(baseLines) {
+            if (gameLevel >= 11) return baseLines * 4; // Уровень 11+: x4
+            if (gameLevel >= 8) return baseLines * 3;  // Уровень 8-10: x3
+            if (gameLevel >= 4) return baseLines * 2;  // Уровень 4-7: x2
+            return baseLines;                           // Уровень 0-3: базовый
+        }
+
+        function getSlowDuration(baseDuration) {
+            if (gameLevel >= 11) return baseDuration * 2.5; // Уровень 11+: x2.5
+            if (gameLevel >= 8) return baseDuration * 2;    // Уровень 8-10: x2
+            if (gameLevel >= 4) return baseDuration * 1.5;  // Уровень 4-7: x1.5
+            return baseDuration;                             // Уровень 0-3: базовый
+        }
+
         const PET_ABILITIES = {
-            'cat': { name: 'Мяу-клинер', effect: 'Убирает 1 строку', emoji: '🐱', foodCost: 3, type: 'clear', lines: 1 },
-            'tiger': { name: 'Тигриная сила', effect: 'Убирает 2 строки', emoji: '🐯', foodCost: 5, type: 'clear', lines: 2 },
-            'lion': { name: 'Королевский рык', effect: 'Убирает 3 строки', emoji: '🦁', foodCost: 7, type: 'clear', lines: 3 },
-            'leopard': { name: 'Быстрая атака', effect: 'Убирает 5 строк!', emoji: '🐆', foodCost: 5, type: 'clear', lines: 5 },
-            'dog': { name: 'Верный друг', effect: 'Замедление 10 сек', emoji: '🐕', foodCost: 3, type: 'slow', duration: 10000 },
-            'fox': { name: 'Хитрый лис', effect: 'Замедление 12 сек', emoji: '🦊', foodCost: 4, type: 'slow', duration: 12000 },
-            'rabbit': { name: 'Морковный совет', effect: 'Показывает идеальное место', emoji: '🐇', foodCost: 4, type: 'hint' },
-            'bear': { name: 'Спячка', effect: 'Замедление 20 сек', emoji: '🐻', foodCost: 6, type: 'slow', duration: 20000 },
-            'panda': { name: 'Бамбуковый рай', effect: 'Замедление 15 сек', emoji: '🐼', foodCost: 5, type: 'slow', duration: 15000 },
-            'owl': { name: 'Мудрый взгляд', effect: 'Убирает 2 строки', emoji: '🦉', foodCost: 4, type: 'clear', lines: 2 },
-            'penguin': { name: 'Ледяное дыхание', effect: 'Замедление 10 сек', emoji: '🐧', foodCost: 4, type: 'slow', duration: 10000 },
-            'whale': { name: 'Китовый фонтан', effect: 'Убирает 4 строки', emoji: '🐋', foodCost: 8, type: 'clear', lines: 4 },
-            'dolphin': { name: 'Дельфиний всплеск', effect: 'Замедление 18 сек', emoji: '🐬', foodCost: 6, type: 'slow', duration: 18000 },
-            'seal': { name: 'Тюлений отдых', effect: 'Замедление 12 сек', emoji: '🦭', foodCost: 4, type: 'slow', duration: 12000 },
-            'giraffe': { name: 'Длинная шея', effect: 'Убирает 2 строки', emoji: '🦒', foodCost: 4, type: 'clear', lines: 2 },
-            'zebra': { name: 'Полосатая защита', effect: 'Замедление 10 сек', emoji: '🦓', foodCost: 4, type: 'slow', duration: 10000 },
-            'rhino': { name: 'Толстая кожа', effect: 'Замедление 20 сек', emoji: '🦏', foodCost: 7, type: 'slow', duration: 20000 },
-            'hippo': { name: 'Речная мощь', effect: 'Убирает 3 строки', emoji: '🦛', foodCost: 6, type: 'clear', lines: 3 },
-            'elephant': { name: 'Топот', effect: 'Убирает 4 строки', emoji: '🐘', foodCost: 8, type: 'clear', lines: 4 },
-            'squirrel': { name: 'Запасливая', effect: 'Убирает 1 строку', emoji: '🐿️', foodCost: 2, type: 'clear', lines: 1 },
-            'hedgehog': { name: 'Колючий шар', effect: 'Убирает 2 строки', emoji: '🦔', foodCost: 4, type: 'clear', lines: 2 },
-            'beaver': { name: 'Строитель плотин', effect: 'Замедление 15 сек', emoji: '🦫', foodCost: 5, type: 'slow', duration: 15000 },
-            'otter': { name: 'Игривый', effect: 'Убирает 2 строки', emoji: '🦦', foodCost: 4, type: 'clear', lines: 2 },
-            'monkey': { name: 'Обезьяньи проделки', effect: 'Убирает 2 строки', emoji: '🐒', foodCost: 4, type: 'clear', lines: 2 },
-            'sloth': { name: 'Ленивый день', effect: 'Замедление 25 сек', emoji: '🦥', foodCost: 5, type: 'slow', duration: 25000 },
-            'deer': { name: 'Лесная грация', effect: 'Замедление 15 сек', emoji: '🦌', foodCost: 4, type: 'slow', duration: 15000 },
-            'moose': { name: 'Северный ветер', effect: 'Замедление 25 сек', emoji: '🦌', foodCost: 7, type: 'slow', duration: 25000 }
+            'cat': { 
+                name: 'Мяу-клинер', 
+                effect: 'Убирает строки', 
+                emoji: '🐱', 
+                foodCost: 3, 
+                type: 'clear', 
+                baseLines: 1 
+            },
+            'tiger': { 
+                name: 'Тигриная сила', 
+                effect: 'Убирает строки', 
+                emoji: '🐯', 
+                foodCost: 5, 
+                type: 'clear', 
+                baseLines: 2 
+            },
+            'lion': { 
+                name: 'Королевский рык', 
+                effect: 'Убирает строки', 
+                emoji: '🦁', 
+                foodCost: 7, 
+                type: 'clear', 
+                baseLines: 3 
+            },
+            'leopard': { 
+                name: 'Быстрая атака', 
+                effect: 'Убирает строки', 
+                emoji: '🐆', 
+                foodCost: 5, 
+                type: 'clear', 
+                baseLines: 5 
+            },
+            'dog': { 
+                name: 'Верный друг', 
+                effect: 'Замедление', 
+                emoji: '🐕', 
+                foodCost: 3, 
+                type: 'slow', 
+                baseDuration: 10000 
+            },
+            'fox': { 
+                name: 'Хитрый лис', 
+                effect: 'Замедление', 
+                emoji: '🦊', 
+                foodCost: 4, 
+                type: 'slow', 
+                baseDuration: 12000 
+            },
+            'rabbit': { 
+                name: 'Морковный совет', 
+                effect: 'Показывает идеальное место', 
+                emoji: '🐇', 
+                foodCost: 4, 
+                type: 'hint' 
+            },
+            'bear': { 
+                name: 'Спячка', 
+                effect: 'Замедление', 
+                emoji: '🐻', 
+                foodCost: 6, 
+                type: 'slow', 
+                baseDuration: 20000 
+            },
+            'panda': { 
+                name: 'Бамбуковый рай', 
+                effect: 'Замедление', 
+                emoji: '🐼', 
+                foodCost: 5, 
+                type: 'slow', 
+                baseDuration: 15000 
+            },
+            'owl': { 
+                name: 'Мудрый взгляд', 
+                effect: 'Убирает строки', 
+                emoji: '🦉', 
+                foodCost: 4, 
+                type: 'clear', 
+                baseLines: 2 
+            },
+            'penguin': { 
+                name: 'Ледяное дыхание', 
+                effect: 'Замедление', 
+                emoji: '🐧', 
+                foodCost: 4, 
+                type: 'slow', 
+                baseDuration: 10000 
+            },
+            'whale': { 
+                name: 'Китовый фонтан', 
+                effect: 'Убирает строки', 
+                emoji: '🐋', 
+                foodCost: 8, 
+                type: 'clear', 
+                baseLines: 4 
+            },
+            'dolphin': { 
+                name: 'Дельфиний всплеск', 
+                effect: 'Замедление', 
+                emoji: '🐬', 
+                foodCost: 6, 
+                type: 'slow', 
+                baseDuration: 18000 
+            },
+            'seal': { 
+                name: 'Тюлений отдых', 
+                effect: 'Замедление', 
+                emoji: '🦭', 
+                foodCost: 4, 
+                type: 'slow', 
+                baseDuration: 12000 
+            },
+            'giraffe': { 
+                name: 'Длинная шея', 
+                effect: 'Убирает строки', 
+                emoji: '🦒', 
+                foodCost: 4, 
+                type: 'clear', 
+                baseLines: 2 
+            },
+            'zebra': { 
+                name: 'Полосатая защита', 
+                effect: 'Замедление', 
+                emoji: '🦓', 
+                foodCost: 4, 
+                type: 'slow', 
+                baseDuration: 10000 
+            },
+            'rhino': { 
+                name: 'Толстая кожа', 
+                effect: 'Замедление', 
+                emoji: '🦏', 
+                foodCost: 7, 
+                type: 'slow', 
+                baseDuration: 20000 
+            },
+            'hippo': { 
+                name: 'Речная мощь', 
+                effect: 'Убирает строки', 
+                emoji: '🦛', 
+                foodCost: 6, 
+                type: 'clear', 
+                baseLines: 3 
+            },
+            'elephant': { 
+                name: 'Топот', 
+                effect: 'Убирает строки', 
+                emoji: '🐘', 
+                foodCost: 8, 
+                type: 'clear', 
+                baseLines: 4 
+            },
+            'squirrel': { 
+                name: 'Запасливая', 
+                effect: 'Убирает строки', 
+                emoji: '🐿️', 
+                foodCost: 2, 
+                type: 'clear', 
+                baseLines: 1 
+            },
+            'hedgehog': { 
+                name: 'Колючий шар', 
+                effect: 'Убирает строки', 
+                emoji: '🦔', 
+                foodCost: 4, 
+                type: 'clear', 
+                baseLines: 2 
+            },
+            'beaver': { 
+                name: 'Строитель плотин', 
+                effect: 'Замедление', 
+                emoji: '🦫', 
+                foodCost: 5, 
+                type: 'slow', 
+                baseDuration: 15000 
+            },
+            'otter': { 
+                name: 'Игривый', 
+                effect: 'Убирает строки', 
+                emoji: '🦦', 
+                foodCost: 4, 
+                type: 'clear', 
+                baseLines: 2 
+            },
+            'monkey': { 
+                name: 'Обезьяньи проделки', 
+                effect: 'Убирает строки', 
+                emoji: '🐒', 
+                foodCost: 4, 
+                type: 'clear', 
+                baseLines: 2 
+            },
+            'sloth': { 
+                name: 'Ленивый день', 
+                effect: 'Замедление', 
+                emoji: '🦥', 
+                foodCost: 5, 
+                type: 'slow', 
+                baseDuration: 25000 
+            },
+            'deer': { 
+                name: 'Лесная грация', 
+                effect: 'Замедление', 
+                emoji: '🦌', 
+                foodCost: 4, 
+                type: 'slow', 
+                baseDuration: 15000 
+            },
+            'moose': { 
+                name: 'Северный ветер', 
+                effect: 'Замедление', 
+                emoji: '🦌', 
+                foodCost: 7, 
+                type: 'slow', 
+                baseDuration: 25000 
+            }
         };
 
         const PET_RANKS = [
@@ -1228,7 +1432,7 @@
             const oldLevel = gameLevel;
             gameLevel = getGameLevelFromScore(score);
             if (gameLevel > oldLevel) {
-                showNotification('⚡ УРОВЕНЬ ' + gameLevel + '! ⚡');
+                showNotification('⚡ УРОВЕНЬ ' + gameLevel + '! Бустеры усилены ⚡');
             }
             dropInterval = getLevelSpeed(gameLevel);
             document.getElementById('game-level').textContent = gameLevel;
@@ -1263,7 +1467,10 @@
             if (!pet) return false;
             const petId = `${pet.rank.prefix}_${pet.id}`;
             userPets[petId] = (userPets[petId] || 0) + 1;
+            
+            // ТОЛЬКО 3 ЕДЫ ПРИ ПОЛУЧЕНИИ
             petFood[petId] = (petFood[petId] || 0) + 3;
+            
             activePet = pet;
             document.getElementById('pet-header-panel').style.display = 'flex';
             savePets();
@@ -1311,15 +1518,20 @@
             const infoEmoji = document.getElementById('pet-info-emoji');
             const infoFood = document.getElementById('pet-info-food');
             const petInfoMini = document.querySelector('.pet-info-mini');
+            
             if (!infoEmoji || !infoFood || !petInfoMini) return;
+            
             if (activePet) {
                 const petId = `${activePet.rank.prefix}_${activePet.id}`;
                 const foodCount = petFood[petId] || 0;
+                
                 infoEmoji.textContent = activePet.emoji;
                 infoEmoji.style.color = activePet.color;
                 infoFood.textContent = `🍖${foodCount}`;
+                
                 petInfoMini.style.opacity = '1';
                 petInfoMini.style.pointerEvents = 'auto';
+                
                 const ability = PET_ABILITIES[activePet.id];
                 if (ability && foodCount >= ability.foodCost) {
                     petInfoMini.style.background = 'rgba(255,215,0,0.4)';
@@ -1382,34 +1594,57 @@
             
             const color = FIGURE_COLORS[nextId];
             
-            const rows = shape.length;
-            const cols = shape[0].length;
+            // Находим реальные границы фигуры
+            let minRow = shape.length, maxRow = -1, minCol = shape[0].length, maxCol = -1;
+            
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c] === 1) {
+                        minRow = Math.min(minRow, r);
+                        maxRow = Math.max(maxRow, r);
+                        minCol = Math.min(minCol, c);
+                        maxCol = Math.max(maxCol, c);
+                    }
+                }
+            }
+            
+            if (maxRow === -1) {
+                shapeContainer.innerHTML = '<div style="color:#aaccff;">пусто</div>';
+                return;
+            }
+            
+            const rows = maxRow - minRow + 1;
+            const cols = maxCol - minCol + 1;
             
             shapeContainer.style.display = 'grid';
             shapeContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
             shapeContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-            shapeContainer.style.gap = '2px';
-            shapeContainer.style.width = '65px';
-            shapeContainer.style.height = '65px';
+            shapeContainer.style.gap = '1px';
+            shapeContainer.style.width = '55px';
+            shapeContainer.style.height = '55px';
             shapeContainer.style.padding = '2px';
             shapeContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
-            shapeContainer.style.borderRadius = '8px';
+            shapeContainer.style.borderRadius = '6px';
             
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
+            for (let r = minRow; r <= maxRow; r++) {
+                for (let c = minCol; c <= maxCol; c++) {
                     const block = document.createElement('div');
-                    if (shape[r][c] === 1) {
+                    
+                    if (shape[r] && shape[r][c] === 1) {
                         block.style.backgroundColor = color;
                         block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.3)';
-                        block.style.borderRadius = '4px';
+                        block.style.borderRadius = '3px';
                         block.style.border = '1px solid rgba(255,255,255,0.2)';
                     } else {
                         block.style.backgroundColor = 'transparent';
                         block.style.boxShadow = 'none';
+                        block.style.border = 'none';
                     }
+                    
                     block.style.width = '100%';
                     block.style.height = '100%';
                     block.style.aspectRatio = '1 / 1';
+                    
                     shapeContainer.appendChild(block);
                 }
             }
@@ -1424,33 +1659,45 @@
                 showNotification('❌ Сначала получи питомца! (500 очков)');
                 return;
             }
-            const petId = `${activePet.rank.prefix}_${activePet.id}`;
-            petFood[petId] = (petFood[petId] || 0) + 3;
-            savePets();
-            showNotification(`🍖 +3 еды для ${activePet.rank.prefix}${activePet.name}`);
-            updatePetLeftPanel();
-            updatePetHeaderPanel();
-            showFeedingAnimation(activePet);
+            // Кормежка отключена - еда только за линии
+            showNotification('🍖 Еда дается только за линии!');
         }
 
-        function showPetBoostAnimation(pet, ability) {
+        function showPetBoostAnimation(pet, ability, power) {
             const animSection = document.getElementById('pet-animation-section');
             const animEmoji = document.getElementById('pet-animation-emoji');
             const animEffect = document.getElementById('pet-animation-effect');
             const progressBar = document.getElementById('progress-bar-small');
+            
             if (!animSection || !animEmoji || !animEffect) return;
+            
             animEmoji.textContent = pet.emoji;
             animEmoji.style.color = pet.color;
-            animEffect.textContent = ability.effect;
+            
+            let effectText = ability.effect;
+            if (ability.type === 'clear') {
+                effectText = `Убрать ${power} строк`;
+                if (power === 1) effectText = 'Убрать 1 строку';
+                else if (power >= 2 && power <= 4) effectText = `Убрать ${power} строки`;
+                else effectText = `Убрать ${power} строк`;
+            } else if (ability.type === 'slow') {
+                effectText = `Замедление ${Math.round(power/1000)} сек`;
+            }
+            
+            animEffect.textContent = effectText;
             animSection.style.display = 'flex';
+            
             if (ability.type === 'slow') {
-                const duration = ability.duration / 1000;
+                const duration = power / 1000;
                 let timeLeft = duration;
+                
                 if (window.boostTimer) clearInterval(window.boostTimer);
+                
                 window.boostTimer = setInterval(() => {
                     timeLeft -= 0.1;
                     const progress = (timeLeft / duration) * 100;
                     progressBar.style.width = Math.max(0, progress) + '%';
+                    
                     if (timeLeft <= 0) {
                         clearInterval(window.boostTimer);
                         setTimeout(() => {
@@ -1548,9 +1795,12 @@
                 board.unshift(Array(COLS).fill(0));
             }
             drawBoard();
+            
+            // Бонусные очки зависят от уровня
             const bonusScore = count * 100 * (gameLevel + 1);
             score += bonusScore;
             updateDisplay();
+            
             showNotification(`✨ +${bonusScore} очков за бустер!`);
         }
 
@@ -1558,15 +1808,20 @@
             if (!window.originalSpeed) {
                 window.originalSpeed = dropInterval;
             }
-            dropInterval = window.originalSpeed * 2;
+            
+            // Замедление тем сильнее, чем выше уровень
+            const slowFactor = gameLevel >= 8 ? 3 : (gameLevel >= 4 ? 2.5 : 2);
+            dropInterval = window.originalSpeed * slowFactor;
+            
             let indicator = document.getElementById('slowdown-indicator');
             if (!indicator) {
                 indicator = document.createElement('div');
                 indicator.id = 'slowdown-indicator';
                 document.querySelector('.game-area').appendChild(indicator);
             }
-            indicator.innerHTML = `⏰ ЗАМЕДЛЕНИЕ ${duration/1000}с`;
+            indicator.innerHTML = `⏰ ЗАМЕДЛЕНИЕ ${Math.round(duration/1000)}с`;
             indicator.style.display = 'block';
+            
             setTimeout(() => {
                 if (!gamePaused && !gameOver) {
                     dropInterval = window.originalSpeed;
@@ -1686,26 +1941,34 @@
 
         function startNewGame() {
             stopGameLoop();
+            
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             score = 0; lines = 0; gameLevel = 0; level = 0;
             gameActive = true; gamePaused = false; gameOver = false;
             comboCount = 0; shieldActive = false;
+            
             activePet = null;
+            
             document.getElementById('pet-header-panel').style.display = 'none';
+            
             loadPets();
             updateLeftPanelNewGame();
+            
             dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 800;
             originalSpeed = dropInterval;
+            
             pieceQueue = [];
             for (let i = 0; i < 3; i++) pieceQueue.push(Math.floor(Math.random() * SHAPES.length));
+            
             updateGameLevel();
             updateDisplay();
             spawnPiece();
+            
             if (!gameOver) {
                 drawBoard();
                 showScreen('game');
                 startGameLoop();
-                showNotification('🎮 НОВАЯ ИГРА! Набирай 500 очков для первого питомца');
+                showNotification('🎮 НОВАЯ ИГРА! Питомцы за 500 очков');
             }
         }
 
@@ -1718,7 +1981,9 @@
             currentPiece = { shape: SHAPES[shapeId], color: COLORS[shapeId] };
             currentX = Math.floor(COLS / 2) - Math.floor(currentPiece.shape[0].length / 2);
             currentY = 0;
+            
             updateNextPieceDisplay();
+            
             if (collide(currentPiece, currentX, currentY)) {
                 if (shieldActive) {
                     shieldActive = false;
@@ -1811,28 +2076,37 @@
         function checkLines() {
             let linesCleared = 0;
             let clearedRows = [];
+            
             for (let y = ROWS - 1; y >= 0; y--) {
                 if (board[y].every(cell => cell !== 0)) {
                     clearedRows.push(y);
                     linesCleared++;
                 }
             }
+            
             if (linesCleared > 0) {
                 lines += linesCleared;
                 clearedLinesAnimation = clearedRows;
+                
                 comboCount++;
                 showCombo(comboCount);
+                
                 let lineScore = [0, 40, 100, 300, 1200][linesCleared] * (gameLevel + 1);
                 const oldScore = score;
                 score += lineScore;
+                
                 if (lines >= (level + 1) * 10) level = Math.floor(lines / 10);
+                
+                // ТОЛЬКО ЕСЛИ ЕСТЬ АКТИВНЫЙ ПИТОМЕЦ - добавляем еду
                 if (activePet) {
                     const petId = `${activePet.rank.prefix}_${activePet.id}`;
-                    petFood[petId] = (petFood[petId] || 0) + linesCleared;
+                    petFood[petId] = (petFood[petId] || 0) + linesCleared; // +1 за линию
                     savePets();
                     showFoodAnimation(activePet.food, linesCleared, activePet.color);
                 }
+                
                 checkPetUnlocks(oldScore);
+                
                 setTimeout(() => {
                     clearedRows.sort((a, b) => a - b).forEach(y => {
                         board.splice(y, 1);
@@ -1840,6 +2114,7 @@
                     });
                     clearedLinesAnimation = [];
                 }, 400);
+                
                 updateGameLevel();
                 updateDisplay();
                 updatePetLeftPanel();
@@ -1873,9 +2148,20 @@
                 showNotification(`⏸️ ПАУЗА\n❌ НЕТ ПИТОМЦА\n🎮 Набери 500 очков`);
                 return;
             }
+            
             const petId = `${activePet.rank.prefix}_${activePet.id}`;
             const foodCount = petFood[petId] || 0;
             const ability = PET_ABILITIES[activePet.id] || { name: 'Способность', foodCost: 5, effect: '' };
+            
+            let powerText = '';
+            if (ability.type === 'clear') {
+                const power = getBoostPower(ability.baseLines || 1);
+                powerText = ` (${power} ${getLineWord(power)})`;
+            } else if (ability.type === 'slow') {
+                const power = getSlowDuration(ability.baseDuration || 10000);
+                powerText = ` (${Math.round(power/1000)} сек)`;
+            }
+            
             const menuHTML = `
                 <div style="text-align: center;">
                     <div style="font-size: 2.5rem;">${activePet.emoji}</div>
@@ -1887,20 +2173,16 @@
                             <span>✨ ${ability.name}</span>
                             <span style="color: #ffd700;">🍖 ${ability.foodCost}</span>
                         </div>
-                        <div style="color: #aaccff;">${ability.effect}</div>
+                        <div style="color: #aaccff;">${ability.effect}${powerText}</div>
                         <div style="display: flex; justify-content: space-between; margin-top: 12px;">
                             <span>🍖 Еда:</span>
                             <span style="color: #ffd700;">${foodCount}</span>
                         </div>
+                        <div style="color: #66ffaa; font-size: 0.8rem; margin-top: 8px;">
+                            ⚡ Уровень ${gameLevel} ${gameLevel >= 8 ? '🔥' : (gameLevel >= 4 ? '⚡' : '')}
+                        </div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
-                        <div class="pause-menu-item" onclick="feedActivePet(); showPauseMenu();">
-                            <span style="font-size: 1.5rem;">🍖</span>
-                            <div>
-                                <div class="title">ПОКОРМИТЬ</div>
-                                <div style="color: #aaccff;">+3 еды</div>
-                            </div>
-                        </div>
                         <div class="pause-menu-item" onclick="usePetAbility(); removePauseMenu();">
                             <span style="font-size: 1.5rem;">✨</span>
                             <div>
@@ -1917,6 +2199,7 @@
                     </div>
                 </div>
             `;
+            
             const n = document.getElementById('notification');
             n.innerHTML = menuHTML;
             n.style.border = '3px solid ' + activePet.color;
@@ -1940,31 +2223,41 @@
                 showNotification('❌ Сначала получи питомца! (500 очков)');
                 return;
             }
+            
             const petId = `${activePet.rank.prefix}_${activePet.id}`;
             const foodCount = petFood[petId] || 0;
             const ability = PET_ABILITIES[activePet.id];
+            
             if (!ability) {
                 showNotification('❌ У питомца нет способности');
                 return;
             }
+            
             if (foodCount < ability.foodCost) {
                 showNotification(`❌ Нужно ${ability.foodCost} еды! Есть: ${foodCount}`);
                 return;
             }
+            
             petFood[petId] = foodCount - ability.foodCost;
             savePets();
             updatePetHeaderPanel();
             updatePetLeftPanel();
-            showPetBoostAnimation(activePet, ability);
+            
             if (ability.type === 'clear') {
-                clearBottomLines(ability.lines);
-                showNotification(`${ability.emoji} ${ability.name}: убрано ${ability.lines} ${getLineWord(ability.lines)}!`);
+                const power = getBoostPower(ability.baseLines || 1);
+                showPetBoostAnimation(activePet, ability, power);
+                clearBottomLines(power);
+                showNotification(`${ability.emoji} ${ability.name}: убрано ${power} ${getLineWord(power)}!`);
             } else if (ability.type === 'slow') {
-                slowDownGame(ability.duration);
-                showNotification(`${ability.emoji} ${ability.name}: замедление на ${ability.duration/1000} сек!`);
+                const power = getSlowDuration(ability.baseDuration || 10000);
+                showPetBoostAnimation(activePet, ability, power);
+                slowDownGame(power);
+                showNotification(`${ability.emoji} ${ability.name}: замедление на ${Math.round(power/1000)} сек!`);
             } else if (ability.type === 'hint') {
+                showPetBoostAnimation(activePet, ability, 0);
                 abilityRabbit();
             }
+            
             removePauseMenu();
         }
 
@@ -2638,7 +2931,7 @@
         }
 
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис 3D БАРХАТ — Питомцы');
+            console.log('🎮 Тетрис 3D БАРХАТ — Питомцы с усилением от уровня');
             loadPets();
             if (activePet) {
                 updatePetHeaderPanel();
@@ -2651,7 +2944,7 @@
             selectDifficulty('classic');
             setupControls();
             updateNextPieceDisplay();
-            showNotification('✨ Новая игра = чистый лист! Питомцы за 500 очков');
+            showNotification('✨ Чем выше уровень, тем мощнее бустеры!');
         });
     </script>
 </body>
