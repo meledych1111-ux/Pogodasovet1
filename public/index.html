@@ -109,51 +109,39 @@
     cursor: pointer;
     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     
-    /* Бархатистая текстура */
-    background: radial-gradient(circle at 30% 30%, 
-        rgba(255, 255, 255, 0.2) 0%, 
-        rgba(255, 255, 255, 0.05) 30%,
-        rgba(0, 0, 0, 0.2) 80%),
-        linear-gradient(145deg, #2a3f5e, #1a2a3a);
+    /* Бархатистая текстура - УПРОЩЕННАЯ */
+    background: linear-gradient(145deg, #2a3f5e, #1a2a3a);
     
     /* 3D эффект */
     box-shadow: 
-        -8px -8px 15px rgba(255, 255, 255, 0.1),
-        8px 8px 15px rgba(0, 0, 0, 0.7),
-        inset -2px -2px 5px rgba(0, 0, 0, 0.5),
-        inset 2px 2px 5px rgba(255, 255, 255, 0.2);
+        -6px -6px 12px rgba(255, 255, 255, 0.15),
+        6px 6px 12px rgba(0, 0, 0, 0.6),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.3),
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1);
     
     /* Мягкие края */
     border-radius: 30px;
-    
-    /* Легкая выпуклость */
-    transform: perspective(500px) rotateX(2deg);
 }
 
-/* Эффект "бархата" при наведении */
+/* Эффект при наведении */
 .menu-btn:hover, .game-btn:hover, .control-btn:hover, .back-btn:hover {
-    background: radial-gradient(circle at 30% 30%, 
-        rgba(255, 255, 255, 0.25) 0%, 
-        rgba(255, 255, 255, 0.1) 30%,
-        rgba(0, 0, 0, 0.15) 80%),
-        linear-gradient(145deg, #2f4466, #1f2f3f);
-    
+    background: linear-gradient(145deg, #2f4466, #1f2f3f);
     box-shadow: 
-        -6px -6px 12px rgba(255, 255, 255, 0.15),
-        6px 6px 12px rgba(0, 0, 0, 0.8),
-        inset -1px -1px 3px rgba(0, 0, 0, 0.5),
-        inset 1px 1px 3px rgba(255, 255, 255, 0.3);
+        -4px -4px 10px rgba(255, 255, 255, 0.2),
+        4px 4px 10px rgba(0, 0, 0, 0.7),
+        inset -1px -1px 3px rgba(0, 0, 0, 0.3),
+        inset 1px 1px 3px rgba(255, 255, 255, 0.15);
 }
 
-/* Нажатие - кнопка "вдавливается" */
+/* Нажатие - БЕЗ SCALE! */
 .menu-btn:active, .game-btn:active, .control-btn:active, .back-btn:active {
-    transform: perspective(500px) rotateX(0deg) translateY(2px);
+    background: linear-gradient(145deg, #1a2a3a, #0f1a25);
     box-shadow: 
-        -4px -4px 8px rgba(255, 255, 255, 0.05),
-        4px 4px 8px rgba(0, 0, 0, 0.5),
-        inset -3px -3px 5px rgba(0, 0, 0, 0.6),
-        inset 3px 3px 5px rgba(255, 255, 255, 0.1);
-    opacity: 0.9;
+        -2px -2px 6px rgba(255, 255, 255, 0.05),
+        2px 2px 6px rgba(0, 0, 0, 0.4),
+        inset -3px -3px 5px rgba(0, 0, 0, 0.5),
+        inset 3px 3px 5px rgba(255, 255, 255, 0.05);
+    transform: translateY(2px);  /* ТОЛЬКО translate, НИКАКОГО scale! */
 }
 
 /* МЕНЮ КНОПКИ */
@@ -164,39 +152,101 @@
     align-items: center;
     justify-content: center;
     gap: 12px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
 }
 
 .menu-btn.new-game {
-    background: radial-gradient(circle at 30% 30%, 
-        rgba(255, 255, 255, 0.2) 0%, 
-        rgba(255, 255, 255, 0.05) 30%,
-        rgba(0, 0, 0, 0.2) 80%),
-        linear-gradient(145deg, #3a6a5e, #2a4a3e);
+    background: linear-gradient(145deg, #3a6a5e, #2a4a3e);
+}
+
+.menu-btn.new-game:active {
+    background: linear-gradient(145deg, #2a4a3e, #1a3a2e);
 }
 
 .menu-btn.stats {
-    background: radial-gradient(circle at 30% 30%, 
-        rgba(255, 255, 255, 0.2) 0%, 
-        rgba(255, 255, 255, 0.05) 30%,
-        rgba(0, 0, 0, 0.2) 80%),
-        linear-gradient(145deg, #5e4a6a, #4a3a5a);
+    background: linear-gradient(145deg, #5e4a6a, #4a3a5a);
+}
+
+.menu-btn.stats:active {
+    background: linear-gradient(145deg, #4a3a5a, #3a2a4a);
 }
 
 .menu-btn.levels {
-    background: radial-gradient(circle at 30% 30%, 
-        rgba(255, 255, 255, 0.2) 0%, 
-        rgba(255, 255, 255, 0.05) 30%,
-        rgba(0, 0, 0, 0.2) 80%),
-        linear-gradient(145deg, #6a5e3a, #5a4e2a);
+    background: linear-gradient(145deg, #6a5e3a, #5a4e2a);
+}
+
+.menu-btn.levels:active {
+    background: linear-gradient(145deg, #5a4e2a, #4a3e1a);
 }
 
 .menu-btn.leaderboard {
-    background: radial-gradient(circle at 30% 30%, 
-        rgba(255, 255, 255, 0.2) 0%, 
-        rgba(255, 255, 255, 0.05) 30%,
-        rgba(0, 0, 0, 0.2) 80%),
-        linear-gradient(145deg, #6a3a4a, #5a2a3a);
+    background: linear-gradient(145deg, #6a3a4a, #5a2a3a);
+}
+
+.menu-btn.leaderboard:active {
+    background: linear-gradient(145deg, #5a2a3a, #4a1a2a);
+}
+
+/* ИГРОВЫЕ КНОПКИ */
+.game-btn {
+    padding: 14px 8px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+}
+
+.game-btn.pause-btn {
+    background: linear-gradient(145deg, #5e4a3a, #4a3a2a);
+}
+
+.game-btn.pause-btn:active {
+    background: linear-gradient(145deg, #4a3a2a, #3a2a1a);
+}
+
+.game-btn.save-btn {
+    background: linear-gradient(145deg, #3a5e4a, #2a4a3a);
+}
+
+.game-btn.save-btn:active {
+    background: linear-gradient(145deg, #2a4a3a, #1a3a2a);
+}
+
+/* КНОПКИ УПРАВЛЕНИЯ */
+.control-btn {
+    background: linear-gradient(145deg, #3a4a6a, #2a3a5a);
+    font-size: 2rem;
+    padding: 20px 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 25px;
+}
+
+.control-btn:active {
+    background: linear-gradient(145deg, #2a3a5a, #1a2a4a);
+}
+
+/* КНОПКА НАЗАД */
+.back-btn {
+    background: linear-gradient(145deg, #2a3f5e, #1a2a3a);
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.back-btn:active {
+    background: linear-gradient(145deg, #1a2a3a, #0f1a25);
+}
+
+.back-btn:before {
+    content: "←";
+    margin-right: 4px;
 }
 
 /* ИГРОВОЙ ЭКРАН */
@@ -219,22 +269,6 @@
     min-width: 0;
 }
 
-/* КНОПКА НАЗАД */
-.back-btn {
-    padding: 10px 20px;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-.back-btn:before {
-    content: "←";
-    margin-right: 4px;
-}
-
 .game-info {
     display: flex;
     gap: 6px;
@@ -245,7 +279,6 @@
     flex: 1;
     margin-left: 8px;
 }
-
         .info-box {
             background: rgba(10,20,50,0.9);
             padding: 4px 10px;
