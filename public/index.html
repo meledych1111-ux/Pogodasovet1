@@ -483,30 +483,28 @@
         }
 
         .control-btn {
-            background: linear-gradient(145deg, #3a4a6a, #2a3a5a);
-            border: none;
-            border-radius: 20px;
-            padding: 16px 8px;
-            color: white;
-            font-size: 1.6rem;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: -5px -5px 12px rgba(255,255,255,0.1), 5px 5px 12px rgba(0,0,0,0.8);
-            transition: 0.1s;
-        }
-
+    background: linear-gradient(145deg, #3a4a6a, #2a3a5a);
+    border: none;
+    border-radius: 25px;  /* чуть скругленнее */
+    padding: 20px 12px;   /* БОЛЬШЕ! */
+    color: white;
+    font-size: 2rem;      /* БОЛЬШЕ! */
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: -5px -5px 12px rgba(255,255,255,0.1), 5px 5px 12px rgba(0,0,0,0.8);
+    transition: 0.1s;
+}
         .control-btn:active {
             transform: scale(0.94);
         }
 
         .next-level-progress {
-            padding: 10px 16px;
-            background: rgba(20,30,80,0.7);
-            border-radius: 20px;
-            margin-top: 4px;
-            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.6), inset 1px 1px 3px rgba(255,255,255,0.1);
-        }
-
+    padding: 6px 12px;    /* МЕНЬШЕ! */
+    background: rgba(20,30,80,0.7);
+    border-radius: 16px;   /* поменьше */
+    margin-top: 4px;
+    box-shadow: inset -1px -1px 3px rgba(0,0,0,0.6), inset 1px 1px 3px rgba(255,255,255,0.1);
+}
         .next-level-info {
             display: flex;
             justify-content: space-between;
@@ -514,14 +512,14 @@
             color: #aaccff;
         }
 
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: rgba(0,0,0,0.7);
-            border-radius: 4px;
-            margin-top: 6px;
-            overflow: hidden;
-        }
+    .progress-bar {
+    width: 100%;
+    height: 6px;           /* БЫЛО 8px, СТАЛО 6px */
+    background: rgba(0,0,0,0.7);
+    border-radius: 3px;
+    margin-top: 4px;       /* МЕНЬШЕ отступ */
+    overflow: hidden;
+}
 
         .progress-fill {
             height: 100%;
