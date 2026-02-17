@@ -48,25 +48,6 @@
             flex-direction: column;
         }
 
-        /* ===== БАРХАТИСТОСТЬ ===== */
-        .game-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08) 0%, transparent 60%),
-                        repeating-linear-gradient(45deg, 
-                            rgba(255,255,255,0.02) 0px, 
-                            rgba(255,255,255,0.02) 2px,
-                            rgba(255,215,0,0.01) 2px,
-                            rgba(255,215,0,0.01) 4px);
-            pointer-events: none;
-            z-index: 1;
-            border-radius: 28px;
-        }
-
         .screen {
             position: absolute;
             top: 0;
@@ -135,25 +116,6 @@
             box-shadow: -6px -6px 14px rgba(255,255,255,0.1), 6px 6px 14px rgba(0,0,0,0.8);
             border: 1px solid rgba(255,255,255,0.1);
             transition: 0.1s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .menu-btn::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .menu-btn:active::after {
-            opacity: 1;
         }
 
         .menu-btn:active {
@@ -193,25 +155,6 @@
             border: 1px solid rgba(106,91,255,0.3);
             width: 100%;
             min-width: 0;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            position: relative;
-        }
-
-        .game-header::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(45deg, 
-                rgba(255,255,255,0.02) 0px,
-                rgba(255,255,255,0.02) 2px,
-                transparent 2px,
-                transparent 4px);
-            pointer-events: none;
-            border-radius: 20px;
         }
 
         .back-btn {
@@ -228,25 +171,6 @@
             box-shadow: -3px -3px 8px rgba(255,255,255,0.1), 3px 3px 8px rgba(0,0,0,0.6);
             cursor: pointer;
             flex-shrink: 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .back-btn::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .back-btn:active::after {
-            opacity: 1;
         }
 
         .back-btn:active {
@@ -275,8 +199,6 @@
             border-radius: 30px;
             border: 1px solid rgba(106,91,255,0.4);
             white-space: nowrap;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
         }
 
         .info-value {
@@ -297,8 +219,6 @@
             height: 38px;
             box-shadow: -3px -3px 8px rgba(255,255,255,0.1), 3px 3px 8px rgba(0,0,0,0.6);
             flex-shrink: 0;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
         }
 
         .pet-emoji {
@@ -323,8 +243,6 @@
             cursor: pointer;
             box-shadow: inset -1px -1px 3px rgba(0,0,0,0.6), inset 1px 1px 3px rgba(255,255,255,0.1);
             transition: 0.1s;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
         }
 
         .pet-food-wrapper:active {
@@ -349,13 +267,6 @@
             border-color: #ffd700 !important;
             background: linear-gradient(145deg, rgba(255,215,0,0.35), rgba(255,200,0,0.25)) !important;
             box-shadow: 0 0 20px rgba(255,215,0,0.6) !important;
-            animation: velvetGlow 2s infinite;
-        }
-
-        @keyframes velvetGlow {
-            0% { box-shadow: 0 0 5px rgba(255,215,0,0.3), inset 0 1px 3px rgba(255,255,255,0.3); }
-            50% { box-shadow: 0 0 20px rgba(255,215,0,0.6), inset 0 1px 5px rgba(255,255,255,0.5); }
-            100% { box-shadow: 0 0 5px rgba(255,215,0,0.3), inset 0 1px 3px rgba(255,255,255,0.3); }
         }
 
         #next-piece-left {
@@ -376,23 +287,6 @@
             width: 70px;
             font-size: 0.6rem;
             backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-        }
-
-        #next-piece-left::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(45deg, 
-                rgba(255,255,255,0.02) 0px,
-                rgba(255,255,255,0.02) 2px,
-                transparent 2px,
-                transparent 4px);
-            pointer-events: none;
-            border-radius: 12px;
         }
 
         .next-piece-section, .pet-animation-section, .pet-info-section {
@@ -450,25 +344,6 @@
             padding: 6px 3px;
             width: 100%;
             animation: glowPulse 2s infinite;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            position: relative;
-        }
-
-        .pet-animation-container::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(45deg, 
-                rgba(255,255,255,0.02) 0px,
-                rgba(255,255,255,0.02) 2px,
-                transparent 2px,
-                transparent 4px);
-            pointer-events: none;
-            border-radius: 8px;
         }
 
         .pet-animation-emoji {
@@ -503,23 +378,6 @@
             background: linear-gradient(90deg, #ffd700, #ffaa00);
             border-radius: 1px;
             transition: width 0.1s linear;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .progress-bar-small::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(90deg,
-                transparent,
-                transparent 5px,
-                rgba(255,255,255,0.1) 5px,
-                rgba(255,255,255,0.1) 10px);
-            pointer-events: none;
         }
 
         .pet-info-mini {
@@ -532,11 +390,6 @@
             border: 1px solid rgba(255,215,0,0.5);
             cursor: pointer;
             transition: transform 0.1s;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            box-shadow: inset 0 1px 2px rgba(255,255,255,0.2),
-                        inset 0 -1px 2px rgba(0,0,0,0.2),
-                        0 2px 5px rgba(0,0,0,0.3);
         }
 
         .pet-info-mini:active {
@@ -573,8 +426,6 @@
             max-width: 100%;
             max-height: 100%;
             box-shadow: -5px -5px 15px rgba(255,255,255,0.1), 5px 5px 25px rgba(0,0,0,0.8);
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px);
         }
 
         .game-controls-panel {
@@ -582,25 +433,6 @@
             flex-direction: column;
             gap: 8px;
             margin-top: 8px;
-            position: relative;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        .game-controls-panel::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(45deg, 
-                rgba(255,255,255,0.02) 0px,
-                rgba(255,255,255,0.02) 2px,
-                transparent 2px,
-                transparent 4px);
-            pointer-events: none;
-            border-radius: 24px;
         }
 
         .game-buttons {
@@ -627,25 +459,6 @@
             gap: 8px;
             box-shadow: -4px -4px 10px rgba(255,255,255,0.1), 4px 4px 10px rgba(0,0,0,0.7);
             transition: 0.1s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .game-btn::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .game-btn:active::after {
-            opacity: 1;
         }
 
         .game-btn:active {
@@ -680,25 +493,6 @@
             cursor: pointer;
             box-shadow: -5px -5px 12px rgba(255,255,255,0.1), 5px 5px 12px rgba(0,0,0,0.8);
             transition: 0.1s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .control-btn::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .control-btn:active::after {
-            opacity: 1;
         }
 
         .control-btn:active {
@@ -711,25 +505,6 @@
             border-radius: 20px;
             margin-top: 4px;
             box-shadow: inset -1px -1px 3px rgba(0,0,0,0.6), inset 1px 1px 3px rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            position: relative;
-        }
-
-        .next-level-progress::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(45deg, 
-                rgba(255,255,255,0.02) 0px,
-                rgba(255,255,255,0.02) 2px,
-                transparent 2px,
-                transparent 4px);
-            pointer-events: none;
-            border-radius: 20px;
         }
 
         .next-level-info {
@@ -754,23 +529,6 @@
             border-radius: 4px;
             box-shadow: 0 0 15px rgba(106,91,255,0.7);
             transition: width 0.2s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .progress-fill::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(90deg,
-                transparent,
-                transparent 5px,
-                rgba(255,255,255,0.1) 5px,
-                rgba(255,255,255,0.1) 10px);
-            pointer-events: none;
         }
 
         .stats-container {
@@ -780,25 +538,6 @@
             background: rgba(20,30,80,0.4);
             border-radius: 20px;
             margin: 10px 0;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            position: relative;
-        }
-
-        .stats-container::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(45deg, 
-                rgba(255,255,255,0.02) 0px,
-                rgba(255,255,255,0.02) 2px,
-                transparent 2px,
-                transparent 4px);
-            pointer-events: none;
-            border-radius: 20px;
         }
 
         .stat-card {
@@ -807,27 +546,6 @@
             border-radius: 20px;
             margin-bottom: 16px;
             border-left: 6px solid #6a5bff;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .stat-card:hover::before {
-            opacity: 1;
         }
 
         .stat-row {
@@ -869,27 +587,6 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .leaderboard-item::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .leaderboard-item:hover::before {
-            opacity: 1;
         }
 
         .rank {
@@ -913,27 +610,6 @@
             padding: 16px;
             text-align: center;
             cursor: pointer;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .level-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .level-card:hover::before {
-            opacity: 1;
         }
 
         .level-card.active {
@@ -965,8 +641,6 @@
             line-height: 1.6;
             box-shadow: -5px -5px 15px rgba(255,255,255,0.1), 5px 5px 25px rgba(0,0,0,0.9);
             pointer-events: none;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
         }
 
         .notification.show {
@@ -990,8 +664,6 @@
             z-index: 10010;
             animation: petUnlock 2s forwards;
             pointer-events: none;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
         }
 
         @keyframes petUnlock {
@@ -1033,27 +705,6 @@
             align-items: center;
             gap: 12px;
             cursor: pointer;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .pause-menu-item::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .pause-menu-item:hover::before {
-            opacity: 1;
         }
 
         .pause-menu-item:active {
@@ -1139,8 +790,6 @@
             gap: 12px;
             box-shadow: -4px -4px 12px rgba(255,255,255,0.1), 4px 4px 18px rgba(0,0,0,0.8);
             animation: petNotify 2s forwards;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
         }
 
         #slowdown-indicator {
@@ -1157,8 +806,6 @@
             box-shadow: 0 0 20px rgba(0,100,255,0.5);
             border: 2px solid #00aaff;
             animation: pulse 1s infinite;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
         }
 
         @keyframes pulse {
@@ -1216,7 +863,7 @@
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС 3D</h1>
-                <p class="subtitle">Питомцы за 500 очков</p>
+                <p class="subtitle">Питомцы за 500 очков • 1 линия = 1 еда</p>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startNewGame()">🎮 НОВАЯ ИГРА</button>
@@ -1378,7 +1025,7 @@
 
         const COLS = 10, ROWS = 20, BLOCK_SIZE = 24;
         
-        const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F'];
+        const COLORS = ['#D68B8B', '#8FB5B0', '#8DA9B3', '#9BB5A0', '#D9CEA3', '#C4A5C4', '#9CB9B2', '#C9BC8F'];
         
         const SHAPES = [
             [[1,1,1,1]], // I
@@ -1419,7 +1066,16 @@
             { level: 17, min: 8500, max: 8999, speed: 80 },
             { level: 18, min: 9000, max: 9499, speed: 80 },
             { level: 19, min: 9500, max: 9999, speed: 80 },
-            { level: 20, min: 10000, max: 10499, speed: 80 }
+            { level: 20, min: 10000, max: 10499, speed: 80 },
+            { level: 21, min: 10500, max: 10999, speed: 80 },
+            { level: 22, min: 11000, max: 11499, speed: 80 },
+            { level: 23, min: 11500, max: 11999, speed: 80 },
+            { level: 24, min: 12000, max: 12499, speed: 80 },
+            { level: 25, min: 12500, max: 12999, speed: 80 },
+            { level: 26, min: 13000, max: 13499, speed: 80 },
+            { level: 27, min: 13500, max: 13999, speed: 80 },
+            { level: 28, min: 14000, max: 14499, speed: 80 },
+            { level: 29, min: 14500, max: Infinity, speed: 80 }
         ];
 
         const BASE_PETS = [
@@ -1432,25 +1088,65 @@
             { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 3500, food: '🌿' },
             { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4000, food: '🐭' },
             { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 4500, food: '🥩' },
-            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, food: '🥩' }
+            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, food: '🥩' },
+            { id: 'leopard', name: 'Леопард', emoji: '🐆', color: '#FF8C00', score: 5500, food: '🥩' },
+            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿' },
+            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🌿' },
+            { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 7000, food: '🍌' },
+            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🌿' },
+            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '🌿' },
+            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌' },
+            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '🌿' },
+            { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎' },
+            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰' },
+            { id: 'deer', name: 'Олень', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿' },
+            { id: 'moose', name: 'Лось', emoji: '🦌', color: '#5D3A1A', score: 11000, food: '🌲' },
+            { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 11500, food: '🌿' },
+            { id: 'otter', name: 'Выдра', emoji: '🦦', color: '#8B4513', score: 12000, food: '🐟' },
+            { id: 'seal', name: 'Тюлень', emoji: '🦭', color: '#808080', score: 12500, food: '🐟' },
+            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 13000, food: '🦐' },
+            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13500, food: '🐟' }
         ];
 
         const PET_ABILITIES = {
             'cat': { name: 'Мяу-клинер', effect: 'Убирает строки', emoji: '🐱', foodCost: 3, type: 'clear', baseLines: 1 },
-            'dog': { name: 'Верный друг', effect: 'Замедление', emoji: '🐕', foodCost: 3, type: 'slow', baseDuration: 10000 },
-            'rabbit': { name: 'Морковный совет', effect: 'Показывает идеальное место', emoji: '🐇', foodCost: 4, type: 'hint' },
-            'fox': { name: 'Хитрый лис', effect: 'Замедление', emoji: '🦊', foodCost: 4, type: 'slow', baseDuration: 12000 },
-            'panda': { name: 'Бамбуковый рай', effect: 'Замедление', emoji: '🐼', foodCost: 5, type: 'slow', baseDuration: 15000 },
-            'penguin': { name: 'Ледяное дыхание', effect: 'Замедление', emoji: '🐧', foodCost: 4, type: 'slow', baseDuration: 10000 },
-            'owl': { name: 'Мудрый взгляд', effect: 'Убирает строки', emoji: '🦉', foodCost: 4, type: 'clear', baseLines: 2 },
             'tiger': { name: 'Тигриная сила', effect: 'Убирает строки', emoji: '🐯', foodCost: 5, type: 'clear', baseLines: 2 },
-            'lion': { name: 'Королевский рык', effect: 'Убирает строки', emoji: '🦁', foodCost: 7, type: 'clear', baseLines: 3 }
+            'lion': { name: 'Королевский рык', effect: 'Убирает строки', emoji: '🦁', foodCost: 7, type: 'clear', baseLines: 3 },
+            'leopard': { name: 'Быстрая атака', effect: 'Убирает строки', emoji: '🐆', foodCost: 5, type: 'clear', baseLines: 5 },
+            'dog': { name: 'Верный друг', effect: 'Замедление', emoji: '🐕', foodCost: 3, type: 'slow', baseDuration: 10000 },
+            'fox': { name: 'Хитрый лис', effect: 'Замедление', emoji: '🦊', foodCost: 4, type: 'slow', baseDuration: 12000 },
+            'rabbit': { name: 'Морковный совет', effect: 'Показывает идеальное место', emoji: '🐇', foodCost: 4, type: 'hint' },
+            'bear': { name: 'Спячка', effect: 'Замедление', emoji: '🐻', foodCost: 6, type: 'slow', baseDuration: 20000 },
+            'panda': { name: 'Бамбуковый рай', effect: 'Замедление', emoji: '🐼', foodCost: 5, type: 'slow', baseDuration: 15000 },
+            'owl': { name: 'Мудрый взгляд', effect: 'Убирает строки', emoji: '🦉', foodCost: 4, type: 'clear', baseLines: 2 },
+            'penguin': { name: 'Ледяное дыхание', effect: 'Замедление', emoji: '🐧', foodCost: 4, type: 'slow', baseDuration: 10000 },
+            'whale': { name: 'Китовый фонтан', effect: 'Убирает строки', emoji: '🐋', foodCost: 8, type: 'clear', baseLines: 4 },
+            'dolphin': { name: 'Дельфиний всплеск', effect: 'Замедление', emoji: '🐬', foodCost: 6, type: 'slow', baseDuration: 18000 },
+            'seal': { name: 'Тюлений отдых', effect: 'Замедление', emoji: '🦭', foodCost: 4, type: 'slow', baseDuration: 12000 },
+            'giraffe': { name: 'Длинная шея', effect: 'Убирает строки', emoji: '🦒', foodCost: 4, type: 'clear', baseLines: 2 },
+            'zebra': { name: 'Полосатая защита', effect: 'Замедление', emoji: '🦓', foodCost: 4, type: 'slow', baseDuration: 10000 },
+            'rhino': { name: 'Толстая кожа', effect: 'Замедление', emoji: '🦏', foodCost: 7, type: 'slow', baseDuration: 20000 },
+            'hippo': { name: 'Речная мощь', effect: 'Убирает строки', emoji: '🦛', foodCost: 6, type: 'clear', baseLines: 3 },
+            'elephant': { name: 'Топот', effect: 'Убирает строки', emoji: '🐘', foodCost: 8, type: 'clear', baseLines: 4 },
+            'squirrel': { name: 'Запасливая', effect: 'Убирает строки', emoji: '🐿️', foodCost: 2, type: 'clear', baseLines: 1 },
+            'hedgehog': { name: 'Колючий шар', effect: 'Убирает строки', emoji: '🦔', foodCost: 4, type: 'clear', baseLines: 2 },
+            'beaver': { name: 'Строитель плотин', effect: 'Замедление', emoji: '🦫', foodCost: 5, type: 'slow', baseDuration: 15000 },
+            'otter': { name: 'Игривый', effect: 'Убирает строки', emoji: '🦦', foodCost: 4, type: 'clear', baseLines: 2 },
+            'monkey': { name: 'Обезьяньи проделки', effect: 'Убирает строки', emoji: '🐒', foodCost: 4, type: 'clear', baseLines: 2 },
+            'sloth': { name: 'Ленивый день', effect: 'Замедление', emoji: '🦥', foodCost: 5, type: 'slow', baseDuration: 25000 },
+            'deer': { name: 'Лесная грация', effect: 'Замедление', emoji: '🦌', foodCost: 4, type: 'slow', baseDuration: 15000 },
+            'moose': { name: 'Северный ветер', effect: 'Замедление', emoji: '🦌', foodCost: 7, type: 'slow', baseDuration: 25000 }
         };
 
         const PET_RANKS = [
             { prefix: '', name: 'Обычный', min: 0, max: 24, color: '#FFFFFF' },
             { prefix: '✨', name: 'Блестящий', min: 25, max: 49, color: '#FFD700' },
-            { prefix: '🌟', name: 'Сияющий', min: 50, max: 74, color: '#FFFACD' }
+            { prefix: '🌟', name: 'Сияющий', min: 50, max: 74, color: '#FFFACD' },
+            { prefix: '💎', name: 'Драгоценный', min: 75, max: 99, color: '#B9F2FF' },
+            { prefix: '👑', name: 'Королевский', min: 100, max: 124, color: '#FFD700' },
+            { prefix: '🔥', name: 'Легендарный', min: 125, max: 149, color: '#FF4500' },
+            { prefix: '🎮', name: 'Мифический', min: 150, max: 174, color: '#9370DB' },
+            { prefix: '♾️', name: 'Бесконечный', min: 175, max: Infinity, color: '#00FFFF' }
         ];
 
         const screens = {
@@ -1466,15 +1162,17 @@
         let board = [], currentPiece = null, currentX = 0, currentY = 0;
         let score = 0, level = 0, gameLevel = 0, lines = 0;
         let gameActive = false, gamePaused = false, gameOver = false;
-        let dropCounter = 0, dropInterval = 800, lastTime = 0;
+        let dropCounter = 0, dropInterval = 800, lastTime = 0, animationId = null;
         let currentDifficulty = 'classic';
         let clearedLinesAnimation = [], pieceQueue = [];
         let comboCount = 0;
         let originalSpeed = 800;
+        let shieldActive = false;
 
         let userPets = {};
         let petFood = {};
         let activePet = null;
+        let currentSessionPets = [];
 
         let gamesPlayed = 0;
         let totalLinesAll = 0;
@@ -1482,18 +1180,20 @@
         let bestLevel = 0;
         let avgScore = 0;
 
+        let backgroundCache = null;
         let frameRequestId = null;
         let lastFrameTime = 0;
+        let frameCount = 0;
         let lastBoardHash = '';
 
-        // Загрузка питомцев
+        // ========== ИСПРАВЛЕНИЕ: Функции загрузки и сохранения питомцев ==========
         function loadPets() {
             try {
                 const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
                 if (saved) {
                     const data = JSON.parse(saved);
                     userPets = data.pets || {};
-                    petFood = data.food || {};
+                    petFood = data.food || {};  // Загружаем РЕАЛЬНУЮ еду
                 } else {
                     userPets = {};
                     petFood = {};
@@ -1507,11 +1207,11 @@
         }
 
         function savePets() {
-            const saveData = { pets: userPets, food: petFood };
+            const saveData = { pets: userPets, food: petFood };  // Сохраняем РЕАЛЬНУЮ еду
             localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
         }
 
-        // Отображение следующей фигуры
+        // ========== НОВОЕ: Отображение палки единым блоком ==========
         function updateNextPieceDisplay() {
             const shapeContainer = document.getElementById('next-piece-left-shape');
             const levelSpan = document.getElementById('next-piece-level');
@@ -1521,32 +1221,141 @@
             shapeContainer.innerHTML = '';
             
             if (!pieceQueue || pieceQueue.length === 0) {
-                shapeContainer.innerHTML = '<div style="color:#aaccff;">нет</div>';
+                shapeContainer.style.display = 'flex';
+                shapeContainer.style.alignItems = 'center';
+                shapeContainer.style.justifyContent = 'center';
+                shapeContainer.innerHTML = '<div style="color:#aaccff; font-size:0.7rem;">нет</div>';
                 return;
             }
             
             const nextId = pieceQueue[0];
+            
+            if (nextId === undefined || nextId < 0 || nextId >= SHAPES.length) {
+                shapeContainer.style.display = 'flex';
+                shapeContainer.style.alignItems = 'center';
+                shapeContainer.style.justifyContent = 'center';
+                shapeContainer.innerHTML = '<div style="color:#aaccff; font-size:0.7rem;">???</div>';
+                return;
+            }
+            
             const shape = SHAPES[nextId];
-            const color = COLORS[nextId];
             
-            shapeContainer.style.display = 'grid';
-            shapeContainer.style.gridTemplateRows = `repeat(${shape.length}, 1fr)`;
-            shapeContainer.style.gridTemplateColumns = `repeat(${shape[0].length}, 1fr)`;
-            shapeContainer.style.gap = '1px';
-            shapeContainer.style.width = '55px';
-            shapeContainer.style.height = '55px';
+            const FIGURE_COLORS = [
+                '#FF6B6B', // I - красный
+                '#4ECDC4', // O - бирюзовый
+                '#45B7D1', // T - голубой
+                '#96CEB4', // S - мятный
+                '#FFEAA7', // Z - желтый
+                '#DDA0DD', // L - сиреневый
+                '#F7DC6F'  // J - золотой
+            ];
             
-            for (let r = 0; r < shape.length; r++) {
-                for (let c = 0; c < shape[r].length; c++) {
-                    const block = document.createElement('div');
-                    if (shape[r][c]) {
-                        block.style.backgroundColor = color;
-                        block.style.borderRadius = '3px';
-                        block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.4)';
+            const color = FIGURE_COLORS[nextId];
+            
+            // ========== НОВОЕ: Специальное отображение для палки (I-фигура) ==========
+            if (nextId === 0) { // I-фигура (палка)
+                shapeContainer.innerHTML = '';
+                shapeContainer.style.display = 'flex';
+                shapeContainer.style.flexDirection = 'column';
+                shapeContainer.style.justifyContent = 'center';
+                shapeContainer.style.alignItems = 'center';
+                shapeContainer.style.gap = '0'; // Убираем зазоры между блоками
+                shapeContainer.style.width = '20px';
+                shapeContainer.style.height = '55px';
+                shapeContainer.style.margin = '0 auto';
+                shapeContainer.style.padding = '0';
+                shapeContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
+                shapeContainer.style.borderRadius = '6px';
+                
+                // Создаем единый блок с разделителями
+                const block = document.createElement('div');
+                block.style.width = '16px';
+                block.style.height = '48px'; // 4 блока по 12px
+                block.style.backgroundColor = color;
+                block.style.borderRadius = '4px';
+                block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.3)';
+                block.style.border = '1px solid rgba(255,255,255,0.2)';
+                
+                // Добавляем полоски-разделители для имитации 4 блоков
+                block.style.backgroundImage = `
+                    linear-gradient(0deg, 
+                        rgba(0,0,0,0.2) 0%, 
+                        rgba(0,0,0,0.2) 2px, 
+                        transparent 2px, 
+                        transparent 25%,
+                        rgba(0,0,0,0.2) 25%,
+                        rgba(0,0,0,0.2) 27%,
+                        transparent 27%,
+                        transparent 50%,
+                        rgba(0,0,0,0.2) 50%,
+                        rgba(0,0,0,0.2) 52%,
+                        transparent 52%,
+                        transparent 75%,
+                        rgba(0,0,0,0.2) 75%,
+                        rgba(0,0,0,0.2) 77%,
+                        transparent 77%,
+                        transparent 100%
+                    )
+                `;
+                block.style.backgroundSize = '100% 100%';
+                block.style.backgroundRepeat = 'no-repeat';
+                
+                shapeContainer.appendChild(block);
+                
+            } else {
+                // Для остальных фигур - стандартное отображение
+                let minRow = shape.length, maxRow = -1, minCol = shape[0].length, maxCol = -1;
+                
+                for (let r = 0; r < shape.length; r++) {
+                    for (let c = 0; c < shape[r].length; c++) {
+                        if (shape[r][c] === 1) {
+                            minRow = Math.min(minRow, r);
+                            maxRow = Math.max(maxRow, r);
+                            minCol = Math.min(minCol, c);
+                            maxCol = Math.max(maxCol, c);
+                        }
                     }
-                    block.style.width = '100%';
-                    block.style.height = '100%';
-                    shapeContainer.appendChild(block);
+                }
+                
+                if (maxRow === -1) {
+                    shapeContainer.innerHTML = '<div style="color:#aaccff;">пусто</div>';
+                    return;
+                }
+                
+                const rows = maxRow - minRow + 1;
+                const cols = maxCol - minCol + 1;
+                
+                shapeContainer.style.display = 'grid';
+                shapeContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+                shapeContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                shapeContainer.style.gap = '1px';
+                shapeContainer.style.width = '55px';
+                shapeContainer.style.height = '55px';
+                shapeContainer.style.padding = '2px';
+                shapeContainer.style.backgroundColor = 'rgba(0,0,0,0.3)';
+                shapeContainer.style.borderRadius = '6px';
+                
+                for (let r = minRow; r <= maxRow; r++) {
+                    for (let c = minCol; c <= maxCol; c++) {
+                        const block = document.createElement('div');
+                        
+                        if (shape[r] && shape[r][c] === 1) {
+                            block.style.backgroundColor = color;
+                            block.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.3)';
+                            block.style.borderRadius = '3px';
+                            block.style.border = '1px solid rgba(255,255,255,0.2)';
+                        } else {
+                            block.style.backgroundColor = 'transparent';
+                            block.style.boxShadow = 'none';
+                            block.style.border = 'none';
+                        }
+                        
+                        block.style.width = '100%';
+                        block.style.height = '100%';
+                        block.style.aspectRatio = '1 / 1';
+                        
+                        shapeContainer.appendChild(block);
+                    }
                 }
             }
             
@@ -1559,7 +1368,7 @@
             for (let lvl of GAME_LEVELS) {
                 if (scoreValue >= lvl.min && scoreValue <= lvl.max) return lvl.level;
             }
-            return GAME_LEVELS.length - 1;
+            return GAME_LEVELS[GAME_LEVELS.length - 1].level;
         }
 
         function getLevelSpeed(levelValue) {
@@ -1568,18 +1377,37 @@
         }
 
         function updateGameLevel() {
+            const oldLevel = gameLevel;
             gameLevel = getGameLevelFromScore(score);
+            if (gameLevel > oldLevel) {
+                showNotification('⚡ УРОВЕНЬ ' + gameLevel + '! ⚡');
+            }
             dropInterval = getLevelSpeed(gameLevel);
             document.getElementById('game-level').textContent = gameLevel;
             document.getElementById('level-display').textContent = gameLevel;
+
+            const nextLevel = GAME_LEVELS.find(l => l.level === gameLevel + 1) || GAME_LEVELS[GAME_LEVELS.length - 1];
+            document.getElementById('next-level-target').textContent = nextLevel.min;
+
+            const currentLevelData = GAME_LEVELS.find(l => l.level === gameLevel);
+            if (currentLevelData) {
+                const progress = ((score - currentLevelData.min) / (currentLevelData.max - currentLevelData.min + 1)) * 100;
+                document.getElementById('progress-fill').style.width = Math.min(100, Math.max(0, progress)) + '%';
+            }
         }
 
         function getBoostPower(baseLines) {
-            return gameLevel >= 8 ? baseLines * 3 : gameLevel >= 4 ? baseLines * 2 : baseLines;
+            if (gameLevel >= 11) return baseLines * 4;
+            if (gameLevel >= 8) return baseLines * 3;
+            if (gameLevel >= 4) return baseLines * 2;
+            return baseLines;
         }
 
         function getSlowDuration(baseDuration) {
-            return gameLevel >= 8 ? baseDuration * 2 : gameLevel >= 4 ? baseDuration * 1.5 : baseDuration;
+            if (gameLevel >= 11) return baseDuration * 2.5;
+            if (gameLevel >= 8) return baseDuration * 2;
+            if (gameLevel >= 4) return baseDuration * 1.5;
+            return baseDuration;
         }
 
         function getPetByScore(scoreValue) {
@@ -1597,19 +1425,20 @@
             };
         }
 
-        // Разблокировка питомца - ТОЛЬКО 3 ЕДЫ
+        // ========== ИСПРАВЛЕНИЕ: Только 3 еды при получении ==========
         function unlockPet(pet) {
             if (!pet) return false;
             const petId = `${pet.rank.prefix}_${pet.id}`;
             userPets[petId] = (userPets[petId] || 0) + 1;
             
-            // ТОЛЬКО 3 ЕДЫ ПРИ ПОЛУЧЕНИИ
+            // ✅ ТОЛЬКО 3 ЕДЫ ПРИ ПОЛУЧЕНИИ! (никаких лишних начислений)
             petFood[petId] = (petFood[petId] || 0) + 3;
             
             activePet = pet;
             document.getElementById('pet-header-panel').style.display = 'flex';
             savePets();
             showPetUnlockAnimation(pet);
+            showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name}`, pet.color);
             showFoodAnimation(pet.food, 3, pet.color);
             updatePetHeaderPanel();
             updatePetLeftPanel();
@@ -1635,7 +1464,7 @@
                 document.getElementById('pet-emoji-header').textContent = activePet.emoji;
                 document.getElementById('pet-food-icon-header').textContent = activePet.food;
                 document.getElementById('pet-food-count-header').textContent = foodCount;
-                panel.style.borderColor = activePet.color;
+                panel.style.borderColor = activePet.color + '80';
                 panel.style.display = 'flex';
                 if (ability && foodCount >= ability.foodCost) {
                     panel.classList.add('pet-ready');
@@ -1662,8 +1491,18 @@
                 infoEmoji.textContent = activePet.emoji;
                 infoEmoji.style.color = activePet.color;
                 infoFood.textContent = `🍖${foodCount}`;
+                
                 petInfoMini.style.opacity = '1';
                 petInfoMini.style.pointerEvents = 'auto';
+                
+                const ability = PET_ABILITIES[activePet.id];
+                if (ability && foodCount >= ability.foodCost) {
+                    petInfoMini.style.background = 'rgba(255,215,0,0.4)';
+                    petInfoMini.style.border = '2px solid #ffd700';
+                } else {
+                    petInfoMini.style.background = 'rgba(255,215,0,0.2)';
+                    petInfoMini.style.border = '1px solid rgba(255,215,0,0.5)';
+                }
             } else {
                 infoEmoji.textContent = '🐣';
                 infoFood.textContent = '🍖0';
@@ -1672,7 +1511,13 @@
             }
         }
 
-        // Проверка линий - БЕЗ НАЧИСЛЕНИЯ ЕДЫ
+        function updateLeftPanelNewGame() {
+            const animSection = document.getElementById('pet-animation-section');
+            if (animSection) animSection.style.display = 'none';
+            updatePetLeftPanel();
+        }
+
+        // ========== ИСПРАВЛЕНИЕ: Убираем лишнее начисление еды за линии ==========
         function checkLines() {
             let linesCleared = 0;
             let clearedRows = [];
@@ -1697,7 +1542,15 @@
                 
                 if (lines >= (level + 1) * 10) level = Math.floor(lines / 10);
                 
-                // НАЧИСЛЕНИЕ ЕДЫ УДАЛЕНО - еда только при получении питомца
+                // ========== ИСПРАВЛЕНИЕ: УБИРАЕМ начисление еды за линии ==========
+                // Раньше здесь было:
+                // if (activePet) {
+                //     const petId = `${activePet.rank.prefix}_${activePet.id}`;
+                //     petFood[petId] = (petFood[petId] || 0) + linesCleared;
+                //     savePets();
+                //     showFoodAnimation(activePet.food, linesCleared, activePet.color);
+                // }
+                // Теперь еда начисляется ТОЛЬКО при получении питомца (+3)
                 
                 checkPetUnlocks(oldScore);
                 
@@ -1722,24 +1575,74 @@
                 showNotification('❌ Сначала получи питомца! (500 очков)');
                 return;
             }
-            showNotification('🍖 Еда дается только при получении питомцев (+3)');
+            showNotification('🍖 Еда дается только за получение питомцев!');
         }
 
         function showPetBoostAnimation(pet, ability, power) {
             const animSection = document.getElementById('pet-animation-section');
             const animEmoji = document.getElementById('pet-animation-emoji');
             const animEffect = document.getElementById('pet-animation-effect');
+            const progressBar = document.getElementById('progress-bar-small');
             
             if (!animSection || !animEmoji || !animEffect) return;
             
             animEmoji.textContent = pet.emoji;
             animEmoji.style.color = pet.color;
-            animEffect.textContent = ability.type === 'clear' ? `Убрать ${power} строк` : `Замедление ${Math.round(power/1000)}с`;
+            
+            let effectText = ability.effect;
+            if (ability.type === 'clear') {
+                effectText = `Убрать ${power} строк`;
+                if (power === 1) effectText = 'Убрать 1 строку';
+                else if (power >= 2 && power <= 4) effectText = `Убрать ${power} строки`;
+                else effectText = `Убрать ${power} строк`;
+            } else if (ability.type === 'slow') {
+                effectText = `Замедление ${Math.round(power/1000)} сек`;
+            }
+            
+            animEffect.textContent = effectText;
             animSection.style.display = 'flex';
             
+            if (ability.type === 'slow') {
+                const duration = power / 1000;
+                let timeLeft = duration;
+                
+                if (window.boostTimer) clearInterval(window.boostTimer);
+                
+                window.boostTimer = setInterval(() => {
+                    timeLeft -= 0.1;
+                    const progress = (timeLeft / duration) * 100;
+                    progressBar.style.width = Math.max(0, progress) + '%';
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(window.boostTimer);
+                        setTimeout(() => {
+                            animSection.style.display = 'none';
+                        }, 500);
+                    }
+                }, 100);
+            } else {
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    progressBar.style.width = '0%';
+                    setTimeout(() => {
+                        animSection.style.display = 'none';
+                    }, 300);
+                }, 800);
+            }
+        }
+
+        function showFeedingAnimation(pet) {
+            const animSection = document.getElementById('pet-animation-section');
+            const animEmoji = document.getElementById('pet-animation-emoji');
+            const animEffect = document.getElementById('pet-animation-effect');
+            if (!animSection || !animEmoji || !animEffect) return;
+            animEmoji.textContent = pet.emoji;
+            animEmoji.style.color = pet.color;
+            animEffect.textContent = '+3 ' + pet.food;
+            animSection.style.display = 'flex';
             setTimeout(() => {
                 animSection.style.display = 'none';
-            }, 2000);
+            }, 1500);
         }
 
         function showPetUnlockAnimation(pet) {
@@ -1749,9 +1652,9 @@
             div.className = 'pet-unlock-animation';
             div.style.borderColor = pet.color;
             div.innerHTML = `
-                <div style="font-size: 3rem;">✨</div>
-                <div style="font-size: 4rem;">${pet.emoji}</div>
-                <div style="font-size: 1.5rem;">+1 ${pet.name}</div>
+                <div style="font-size: 3rem;">✨✨✨</div>
+                <div style="font-size: 4rem; filter: drop-shadow(0 0 35px ${pet.color});">${pet.emoji}</div>
+                <div style="font-size: 1.5rem; color: ${pet.color};">+1 ${pet.rank.prefix}${pet.name}</div>
                 <div style="font-size: 1.2rem;">+3 ${pet.food}</div>
             `;
             gameArea.appendChild(div);
@@ -1759,18 +1662,29 @@
         }
 
         function showFoodAnimation(foodEmoji, count, color) {
-            for (let i = 0; i < count; i++) {
+            for (let i = 0; i < Math.min(count, 5); i++) {
                 setTimeout(() => {
                     const food = document.createElement('div');
                     food.className = 'food-particle';
                     food.style.left = (window.innerWidth - 150 + Math.random() * 100) + 'px';
                     food.style.top = (window.innerHeight / 2 + Math.random() * 100 - 50) + 'px';
-                    food.style.color = color;
+                    food.style.color = color || '#ffd700';
+                    food.style.fontSize = '2.5rem';
                     food.textContent = foodEmoji;
                     document.body.appendChild(food);
                     setTimeout(() => food.remove(), 1000);
                 }, i * 100);
             }
+        }
+
+        function showPetNotification(message, color) {
+            const n = document.createElement('div');
+            n.className = 'pet-notification';
+            n.style.borderLeftColor = color;
+            n.style.background = 'linear-gradient(145deg, rgba(10,15,30,0.98), rgba(5,10,20,0.98))';
+            n.innerHTML = `<span style="font-size:1.5rem;">✨</span><span>${message}</span>`;
+            document.body.appendChild(n);
+            setTimeout(() => n.remove(), 2000);
         }
 
         function showCombo(combo) {
@@ -1783,6 +1697,13 @@
             }
         }
 
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? 
+                `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : 
+                '255, 215, 0';
+        }
+
         function clearBottomLines(count) {
             for (let i = 0; i < count; i++) {
                 board.pop();
@@ -1793,7 +1714,8 @@
             const bonusScore = count * 100 * (gameLevel + 1);
             score += bonusScore;
             updateDisplay();
-            showNotification(`✨ +${bonusScore} очков!`);
+            
+            showNotification(`✨ +${bonusScore} очков за бустер!`);
         }
 
         function slowDownGame(duration) {
@@ -1801,7 +1723,8 @@
                 window.originalSpeed = dropInterval;
             }
             
-            dropInterval = window.originalSpeed * 2;
+            const slowFactor = gameLevel >= 8 ? 3 : (gameLevel >= 4 ? 2.5 : 2);
+            dropInterval = window.originalSpeed * slowFactor;
             
             let indicator = document.getElementById('slowdown-indicator');
             if (!indicator) {
@@ -1816,8 +1739,15 @@
                 if (!gamePaused && !gameOver) {
                     dropInterval = window.originalSpeed;
                     indicator.style.display = 'none';
+                    showNotification('⚡ Скорость восстановлена');
                 }
             }, duration);
+        }
+
+        function getLineWord(count) {
+            if (count === 1) return 'строку';
+            if (count >= 2 && count <= 4) return 'строки';
+            return 'строк';
         }
 
         function abilityRabbit() {
@@ -1826,13 +1756,62 @@
             const bestPosition = findBestPosition();
             if (bestPosition) {
                 showHint(bestPosition);
-                showNotification('🐇 Зайка советует сюда!');
+                showNotification('🐇 Зайка советует: поставь фигуру здесь!');
+            } else {
+                showNotification('🐇 Зайка думает... попробуй повернуть фигуру');
             }
         }
 
         function findBestPosition() {
             if (!currentPiece) return null;
-            return { x: currentX, y: currentY };
+            let bestScore = -1;
+            let bestX = currentX;
+            let bestY = currentY;
+            let bestRotation = 0;
+            const originalShape = currentPiece.shape;
+            for (let rot = 0; rot < 4; rot++) {
+                if (rot > 0) rotatePiece();
+                for (let x = 0; x < COLS - currentPiece.shape[0].length + 1; x++) {
+                    let y = 0;
+                    while (!collide(currentPiece, x, y + 1)) y++;
+                    if (y >= 0) {
+                        const score = evaluatePosition(x, y);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestX = x;
+                            bestY = y;
+                            bestRotation = rot;
+                        }
+                    }
+                }
+            }
+            while (bestRotation > 0) {
+                rotatePiece();
+                bestRotation--;
+            }
+            return { x: bestX, y: bestY };
+        }
+
+        function evaluatePosition(x, y) {
+            let score = 0;
+            const shape = currentPiece.shape;
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c]) {
+                        const boardY = y + r;
+                        const boardX = x + c;
+                        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
+                            if (boardY < ROWS - 1) {
+                                if (board[boardY + 1] && !board[boardY + 1][boardX]) score += 10;
+                            }
+                            if (boardX > 0 && board[boardY] && board[boardY][boardX - 1]) score += 5;
+                            if (boardX < COLS - 1 && board[boardY] && board[boardY][boardX + 1]) score += 5;
+                        }
+                    }
+                }
+            }
+            score += (ROWS - y) * 2;
+            return score;
         }
 
         function showHint(position) {
@@ -1851,6 +1830,22 @@
                     }
                 }
             }
+            if (position.x < currentX) {
+                const arrow = document.createElement('div');
+                arrow.className = 'direction-arrow';
+                arrow.textContent = '←';
+                arrow.style.left = '20px';
+                arrow.style.top = '50%';
+                document.querySelector('.game-area').appendChild(arrow);
+            }
+            if (position.x > currentX) {
+                const arrow = document.createElement('div');
+                arrow.className = 'direction-arrow';
+                arrow.textContent = '→';
+                arrow.style.right = '20px';
+                arrow.style.top = '50%';
+                document.querySelector('.game-area').appendChild(arrow);
+            }
         }
 
         function hideHint() {
@@ -1858,17 +1853,19 @@
         }
 
         function startNewGame() {
-            if (frameRequestId) cancelAnimationFrame(frameRequestId);
+            stopGameLoop();
             
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             score = 0; lines = 0; gameLevel = 0; level = 0;
             gameActive = true; gamePaused = false; gameOver = false;
-            comboCount = 0;
+            comboCount = 0; shieldActive = false;
             
             activePet = null;
+            
             document.getElementById('pet-header-panel').style.display = 'none';
             
             loadPets();
+            updateLeftPanelNewGame();
             
             dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 800;
             originalSpeed = dropInterval;
@@ -1879,10 +1876,13 @@
             updateGameLevel();
             updateDisplay();
             spawnPiece();
-            drawBoard();
-            showScreen('game');
-            startGameLoop();
-            showNotification('🎮 НОВАЯ ИГРА!');
+            
+            if (!gameOver) {
+                drawBoard();
+                showScreen('game');
+                startGameLoop();
+                showNotification('🎮 НОВАЯ ИГРА! Питомцы за 500 очков');
+            }
         }
 
         function spawnPiece() {
@@ -1898,11 +1898,17 @@
             updateNextPieceDisplay();
             
             if (collide(currentPiece, currentX, currentY)) {
-                gameOver = true;
-                saveGameToDB(true);
-                savePets();
-                showNotification('🎯 ИГРА ОКОНЧЕНА! Счет: ' + score);
-                setTimeout(() => showMenu(), 1500);
+                if (shieldActive) {
+                    shieldActive = false;
+                    showNotification('🛡️ ЩИТ СПАС ИГРУ!');
+                    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+                } else {
+                    gameOver = true;
+                    saveGameToDB(true);
+                    savePets();
+                    showNotification('🎯 ИГРА ОКОНЧЕНА! Счет: ' + score);
+                    setTimeout(() => showMenu(), 1500);
+                }
             }
         }
 
@@ -1977,13 +1983,14 @@
             mergePiece();
             checkLines();
             spawnPiece();
+            updateDisplay();
         }
 
         function togglePause() {
             if (gameActive && !gameOver) {
                 gamePaused = !gamePaused;
                 if (gamePaused) {
-                    if (frameRequestId) cancelAnimationFrame(frameRequestId);
+                    stopGameLoop();
                     showPauseMenu();
                 } else {
                     removePauseMenu();
@@ -2001,33 +2008,64 @@
 
         function showPauseMenu() {
             if (!activePet) {
-                showNotification('⏸️ ПАУЗА\n❌ НЕТ ПИТОМЦА');
+                showNotification(`⏸️ ПАУЗА\n❌ НЕТ ПИТОМЦА\n🎮 Набери 500 очков`);
                 return;
             }
             
             const petId = `${activePet.rank.prefix}_${activePet.id}`;
             const foodCount = petFood[petId] || 0;
-            const ability = PET_ABILITIES[activePet.id] || { name: 'Способность', foodCost: 5 };
+            const ability = PET_ABILITIES[activePet.id] || { name: 'Способность', foodCost: 5, effect: '' };
+            
+            let powerText = '';
+            if (ability.type === 'clear') {
+                const power = getBoostPower(ability.baseLines || 1);
+                powerText = ` (${power} ${getLineWord(power)})`;
+            } else if (ability.type === 'slow') {
+                const power = getSlowDuration(ability.baseDuration || 10000);
+                powerText = ` (${Math.round(power/1000)} сек)`;
+            }
             
             const menuHTML = `
                 <div style="text-align: center;">
                     <div style="font-size: 2.5rem;">${activePet.emoji}</div>
-                    <div style="font-size: 1.2rem; margin-bottom: 16px;">${activePet.name}</div>
-                    <div style="margin-bottom: 20px;">
-                        <div>✨ ${ability.name} • 🍖 ${ability.foodCost}</div>
-                        <div style="color: #ffd700;">🍖 Еда: ${foodCount}</div>
+                    <div style="font-size: 1.2rem; color: ${activePet.color}; margin-bottom: 16px;">
+                        ${activePet.rank.prefix}${activePet.name}
                     </div>
-                    <div class="pause-menu-item" onclick="usePetAbility()">
-                        <span>✨</span> АКТИВИРОВАТЬ
+                    <div style="background: rgba(0,0,0,0.5); border-radius: 20px; padding: 16px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>✨ ${ability.name}</span>
+                            <span style="color: #ffd700;">🍖 ${ability.foodCost}</span>
+                        </div>
+                        <div style="color: #aaccff;">${ability.effect}${powerText}</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 12px;">
+                            <span>🍖 Еда:</span>
+                            <span style="color: #ffd700;">${foodCount}</span>
+                        </div>
+                        <div style="color: #66ffaa; font-size: 0.8rem; margin-top: 8px;">
+                            ⚡ Уровень ${gameLevel}
+                        </div>
                     </div>
-                    <div class="pause-menu-item" onclick="removePauseMenu()">
-                        <span>▶️</span> ПРОДОЛЖИТЬ
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div class="pause-menu-item" onclick="usePetAbility(); return false;">
+                            <span style="font-size: 1.5rem;">✨</span>
+                            <div>
+                                <div class="title">АКТИВИРОВАТЬ</div>
+                                <div style="color: #aaccff;">${ability.name} • 🍖${ability.foodCost}</div>
+                            </div>
+                        </div>
+                        <div class="pause-menu-item" onclick="removePauseMenu(); return false;" style="background: linear-gradient(145deg, #2a4a3a, #1a3a2a);">
+                            <span style="font-size: 1.5rem;">▶️</span>
+                            <div>
+                                <div class="title">ПРОДОЛЖИТЬ</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
             
             const n = document.getElementById('notification');
             n.innerHTML = menuHTML;
+            n.style.border = '3px solid ' + activePet.color;
             n.style.pointerEvents = 'auto';
             n.classList.add('show');
         }
@@ -2045,59 +2083,92 @@
         }
 
         function usePetAbility() {
-            if (!activePet) return;
+            if (!activePet) {
+                showNotification('❌ Сначала получи питомца! (500 очков)');
+                return;
+            }
             
             const petId = `${activePet.rank.prefix}_${activePet.id}`;
             const foodCount = petFood[petId] || 0;
             const ability = PET_ABILITIES[activePet.id];
             
-            if (!ability || foodCount < ability.foodCost) {
-                showNotification(`❌ Нужно ${ability?.foodCost || 5} еды!`);
+            if (!ability) {
+                showNotification('❌ У питомца нет способности');
+                return;
+            }
+            
+            if (foodCount < ability.foodCost) {
+                showNotification(`❌ Нужно ${ability.foodCost} еды! Есть: ${foodCount}`);
                 return;
             }
             
             petFood[petId] = foodCount - ability.foodCost;
             savePets();
+            updatePetHeaderPanel();
+            updatePetLeftPanel();
             
             if (ability.type === 'clear') {
                 const power = getBoostPower(ability.baseLines || 1);
                 showPetBoostAnimation(activePet, ability, power);
                 clearBottomLines(power);
+                showNotification(`${ability.emoji} ${ability.name}: убрано ${power} ${getLineWord(power)}!`);
             } else if (ability.type === 'slow') {
                 const power = getSlowDuration(ability.baseDuration || 10000);
                 showPetBoostAnimation(activePet, ability, power);
                 slowDownGame(power);
+                showNotification(`${ability.emoji} ${ability.name}: замедление на ${Math.round(power/1000)} сек!`);
             } else if (ability.type === 'hint') {
+                showPetBoostAnimation(activePet, ability, 0);
                 abilityRabbit();
             }
             
-            updatePetHeaderPanel();
             removePauseMenu();
+        }
+
+        function getBoardHash() {
+            return JSON.stringify(board) +
+                (currentPiece ? JSON.stringify(currentPiece.shape) + currentX + currentY : '') +
+                clearedLinesAnimation.length;
         }
 
         function startGameLoop() {
             if (frameRequestId) cancelAnimationFrame(frameRequestId);
-            lastFrameTime = performance.now();
-            frameRequestId = requestAnimationFrame(gameLoop);
+            lastFrameTime = 0;
+            frameCount = 0;
+            lastBoardHash = '';
+            frameRequestId = requestAnimationFrame(optimizedGameLoop);
         }
 
-        function gameLoop(currentTime) {
+        function stopGameLoop() {
+            if (frameRequestId) {
+                cancelAnimationFrame(frameRequestId);
+                frameRequestId = null;
+            }
+        }
+
+        function optimizedGameLoop(t) {
             if (!gameActive || gameOver || gamePaused) {
-                frameRequestId = requestAnimationFrame(gameLoop);
+                frameRequestId = requestAnimationFrame(optimizedGameLoop);
                 return;
             }
-            
-            const deltaTime = currentTime - lastFrameTime;
-            lastFrameTime = currentTime;
-            
-            dropCounter += deltaTime;
+            frameCount++;
+            if (frameCount % 2 !== 0) {
+                frameRequestId = requestAnimationFrame(optimizedGameLoop);
+                return;
+            }
+            const d = t - lastFrameTime;
+            lastFrameTime = t;
+            dropCounter += d;
             if (dropCounter > dropInterval) {
                 moveDown();
                 dropCounter = 0;
             }
-            
-            drawBoard();
-            frameRequestId = requestAnimationFrame(gameLoop);
+            const currentHash = getBoardHash();
+            if (currentHash !== lastBoardHash) {
+                drawBoard();
+                lastBoardHash = currentHash;
+            }
+            frameRequestId = requestAnimationFrame(optimizedGameLoop);
         }
 
         function lightenColor(c, p) {
@@ -2126,40 +2197,105 @@
             return c;
         }
 
+        CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+            if (w < 2 * r) r = w / 2;
+            if (h < 2 * r) r = h / 2;
+            this.moveTo(x + r, y);
+            this.lineTo(x + w - r, y);
+            this.quadraticCurveTo(x + w, y, x + w, y + r);
+            this.lineTo(x + w, y + h - r);
+            this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            this.lineTo(x + r, y + h);
+            this.quadraticCurveTo(x, y + h, x, y + h - r);
+            this.lineTo(x, y + r);
+            this.quadraticCurveTo(x, y, x + r, y);
+            return this;
+        };
+
         function drawBlock(x, y, color, isCurrent) {
             const s = BLOCK_SIZE;
             const bx = x * s;
             const by = y * s;
-            
-            ctx.fillStyle = color;
-            ctx.shadowBlur = isCurrent ? 15 : 5;
-            ctx.shadowColor = 'rgba(255,255,255,0.5)';
-            ctx.fillRect(bx + 1, by + 1, s - 2, s - 2);
+            const mainColor = color;
+            const lightColor = lightenColor(mainColor, 25);
+            const darkColor = darkenColor(mainColor, 25);
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            const gradient = ctx.createLinearGradient(bx, by, bx + s, by + s);
+            gradient.addColorStop(0, lightColor);
+            gradient.addColorStop(0.5, mainColor);
+            gradient.addColorStop(1, darkColor);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.roundRect(bx, by, s - 1, s - 1, 2);
+            ctx.fill();
             ctx.shadowBlur = 0;
-            
-            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(bx, by, s, s);
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.globalAlpha = 0.12;
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 2; j++) {
+                    ctx.fillRect(bx + 6 + i * 8, by + 6 + j * 8, 1, 1);
+                }
+            }
+            ctx.globalAlpha = 1;
+            if (isCurrent) {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = lightColor;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.5;
+                ctx.globalAlpha = 0.4;
+                ctx.strokeRect(bx + 1, by + 1, s - 3, s - 3);
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+            }
         }
 
         function drawBoard() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
+            if (!backgroundCache) {
+                const offscreen = document.createElement('canvas');
+                offscreen.width = canvas.width;
+                offscreen.height = canvas.height;
+                const offCtx = offscreen.getContext('2d');
+                offCtx.fillStyle = 'rgba(0,0,0,0.4)';
+                offCtx.fillRect(0, 0, canvas.width, canvas.height);
+                offCtx.strokeStyle = 'rgba(106,91,255,0.25)';
+                offCtx.lineWidth = 1;
+                for (let x = 0; x <= COLS; x++) {
+                    offCtx.beginPath();
+                    offCtx.moveTo(x * BLOCK_SIZE, 0);
+                    offCtx.lineTo(x * BLOCK_SIZE, ROWS * BLOCK_SIZE);
+                    offCtx.stroke();
+                }
+                for (let y = 0; y <= ROWS; y++) {
+                    offCtx.beginPath();
+                    offCtx.moveTo(0, y * BLOCK_SIZE);
+                    offCtx.lineTo(COLS * BLOCK_SIZE, y * BLOCK_SIZE);
+                    offCtx.stroke();
+                }
+                backgroundCache = offscreen;
+            }
+            ctx.drawImage(backgroundCache, 0, 0);
             for (let y = 0; y < ROWS; y++) {
                 for (let x = 0; x < COLS; x++) {
-                    if (board[y][x]) {
-                        drawBlock(x, y, board[y][x], false);
-                    }
+                    if (board[y][x]) drawBlock(x, y, board[y][x], false);
                 }
             }
-            
             if (clearedLinesAnimation.length > 0) {
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#fff';
                 clearedLinesAnimation.forEach(rowY => {
                     ctx.fillRect(0, rowY * BLOCK_SIZE, COLS * BLOCK_SIZE, BLOCK_SIZE);
                 });
+                ctx.restore();
             }
-            
             if (currentPiece) {
                 for (let y = 0; y < currentPiece.shape.length; y++) {
                     for (let x = 0; x < currentPiece.shape[y].length; x++) {
@@ -2171,7 +2307,6 @@
             }
         }
 
-        // Управление
         let moveInterval = null;
         let moveDirection = null;
         let moveTimer = null;
@@ -2180,15 +2315,12 @@
             if (gameOver || gamePaused || !gameActive) return;
             if (moveInterval) clearInterval(moveInterval);
             if (moveTimer) clearTimeout(moveTimer);
-            
             if (dir === 'left') moveLeft();
             else if (dir === 'right') moveRight();
             else if (dir === 'down') moveDown();
             drawBoard();
-            
             moveDirection = dir;
             const speed = (dir === 'down') ? 180 : 100;
-            
             moveTimer = setTimeout(() => {
                 moveInterval = setInterval(() => {
                     if (gameOver || gamePaused || !gameActive) {
@@ -2220,37 +2352,65 @@
             const btnRight = document.getElementById('btn-right');
             const btnDown = document.getElementById('btn-down');
             const btnRotate = document.getElementById('btn-rotate');
-            
+            if (!btnLeft || !btnRight || !btnDown || !btnRotate) return;
             [btnLeft, btnRight, btnDown, btnRotate].forEach(btn => {
-                btn.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+                btn.addEventListener('contextmenu', (e) => e.preventDefault());
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
             });
-            
             btnLeft.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 stopMove();
                 startMove('left');
             }, { passive: false });
-            btnLeft.addEventListener('touchend', stopMove);
-            btnLeft.addEventListener('touchcancel', stopMove);
-            
+            btnLeft.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                stopMove();
+            }, { passive: false });
+            btnLeft.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                stopMove();
+            }, { passive: false });
             btnRight.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 stopMove();
                 startMove('right');
             }, { passive: false });
-            btnRight.addEventListener('touchend', stopMove);
-            btnRight.addEventListener('touchcancel', stopMove);
-            
+            btnRight.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                stopMove();
+            }, { passive: false });
+            btnRight.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                stopMove();
+            }, { passive: false });
             btnDown.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 stopMove();
                 startMove('down');
             }, { passive: false });
-            btnDown.addEventListener('touchend', stopMove);
-            btnDown.addEventListener('touchcancel', stopMove);
-            
+            btnDown.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                stopMove();
+            }, { passive: false });
+            btnDown.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                stopMove();
+            }, { passive: false });
             btnRotate.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 if (!gameOver && !gamePaused) {
                     rotatePiece();
                     drawBoard();
@@ -2261,100 +2421,325 @@
         document.addEventListener('keydown', (e) => {
             if (e.key.startsWith('Arrow')) e.preventDefault();
             if (gameOver || gamePaused || !gameActive) return;
-            if (e.key === 'ArrowLeft') { moveLeft(); drawBoard(); }
-            if (e.key === 'ArrowRight') { moveRight(); drawBoard(); }
-            if (e.key === 'ArrowDown') { moveDown(); drawBoard(); }
-            if (e.key === 'ArrowUp') { rotatePiece(); drawBoard(); }
-            if (e.key === ' ') { hardDrop(); drawBoard(); }
-            if (e.key === 'p') togglePause();
-            if (e.key === 'Escape') showMenu();
+            if (e.key === 'ArrowLeft') { e.preventDefault(); moveLeft(); drawBoard(); }
+            if (e.key === 'ArrowRight') { e.preventDefault(); moveRight(); drawBoard(); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); moveDown(); drawBoard(); }
+            if (e.key === 'ArrowUp') { e.preventDefault(); rotatePiece(); drawBoard(); }
+            if (e.key === ' ') { e.preventDefault(); hardDrop(); drawBoard(); }
+            if (e.key === 'p' || e.key === 'P') { togglePause(); }
+            if (e.key === 'Escape') { showMenu(); }
         });
 
         async function saveGameToDB(gameOverFlag = false) {
             if (!telegramUserId || telegramUserId.startsWith('guest_')) {
                 return { success: false };
             }
-            return { success: true };
+            try {
+                const r = await fetch('/api/save-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegramId: telegramUserId,
+                        gameType: 'tetris',
+                        score: score,
+                        level: gameLevel,
+                        lines: lines,
+                        gameOver: gameOverFlag,
+                        username: telegramUsername
+                    })
+                });
+                const result = await r.json();
+                if (result.success) loadUserStats();
+                return result;
+            } catch {
+                return { success: false };
+            }
         }
 
         async function saveGameScore() {
-            showNotification('✅ Сохранено!');
+            if (!gameActive) {
+                showNotification('❌ Нет активной игры');
+                return;
+            }
+            showNotification('💾 Сохраняю...');
+            const result = await saveGameToDB(false);
+            if (result.success) {
+                showNotification('✅ РЕЗУЛЬТАТ СОХРАНЕН!');
+                loadUserStats();
+            } else {
+                showNotification('❌ Ошибка сохранения');
+            }
         }
 
         async function loadUserStats() {
-            document.getElementById('stats-player-info').innerHTML = `${telegramUsername}`;
+            if (!telegramUserId || telegramUserId.startsWith('guest_')) {
+                gamesPlayed = 0; totalLinesAll = 0; bestScore = 0; bestLevel = 0; avgScore = 0;
+                document.getElementById('stats-player-info').innerHTML = `Гость • ID: ${telegramUserId.substring(0, 8)}...`;
+                updateStatsUI();
+                return;
+            }
+            try {
+                const response = await fetch(`/api/user-stats?telegramId=${telegramUserId}&gameType=tetris`);
+                const result = await response.json();
+                if (result.success && result.stats) {
+                    const s = result.stats;
+                    gamesPlayed = s.games_played || 0;
+                    totalLinesAll = s.best_lines || 0;
+                    bestScore = s.best_score || 0;
+                    bestLevel = s.best_level || 0;
+                    avgScore = s.avg_score ? Math.round(s.avg_score) : 0;
+                    document.getElementById('stats-player-info').innerHTML = `${telegramUsername} • ID: ${telegramUserId.substring(0, 8)}...`;
+                }
+            } catch (error) {
+                console.error('❌ Ошибка загрузки статистики:', error);
+            }
             updateStatsUI();
         }
 
         async function loadAllUserGames() {
+            if (!telegramUserId || telegramUserId.startsWith('guest_')) return [];
+            try {
+                const response = await fetch(`/api/user-stats?telegramId=${telegramUserId}&gameType=tetris`);
+                const result = await response.json();
+                if (result.success && result.stats) {
+                    const s = result.stats;
+                    const games = [];
+                    if (s.best_score > 0) games.push({ score: s.best_score, lines: s.best_lines || Math.floor(s.best_score / 25) });
+                    const gamesPlayed = s.games_played || 0;
+                    const avgScore = s.avg_score || 800;
+                    for (let i = 1; i < gamesPlayed; i++) {
+                        games.push({
+                            score: Math.floor(avgScore * (0.8 + Math.random() * 0.4)),
+                            lines: Math.floor(avgScore / 25 * (0.8 + Math.random() * 0.4))
+                        });
+                    }
+                    return games;
+                }
+            } catch (error) {
+                console.error('❌ Ошибка загрузки игр:', error);
+            }
             return [];
         }
 
         function calculatePetsFromGames(games) {
-            return { petCounts: {}, totalLines: 0 };
+            const petCounts = {};
+            let totalLines = 0;
+            games.forEach(game => {
+                const gameScore = game.score || 0;
+                const gameLines = game.lines || 0;
+                totalLines += gameLines;
+                const petsEarned = Math.floor(gameScore / 500);
+                for (let i = 0; i < petsEarned; i++) {
+                    const petIndex = i % BASE_PETS.length;
+                    const tier = Math.floor(i / BASE_PETS.length);
+                    const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+                    const pet = BASE_PETS[petIndex];
+                    const petId = `${rank.prefix}_${pet.id}`;
+                    petCounts[petId] = (petCounts[petId] || 0) + 1;
+                }
+            });
+            return { petCounts, totalLines };
         }
 
-        // Статистика - используем реальную еду
+        // ========== ИСПРАВЛЕНИЕ: Убираем calculateFood и используем реальную еду ==========
         async function updateStatsUI() {
             const statsContainer = document.getElementById('stats-container');
             if (!statsContainer) return;
             
-            const petGroups = {};
+            // Загружаем игры для подсчета питомцев (только для отображения, НЕ для еды)
+            const allGames = await loadAllUserGames();
+            const { petCounts, totalLines } = calculatePetsFromGames(allGames);
             
-            Object.keys(userPets).forEach(petId => {
-                const count = userPets[petId];
+            // ИСПРАВЛЕНИЕ: Используем РЕАЛЬНУЮ еду из petFood, а НЕ пересчитанную
+            const petFoodReal = petFood || {};
+            
+            totalLinesAll = totalLines;
+            const petGroups = {};
+            let totalPetsEarned = 0;
+            
+            // Группируем питомцев для отображения
+            Object.keys(petCounts).forEach(petId => {
+                const count = petCounts[petId];
                 if (count > 0) {
                     const [prefix, id] = petId.split('_');
                     const basePet = BASE_PETS.find(p => p.id === id);
+                    const rank = PET_RANKS.find(r => r.prefix === prefix) || PET_RANKS[0];
+                    
                     if (basePet) {
                         const key = basePet.id;
                         if (!petGroups[key]) {
                             petGroups[key] = {
                                 ...basePet,
                                 count: 0,
-                                foodTotal: 0
+                                foodTotal: 0,
+                                score: basePet.score,
+                                emoji: basePet.emoji,
+                                color: basePet.color,
+                                prefix: prefix,
+                                rank: rank
                             };
                         }
                         petGroups[key].count += count;
-                        petGroups[key].foodTotal += petFood[petId] || 0;
+                        // ИСПРАВЛЕНИЕ: Берем реальную еду, а НЕ пересчитанную
+                        petGroups[key].foodTotal += petFoodReal[petId] || 0;
+                        totalPetsEarned += count;
                     }
                 }
             });
             
-            const sortedPets = Object.values(petGroups);
+            const sortedPets = Object.values(petGroups).sort((a, b) => a.score - b.score);
             
+            // Следующий питомец
+            let nextPet = null;
+            let nextPetProgress = 0;
+            let needPoints = 0;
+            
+            if (bestScore < 13500) {
+                const petsEarned = Math.floor(bestScore / 500);
+                const nextScore = (petsEarned + 1) * 500;
+                const petIndex = petsEarned % BASE_PETS.length;
+                const tier = Math.floor(petsEarned / BASE_PETS.length);
+                const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+                const basePet = BASE_PETS[petIndex];
+                nextPet = {
+                    ...basePet,
+                    rank: rank,
+                    emoji: `${rank.prefix}${basePet.emoji}`,
+                    color: rank.color,
+                    score: nextScore
+                };
+                nextPetProgress = bestScore > 0 ? ((bestScore / nextScore) * 100).toFixed(1) : 0;
+                needPoints = nextScore - bestScore;
+            }
+            
+            // Формируем HTML статистики
             let html = `
-                <div class="stat-card">
-                    <h3>🏆 СТАТИСТИКА</h3>
-                    <div class="stat-row"><span>Лучший счет:</span><span>${bestScore}</span></div>
-                    <div class="stat-row"><span>Сыграно игр:</span><span>${gamesPlayed}</span></div>
+                <div class="stat-card" style="border-left-color: #6a5bff;">
+                    <h3 style="color: #6a5bff;">🏆 СТАТИСТИКА</h3>
+                    <div class="stat-row"><span class="stat-label">🎮 Сыграно игр:</span><span class="stat-value">${gamesPlayed}</span></div>
+                    <div class="stat-row"><span class="stat-label">🏆 Лучший счет:</span><span class="stat-value">${bestScore}</span></div>
+                    <div class="stat-row"><span class="stat-label">⭐ Рекордный уровень:</span><span class="stat-value">${bestLevel}</span></div>
+                    <div class="stat-row"><span class="stat-label">📏 Всего линий:</span><span class="stat-value">${totalLinesAll}</span></div>
+                    <div class="stat-row"><span class="stat-label">💰 Средний счет:</span><span class="stat-value">${avgScore}</span></div>
+                </div>
+                <div class="stat-card" style="border-left-color: #4ecdc4;">
+                    <h3 style="color: #4ecdc4;">🎮 ТЕКУЩАЯ СЕССИЯ</h3>
+                    <div class="stat-row"><span class="stat-label">🎯 Текущий счет:</span><span class="stat-value">${score}</span></div>
+                    <div class="stat-row"><span class="stat-label">⭐ Текущий уровень:</span><span class="stat-value">${gameLevel}</span></div>
+                    <div class="stat-row"><span class="stat-label">📏 Линии в сессии:</span><span class="stat-value">${lines}</span></div>
                 </div>
             `;
             
+            if (nextPet) {
+                html += `
+                    <div class="stat-card" style="border-left-color: ${nextPet.color};">
+                        <h3 style="color: ${nextPet.color};">🎯 СЛЕДУЮЩИЙ ПИТОМЕЦ</h3>
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                            <span style="font-size: 3rem;">${nextPet.emoji}</span>
+                            <div>
+                                <div style="font-size: 1.2rem;">${nextPet.rank.prefix}${nextPet.name}</div>
+                                <div style="color: #aaccff;">${nextPet.score} очков</div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.6); border-radius: 16px; padding: 12px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>Рекорд</span>
+                                <span style="color: #ffd700;">${bestScore} / ${nextPet.score}</span>
+                            </div>
+                            <div style="width: 100%; height: 10px; background: rgba(0,0,0,0.8); border-radius: 5px; overflow: hidden; margin-bottom: 8px;">
+                                <div style="height: 100%; width: ${nextPetProgress}%; background: linear-gradient(90deg, ${nextPet.color}, #ffaa00);"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>⏳ Нужно: ${needPoints} очков</span>
+                                <span>${nextPetProgress}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
             if (sortedPets.length > 0) {
-                html += `<div class="stat-card"><h3>🐾 МОИ ПИТОМЦЫ</h3>`;
+                html += `<div class="stat-card"><h3 style="color: #ff99aa;">🐾 МОИ ПИТОМЦЫ</h3><div class="pets-collection-grid">`;
                 sortedPets.forEach(pet => {
-                    html += `<div style="margin: 10px 0; display: flex; justify-content: space-between;">
-                        <span>${pet.emoji} ${pet.name} ×${pet.count}</span>
-                        <span style="color: #ffd700;">🍖${pet.foodTotal}</span>
+                    html += `<div style="background: rgba(30,40,100,0.7); border-radius: 20px; padding: 12px; margin-bottom: 10px; border-left: 6px solid ${pet.color}; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 2.2rem;">${pet.emoji}</span>
+                            <div>
+                                <div style="font-weight: bold;">${pet.name} <span style="background: rgba(255,215,0,0.3); padding: 2px 12px; border-radius: 20px;">×${pet.count}</span></div>
+                                <div style="color: #aaccff;">${pet.score} очков</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,215,0,0.2); padding: 6px 16px; border-radius: 30px;">
+                            <span>${pet.food}</span>
+                            <span style="color: #ffd700;">×${pet.foodTotal}</span>
+                        </div>
                     </div>`;
                 });
-                html += `</div>`;
+                html += `</div></div>`;
             } else {
-                html += `<div class="stat-card"><h3>🐣 У вас пока нет питомцев</h3></div>`;
+                html += `<div class="stat-card" style="text-align: center; padding: 25px;"><span style="font-size: 3rem;">🐣</span><h3>У вас пока нет питомцев</h3><p>Сыграйте игру и наберите 500 очков!</p></div>`;
             }
             
             statsContainer.innerHTML = html;
         }
 
         function refreshStats() {
+            showNotification('🔄 Обновление...');
             loadUserStats();
         }
 
         function showLeaderboard() {
             const list = document.getElementById('leaderboard-list');
-            list.innerHTML = '<div style="text-align:center;">🏆 Таблица лидеров</div>';
+            list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Загрузка...</div>';
             showScreen('leaderboard');
+            fetch('/api/top-players?gameType=tetris&limit=10')
+                .then(r => r.json())
+                .then(result => {
+                    const players = result.players || [];
+                    list.innerHTML = '';
+                    if (players.length === 0) {
+                        list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Пока нет игроков</div>';
+                        return;
+                    }
+                    players.forEach((p, i) => {
+                        const pid = p.user_id || p.telegram_id || '';
+                        const isMe = pid === telegramUserId;
+                        const rankColor = i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#ffcc66';
+                        const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                        const playerScore = p.best_score || p.score || 0;
+                        const playerLevel = p.best_level || p.level || 0;
+                        let petsHtml = '';
+                        if (playerScore >= 500) {
+                            const maxPets = Math.floor(playerScore / 500);
+                            const displayPets = Math.min(maxPets, 5);
+                            for (let j = 0; j < displayPets; j++) {
+                                const pet = BASE_PETS[j % BASE_PETS.length];
+                                petsHtml += `<span style="font-size: 1.2rem; margin-right: 2px;">${pet.emoji}</span>`;
+                            }
+                            if (maxPets > 5) petsHtml += `<span style="color:#ffd700;">+${maxPets - 5}</span>`;
+                        } else {
+                            petsHtml = '<span style="color:#aaccff;">🐾 нет</span>';
+                        }
+                        const item = document.createElement('div');
+                        item.className = 'leaderboard-item';
+                        if (isMe) {
+                            item.style.background = 'linear-gradient(145deg, rgba(102,204,153,0.35), rgba(77,179,128,0.25))';
+                            item.style.border = '2px solid #66ffaa';
+                        }
+                        item.innerHTML = `
+                            <div class="rank" style="color:${rankColor};">${rankIcon}</div>
+                            <div class="player-info">
+                                <div class="player-name" style="color:${isMe ? '#66ffaa' : 'white'};">${p.display_name || p.username || `Игрок ${pid.slice(-4)}`}${isMe ? ' 👑' : ''}</div>
+                                <div class="player-score">🏆 ${playerScore} очков • Ур.${playerLevel}</div>
+                                <div style="display: flex; gap: 4px; margin-top: 5px;">${petsHtml}</div>
+                            </div>
+                        `;
+                        list.appendChild(item);
+                    });
+                })
+                .catch(() => {
+                    list.innerHTML = '<div style="text-align:center; padding:30px; color:#ff6666;">❌ Ошибка загрузки</div>';
+                });
         }
 
         function showLevels() {
@@ -2364,6 +2749,7 @@
                 grid.innerHTML += `<div class="level-card ${l.id === currentDifficulty ? 'active' : ''}" onclick="selectDifficulty('${l.id}')">
                     <div class="level-icon">${l.icon}</div>
                     <div class="level-name">${l.name}</div>
+                    <div class="level-desc" style="color: #aaccff;">${l.speed}ms</div>
                 </div>`;
             });
             showScreen('levels');
@@ -2383,34 +2769,48 @@
 
         function showMenu() {
             showScreen('menu');
-            if (gameActive) {
-                gamePaused = true;
-                if (frameRequestId) cancelAnimationFrame(frameRequestId);
+            if (gameActive && !gamePaused) {
+                togglePause();
+            } else if (gameActive && gamePaused) {
+                stopGameLoop();
             }
-            hideHint();
         }
 
         function showScreen(s) {
             Object.keys(screens).forEach(k => screens[k].classList.remove('active'));
             screens[s].classList.add('active');
+            if (s !== 'game') {
+                stopGameLoop();
+                hideHint();
+            }
         }
 
         function showNotification(m) {
             const n = document.getElementById('notification');
-            n.innerHTML = m;
+            n.innerHTML = m.replace(/\n/g, '<br>');
+            n.style.pointerEvents = 'none';
             n.classList.add('show');
-            setTimeout(() => n.classList.remove('show'), 2000);
+            setTimeout(() => {
+                n.classList.remove('show');
+                n.style.pointerEvents = 'none';
+            }, 3000);
         }
 
         window.addEventListener('load', () => {
+            console.log('🎮 Тетрис 3D БАРХАТ — Питомцы');
             loadPets();
+            if (activePet) {
+                updatePetHeaderPanel();
+            } else {
+                updateLeftPanelNewGame();
+            }
             loadUserStats();
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             drawBoard();
             selectDifficulty('classic');
             setupControls();
             updateNextPieceDisplay();
-            showNotification('✨ Бархатный Тетрис');
+            showNotification('✨ При получении питомца +3 еды!');
         });
     </script>
 </body>
