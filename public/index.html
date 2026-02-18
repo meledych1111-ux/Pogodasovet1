@@ -482,21 +482,50 @@
             border-radius: 24px;
         }
 
-        .control-btn {
+       .control-btn {
     background: linear-gradient(145deg, #3a4a6a, #2a3a5a);
     border: none;
-    border-radius: 25px;  /* чуть скругленнее */
-    padding: 20px 12px;   /* БОЛЬШЕ! */
+    border-radius: 25px;
+    padding: 20px 12px;
     color: white;
-    font-size: 2rem;      /* БОЛЬШЕ! */
+    font-size: 2rem;
     font-weight: bold;
     cursor: pointer;
-    box-shadow: -5px -5px 12px rgba(255,255,255,0.1), 5px 5px 12px rgba(0,0,0,0.8);
-    transition: 0.1s;
+    
+    /* БАРХАТИСТАЯ ТЕКСТУРА и 3D ЭФФЕКТ */
+    box-shadow: 
+        -6px -6px 12px rgba(255, 255, 255, 0.15),
+        6px 6px 12px rgba(0, 0, 0, 0.6),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.3),
+        inset 2px 2px 4px rgba(255, 255, 255, 0.1);
+    
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    transition: all 0.2s ease;
+    
+    /* Тонкая обводка */
+    border: 1px solid rgba(255,255,255,0.15);
 }
-        .control-btn:active {
-            transform: scale(0.94);
-        }
+
+.control-btn:hover {
+    background: linear-gradient(145deg, #3f5175, #2f3f5f);
+    box-shadow: 
+        -4px -4px 10px rgba(255, 255, 255, 0.2),
+        4px 4px 10px rgba(0, 0, 0, 0.7),
+        inset -1px -1px 3px rgba(0, 0, 0, 0.3),
+        inset 1px 1px 3px rgba(255, 255, 255, 0.15);
+}
+
+.control-btn:active {
+    background: linear-gradient(145deg, #2a3a5a, #1a2a4a);
+    box-shadow: 
+        -2px -2px 6px rgba(255, 255, 255, 0.05),
+        2px 2px 6px rgba(0, 0, 0, 0.4),
+        inset -3px -3px 5px rgba(0, 0, 0, 0.5),
+        inset 3px 3px 5px rgba(255, 255, 255, 0.05);
+    
+    /* Только translateY, никакого scale! */
+    transform: translateY(2px);
+}
 
         .next-level-progress {
     padding: 6px 12px;    /* МЕНЬШЕ! */
