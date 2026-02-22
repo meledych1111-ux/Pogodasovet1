@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Тетрис 3D БАРХАТ — Питомцы</title>
     <style>
         * {
@@ -266,12 +266,12 @@
             box-shadow: 0 0 15px rgba(255,215,0,0.6) !important;
         }
 
-        /* Бокс следующей фигуры */
+        /* ===== ИСПРАВЛЕННАЯ БОКОВАЯ ПАНЕЛЬ ===== */
         #next-piece-left {
             position: absolute;
             left: 5px;
-            top: 25%;
-            transform: translateY(-20%);
+            top: 50%;
+            transform: translateY(-50%);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -285,6 +285,7 @@
             width: 75px;
             font-size: 0.6rem;
             backdrop-filter: blur(5px);
+            pointer-events: none;
         }
 
         .next-piece-section, .pet-animation-section, .pet-info-section {
@@ -323,7 +324,6 @@
             margin: 2px 0;
         }
 
-        /* ===== ПРАВИЛЬНОЕ ОТОБРАЖЕНИЕ ФИГУР ===== */
         .piece-grid {
             display: inline-grid;
             gap: 2px;
@@ -344,7 +344,6 @@
             border: none;
         }
 
-        /* I-фигура (палка) */
         .i-piece-vertical {
             display: flex;
             flex-direction: column;
@@ -360,7 +359,6 @@
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        /* Анимация питомца */
         .pet-animation-container {
             display: flex;
             flex-direction: column;
@@ -464,7 +462,6 @@
             text-shadow: 0 0 5px rgba(255,215,0,0.7);
         }
 
-        /* КНОПКА БЫСТРОЙ АКТИВАЦИИ БУСТЕРА */
         .quick-boost {
             background: linear-gradient(145deg, #ffd700, #ffaa00);
             border-radius: 16px;
@@ -494,7 +491,6 @@
             100% { box-shadow: 0 0 15px rgba(255,215,0,0.5); }
         }
 
-        /* ИНДИКАТОРЫ БУСТЕРОВ */
         .boost-indicator {
             position: absolute;
             top: 5px;
@@ -534,7 +530,6 @@
             box-shadow: 0 0 15px #64ff64;
         }
 
-        /* ПОДСКАЗКИ */
         .hint-block {
             position: absolute;
             border: 2px solid #ffd700;
@@ -567,29 +562,32 @@
             100% { opacity: 0.6; transform: translateX(0); }
         }
 
+        /* ===== ИСПРАВЛЕННОЕ ИГРОВОЕ ПОЛЕ ===== */
         .game-area {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 400px;
+            min-height: 350px;
             height: calc(100% - 130px);
             position: relative;
-            margin-left: 0;
+            width: 100%;
+            overflow: visible;
         }
 
         #tetris-canvas {
             background: rgba(0,0,0,0.3);
             border-radius: 16px;
             border: 2px solid rgba(106,91,255,0.5);
-            max-width: 100%;
-            max-height: 100%;
             box-shadow: -3px -3px 10px rgba(255,255,255,0.1), 3px 3px 15px rgba(0,0,0,0.8);
             width: 220px;
             height: 440px;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: transform 0.2s ease;
         }
 
-        /* Нижняя панель */
         .game-controls-panel {
             display: flex;
             flex-direction: column;
@@ -637,7 +635,7 @@
             background: linear-gradient(145deg, #3a5e4a, #2a4a3a);
         }
 
-        /* КНОПКИ УПРАВЛЕНИЯ */
+        /* ===== НОВЫЙ ПОРЯДОК КНОПОК (ВЛЕВО, ВНИЗ, ВПРАВО, ПОВОРОТ) ===== */
         .controls {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr 1fr;
@@ -720,7 +718,6 @@
             flex-shrink: 0;
         }
 
-        /* ЭКРАН УРОВНЕЙ */
         #levels-screen {
             display: flex;
             flex-direction: column;
@@ -775,7 +772,6 @@
             font-size: 0.8rem;
         }
 
-        /* Анимации */
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-4px); }
@@ -917,14 +913,16 @@
             image-rendering: pixelated;
         }
 
-        @media (max-width: 360px) {
+        /* ===== АДАПТАЦИЯ ДЛЯ УЗКИХ ЭКРАНОВ ===== */
+        @media (max-width: 400px) {
             .game-container {
-                max-width: 340px;
+                max-width: 100%;
+                padding: 0;
             }
             
             #next-piece-left {
                 width: 68px;
-                left: 2px;
+                left: 3px;
                 padding: 6px 3px;
             }
             
@@ -949,11 +947,6 @@
                 min-height: 44px;
             }
             
-            #tetris-canvas {
-                width: 200px;
-                height: 400px;
-            }
-            
             .game-info {
                 gap: 4px;
             }
@@ -964,6 +957,45 @@
             
             .info-value {
                 font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 350px) {
+            #next-piece-left {
+                width: 60px;
+                left: 2px;
+                padding: 5px 2px;
+            }
+            
+            .piece-cell, .i-piece-block {
+                width: 10px;
+                height: 10px;
+            }
+            
+            .section-title {
+                font-size: 0.5rem;
+            }
+            
+            .next-piece-shape {
+                width: 50px;
+                min-height: 50px;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .game-area {
+                min-height: 300px;
+            }
+            
+            #tetris-canvas {
+                width: 180px;
+                height: 360px;
+            }
+            
+            .control-btn {
+                padding: 10px 5px;
+                min-height: 44px;
+                font-size: 1.4rem;
             }
         }
     </style>
@@ -1055,12 +1087,9 @@
                     <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
                 </div>
 
-                <!-- КНОПКИ УПРАВЛЕНИЯ -->
-                <div class="controls">
-                    <button class="control-btn" id="btn-left">←</button>
-                    <button class="control-btn" id="btn-down">↓</button>
-                    <button class="control-btn" id="btn-right">→</button>
-                    <button class="control-btn" id="btn-rotate">↻</button>
+                <!-- КНОПКИ УПРАВЛЕНИЯ (БУДУТ ПЕРЕСОЗДАНЫ В НУЖНОМ ПОРЯДКЕ) -->
+                <div class="controls" id="controls-container">
+                    <!-- Кнопки будут созданы скриптом -->
                 </div>
 
                 <div class="next-level-progress">
@@ -1300,7 +1329,7 @@
         let userPets = {};
         let petFood = {};
         let activePet = null;
-        let currentGamePets = []; // Питомцы, полученные в ТЕКУЩЕЙ игре
+        let currentGamePets = [];
 
         let gamesPlayed = 0;
         let totalLinesAll = 0;
@@ -1326,7 +1355,7 @@
         
         let shieldRemaining = 0;
 
-        // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ЗАГРУЗКИ/СОХРАНЕНИЯ ==========
+        // ========== ФУНКЦИИ ЗАГРУЗКИ/СОХРАНЕНИЯ ==========
         function loadPets() {
             try {
                 const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
@@ -1346,7 +1375,7 @@
                 petFood = {};
             }
             activePet = null;
-            currentGamePets = []; // Сбрасываем питомцев текущей игры
+            currentGamePets = [];
             updatePetLeftPanel();
         }
 
@@ -1378,13 +1407,12 @@
                 petFood = {};
             }
             activePet = null;
-            currentGamePets = []; // Сбрасываем питомцев текущей игры
+            currentGamePets = [];
             updatePetLeftPanel();
         }
 
-        // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
+        // ========== ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
         function getPetByNumber(petNumber) {
-            // petNumber: 1, 2, 3, 4... (количество полученных питомцев в ЭТОЙ игре)
             if (petNumber < 1) return null;
             
             const index = (petNumber - 1) % BASE_PETS.length;
@@ -1416,9 +1444,7 @@
         }
 
         function checkPetUnlocks(oldScore) {
-            // Сколько питомцев должны были получить в ЭТОЙ игре при старом счете
             const oldGamePetsCount = Math.floor(oldScore / 500);
-            // Сколько питомцев должны были получить в ЭТОЙ игре при новом счете
             const newGamePetsCount = Math.floor(score / 500);
             
             console.log('🔍 Проверка питомцев:', { 
@@ -1429,13 +1455,10 @@
                 уже_получено_в_этой_игре: currentGamePets.length
             });
             
-            // Если в ЭТОЙ игре нужно получить больше питомцев
             if (newGamePetsCount > currentGamePets.length) {
-                // Сколько новых питомцев нужно получить
                 const petsToAdd = newGamePetsCount - currentGamePets.length;
                 
                 for (let i = 0; i < petsToAdd; i++) {
-                    // Номер питомца в ЭТОЙ игре
                     const petNumber = currentGamePets.length + i + 1;
                     const pet = getPetByNumber(petNumber);
                     
@@ -1453,21 +1476,13 @@
             
             const petId = `${pet.rank.prefix}_${pet.id}`;
             
-            // Увеличиваем счётчик питомца в ОБЩЕЙ коллекции
             userPets[petId] = (userPets[petId] || 0) + 1;
-            
-            // Даём 3 еды
             petFood[petId] = (petFood[petId] || 0) + 3;
-            
-            // Делаем этого питомца активным
             activePet = pet;
-            
-            // Сохраняем
             savePets();
             
             console.log('✨ ДОБАВЛЕН В КОЛЛЕКЦИЮ:', pet.rank.prefix + pet.name, 'теперь всего:', userPets[petId]);
             
-            // Показываем в интерфейсе
             document.getElementById('pet-header-panel').style.display = 'flex';
             
             const headerEmoji = document.getElementById('pet-emoji-header');
@@ -1485,7 +1500,6 @@
             const leftFood = document.getElementById('pet-info-food');
             if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
             
-            // Анимация
             const animContainer = document.getElementById('pet-animation-container');
             const petInfoMini = document.getElementById('pet-info-mini');
             
@@ -1512,7 +1526,6 @@
             return true;
         }
 
-        // ========== ОСТАЛЬНЫЕ ФУНКЦИИ (БЕЗ ИЗМЕНЕНИЙ) ==========
         function updateNextPieceDisplay() {
             const shapeContainer = document.getElementById('next-piece-left-shape');
             const levelSpan = document.getElementById('next-piece-level');
@@ -2223,7 +2236,6 @@
                     showFoodAnimation(activePet.food, linesCleared, activePet.color);
                 }
                 
-                // Проверяем получение новых питомцев
                 checkPetUnlocks(oldScore);
                 
                 setTimeout(() => {
@@ -2384,7 +2396,6 @@
             
             if (window.slowTimer) clearInterval(window.slowTimer);
             
-            // Загружаем питомцев с обнулением еды
             loadPetsForNewGame();
             
             activePet = null;
@@ -2866,93 +2877,131 @@
             moveDirection = null;
         }
 
-        function setupControls() {
-            const btnLeft = document.getElementById('btn-left');
-            const btnRight = document.getElementById('btn-right');
-            const btnDown = document.getElementById('btn-down');
-            const btnRotate = document.getElementById('btn-rotate');
-            if (!btnLeft || !btnRight || !btnDown || !btnRotate) return;
+        // ===== СОЗДАНИЕ КНОПОК В НУЖНОМ ПОРЯДКЕ =====
+        function createControlButtons() {
+            const controlsDiv = document.getElementById('controls-container');
+            if (!controlsDiv) return;
             
-            [btnLeft, btnRight, btnDown, btnRotate].forEach(btn => {
-                btn.addEventListener('contextmenu', (e) => e.preventDefault());
-                btn.addEventListener('touchstart', (e) => {
+            controlsDiv.innerHTML = '';
+            
+            const buttons = [
+                { id: 'btn-left', text: '←', action: 'left' },
+                { id: 'btn-down', text: '↓', action: 'down' },
+                { id: 'btn-right', text: '→', action: 'right' },
+                { id: 'btn-rotate', text: '↻', action: 'rotate' }
+            ];
+            
+            buttons.forEach(btn => {
+                const button = document.createElement('button');
+                button.className = 'control-btn';
+                button.id = btn.id;
+                button.textContent = btn.text;
+                
+                button.addEventListener('touchstart', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (btn.action === 'rotate') {
+                        if (!gameOver && !gamePaused) {
+                            rotatePiece();
+                            drawBoard();
+                        }
+                    } else {
+                        stopMove();
+                        startMove(btn.action);
+                    }
                 }, { passive: false });
+                
+                button.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (btn.action !== 'rotate') {
+                        stopMove();
+                    }
+                }, { passive: false });
+                
+                button.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (btn.action !== 'rotate') {
+                        stopMove();
+                    }
+                }, { passive: false });
+                
+                button.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    if (btn.action === 'rotate') {
+                        if (!gameOver && !gamePaused) {
+                            rotatePiece();
+                            drawBoard();
+                        }
+                    } else {
+                        stopMove();
+                        startMove(btn.action);
+                    }
+                });
+                
+                button.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
+                    if (btn.action !== 'rotate') {
+                        stopMove();
+                    }
+                });
+                
+                button.addEventListener('mouseleave', (e) => {
+                    if (btn.action !== 'rotate') {
+                        stopMove();
+                    }
+                });
+                
+                controlsDiv.appendChild(button);
             });
             
-            btnLeft.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-                startMove('left');
-            }, { passive: false });
-            btnLeft.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-            }, { passive: false });
-            btnLeft.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-            }, { passive: false });
-            
-            btnRight.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-                startMove('right');
-            }, { passive: false });
-            btnRight.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-            }, { passive: false });
-            btnRight.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-            }, { passive: false });
-            
-            btnDown.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-                startMove('down');
-            }, { passive: false });
-            btnDown.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-            }, { passive: false });
-            btnDown.addEventListener('touchcancel', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                stopMove();
-            }, { passive: false });
-            
-            btnRotate.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!gameOver && !gamePaused) {
-                    rotatePiece();
-                    drawBoard();
-                }
-            }, { passive: false });
+            console.log('✅ Кнопки созданы в порядке: ВЛЕВО → ВНИЗ → ВПРАВО → ПОВОРОТ');
         }
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key.startsWith('Arrow')) e.preventDefault();
-            if (gameOver || gamePaused || !gameActive) return;
-            if (e.key === 'ArrowLeft') { e.preventDefault(); moveLeft(); drawBoard(); }
-            if (e.key === 'ArrowRight') { e.preventDefault(); moveRight(); drawBoard(); }
-            if (e.key === 'ArrowDown') { e.preventDefault(); moveDown(); drawBoard(); }
-            if (e.key === 'ArrowUp') { e.preventDefault(); rotatePiece(); drawBoard(); }
-            if (e.key === ' ') { e.preventDefault(); hardDrop(); drawBoard(); }
-            if (e.key === 'p' || e.key === 'P') { togglePause(); }
-            if (e.key === 'Escape') { showMenu(); }
-        });
+        // ===== УМНАЯ АДАПТАЦИЯ ПОД ЭКРАН =====
+        function adaptToScreenSize() {
+            const canvas = document.getElementById('tetris-canvas');
+            const gameArea = document.querySelector('.game-area');
+            const nextPiece = document.getElementById('next-piece-left');
+            const container = document.querySelector('.game-container');
+            
+            if (!canvas || !gameArea || !nextPiece || !container) return;
+            
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const containerWidth = container.offsetWidth;
+            const nextPieceWidth = nextPiece.offsetWidth;
+            const availableWidth = containerWidth - 20;
+            const maxCanvasWidth = availableWidth - nextPieceWidth - 15;
+            
+            canvas.style.transform = 'none';
+            gameArea.style.justifyContent = 'center';
+            gameArea.style.paddingLeft = '0';
+            
+            if (maxCanvasWidth < 220) {
+                const scale = maxCanvasWidth / 220;
+                if (scale > 0.6) {
+                    canvas.style.transform = `scale(${scale})`;
+                    canvas.style.transformOrigin = 'left center';
+                    gameArea.style.justifyContent = 'flex-start';
+                    gameArea.style.paddingLeft = nextPieceWidth + 'px';
+                } else {
+                    nextPiece.style.width = '55px';
+                    canvas.style.transform = 'scale(0.7)';
+                    canvas.style.transformOrigin = 'left center';
+                    gameArea.style.justifyContent = 'flex-start';
+                    gameArea.style.paddingLeft = '60px';
+                }
+            }
+            
+            if (screenHeight < 700) {
+                canvas.style.width = '180px';
+                canvas.style.height = '360px';
+            }
+            
+            console.log('📱 Адаптация под экран:', { screenWidth, screenHeight, containerWidth, nextPieceWidth });
+        }
 
         // ========== СОХРАНЕНИЕ И СТАТИСТИКА ==========
         async function saveGameToDB(gameOverFlag = false) {
@@ -3066,7 +3115,6 @@
             return { petCounts, totalLines };
         }
 
-        // ========== ИСПРАВЛЕННАЯ СТАТИСТИКА (БЕЗ ЕДЫ) ==========
         async function updateStatsUI() {
             const statsContainer = document.getElementById('stats-container');
             if (!statsContainer) return;
@@ -3077,7 +3125,6 @@
             totalLinesAll = totalLines;
             const petGroups = {};
             
-            // Группируем питомцев для отображения
             Object.keys(petCounts).forEach(petId => {
                 const count = petCounts[petId];
                 if (count > 0) {
@@ -3297,29 +3344,10 @@
             }
         }
 
-        function showScreen(s) {
-            Object.keys(screens).forEach(k => screens[k].classList.remove('active'));
-            screens[s].classList.add('active');
-            if (s !== 'game') {
-                stopGameLoop();
-                hideHint();
-            }
-        }
-
-        function showNotification(m) {
-            const n = document.getElementById('notification');
-            n.innerHTML = m.replace(/\n/g, '<br>');
-            n.style.pointerEvents = 'none';
-            n.classList.add('show');
-            setTimeout(() => {
-                n.classList.remove('show');
-                n.style.pointerEvents = 'none';
-            }, 3000);
-        }
-
-        // ========== ИНИЦИАЛИЗАЦИЯ ==========
+        // ===== ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ =====
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис 3D — 50 питомцев с бустерами и рангами');
+            console.log('🎮 Тетрис 3D — Запуск');
+            
             loadPets();
             if (activePet) {
                 updatePetHeaderPanel();
@@ -3327,11 +3355,22 @@
                 updatePetLeftPanel();
             }
             loadUserStats();
+            
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             drawBoard();
+            
             selectDifficulty('classic');
-            setupControls();
-            updateNextPieceDisplay();
+            
+            createControlButtons();
+            adaptToScreenSize();
+            
+            window.addEventListener('resize', () => {
+                setTimeout(adaptToScreenSize, 100);
+            });
+            
+            window.addEventListener('orientationchange', () => {
+                setTimeout(adaptToScreenSize, 200);
+            });
             
             document.getElementById('pet-emoji-header')?.addEventListener('click', handlePetTap);
             document.getElementById('pet-info-emoji')?.addEventListener('click', handlePetTap);
