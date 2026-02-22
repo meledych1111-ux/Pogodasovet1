@@ -1333,11 +1333,15 @@
                     const data = JSON.parse(saved);
                     userPets = data.pets || {};
                     petFood = data.food || {};
+                    
+                    console.log('📥 Загружены питомцы:', userPets);
+                    console.log('📥 Загружена еда:', petFood);
                 } else {
                     userPets = {};
                     petFood = {};
                 }
             } catch(e) {
+                console.error('❌ Ошибка загрузки:', e);
                 userPets = {};
                 petFood = {};
             }
@@ -1346,8 +1350,35 @@
         }
 
         function savePets() {
-            const saveData = { pets: userPets, food: petFood };
+            const saveData = { 
+                pets: userPets, 
+                food: petFood 
+            };
             localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
+        }
+
+        // ========== ФУНКЦИЯ ЗАГРУЗКИ ДЛЯ НОВОЙ ИГРЫ (ЕДА ОБНУЛЯЕТСЯ) ==========
+        function loadPetsForNewGame() {
+            try {
+                const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    userPets = data.pets || {};
+                    petFood = {}; // ← ЕДА ОБНУЛЯЕТСЯ!
+                    
+                    console.log('📥 Загружены питомцы (новая игра):', userPets);
+                    console.log('🍖 Еда обнулена');
+                } else {
+                    userPets = {};
+                    petFood = {};
+                }
+            } catch(e) {
+                console.error('❌ Ошибка загрузки:', e);
+                userPets = {};
+                petFood = {};
+            }
+            activePet = null;
+            updatePetLeftPanel();
         }
 
         // ========== ФУНКЦИИ ОБНОВЛЕНИЯ ИНТЕРФЕЙСА ==========
@@ -1452,18 +1483,14 @@
             return baseValue;
         }
 
-        // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
+        // ========== ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
         function getPetByScore(scoreValue) {
             if (scoreValue < 500) return null;
             
-            // Индекс питомца в базовом списке (0-49)
             const petIndex = Math.floor((scoreValue - 500) / 500) % BASE_PETS.length;
-            // Тиер (количество полных кругов)
             const tier = Math.floor(Math.floor((scoreValue - 500) / 500) / BASE_PETS.length);
             const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
             const basePet = BASE_PETS[petIndex];
-            
-            console.log('getPetByScore:', { scoreValue, petIndex, tier, rank, basePet });
             
             let boostedValue = basePet.value;
             if (basePet.type === 'slow') {
@@ -1487,25 +1514,17 @@
         }
 
         function checkPetUnlocks(oldScore) {
-            // Старое количество питомцев (до набора очков)
             const oldPetsCount = Math.floor(oldScore / 500);
-            // Новое количество питомцев (после набора очков)
             const newPetsCount = Math.floor(score / 500);
             
-            console.log('Проверка питомцев:', { oldScore, score, oldPetsCount, newPetsCount });
-            
-            // Если получили нового питомца
             if (newPetsCount > oldPetsCount) {
-                // Сколько новых питомцев получили (может быть несколько за раз)
                 const petsGained = newPetsCount - oldPetsCount;
                 
                 for (let i = 0; i < petsGained; i++) {
-                    // Счёт для текущего нового питомца
                     const petScore = (oldPetsCount + i + 1) * 500;
                     const pet = getPetByScore(petScore);
                     
                     if (pet) {
-                        console.log('🎉 Новый питомец:', pet);
                         unlockPet(pet);
                     }
                 }
@@ -1514,9 +1533,10 @@
 
         function unlockPet(pet) {
             if (!pet) return false;
-            const petId = `${pet.rank.prefix}_${pet.id}`;
-            userPets[petId] = (userPets[petId] || 0) + 1;
             
+            const petId = `${pet.rank.prefix}_${pet.id}`;
+            
+            userPets[petId] = (userPets[petId] || 0) + 1;
             petFood[petId] = (petFood[petId] || 0) + 3;
             
             activePet = pet;
@@ -1540,7 +1560,6 @@
             const leftFood = document.getElementById('pet-info-food');
             if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
             
-            // Анимация
             const animContainer = document.getElementById('pet-animation-container');
             const petInfoMini = document.getElementById('pet-info-mini');
             
@@ -2183,7 +2202,6 @@
                     showFoodAnimation(activePet.food, linesCleared, activePet.color);
                 }
                 
-                // Проверяем получение новых питомцев
                 checkPetUnlocks(oldScore);
                 
                 setTimeout(() => {
@@ -2344,11 +2362,9 @@
             
             if (window.slowTimer) clearInterval(window.slowTimer);
             
-            loadPets();
+            // Загружаем питомцев с обнулением еды
+            loadPetsForNewGame();
             
-            // В начале игры нет еды
-            petFood = {};
-            savePets();
             activePet = null;
             
             document.getElementById('pet-header-panel').style.display = 'none';
@@ -3028,6 +3044,7 @@
             return { petCounts, totalLines };
         }
 
+        // ========== ИСПРАВЛЕННАЯ СТАТИСТИКА (БЕЗ ЕДЫ) ==========
         async function updateStatsUI() {
             const statsContainer = document.getElementById('stats-container');
             if (!statsContainer) return;
@@ -3035,11 +3052,10 @@
             const allGames = await loadAllUserGames();
             const { petCounts, totalLines } = calculatePetsFromGames(allGames);
             
-            const petFoodReal = petFood || {};
-            
             totalLinesAll = totalLines;
             const petGroups = {};
             
+            // Группируем питомцев для отображения (БЕЗ ЕДЫ)
             Object.keys(petCounts).forEach(petId => {
                 const count = petCounts[petId];
                 if (count > 0) {
@@ -3053,7 +3069,6 @@
                             petGroups[key] = {
                                 ...basePet,
                                 count: 0,
-                                foodTotal: 0,
                                 score: basePet.score,
                                 emoji: basePet.emoji,
                                 color: basePet.color,
@@ -3062,7 +3077,6 @@
                             };
                         }
                         petGroups[key].count += count;
-                        petGroups[key].foodTotal += petFoodReal[petId] || 0;
                     }
                 }
             });
@@ -3152,10 +3166,6 @@
                                 <div style="font-weight: bold;">${pet.name} <span style="background: rgba(255,215,0,0.3); padding: 2px 8px; border-radius: 20px;">×${pet.count}</span></div>
                                 <div style="color: #aaccff;">${typeIcon} ${pet.score} очков</div>
                             </div>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 4px; background: rgba(255,215,0,0.2); padding: 4px 10px; border-radius: 20px;">
-                            <span>${pet.food}</span>
-                            <span style="color: #ffd700;">×${pet.foodTotal}</span>
                         </div>
                     </div>`;
                 });
