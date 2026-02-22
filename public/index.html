@@ -313,55 +313,54 @@
 
         .next-piece-shape {
             display: flex;
-            flex-wrap: wrap;
             justify-content: center;
             align-items: center;
             width: 60px;
-            min-height: 50px;
+            min-height: 60px;
             background: rgba(0,0,0,0.3);
             border-radius: 6px;
             padding: 4px;
             margin: 2px 0;
         }
 
-        /* Стили для отображения фигур */
-        .piece-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            gap: 1px;
+        /* ===== ИСПРАВЛЕННОЕ ОТОБРАЖЕНИЕ ФИГУР ===== */
+        .piece-grid {
+            display: inline-grid;
+            gap: 2px;
+            background: transparent;
         }
 
-        .piece-block {
+        .piece-cell {
             width: 14px;
             height: 14px;
-            margin: 0;
-            border-radius: 2px;
-            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.4), inset 1px 1px 3px rgba(255,255,255,0.3);
+            border-radius: 3px;
+            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.5), inset 1px 1px 3px rgba(255,255,255,0.3);
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        /* I-фигура (палка) */
-        .i-piece-container {
+        .piece-cell.empty {
+            opacity: 0;
+            box-shadow: none;
+            border: none;
+        }
+
+        /* Специально для I-фигуры (палка) */
+        .i-piece-vertical {
             display: flex;
             flex-direction: column;
+            gap: 2px;
             align-items: center;
-            gap: 1px;
-            width: 100%;
         }
 
         .i-piece-block {
             width: 14px;
             height: 14px;
-            background-color: #FF6B6B;
-            border-radius: 2px;
-            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.4), inset 1px 1px 3px rgba(255,255,255,0.3);
+            border-radius: 3px;
+            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.5), inset 1px 1px 3px rgba(255,255,255,0.3);
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        /* Анимация питомца - КОМПАКТНАЯ, ТОЛЬКО В ОКНЕ */
+        /* Анимация питомца */
         .pet-animation-container {
             display: flex;
             flex-direction: column;
@@ -465,6 +464,36 @@
             text-shadow: 0 0 5px rgba(255,215,0,0.7);
         }
 
+        /* КНОПКА БЫСТРОЙ АКТИВАЦИИ БУСТЕРА */
+        .quick-boost {
+            background: linear-gradient(145deg, #ffd700, #ffaa00);
+            border-radius: 16px;
+            padding: 4px 6px;
+            margin-top: 6px;
+            width: 100%;
+            font-size: 0.6rem;
+            font-weight: bold;
+            color: #000;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255,215,0,0.5);
+            border: 1px solid #fff;
+            display: none;
+            transition: 0.1s;
+            animation: boostPulse 2s infinite;
+        }
+
+        .quick-boost:active {
+            transform: scale(0.95);
+            background: linear-gradient(145deg, #ffaa00, #ffd700);
+        }
+
+        @keyframes boostPulse {
+            0% { box-shadow: 0 0 15px rgba(255,215,0,0.5); }
+            50% { box-shadow: 0 0 25px rgba(255,215,0,0.9); }
+            100% { box-shadow: 0 0 15px rgba(255,215,0,0.5); }
+        }
+
         .game-area {
             flex: 1;
             display: flex;
@@ -487,7 +516,7 @@
             height: 440px;
         }
 
-        /* Нижняя панель - ИСПРАВЛЕНО: кнопка поворота справа */
+        /* Нижняя панель */
         .game-controls-panel {
             display: flex;
             flex-direction: column;
@@ -535,10 +564,10 @@
             background: linear-gradient(145deg, #3a5e4a, #2a4a3a);
         }
 
-        /* КНОПКИ УПРАВЛЕНИЯ: влево, вниз, вправо, повернуть */
+        /* КНОПКИ УПРАВЛЕНИЯ */
         .controls {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr; /* 4 равные колонки */
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 8px;
             padding: 8px;
             background: rgba(20,30,80,0.6);
@@ -573,11 +602,6 @@
                 inset -2px -2px 3px rgba(0, 0, 0, 0.5),
                 inset 2px 2px 3px rgba(255, 255, 255, 0.05);
             transform: translateY(2px);
-        }
-
-        /* Кнопка поворота теперь справа (это последняя в grid, и так и есть) */
-        #btn-rotate {
-            /* Стили уже заданы выше */
         }
 
         .next-level-progress {
@@ -623,7 +647,7 @@
             flex-shrink: 0;
         }
 
-        /* ЭКРАН УРОВНЕЙ - ИСПРАВЛЕНО */
+        /* ЭКРАН УРОВНЕЙ */
         #levels-screen {
             display: flex;
             flex-direction: column;
@@ -874,7 +898,6 @@
             image-rendering: pixelated;
         }
 
-        /* Адаптация для маленьких экранов */
         @media (max-width: 360px) {
             .game-container {
                 max-width: 340px;
@@ -886,11 +909,11 @@
                 padding: 6px 3px;
             }
             
-            .next-piece-shape {
-                width: 55px;
+            .piece-grid {
+                gap: 1px;
             }
             
-            .piece-block, .i-piece-block {
+            .piece-cell, .i-piece-block {
                 width: 12px;
                 height: 12px;
             }
@@ -955,7 +978,7 @@
                     <div class="info-box"><div class="info-value" id="lines-display">0</div></div>
 
                     <div id="pet-header-panel" class="pet-badge" style="display: none;">
-                        <span id="pet-emoji-header" class="pet-emoji" onclick="showPauseMenu()">🐱</span>
+                        <span id="pet-emoji-header" class="pet-emoji">🐱</span>
                         <span class="pet-food-wrapper" onclick="feedActivePet()">
                             <span id="pet-food-icon-header" class="pet-food-icon">🐟</span>
                             <span id="pet-food-count-header" class="pet-food-count">0</span>
@@ -986,9 +1009,14 @@
                     <div class="section-divider"></div>
                     
                     <div class="pet-info-section">
-                        <div class="pet-info-mini" id="pet-info-mini" onclick="showPauseMenu()">
+                        <div class="pet-info-mini" id="pet-info-mini">
                             <span id="pet-info-emoji" class="pet-info-emoji">🐣</span>
                             <span id="pet-info-food" class="pet-info-food">🍖0</span>
+                        </div>
+                        
+                        <!-- КНОПКА БЫСТРОЙ АКТИВАЦИИ БУСТЕРА -->
+                        <div class="quick-boost" id="quick-boost-btn" onclick="quickActivateBoost()">
+                            ✨ АКТИВИРОВАТЬ ✨
                         </div>
                     </div>
                 </div>
@@ -1002,7 +1030,7 @@
                     <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
                 </div>
 
-                <!-- КНОПКИ УПРАВЛЕНИЯ: влево, вниз, вправо, повернуть (поворот справа) -->
+                <!-- КНОПКИ УПРАВЛЕНИЯ: влево, вниз, вправо, повернуть -->
                 <div class="controls">
                     <button class="control-btn" id="btn-left">←</button>
                     <button class="control-btn" id="btn-down">↓</button>
@@ -1033,19 +1061,17 @@
             </div>
         </div>
 
-        <!-- LEVELS SCREEN - ИСПРАВЛЕНО -->
+        <!-- LEVELS SCREEN -->
         <div class="screen" id="levels-screen">
             <div class="header">
                 <h1 class="game-title">УРОВНИ</h1>
                 <p class="subtitle">Выберите сложность</p>
             </div>
             
-            <!-- Отдельный контейнер для сетки уровней с прокруткой -->
             <div class="levels-content">
                 <div class="levels-grid" id="levels-grid"></div>
             </div>
             
-            <!-- Футер с кнопкой НАЗАД - отдельно и всегда виден -->
             <div class="footer">
                 <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
             </div>
@@ -1267,6 +1293,8 @@
         let frameCount = 0;
         let lastBoardHash = '';
 
+        let lastPetTap = 0; // Для двойного тапа
+
         // ========== ФУНКЦИИ ЗАГРУЗКИ/СОХРАНЕНИЯ ==========
         function loadPets() {
             try {
@@ -1317,9 +1345,9 @@
             const FIGURE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F'];
             const color = FIGURE_COLORS[nextId];
             
-            if (nextId === 0) { // I-фигура (палка)
+            if (nextId === 0) { // I-фигура (палка) - вертикальная
                 const container = document.createElement('div');
-                container.className = 'i-piece-container';
+                container.className = 'i-piece-vertical';
                 
                 for (let i = 0; i < 4; i++) {
                     const block = document.createElement('div');
@@ -1331,30 +1359,24 @@
                 shapeContainer.appendChild(container);
                 
             } else {
-                // Для остальных фигур
-                const container = document.createElement('div');
-                container.className = 'piece-container';
-                container.style.display = 'grid';
-                container.style.gridTemplateRows = `repeat(${shape.length}, 1fr)`;
-                container.style.gridTemplateColumns = `repeat(${shape[0].length}, 1fr)`;
-                container.style.gap = '1px';
+                // Для остальных фигур - используем grid
+                const grid = document.createElement('div');
+                grid.className = 'piece-grid';
+                grid.style.gridTemplateRows = `repeat(${shape.length}, 1fr)`;
+                grid.style.gridTemplateColumns = `repeat(${shape[0].length}, 1fr)`;
                 
                 for (let r = 0; r < shape.length; r++) {
                     for (let c = 0; c < shape[r].length; c++) {
-                        const block = document.createElement('div');
-                        block.className = 'piece-block';
+                        const cell = document.createElement('div');
+                        cell.className = shape[r][c] === 1 ? 'piece-cell' : 'piece-cell empty';
                         if (shape[r][c] === 1) {
-                            block.style.backgroundColor = color;
-                        } else {
-                            block.style.backgroundColor = 'transparent';
-                            block.style.boxShadow = 'none';
-                            block.style.border = 'none';
+                            cell.style.backgroundColor = color;
                         }
-                        container.appendChild(block);
+                        grid.appendChild(cell);
                     }
                 }
                 
-                shapeContainer.appendChild(container);
+                shapeContainer.appendChild(grid);
             }
             
             if (levelSpan) {
@@ -1451,7 +1473,7 @@
             const leftFood = document.getElementById('pet-info-food');
             if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
             
-            // КОМПАКТНАЯ АНИМАЦИЯ ТОЛЬКО В ОКНЕ ПИТОМЦА
+            // Компактная анимация
             const animContainer = document.getElementById('pet-animation-container');
             const petInfoMini = document.getElementById('pet-info-mini');
             
@@ -1513,12 +1535,14 @@
             const infoEmoji = document.getElementById('pet-info-emoji');
             const infoFood = document.getElementById('pet-info-food');
             const petInfoMini = document.getElementById('pet-info-mini');
+            const quickBoostBtn = document.getElementById('quick-boost-btn');
             
-            if (!infoEmoji || !infoFood || !petInfoMini) return;
+            if (!infoEmoji || !infoFood || !petInfoMini || !quickBoostBtn) return;
             
             if (activePet) {
                 const petId = `${activePet.rank.prefix}_${activePet.id}`;
                 const foodCount = petFood[petId] || 0;
+                const ability = PET_ABILITIES[activePet.id];
                 
                 infoEmoji.textContent = activePet.emoji;
                 infoEmoji.style.color = activePet.color;
@@ -1527,19 +1551,21 @@
                 petInfoMini.style.opacity = '1';
                 petInfoMini.style.pointerEvents = 'auto';
                 
-                const ability = PET_ABILITIES[activePet.id];
                 if (ability && foodCount >= ability.foodCost) {
                     petInfoMini.style.background = 'rgba(255,215,0,0.4)';
                     petInfoMini.style.border = '2px solid #ffd700';
+                    quickBoostBtn.style.display = 'block';
                 } else {
                     petInfoMini.style.background = 'rgba(255,215,0,0.2)';
                     petInfoMini.style.border = '1px solid rgba(255,215,0,0.5)';
+                    quickBoostBtn.style.display = 'none';
                 }
             } else {
                 infoEmoji.textContent = '🐣';
                 infoFood.textContent = '🍖0';
                 petInfoMini.style.opacity = '0.5';
                 petInfoMini.style.pointerEvents = 'none';
+                quickBoostBtn.style.display = 'none';
             }
         }
 
@@ -1832,6 +1858,7 @@
             }
         }
 
+        // ========== ФУНКЦИИ АКТИВАЦИИ БУСТЕРА ==========
         function usePetAbility() {
             if (!activePet) {
                 showNotification('❌ Сначала получи питомца! (500 очков)');
@@ -1852,11 +1879,13 @@
                 return;
             }
             
+            // Списываем еду
             petFood[petId] = foodCount - ability.foodCost;
             savePets();
             updatePetHeaderPanel();
             updatePetLeftPanel();
             
+            // Активируем способность
             if (ability.type === 'clear') {
                 const power = getBoostPower(ability.baseLines || 1);
                 showPetBoostAnimation(activePet, ability, power);
@@ -1873,6 +1902,22 @@
             }
             
             removePauseMenu();
+        }
+
+        function quickActivateBoost() {
+            if (!gameActive || gamePaused || gameOver) {
+                showNotification('❌ Игра не активна');
+                return;
+            }
+            usePetAbility();
+        }
+
+        function handlePetTap() {
+            const now = Date.now();
+            if (now - lastPetTap < 300) { // Двойной тап
+                quickActivateBoost();
+            }
+            lastPetTap = now;
         }
 
         function getLineWord(count) {
@@ -2797,6 +2842,11 @@
             selectDifficulty('classic');
             setupControls();
             updateNextPieceDisplay();
+            
+            // Добавляем обработчики для двойного тапа
+            document.getElementById('pet-emoji-header')?.addEventListener('click', handlePetTap);
+            document.getElementById('pet-info-emoji')?.addEventListener('click', handlePetTap);
+            
             showNotification('✨ При получении питомца +3 еды!');
         });
     </script>
