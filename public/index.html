@@ -72,6 +72,7 @@
             text-align: center;
             margin-bottom: 12px;
             padding: 6px;
+            flex-shrink: 0;
         }
 
         .game-title {
@@ -116,7 +117,6 @@
             box-shadow: -4px -4px 10px rgba(255,255,255,0.1), 4px 4px 10px rgba(0,0,0,0.8);
             border: 1px solid rgba(255,255,255,0.1);
             transition: 0.1s;
-            pointer-events: auto;
         }
 
         .menu-btn:active {
@@ -156,6 +156,7 @@
             border: 1px solid rgba(106,91,255,0.3);
             width: 100%;
             min-width: 0;
+            flex-shrink: 0;
         }
 
         .back-btn {
@@ -172,7 +173,6 @@
             box-shadow: -2px -2px 5px rgba(255,255,255,0.1), 2px 2px 5px rgba(0,0,0,0.6);
             cursor: pointer;
             flex-shrink: 0;
-            pointer-events: auto;
         }
 
         .back-btn:before {
@@ -266,7 +266,7 @@
             box-shadow: 0 0 15px rgba(255,215,0,0.6) !important;
         }
 
-        /* Бокс следующей фигуры - ИСПРАВЛЕННОЕ ОТОБРАЖЕНИЕ */
+        /* Бокс следующей фигуры */
         #next-piece-left {
             position: absolute;
             left: 5px;
@@ -324,7 +324,7 @@
             margin: 2px 0;
         }
 
-        /* Стили для отображения фигур - КАЖДЫЙ КУБИК ОТДЕЛЬНО */
+        /* Стили для отображения фигур */
         .piece-container {
             display: flex;
             flex-wrap: wrap;
@@ -343,7 +343,7 @@
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        /* Специально для I-фигуры (палка) - 4 отдельных кубика вертикально */
+        /* I-фигура (палка) */
         .i-piece-container {
             display: flex;
             flex-direction: column;
@@ -361,6 +361,7 @@
             border: 1px solid rgba(255,255,255,0.2);
         }
 
+        /* Анимация питомца - КОМПАКТНАЯ, ТОЛЬКО В ОКНЕ */
         .pet-animation-container {
             display: flex;
             flex-direction: column;
@@ -370,7 +371,21 @@
             border-radius: 8px;
             padding: 5px 2px;
             width: 100%;
-            animation: glowPulse 2s infinite;
+            border: 1px solid transparent;
+            transition: border 0.3s, box-shadow 0.3s;
+        }
+
+        .pet-animation-container.active {
+            border: 2px solid #ffd700;
+            box-shadow: 0 0 20px rgba(255,215,0,0.8), inset 0 0 10px rgba(255,215,0,0.3);
+            animation: petGlow 1.5s ease-in-out;
+        }
+
+        @keyframes petGlow {
+            0% { border-color: transparent; box-shadow: 0 0 0 transparent; }
+            20% { border-color: #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.8), inset 0 0 10px rgba(255,215,0,0.3); }
+            80% { border-color: #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.8), inset 0 0 10px rgba(255,215,0,0.3); }
+            100% { border-color: transparent; box-shadow: 0 0 0 transparent; }
         }
 
         .pet-animation-emoji {
@@ -419,11 +434,23 @@
             transition: transform 0.1s;
             width: 100%;
             justify-content: center;
-            pointer-events: auto;
         }
 
         .pet-info-mini:active {
             transform: scale(0.95);
+        }
+
+        .pet-info-mini.active {
+            background: rgba(255,215,0,0.4);
+            border: 2px solid #ffd700;
+            animation: petInfoGlow 1.5s ease-in-out;
+        }
+
+        @keyframes petInfoGlow {
+            0% { box-shadow: 0 0 0 transparent; }
+            20% { box-shadow: 0 0 15px #ffd700; }
+            80% { box-shadow: 0 0 15px #ffd700; }
+            100% { box-shadow: 0 0 0 transparent; }
         }
 
         .pet-info-emoji {
@@ -460,7 +487,7 @@
             height: 440px;
         }
 
-        /* Нижняя панель */
+        /* Нижняя панель - ИСПРАВЛЕНО: кнопка поворота справа */
         .game-controls-panel {
             display: flex;
             flex-direction: column;
@@ -494,7 +521,6 @@
             box-shadow: -3px -3px 8px rgba(255,255,255,0.1), 3px 3px 8px rgba(0,0,0,0.7);
             transition: 0.1s;
             min-height: 48px;
-            pointer-events: auto;
         }
 
         .game-btn:active {
@@ -509,9 +535,10 @@
             background: linear-gradient(145deg, #3a5e4a, #2a4a3a);
         }
 
+        /* КНОПКИ УПРАВЛЕНИЯ: влево, вниз, вправо, повернуть */
         .controls {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: 1fr 1fr 1fr 1fr; /* 4 равные колонки */
             gap: 8px;
             padding: 8px;
             background: rgba(20,30,80,0.6);
@@ -536,7 +563,6 @@
             transition: all 0.2s ease;
             border: 1px solid rgba(255,255,255,0.15);
             min-height: 58px;
-            pointer-events: auto;
         }
 
         .control-btn:active {
@@ -547,6 +573,11 @@
                 inset -2px -2px 3px rgba(0, 0, 0, 0.5),
                 inset 2px 2px 3px rgba(255, 255, 255, 0.05);
             transform: translateY(2px);
+        }
+
+        /* Кнопка поворота теперь справа (это последняя в grid, и так и есть) */
+        #btn-rotate {
+            /* Стили уже заданы выше */
         }
 
         .next-level-progress {
@@ -589,15 +620,28 @@
             display: flex;
             justify-content: center;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         /* ЭКРАН УРОВНЕЙ - ИСПРАВЛЕНО */
+        #levels-screen {
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+        }
+
+        .levels-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+            margin-bottom: 10px;
+        }
+
         .levels-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
-            padding: 15px 0;
-            pointer-events: auto;
+            padding: 5px;
         }
 
         .level-card {
@@ -606,7 +650,6 @@
             padding: 16px;
             text-align: center;
             cursor: pointer;
-            pointer-events: auto;
             border: 2px solid transparent;
             transition: 0.1s;
         }
@@ -635,64 +678,7 @@
             font-size: 0.8rem;
         }
 
-        /* Адаптация для маленьких экранов */
-        @media (max-width: 360px) {
-            .game-container {
-                max-width: 340px;
-            }
-            
-            #next-piece-left {
-                width: 68px;
-                left: 2px;
-                padding: 6px 3px;
-            }
-            
-            .next-piece-shape {
-                width: 55px;
-            }
-            
-            .piece-block, .i-piece-block {
-                width: 12px;
-                height: 12px;
-            }
-            
-            .control-btn {
-                padding: 12px 6px;
-                font-size: 1.6rem;
-                min-height: 50px;
-            }
-            
-            .game-btn {
-                padding: 10px 4px;
-                font-size: 0.85rem;
-                min-height: 44px;
-            }
-            
-            #tetris-canvas {
-                width: 200px;
-                height: 400px;
-            }
-            
-            .game-info {
-                gap: 4px;
-            }
-            
-            .info-box {
-                padding: 3px 7px;
-            }
-            
-            .info-value {
-                font-size: 0.75rem;
-            }
-        }
-
         /* Анимации */
-        @keyframes glowPulse {
-            0% { box-shadow: 0 0 5px rgba(255,215,0,0.3); }
-            50% { box-shadow: 0 0 15px rgba(255,215,0,0.6); }
-            100% { box-shadow: 0 0 5px rgba(255,215,0,0.3); }
-        }
-
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-4px); }
@@ -711,54 +697,6 @@
             0% { opacity: 0; transform: translateY(0) scale(0.5); }
             20% { opacity: 1; transform: translateY(-15px) scale(1.2); }
             100% { opacity: 0; transform: translateY(-80px) scale(0.8); }
-        }
-
-        .pet-notification {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            padding: 10px 16px;
-            border-radius: 14px;
-            color: white;
-            font-size: 0.85rem;
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: -3px -3px 10px rgba(255,255,255,0.1), 3px 3px 15px rgba(0,0,0,0.8);
-            animation: petNotify 2s forwards;
-        }
-
-        @keyframes petNotify {
-            0% { opacity: 0; transform: translateX(50px); }
-            15% { opacity: 1; transform: translateX(0); }
-            85% { opacity: 1; }
-            100% { opacity: 0; transform: translateX(20px); }
-        }
-
-        .pet-unlock-animation {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: linear-gradient(145deg, rgba(0,0,0,0.96), rgba(20,20,40,0.96));
-            padding: 25px 35px;
-            border-radius: 35px;
-            border: 3px solid;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            z-index: 10010;
-            animation: petUnlock 2s forwards;
-            pointer-events: none;
-        }
-
-        @keyframes petUnlock {
-            0% { opacity: 0; transform: translate(-50%, -30%) scale(0.7); }
-            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-            85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            100% { opacity: 0; transform: translate(-50%, -70%) scale(0.8); }
         }
 
         .combo-counter {
@@ -793,7 +731,6 @@
             align-items: center;
             gap: 10px;
             cursor: pointer;
-            pointer-events: auto;
         }
 
         .pause-menu-item:active {
@@ -936,6 +873,57 @@
             image-rendering: crisp-edges;
             image-rendering: pixelated;
         }
+
+        /* Адаптация для маленьких экранов */
+        @media (max-width: 360px) {
+            .game-container {
+                max-width: 340px;
+            }
+            
+            #next-piece-left {
+                width: 68px;
+                left: 2px;
+                padding: 6px 3px;
+            }
+            
+            .next-piece-shape {
+                width: 55px;
+            }
+            
+            .piece-block, .i-piece-block {
+                width: 12px;
+                height: 12px;
+            }
+            
+            .control-btn {
+                padding: 12px 6px;
+                font-size: 1.6rem;
+                min-height: 50px;
+            }
+            
+            .game-btn {
+                padding: 10px 4px;
+                font-size: 0.85rem;
+                min-height: 44px;
+            }
+            
+            #tetris-canvas {
+                width: 200px;
+                height: 400px;
+            }
+            
+            .game-info {
+                gap: 4px;
+            }
+            
+            .info-box {
+                padding: 3px 7px;
+            }
+            
+            .info-value {
+                font-size: 0.75rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -998,7 +986,7 @@
                     <div class="section-divider"></div>
                     
                     <div class="pet-info-section">
-                        <div class="pet-info-mini" onclick="showPauseMenu()">
+                        <div class="pet-info-mini" id="pet-info-mini" onclick="showPauseMenu()">
                             <span id="pet-info-emoji" class="pet-info-emoji">🐣</span>
                             <span id="pet-info-food" class="pet-info-food">🍖0</span>
                         </div>
@@ -1014,11 +1002,12 @@
                     <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
                 </div>
 
+                <!-- КНОПКИ УПРАВЛЕНИЯ: влево, вниз, вправо, повернуть (поворот справа) -->
                 <div class="controls">
                     <button class="control-btn" id="btn-left">←</button>
                     <button class="control-btn" id="btn-down">↓</button>
-                    <button class="control-btn" id="btn-rotate">↻</button>
                     <button class="control-btn" id="btn-right">→</button>
+                    <button class="control-btn" id="btn-rotate">↻</button>
                 </div>
 
                 <div class="next-level-progress">
@@ -1050,7 +1039,13 @@
                 <h1 class="game-title">УРОВНИ</h1>
                 <p class="subtitle">Выберите сложность</p>
             </div>
-            <div class="levels-grid" id="levels-grid"></div>
+            
+            <!-- Отдельный контейнер для сетки уровней с прокруткой -->
+            <div class="levels-content">
+                <div class="levels-grid" id="levels-grid"></div>
+            </div>
+            
+            <!-- Футер с кнопкой НАЗАД - отдельно и всегда виден -->
             <div class="footer">
                 <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
             </div>
@@ -1322,7 +1317,7 @@
             const FIGURE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F'];
             const color = FIGURE_COLORS[nextId];
             
-            if (nextId === 0) { // I-фигура (палка) - 4 отдельных кубика вертикально
+            if (nextId === 0) { // I-фигура (палка)
                 const container = document.createElement('div');
                 container.className = 'i-piece-container';
                 
@@ -1336,7 +1331,7 @@
                 shapeContainer.appendChild(container);
                 
             } else {
-                // Для остальных фигур - отображаем как сетку кубиков
+                // Для остальных фигур
                 const container = document.createElement('div');
                 container.className = 'piece-container';
                 container.style.display = 'grid';
@@ -1456,8 +1451,24 @@
             const leftFood = document.getElementById('pet-info-food');
             if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
             
-            showPetUnlockAnimation(pet);
-            showPetNotification(`✨ +1 ${pet.rank.prefix}${pet.name}`, pet.color);
+            // КОМПАКТНАЯ АНИМАЦИЯ ТОЛЬКО В ОКНЕ ПИТОМЦА
+            const animContainer = document.getElementById('pet-animation-container');
+            const petInfoMini = document.getElementById('pet-info-mini');
+            
+            if (animContainer) {
+                animContainer.classList.add('active');
+                setTimeout(() => {
+                    animContainer.classList.remove('active');
+                }, 1500);
+            }
+            
+            if (petInfoMini) {
+                petInfoMini.classList.add('active');
+                setTimeout(() => {
+                    petInfoMini.classList.remove('active');
+                }, 1500);
+            }
+            
             showFoodAnimation(pet.food, 3, pet.color);
             
             updatePetHeaderPanel();
@@ -1501,7 +1512,7 @@
         function updatePetLeftPanel() {
             const infoEmoji = document.getElementById('pet-info-emoji');
             const infoFood = document.getElementById('pet-info-food');
-            const petInfoMini = document.querySelector('.pet-info-mini');
+            const petInfoMini = document.getElementById('pet-info-mini');
             
             if (!infoEmoji || !infoFood || !petInfoMini) return;
             
@@ -2076,32 +2087,6 @@
                     setTimeout(() => food.remove(), 1000);
                 }, i * 100);
             }
-        }
-
-        function showPetUnlockAnimation(pet) {
-            const gameArea = document.querySelector('.game-area');
-            if (!gameArea) return;
-            const div = document.createElement('div');
-            div.className = 'pet-unlock-animation';
-            div.style.borderColor = pet.color;
-            div.innerHTML = `
-                <div style="font-size: 2.5rem;">✨✨✨</div>
-                <div style="font-size: 3.5rem; filter: drop-shadow(0 0 25px ${pet.color});">${pet.emoji}</div>
-                <div style="font-size: 1.2rem; color: ${pet.color};">+1 ${pet.rank.prefix}${pet.name}</div>
-                <div style="font-size: 1rem;">+3 ${pet.food}</div>
-            `;
-            gameArea.appendChild(div);
-            setTimeout(() => div.remove(), 2000);
-        }
-
-        function showPetNotification(message, color) {
-            const n = document.createElement('div');
-            n.className = 'pet-notification';
-            n.style.borderLeftColor = color;
-            n.style.background = 'linear-gradient(145deg, rgba(10,15,30,0.98), rgba(5,10,20,0.98))';
-            n.innerHTML = `<span style="font-size:1.2rem;">✨</span><span>${message}</span>`;
-            document.body.appendChild(n);
-            setTimeout(() => n.remove(), 2000);
         }
 
         function showCombo(combo) {
@@ -2684,7 +2669,7 @@
             loadUserStats();
         }
 
-        // ========== ЭКРАНЫ ==========
+        // ========== НАВИГАЦИЯ ==========
         function showLeaderboard() {
             const list = document.getElementById('leaderboard-list');
             list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Загрузка...</div>';
@@ -2799,7 +2784,7 @@
 
         // ========== ИНИЦИАЛИЗАЦИЯ ==========
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис 3D — Исправленная версия');
+            console.log('🎮 Тетрис 3D — Финальная версия');
             loadPets();
             if (activePet) {
                 updatePetHeaderPanel();
