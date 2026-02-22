@@ -1300,6 +1300,7 @@
         let userPets = {};
         let petFood = {};
         let activePet = null;
+        let currentGamePets = []; // Питомцы, полученные в ТЕКУЩЕЙ игре
 
         let gamesPlayed = 0;
         let totalLinesAll = 0;
@@ -1334,7 +1335,7 @@
                     userPets = data.pets || {};
                     petFood = data.food || {};
                     
-                    console.log('📥 Загружены питомцы:', userPets);
+                    console.log('📥 Загружены питомцы из localStorage:', userPets);
                 } else {
                     userPets = {};
                     petFood = {};
@@ -1345,6 +1346,7 @@
                 petFood = {};
             }
             activePet = null;
+            currentGamePets = []; // Сбрасываем питомцев текущей игры
             updatePetLeftPanel();
         }
 
@@ -1354,7 +1356,7 @@
                 food: petFood 
             };
             localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
-            console.log('💾 Сохранены питомцы:', userPets);
+            console.log('💾 Сохранены питомцы в localStorage:', userPets);
         }
 
         function loadPetsForNewGame() {
@@ -1365,7 +1367,7 @@
                     userPets = data.pets || {};
                     petFood = {};
                     
-                    console.log('📥 Загружены питомцы (новая игра):', userPets);
+                    console.log('📥 Загружены питомцы для новой игры:', userPets);
                 } else {
                     userPets = {};
                     petFood = {};
@@ -1376,19 +1378,21 @@
                 petFood = {};
             }
             activePet = null;
+            currentGamePets = []; // Сбрасываем питомцев текущей игры
             updatePetLeftPanel();
         }
 
         // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
-        function getPetByScore(scoreValue) {
-            if (scoreValue < 500) return null;
+        function getPetByNumber(petNumber) {
+            // petNumber: 1, 2, 3, 4... (количество полученных питомцев в ЭТОЙ игре)
+            if (petNumber < 1) return null;
             
-            const petIndex = Math.floor((scoreValue - 500) / 500) % BASE_PETS.length;
-            const tier = Math.floor(Math.floor((scoreValue - 500) / 500) / BASE_PETS.length);
+            const index = (petNumber - 1) % BASE_PETS.length;
+            const tier = Math.floor((petNumber - 1) / BASE_PETS.length);
             const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
-            const basePet = BASE_PETS[petIndex];
+            const basePet = BASE_PETS[index];
             
-            console.log('🎯 Получение питомца для', scoreValue, 'очков:', basePet.name, 'ранг', rank.name);
+            console.log(`🎯 Питомец #${petNumber}:`, basePet.name, 'ранг', rank.name);
             
             let boostedValue = basePet.value;
             if (basePet.type === 'slow') {
@@ -1412,21 +1416,33 @@
         }
 
         function checkPetUnlocks(oldScore) {
-            const oldPetsCount = Math.floor(oldScore / 500);
-            const newPetsCount = Math.floor(score / 500);
+            // Сколько питомцев должны были получить в ЭТОЙ игре при старом счете
+            const oldGamePetsCount = Math.floor(oldScore / 500);
+            // Сколько питомцев должны были получить в ЭТОЙ игре при новом счете
+            const newGamePetsCount = Math.floor(score / 500);
             
-            console.log('🔍 Проверка питомцев:', { oldScore, score, oldPetsCount, newPetsCount });
+            console.log('🔍 Проверка питомцев:', { 
+                oldScore, 
+                score, 
+                oldGamePetsCount, 
+                newGamePetsCount,
+                уже_получено_в_этой_игре: currentGamePets.length
+            });
             
-            if (newPetsCount > oldPetsCount) {
-                const petsGained = newPetsCount - oldPetsCount;
+            // Если в ЭТОЙ игре нужно получить больше питомцев
+            if (newGamePetsCount > currentGamePets.length) {
+                // Сколько новых питомцев нужно получить
+                const petsToAdd = newGamePetsCount - currentGamePets.length;
                 
-                for (let i = 0; i < petsGained; i++) {
-                    const petScore = (oldPetsCount + i + 1) * 500;
-                    const pet = getPetByScore(petScore);
+                for (let i = 0; i < petsToAdd; i++) {
+                    // Номер питомца в ЭТОЙ игре
+                    const petNumber = currentGamePets.length + i + 1;
+                    const pet = getPetByNumber(petNumber);
                     
                     if (pet) {
-                        console.log('🎉 ПОЛУЧАЕМ ПИТОМЦА:', pet.name, 'при', petScore, 'очках');
+                        console.log(`🎉 ПОЛУЧАЕМ ПИТОМЦА #${petNumber} в ЭТОЙ игре:`, pet.name);
                         unlockPet(pet);
+                        currentGamePets.push(pet);
                     }
                 }
             }
@@ -1437,7 +1453,7 @@
             
             const petId = `${pet.rank.prefix}_${pet.id}`;
             
-            // Увеличиваем счётчик питомца
+            // Увеличиваем счётчик питомца в ОБЩЕЙ коллекции
             userPets[petId] = (userPets[petId] || 0) + 1;
             
             // Даём 3 еды
@@ -1449,7 +1465,7 @@
             // Сохраняем
             savePets();
             
-            console.log('✨ ПОЛУЧЕН В КОЛЛЕКЦИЮ:', pet.rank.prefix + pet.name, 'теперь всего:', userPets[petId]);
+            console.log('✨ ДОБАВЛЕН В КОЛЛЕКЦИЮ:', pet.rank.prefix + pet.name, 'теперь всего:', userPets[petId]);
             
             // Показываем в интерфейсе
             document.getElementById('pet-header-panel').style.display = 'flex';
