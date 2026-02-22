@@ -131,7 +131,10 @@
             background: linear-gradient(145deg, #5e4a6a, #4a3a5a);
         }
 
-        /* Убрал кнопку уровней */
+        .menu-btn.levels {
+            background: linear-gradient(145deg, #6a5e3a, #5a4e2a);
+        }
+
         .menu-btn.leaderboard {
             background: linear-gradient(145deg, #6a3a4a, #5a2a3a);
         }
@@ -779,7 +782,161 @@
             flex-shrink: 0;
         }
 
-        /* УБРАЛ ЭКРАН УРОВНЕЙ */
+        /* ЭКРАН УРОВНЕЙ */
+        #levels-screen {
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+        }
+
+        .levels-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+            margin-bottom: 10px;
+        }
+
+        .levels-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 5px;
+        }
+
+        .level-card {
+            background: linear-gradient(145deg, #2a3f5e, #1a2a3a);
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.1s;
+        }
+
+        .level-card:active {
+            transform: scale(0.97);
+        }
+
+        .level-card.active {
+            background: linear-gradient(145deg, #3a6a5e, #2a4a3e);
+            border: 2px solid #66ffaa;
+        }
+
+        .level-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .level-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .level-desc {
+            color: #aaccff;
+            font-size: 0.8rem;
+        }
+
+        /* Анимации */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+
+        .food-particle {
+            position: fixed;
+            z-index: 10001;
+            font-size: 1.8rem;
+            pointer-events: none;
+            animation: foodFloat 1s ease-out forwards;
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        @keyframes foodFloat {
+            0% { opacity: 0; transform: translateY(0) scale(0.5); }
+            20% { opacity: 1; transform: translateY(-15px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-80px) scale(0.8); }
+        }
+
+        .combo-counter {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 0 0 15px rgba(255,215,0,0.9), 0 0 30px rgba(255,165,0,0.6);
+            z-index: 1000;
+            pointer-events: none;
+            animation: comboPop 0.5s ease-out;
+        }
+
+        @keyframes comboPop {
+            0% { opacity: 0; transform: translateX(-50%) scale(0.5); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.4); }
+            100% { opacity: 0; transform: translateX(-50%) scale(1); }
+        }
+
+        .pause-menu-item {
+            background: linear-gradient(145deg, #2a3f5e, #1a2a3a);
+            border: none;
+            border-radius: 18px;
+            padding: 14px;
+            margin: 6px 0;
+            color: white;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .pause-menu-item:active {
+            transform: scale(0.97);
+        }
+
+        .stats-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(20,30,80,0.4);
+            border-radius: 20px;
+            margin: 10px 0;
+        }
+
+        .stat-card {
+            background: rgba(30,40,100,0.7);
+            padding: 16px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+            border-left: 6px solid #6a5bff;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .stat-label {
+            color: #aaccff;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #66ffaa;
+        }
+
+        .pets-collection-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
 
         .leaderboard-list {
             flex: 1;
@@ -869,6 +1026,7 @@
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startNewGame()">🎮 НОВАЯ ИГРА</button>
                 <button class="menu-btn stats" onclick="showStats()">📊 СТАТИСТИКА</button>
+                <button class="menu-btn levels" onclick="showLevels()">⭐ УРОВНИ</button>
                 <button class="menu-btn leaderboard" onclick="showLeaderboard()">🏆 ЛИДЕРБОРД</button>
             </div>
             <div class="footer">
@@ -975,6 +1133,22 @@
             </div>
         </div>
 
+        <!-- LEVELS SCREEN -->
+        <div class="screen" id="levels-screen">
+            <div class="header">
+                <h1 class="game-title">УРОВНИ</h1>
+                <p class="subtitle">Выберите сложность</p>
+            </div>
+            
+            <div class="levels-content">
+                <div class="levels-grid" id="levels-grid"></div>
+            </div>
+            
+            <div class="footer">
+                <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
+            </div>
+        </div>
+
         <!-- LEADERBOARD SCREEN -->
         <div class="screen" id="leaderboard-screen">
             <div class="header">
@@ -1041,6 +1215,14 @@
             [[1,1,0],[0,1,1]], // Z
             [[1,0,0],[1,1,1]], // L
             [[0,0,1],[1,1,1]] // J
+        ];
+
+        const DIFFICULTY_LEVELS = [
+            { id: 'easy', name: 'Легкий', speed: 800, icon: '🐣' },
+            { id: 'medium', name: 'Средний', speed: 600, icon: '⚡' },
+            { id: 'classic', name: 'Классический', speed: 800, icon: '🎮' },
+            { id: 'hard', name: 'Сложный', speed: 400, icon: '🔥' },
+            { id: 'insane', name: 'Безумие', speed: 200, icon: '💀' }
         ];
 
         const GAME_LEVELS = [
@@ -1147,6 +1329,7 @@
             menu: document.getElementById('menu-screen'),
             game: document.getElementById('game-screen'),
             stats: document.getElementById('stats-screen'),
+            levels: document.getElementById('levels-screen'),
             leaderboard: document.getElementById('leaderboard-screen')
         };
         const canvas = document.getElementById('tetris-canvas');
@@ -1156,6 +1339,7 @@
         let score = 0, level = 0, gameLevel = 0, lines = 0;
         let gameActive = false, gamePaused = false, gameOver = false;
         let dropCounter = 0, dropInterval = 800, lastTime = 0;
+        let currentDifficulty = 'classic';
         let clearedLinesAnimation = [], pieceQueue = [];
         let comboCount = 0;
         let originalSpeed = 800;
@@ -2052,8 +2236,6 @@
             
             showPetBoostAnimation(pet, 'shield', shieldRemaining);
             showNotification(`${pet.emoji} ${pet.name}: щит на ${shieldRemaining} ошибок!`);
-            
-            // УБИРАЕМ УСКОРЕНИЕ - НИЧЕГО НЕ МЕНЯЕМ В СКОРОСТИ
         }
 
         // ========== ИГРОВАЯ ЛОГИКА ==========
@@ -2257,7 +2439,7 @@
             document.getElementById('pet-header-panel').style.display = 'none';
             updatePetLeftPanel();
             
-            dropInterval = 800; // Классическая скорость
+            dropInterval = DIFFICULTY_LEVELS.find(d => d.id === currentDifficulty)?.speed || 800;
             originalSpeed = dropInterval;
             
             pieceQueue = [];
@@ -3124,6 +3306,29 @@
                 });
         }
 
+        function showLevels() {
+            const grid = document.getElementById('levels-grid');
+            grid.innerHTML = '';
+            DIFFICULTY_LEVELS.forEach(l => {
+                const div = document.createElement('div');
+                div.className = `level-card ${l.id === currentDifficulty ? 'active' : ''}`;
+                div.setAttribute('onclick', `selectDifficulty('${l.id}')`);
+                div.innerHTML = `
+                    <div class="level-icon">${l.icon}</div>
+                    <div class="level-name">${l.name}</div>
+                    <div class="level-desc">${l.speed}ms</div>
+                `;
+                grid.appendChild(div);
+            });
+            showScreen('levels');
+        }
+
+        function selectDifficulty(id) {
+            currentDifficulty = id;
+            showLevels();
+            showNotification(`Сложность: ${DIFFICULTY_LEVELS.find(d => d.id === id).name}`);
+        }
+
         function showStats() {
             loadPets();
             loadUserStats();
@@ -3171,6 +3376,7 @@
             loadUserStats();
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             drawBoard();
+            selectDifficulty('classic');
             setupControls();
             updateNextPieceDisplay();
             
