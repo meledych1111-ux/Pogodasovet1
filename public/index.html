@@ -116,6 +116,7 @@
             box-shadow: -4px -4px 10px rgba(255,255,255,0.1), 4px 4px 10px rgba(0,0,0,0.8);
             border: 1px solid rgba(255,255,255,0.1);
             transition: 0.1s;
+            pointer-events: auto;
         }
 
         .menu-btn:active {
@@ -171,6 +172,7 @@
             box-shadow: -2px -2px 5px rgba(255,255,255,0.1), 2px 2px 5px rgba(0,0,0,0.6);
             cursor: pointer;
             flex-shrink: 0;
+            pointer-events: auto;
         }
 
         .back-btn:before {
@@ -264,7 +266,7 @@
             box-shadow: 0 0 15px rgba(255,215,0,0.6) !important;
         }
 
-        /* Бокс следующей фигуры - оптимизирован для всех устройств */
+        /* Бокс следующей фигуры - ИСПРАВЛЕННОЕ ОТОБРАЖЕНИЕ */
         #next-piece-left {
             position: absolute;
             left: 5px;
@@ -314,56 +316,49 @@
             flex-wrap: wrap;
             justify-content: center;
             align-items: center;
-            width: 55px;
-            min-height: 45px;
+            width: 60px;
+            min-height: 50px;
             background: rgba(0,0,0,0.3);
             border-radius: 6px;
-            padding: 4px 2px;
+            padding: 4px;
             margin: 2px 0;
-            gap: 2px;
         }
 
-        .next-piece-shape div {
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
-            transition: all 0.1s ease;
-        }
-
-        /* Специально для I-фигуры (палка) */
-        .i-shape-container {
+        /* Стили для отображения фигур - КАЖДЫЙ КУБИК ОТДЕЛЬНО */
+        .piece-container {
             display: flex;
+            flex-wrap: wrap;
             justify-content: center;
             align-items: center;
             width: 100%;
+            gap: 1px;
         }
 
-        .i-shape-block {
-            width: 16px;
-            height: 48px;
-            background-color: #FF6B6B;
-            border-radius: 4px;
-            box-shadow: inset -2px -2px 5px rgba(0,0,0,0.4), inset 2px 2px 5px rgba(255,255,255,0.3);
+        .piece-block {
+            width: 14px;
+            height: 14px;
+            margin: 0;
+            border-radius: 2px;
+            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.4), inset 1px 1px 3px rgba(255,255,255,0.3);
             border: 1px solid rgba(255,255,255,0.2);
-            background-image: linear-gradient(0deg, 
-                rgba(0,0,0,0.2) 0%, 
-                rgba(0,0,0,0.2) 3px, 
-                transparent 3px, 
-                transparent 25%,
-                rgba(0,0,0,0.2) 25%,
-                rgba(0,0,0,0.2) 28%,
-                transparent 28%,
-                transparent 50%,
-                rgba(0,0,0,0.2) 50%,
-                rgba(0,0,0,0.2) 53%,
-                transparent 53%,
-                transparent 75%,
-                rgba(0,0,0,0.2) 75%,
-                rgba(0,0,0,0.2) 78%,
-                transparent 78%,
-                transparent 100%);
-            background-size: 100% 100%;
-            background-repeat: no-repeat;
+        }
+
+        /* Специально для I-фигуры (палка) - 4 отдельных кубика вертикально */
+        .i-piece-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+            width: 100%;
+        }
+
+        .i-piece-block {
+            width: 14px;
+            height: 14px;
+            background-color: #FF6B6B;
+            border-radius: 2px;
+            box-shadow: inset -1px -1px 3px rgba(0,0,0,0.4), inset 1px 1px 3px rgba(255,255,255,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
         .pet-animation-container {
@@ -424,6 +419,7 @@
             transition: transform 0.1s;
             width: 100%;
             justify-content: center;
+            pointer-events: auto;
         }
 
         .pet-info-mini:active {
@@ -464,7 +460,7 @@
             height: 440px;
         }
 
-        /* Нижняя панель - гарантированно видна */
+        /* Нижняя панель */
         .game-controls-panel {
             display: flex;
             flex-direction: column;
@@ -498,6 +494,7 @@
             box-shadow: -3px -3px 8px rgba(255,255,255,0.1), 3px 3px 8px rgba(0,0,0,0.7);
             transition: 0.1s;
             min-height: 48px;
+            pointer-events: auto;
         }
 
         .game-btn:active {
@@ -539,6 +536,7 @@
             transition: all 0.2s ease;
             border: 1px solid rgba(255,255,255,0.15);
             min-height: 58px;
+            pointer-events: auto;
         }
 
         .control-btn:active {
@@ -593,7 +591,51 @@
             gap: 8px;
         }
 
-        /* Адаптация для самых маленьких экранов */
+        /* ЭКРАН УРОВНЕЙ - ИСПРАВЛЕНО */
+        .levels-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 15px 0;
+            pointer-events: auto;
+        }
+
+        .level-card {
+            background: linear-gradient(145deg, #2a3f5e, #1a2a3a);
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            pointer-events: auto;
+            border: 2px solid transparent;
+            transition: 0.1s;
+        }
+
+        .level-card:active {
+            transform: scale(0.97);
+        }
+
+        .level-card.active {
+            background: linear-gradient(145deg, #3a6a5e, #2a4a3e);
+            border: 2px solid #66ffaa;
+        }
+
+        .level-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .level-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .level-desc {
+            color: #aaccff;
+            font-size: 0.8rem;
+        }
+
+        /* Адаптация для маленьких экранов */
         @media (max-width: 360px) {
             .game-container {
                 max-width: 340px;
@@ -606,17 +648,12 @@
             }
             
             .next-piece-shape {
-                width: 50px;
+                width: 55px;
             }
             
-            .next-piece-shape div {
-                width: 10px;
-                height: 10px;
-            }
-            
-            .i-shape-block {
-                width: 14px;
-                height: 40px;
+            .piece-block, .i-piece-block {
+                width: 12px;
+                height: 12px;
             }
             
             .control-btn {
@@ -649,18 +686,6 @@
             }
         }
 
-        /* Для больших экранов */
-        @media (min-width: 420px) and (min-height: 800px) {
-            #tetris-canvas {
-                width: 240px;
-                height: 480px;
-            }
-            
-            .game-area {
-                min-height: 480px;
-            }
-        }
-
         /* Анимации */
         @keyframes glowPulse {
             0% { box-shadow: 0 0 5px rgba(255,215,0,0.3); }
@@ -673,12 +698,6 @@
             50% { transform: translateY(-4px); }
         }
 
-        @keyframes foodFloat {
-            0% { opacity: 0; transform: translateY(0) scale(0.5); }
-            20% { opacity: 1; transform: translateY(-15px) scale(1.2); }
-            100% { opacity: 0; transform: translateY(-80px) scale(0.8); }
-        }
-
         .food-particle {
             position: fixed;
             z-index: 10001;
@@ -686,6 +705,12 @@
             pointer-events: none;
             animation: foodFloat 1s ease-out forwards;
             filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        @keyframes foodFloat {
+            0% { opacity: 0; transform: translateY(0) scale(0.5); }
+            20% { opacity: 1; transform: translateY(-15px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-80px) scale(0.8); }
         }
 
         .pet-notification {
@@ -702,6 +727,13 @@
             gap: 10px;
             box-shadow: -3px -3px 10px rgba(255,255,255,0.1), 3px 3px 15px rgba(0,0,0,0.8);
             animation: petNotify 2s forwards;
+        }
+
+        @keyframes petNotify {
+            0% { opacity: 0; transform: translateX(50px); }
+            15% { opacity: 1; transform: translateX(0); }
+            85% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(20px); }
         }
 
         .pet-unlock-animation {
@@ -761,6 +793,7 @@
             align-items: center;
             gap: 10px;
             cursor: pointer;
+            pointer-events: auto;
         }
 
         .pause-menu-item:active {
@@ -821,7 +854,72 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Скроллбар */
+        .stats-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(20,30,80,0.4);
+            border-radius: 20px;
+            margin: 10px 0;
+        }
+
+        .stat-card {
+            background: rgba(30,40,100,0.7);
+            padding: 16px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+            border-left: 6px solid #6a5bff;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .stat-label {
+            color: #aaccff;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #66ffaa;
+        }
+
+        .pets-collection-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .leaderboard-list {
+            flex: 1;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+
+        .leaderboard-item {
+            background: rgba(30,40,100,0.7);
+            border-radius: 20px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .rank {
+            font-size: 1.4rem;
+            font-weight: bold;
+            width: 45px;
+            text-align: center;
+            color: #ffcc66;
+        }
+
         ::-webkit-scrollbar {
             width: 4px;
         }
@@ -939,20 +1037,20 @@
                 <h1 class="game-title">СТАТИСТИКА</h1>
                 <p class="subtitle" id="stats-player-info">Загрузка...</p>
             </div>
-            <div class="stats-container" id="stats-container" style="flex:1; overflow-y:auto; padding:10px; background:rgba(20,30,80,0.4); border-radius:20px; margin:10px 0;"></div>
+            <div class="stats-container" id="stats-container"></div>
             <div class="footer">
                 <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
                 <button class="back-btn" onclick="refreshStats()">🔄 ОБНОВИТЬ</button>
             </div>
         </div>
 
-        <!-- LEVELS SCREEN -->
+        <!-- LEVELS SCREEN - ИСПРАВЛЕНО -->
         <div class="screen" id="levels-screen">
             <div class="header">
                 <h1 class="game-title">УРОВНИ</h1>
                 <p class="subtitle">Выберите сложность</p>
             </div>
-            <div class="levels-grid" id="levels-grid" style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px; padding:15px 0;"></div>
+            <div class="levels-grid" id="levels-grid"></div>
             <div class="footer">
                 <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
             </div>
@@ -964,7 +1062,7 @@
                 <h1 class="game-title">ЛИДЕРБОРД</h1>
                 <p class="subtitle">Топ-10 игроков</p>
             </div>
-            <div class="leaderboard-list" id="leaderboard-list" style="flex:1; overflow-y:auto; margin:10px 0;"></div>
+            <div class="leaderboard-list" id="leaderboard-list"></div>
             <div class="footer">
                 <button class="back-btn" onclick="showMenu()">← НАЗАД</button>
             </div>
@@ -1209,7 +1307,6 @@
             shapeContainer.innerHTML = '';
             
             if (!pieceQueue || pieceQueue.length === 0) {
-                shapeContainer.style.display = 'flex';
                 shapeContainer.innerHTML = '<div style="color:#aaccff; font-size:0.6rem;">нет</div>';
                 return;
             }
@@ -1225,49 +1322,44 @@
             const FIGURE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F'];
             const color = FIGURE_COLORS[nextId];
             
-            if (nextId === 0) { // I-фигура
-                shapeContainer.innerHTML = '';
-                shapeContainer.style.display = 'flex';
-                shapeContainer.style.justifyContent = 'center';
-                shapeContainer.style.alignItems = 'center';
+            if (nextId === 0) { // I-фигура (палка) - 4 отдельных кубика вертикально
+                const container = document.createElement('div');
+                container.className = 'i-piece-container';
                 
-                const block = document.createElement('div');
-                block.className = 'i-shape-block';
-                shapeContainer.appendChild(block);
+                for (let i = 0; i < 4; i++) {
+                    const block = document.createElement('div');
+                    block.className = 'i-piece-block';
+                    block.style.backgroundColor = color;
+                    container.appendChild(block);
+                }
+                
+                shapeContainer.appendChild(container);
+                
             } else {
-                let minRow = shape.length, maxRow = -1, minCol = shape[0].length, maxCol = -1;
+                // Для остальных фигур - отображаем как сетку кубиков
+                const container = document.createElement('div');
+                container.className = 'piece-container';
+                container.style.display = 'grid';
+                container.style.gridTemplateRows = `repeat(${shape.length}, 1fr)`;
+                container.style.gridTemplateColumns = `repeat(${shape[0].length}, 1fr)`;
+                container.style.gap = '1px';
                 
                 for (let r = 0; r < shape.length; r++) {
                     for (let c = 0; c < shape[r].length; c++) {
-                        if (shape[r][c] === 1) {
-                            minRow = Math.min(minRow, r);
-                            maxRow = Math.max(maxRow, r);
-                            minCol = Math.min(minCol, c);
-                            maxCol = Math.max(maxCol, c);
-                        }
-                    }
-                }
-                
-                const rows = maxRow - minRow + 1;
-                const cols = maxCol - minCol + 1;
-                
-                shapeContainer.style.display = 'grid';
-                shapeContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-                shapeContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-                shapeContainer.style.gap = '2px';
-                shapeContainer.style.padding = '3px';
-                
-                for (let r = minRow; r <= maxRow; r++) {
-                    for (let c = minCol; c <= maxCol; c++) {
                         const block = document.createElement('div');
-                        if (shape[r] && shape[r][c] === 1) {
+                        block.className = 'piece-block';
+                        if (shape[r][c] === 1) {
                             block.style.backgroundColor = color;
-                            block.style.boxShadow = 'inset -1px -1px 3px rgba(0,0,0,0.4), inset 1px 1px 3px rgba(255,255,255,0.3)';
-                            block.style.borderRadius = '2px';
+                        } else {
+                            block.style.backgroundColor = 'transparent';
+                            block.style.boxShadow = 'none';
+                            block.style.border = 'none';
                         }
-                        shapeContainer.appendChild(block);
+                        container.appendChild(block);
                     }
                 }
+                
+                shapeContainer.appendChild(container);
             }
             
             if (levelSpan) {
@@ -2592,7 +2684,7 @@
             loadUserStats();
         }
 
-        // ========== НАВИГАЦИЯ ==========
+        // ========== ЭКРАНЫ ==========
         function showLeaderboard() {
             const list = document.getElementById('leaderboard-list');
             list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Загрузка...</div>';
@@ -2651,11 +2743,15 @@
             const grid = document.getElementById('levels-grid');
             grid.innerHTML = '';
             DIFFICULTY_LEVELS.forEach(l => {
-                grid.innerHTML += `<div class="level-card ${l.id === currentDifficulty ? 'active' : ''}" onclick="selectDifficulty('${l.id}')">
+                const div = document.createElement('div');
+                div.className = `level-card ${l.id === currentDifficulty ? 'active' : ''}`;
+                div.setAttribute('onclick', `selectDifficulty('${l.id}')`);
+                div.innerHTML = `
                     <div class="level-icon">${l.icon}</div>
                     <div class="level-name">${l.name}</div>
-                    <div class="level-desc" style="color: #aaccff;">${l.speed}ms</div>
-                </div>`;
+                    <div class="level-desc">${l.speed}ms</div>
+                `;
+                grid.appendChild(div);
             });
             showScreen('levels');
         }
@@ -2703,7 +2799,7 @@
 
         // ========== ИНИЦИАЛИЗАЦИЯ ==========
         window.addEventListener('load', () => {
-            console.log('🎮 Тетрис 3D — Универсальная версия');
+            console.log('🎮 Тетрис 3D — Исправленная версия');
             loadPets();
             if (activePet) {
                 updatePetHeaderPanel();
