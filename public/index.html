@@ -567,28 +567,6 @@
             100% { opacity: 0.6; transform: translateX(0); }
         }
 
-        #slowdown-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 100, 255, 0.9);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 25px;
-            font-size: 0.9rem;
-            font-weight: bold;
-            z-index: 1000;
-            box-shadow: 0 0 15px rgba(0,100,255,0.5);
-            border: 2px solid #00aaff;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.9; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
         .game-area {
             flex: 1;
             display: flex;
@@ -1235,7 +1213,6 @@
 
         // ===== 50 ПИТОМЦЕВ С БУСТЕРАМИ =====
         const BASE_PETS = [
-            // 1-10 (500-5000)
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, food: '🐟', type: 'clear', value: 1, foodCost: 3 },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1000, food: '🦴', type: 'slow', value: 5000, foodCost: 3 },
             { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 1500, food: '🥕', type: 'hint', value: 1, foodCost: 4 },
@@ -1246,8 +1223,6 @@
             { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4000, food: '🐭', type: 'hint', value: 2, foodCost: 4 },
             { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 4500, food: '🥩', type: 'clear', value: 2, foodCost: 5 },
             { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, food: '🥩', type: 'clear', value: 3, foodCost: 7 },
-            
-            // 11-20 (5500-10000)
             { id: 'leopard', name: 'Леопард', emoji: '🐆', color: '#FF8C00', score: 5500, food: '🥩', type: 'clear', value: 3, foodCost: 5 },
             { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿', type: 'slow', value: 12000, foodCost: 4 },
             { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🌿', type: 'slow', value: 10000, foodCost: 4 },
@@ -1258,8 +1233,6 @@
             { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '🌿', type: 'slow', value: 20000, foodCost: 5 },
             { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎', type: 'clear', value: 2, foodCost: 4 },
             { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰', type: 'clear', value: 1, foodCost: 2 },
-            
-            // 21-30 (10500-15000)
             { id: 'deer', name: 'Олень', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿', type: 'slow', value: 15000, foodCost: 4 },
             { id: 'moose', name: 'Лось', emoji: '🦌', color: '#5D3A1A', score: 11000, food: '🌲', type: 'slow', value: 20000, foodCost: 7 },
             { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 11500, food: '🌿', type: 'slow', value: 15000, foodCost: 5 },
@@ -1270,8 +1243,6 @@
             { id: 'wolf', name: 'Волчонок', emoji: '🐺', color: '#808080', score: 14000, food: '🥩', type: 'slow', value: 15000, foodCost: 5 },
             { id: 'raccoon', name: 'Енот', emoji: '🦝', color: '#8B4513', score: 14500, food: '🍇', type: 'clear', value: 2, foodCost: 4 },
             { id: 'llama', name: 'Лама', emoji: '🦙', color: '#F0E68C', score: 15000, food: '🌿', type: 'shield', value: 2, foodCost: 5 },
-            
-            // 31-40 (15500-20000)
             { id: 'kangaroo', name: 'Кенгуру', emoji: '🦘', color: '#CD853F', score: 15500, food: '🌿', type: 'clear', value: 3, foodCost: 6 },
             { id: 'badger', name: 'Барсук', emoji: '🦡', color: '#2E2E2E', score: 16000, food: '🌿', type: 'shield', value: 2, foodCost: 5 },
             { id: 'skunk', name: 'Скунс', emoji: '🦨', color: '#2E2E2E', score: 16500, food: '🌿', type: 'slow', value: 12000, foodCost: 4 },
@@ -1282,8 +1253,6 @@
             { id: 'swan', name: 'Лебедь', emoji: '🦢', color: '#FFFFFF', score: 19000, food: '🐟', type: 'slow', value: 15000, foodCost: 5 },
             { id: 'crocodile', name: 'Крокодил', emoji: '🐊', color: '#2E8B57', score: 19500, food: '🥩', type: 'clear', value: 3, foodCost: 6 },
             { id: 'lizard', name: 'Ящерица', emoji: '🦎', color: '#32CD32', score: 20000, food: '🦗', type: 'hint', value: 2, foodCost: 4 },
-            
-            // 41-50 (20500-25000)
             { id: 'snake', name: 'Змея', emoji: '🐍', color: '#228B22', score: 20500, food: '🐭', type: 'slow', value: 15000, foodCost: 5 },
             { id: 'turtle2', name: 'Черепаха', emoji: '🐢', color: '#2E8B57', score: 21000, food: '🌿', type: 'shield', value: 3, foodCost: 6 },
             { id: 'frog', name: 'Лягушка', emoji: '🐸', color: '#32CD32', score: 21500, food: '🦗', type: 'clear', value: 2, foodCost: 4 },
@@ -1406,7 +1375,7 @@
             const FIGURE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#F7DC6F'];
             const color = FIGURE_COLORS[nextId];
             
-            if (nextId === 0) { // I-фигура (палка)
+            if (nextId === 0) {
                 const container = document.createElement('div');
                 container.className = 'i-piece-vertical';
                 
@@ -1420,7 +1389,6 @@
                 shapeContainer.appendChild(container);
                 
             } else {
-                // Для остальных фигур
                 const grid = document.createElement('div');
                 grid.className = 'piece-grid';
                 grid.style.gridTemplateRows = `repeat(${shape.length}, 1fr)`;
@@ -1492,7 +1460,6 @@
             const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
             const basePet = BASE_PETS[petIndex];
             
-            // Увеличиваем значение бустера в зависимости от ранга
             let boostedValue = basePet.value;
             if (basePet.type === 'slow') {
                 boostedValue = Math.round(basePet.value * rank.boostMultiplier);
@@ -1542,7 +1509,6 @@
             const leftFood = document.getElementById('pet-info-food');
             if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
             
-            // Анимация
             const animContainer = document.getElementById('pet-animation-container');
             const petInfoMini = document.getElementById('pet-info-mini');
             
@@ -1637,39 +1603,120 @@
             }
         }
 
-        // ========== ФУНКЦИИ ДЛЯ БУСТЕРОВ ==========
-        
-        // ПОДСКАЗКИ (Зайка, Совёнок, Дельфин)
-        function activateHintBoost(pet) {
-            if (!currentPiece) return;
+        // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ПОДСКАЗКИ ==========
+        function findBestPosition() {
+            if (!currentPiece) return null;
             
-            hintActive = true;
-            hintsRemaining = pet.boostedValue;
+            let bestScore = -1;
+            let bestX = currentX;
+            let bestY = currentY;
+            let bestRotation = 0;
             
-            // Предсказываем позиции для всех следующих фигур
-            predictNextHints();
+            const originalShape = currentPiece.shape.map(row => [...row]);
             
-            // Показываем подсказку для текущей фигуры
-            showNextHint();
-            
-            // Показываем индикатор
-            const indicator = document.getElementById('hint-indicator');
-            if (indicator) {
-                indicator.style.display = 'flex';
-                indicator.innerHTML = '💡 ' + hintsRemaining;
+            for (let rot = 0; rot < 4; rot++) {
+                if (rot > 0) {
+                    let rotated = [];
+                    for (let i = 0; i < currentPiece.shape[0].length; i++) {
+                        rotated[i] = [];
+                        for (let j = 0; j < currentPiece.shape.length; j++) {
+                            rotated[i][j] = currentPiece.shape[currentPiece.shape.length - 1 - j][i];
+                        }
+                    }
+                    currentPiece.shape = rotated;
+                }
+                
+                for (let x = 0; x <= COLS - currentPiece.shape[0].length; x++) {
+                    let y = 0;
+                    while (!collide(currentPiece, x, y + 1) && y < ROWS - 1) {
+                        y++;
+                    }
+                    
+                    if (!collide(currentPiece, x, y)) {
+                        const score = evaluatePosition(x, y);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestX = x;
+                            bestY = y;
+                            bestRotation = rot;
+                        }
+                    }
+                }
             }
             
-            showPetBoostAnimation(pet, 'hint', hintsRemaining);
-            showNotification(`${pet.emoji} ${pet.name}: подсказки для ${hintsRemaining} фигур!`);
+            currentPiece.shape = originalShape;
+            
+            return { x: bestX, y: bestY, rotation: bestRotation };
+        }
+
+        function evaluatePosition(x, y) {
+            let score = 0;
+            const shape = currentPiece.shape;
+            
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c]) {
+                        const boardY = y + r;
+                        const boardX = x + c;
+                        
+                        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
+                            if (boardY === ROWS - 1) {
+                                score += 100;
+                            }
+                            
+                            if (boardY < ROWS - 1 && board[boardY + 1] && board[boardY + 1][boardX]) {
+                                score += 50;
+                            }
+                            
+                            if (boardX > 0 && board[boardY] && board[boardY][boardX - 1]) {
+                                score += 25;
+                            }
+                            
+                            if (boardX < COLS - 1 && board[boardY] && board[boardY][boardX + 1]) {
+                                score += 25;
+                            }
+                            
+                            if (boardY > 0 && board[boardY - 1] && !board[boardY - 1][boardX]) {
+                                score -= 10;
+                            }
+                            
+                            let neighbors = 0;
+                            if (boardY > 0 && board[boardY - 1] && board[boardY - 1][boardX]) neighbors++;
+                            if (boardY < ROWS - 1 && board[boardY + 1] && board[boardY + 1][boardX]) neighbors++;
+                            if (boardX > 0 && board[boardY] && board[boardY][boardX - 1]) neighbors++;
+                            if (boardX < COLS - 1 && board[boardY] && board[boardY][boardX + 1]) neighbors++;
+                            
+                            if (neighbors === 0) {
+                                score -= 5;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            score += (ROWS - y) * 5;
+            
+            let heightDiff = 0;
+            for (let c = 0; c < COLS; c++) {
+                let colHeight = ROWS;
+                for (let r = 0; r < ROWS; r++) {
+                    if (board[r][c]) {
+                        colHeight = r;
+                        break;
+                    }
+                }
+                heightDiff += Math.abs(y - colHeight);
+            }
+            score -= heightDiff * 2;
+            
+            return score;
         }
 
         function predictNextHints() {
             hintedPositions = [];
             
-            // Копируем текущее состояние доски
             let tempBoard = board.map(row => [...row]);
             
-            // Предсказываем для следующих фигур
             for (let i = 0; i < hintsRemaining; i++) {
                 const pieceId = pieceQueue[i];
                 if (pieceId === undefined) break;
@@ -1685,7 +1732,6 @@
                         rotation: bestPos.rotation
                     });
                     
-                    // Временно размещаем фигуру на доске для следующего предсказания
                     if (i < hintsRemaining - 1) {
                         tempBoard = simulatePlacePiece(tempBoard, piece, bestPos.x, bestPos.y);
                     }
@@ -1701,7 +1747,6 @@
             let bestY = 0;
             let bestRotation = 0;
             
-            // Пробуем все вращения
             for (let rot = 0; rot < 4; rot++) {
                 let rotatedShape = piece.shape;
                 if (rot > 0) {
@@ -1710,15 +1755,13 @@
                 
                 const pieceWidth = rotatedShape[0].length;
                 
-                // Пробуем все позиции по X
                 for (let x = 0; x <= COLS - pieceWidth; x++) {
                     let y = 0;
-                    // Находим самую нижнюю возможную позицию
-                    while (!collideWithBoard(rotatedShape, x, y + 1, targetBoard)) {
+                    while (!collideWithBoard(rotatedShape, x, y + 1, targetBoard) && y < ROWS - 1) {
                         y++;
                     }
                     
-                    if (y >= 0) {
+                    if (!collideWithBoard(rotatedShape, x, y, targetBoard)) {
                         const score = evaluatePositionForBoard(rotatedShape, x, y, targetBoard);
                         if (score > bestScore) {
                             bestScore = score;
@@ -1798,7 +1841,6 @@
                 }
             }
             
-            // Убираем заполненные строки
             for (let row = ROWS - 1; row >= 0; row--) {
                 if (newBoard[row].every(cell => cell !== 0)) {
                     newBoard.splice(row, 1);
@@ -1817,18 +1859,38 @@
                 return;
             }
             
-            // Индекс текущей подсказки (с конца)
             const hintIndex = hintedPositions.length - hintsRemaining;
             let targetX = currentX;
             let targetY = currentY;
+            let targetRotation = 0;
             
-            // Используем предсказанную позицию если есть
-            if (hintedPositions[hintIndex]) {
+            if (hintedPositions[hintIndex] && hintedPositions[hintIndex] !== null) {
                 const hint = hintedPositions[hintIndex];
                 targetX = hint.x;
                 targetY = hint.y;
+                targetRotation = hint.rotation;
                 
-                // Показываем стрелки направления
+                let testPiece = { shape: SHAPES[hint.pieceId] };
+                for (let r = 0; r < targetRotation; r++) {
+                    let rotated = [];
+                    for (let i = 0; i < testPiece.shape[0].length; i++) {
+                        rotated[i] = [];
+                        for (let j = 0; j < testPiece.shape.length; j++) {
+                            rotated[i][j] = testPiece.shape[testPiece.shape.length - 1 - j][i];
+                        }
+                    }
+                    testPiece.shape = rotated;
+                }
+                
+                if (collideWithBoard(testPiece.shape, targetX, targetY, board)) {
+                    const newBest = findBestPositionForBoard(testPiece, board);
+                    if (newBest) {
+                        targetX = newBest.x;
+                        targetY = newBest.y;
+                        targetRotation = newBest.rotation;
+                    }
+                }
+                
                 if (targetX < currentX) {
                     const arrow = document.createElement('div');
                     arrow.className = 'direction-arrow';
@@ -1846,9 +1908,7 @@
                     document.querySelector('.game-area').appendChild(arrow);
                 }
                 
-                // Если нужно повернуть фигуру
-                if (hint.rotation > 0) {
-                    // Показываем иконку поворота
+                if (targetRotation > 0) {
                     const rotateArrow = document.createElement('div');
                     rotateArrow.className = 'direction-arrow';
                     rotateArrow.textContent = '↻';
@@ -1857,15 +1917,13 @@
                     rotateArrow.style.transform = 'translateX(-50%)';
                     rotateArrow.style.fontSize = '2rem';
                     document.querySelector('.game-area').appendChild(rotateArrow);
-                    
-                    showNotification(`💡 Поверни фигуру ${hint.rotation} раз(а)`);
                 }
             } else {
-                // Если нет предсказания, используем текущий алгоритм
                 const bestPos = findBestPosition();
                 if (bestPos) {
                     targetX = bestPos.x;
                     targetY = bestPos.y;
+                    targetRotation = bestPos.rotation;
                     
                     if (targetX < currentX) {
                         const arrow = document.createElement('div');
@@ -1883,29 +1941,87 @@
                         arrow.style.top = '50%';
                         document.querySelector('.game-area').appendChild(arrow);
                     }
-                }
-            }
-            
-            // Показываем контур фигуры
-            for (let r = 0; r < currentPiece.shape.length; r++) {
-                for (let c = 0; c < currentPiece.shape[r].length; c++) {
-                    if (currentPiece.shape[r][c]) {
-                        const hintBlock = document.createElement('div');
-                        hintBlock.className = 'hint-block';
-                        hintBlock.style.left = (targetX + c) * BLOCK_SIZE + 'px';
-                        hintBlock.style.top = (targetY + r) * BLOCK_SIZE + 'px';
-                        hintBlock.style.width = BLOCK_SIZE - 2 + 'px';
-                        hintBlock.style.height = BLOCK_SIZE - 2 + 'px';
-                        document.querySelector('.game-area').appendChild(hintBlock);
+                    if (targetRotation > 0) {
+                        const rotateArrow = document.createElement('div');
+                        rotateArrow.className = 'direction-arrow';
+                        rotateArrow.textContent = '↻';
+                        rotateArrow.style.left = '50%';
+                        rotateArrow.style.top = '70%';
+                        rotateArrow.style.transform = 'translateX(-50%)';
+                        rotateArrow.style.fontSize = '2rem';
+                        document.querySelector('.game-area').appendChild(rotateArrow);
                     }
                 }
             }
             
-            // Обновляем счетчик
+            if (!collide(currentPiece, targetX, targetY)) {
+                for (let r = 0; r < currentPiece.shape.length; r++) {
+                    for (let c = 0; c < currentPiece.shape[r].length; c++) {
+                        if (currentPiece.shape[r][c]) {
+                            const hintBlock = document.createElement('div');
+                            hintBlock.className = 'hint-block';
+                            hintBlock.style.left = (targetX + c) * BLOCK_SIZE + 'px';
+                            hintBlock.style.top = (targetY + r) * BLOCK_SIZE + 'px';
+                            hintBlock.style.width = BLOCK_SIZE - 2 + 'px';
+                            hintBlock.style.height = BLOCK_SIZE - 2 + 'px';
+                            document.querySelector('.game-area').appendChild(hintBlock);
+                        }
+                    }
+                }
+            } else {
+                const emergencyPos = findEmergencyPosition();
+                if (emergencyPos) {
+                    for (let r = 0; r < currentPiece.shape.length; r++) {
+                        for (let c = 0; c < currentPiece.shape[r].length; c++) {
+                            if (currentPiece.shape[r][c]) {
+                                const hintBlock = document.createElement('div');
+                                hintBlock.className = 'hint-block';
+                                hintBlock.style.left = (emergencyPos.x + c) * BLOCK_SIZE + 'px';
+                                hintBlock.style.top = (emergencyPos.y + r) * BLOCK_SIZE + 'px';
+                                hintBlock.style.width = BLOCK_SIZE - 2 + 'px';
+                                hintBlock.style.height = BLOCK_SIZE - 2 + 'px';
+                                document.querySelector('.game-area').appendChild(hintBlock);
+                            }
+                        }
+                    }
+                }
+            }
+            
             const indicator = document.getElementById('hint-indicator');
             if (indicator) {
                 indicator.innerHTML = '💡 ' + hintsRemaining;
             }
+        }
+
+        function findEmergencyPosition() {
+            if (!currentPiece) return null;
+            
+            for (let rot = 0; rot < 4; rot++) {
+                for (let x = 0; x <= COLS - currentPiece.shape[0].length; x++) {
+                    let y = ROWS - 1;
+                    while (y >= 0 && !collide(currentPiece, x, y)) {
+                        y--;
+                    }
+                    y++;
+                    
+                    if (y < ROWS && !collide(currentPiece, x, y)) {
+                        return { x: x, y: y };
+                    }
+                }
+                
+                if (rot < 3) {
+                    let rotated = [];
+                    for (let i = 0; i < currentPiece.shape[0].length; i++) {
+                        rotated[i] = [];
+                        for (let j = 0; j < currentPiece.shape.length; j++) {
+                            rotated[i][j] = currentPiece.shape[currentPiece.shape.length - 1 - j][i];
+                        }
+                    }
+                    currentPiece.shape = rotated;
+                }
+            }
+            
+            return null;
         }
 
         function onPiecePlaced() {
@@ -1913,14 +2029,11 @@
                 hintsRemaining--;
                 
                 if (hintsRemaining > 0) {
-                    // Показываем подсказку для следующей фигуры
                     setTimeout(() => {
-                        // Пересчитываем предсказания с учётом новой доски
                         predictNextHints();
                         showNextHint();
                     }, 100);
                 } else {
-                    // Бустер закончился
                     hintActive = false;
                     hideHint();
                     const indicator = document.getElementById('hint-indicator');
@@ -1931,7 +2044,26 @@
             }
         }
 
-        // ОЧИСТКА СТРОК
+        // ========== ФУНКЦИИ БУСТЕРОВ ==========
+        function activateHintBoost(pet) {
+            if (!currentPiece) return;
+            
+            hintActive = true;
+            hintsRemaining = pet.boostedValue;
+            
+            predictNextHints();
+            showNextHint();
+            
+            const indicator = document.getElementById('hint-indicator');
+            if (indicator) {
+                indicator.style.display = 'flex';
+                indicator.innerHTML = '💡 ' + hintsRemaining;
+            }
+            
+            showPetBoostAnimation(pet, 'hint', hintsRemaining);
+            showNotification(`${pet.emoji} ${pet.name}: подсказки для ${hintsRemaining} фигур!`);
+        }
+
         function activateClearBoost(pet) {
             const linesToClear = pet.boostedValue;
             
@@ -1949,7 +2081,6 @@
             showPetBoostAnimation(pet, 'clear', linesToClear);
             showNotification(`${pet.emoji} ${pet.name}: убрано ${linesToClear} ${getLineWord(linesToClear)}!`);
             
-            // Показываем индикатор
             const indicator = document.getElementById('clear-indicator');
             if (indicator) {
                 indicator.style.display = 'flex';
@@ -1960,7 +2091,6 @@
             }
         }
 
-        // ЗАМЕДЛЕНИЕ
         function activateSlowBoost(pet) {
             let duration = pet.boostedValue;
             
@@ -1968,21 +2098,18 @@
                 window.originalSpeed = dropInterval;
             }
             
-            // Чем выше уровень, тем сильнее замедление
             const slowFactor = gameLevel >= 8 ? 3 : (gameLevel >= 4 ? 2.5 : 2);
             dropInterval = window.originalSpeed * slowFactor;
             
             slowActive = true;
             slowEndTime = Date.now() + duration;
             
-            // Показываем индикатор
             const indicator = document.getElementById('slow-indicator');
             if (indicator) {
                 indicator.style.display = 'flex';
                 indicator.innerHTML = '⏰ ' + Math.round(duration/1000) + 'с';
             }
             
-            // Запускаем таймер обновления
             if (window.slowTimer) clearInterval(window.slowTimer);
             window.slowTimer = setInterval(() => {
                 const remaining = Math.max(0, Math.round((slowEndTime - Date.now()) / 1000));
@@ -2005,11 +2132,9 @@
             showNotification(`${pet.emoji} ${pet.name}: замедление ${Math.round(duration/1000)} сек!`);
         }
 
-        // ЩИТ
         function activateShieldBoost(pet) {
             shieldRemaining = pet.boostedValue;
             
-            // Показываем индикатор
             const indicator = document.getElementById('shield-indicator');
             if (indicator) {
                 indicator.style.display = 'flex';
@@ -2082,7 +2207,6 @@
             
             updateNextPieceDisplay();
             
-            // Обновляем предсказания если активен бустер подсказок
             if (hintActive) {
                 predictNextHints();
                 showNextHint();
@@ -2093,7 +2217,6 @@
                     shieldRemaining--;
                     showNotification(`🛡️ ЩИТ СПАС ИГРУ! Осталось: ${shieldRemaining}`);
                     
-                    // Обновляем индикатор щита
                     const indicator = document.getElementById('shield-indicator');
                     if (indicator) {
                         if (shieldRemaining > 0) {
@@ -2103,7 +2226,6 @@
                         }
                     }
                     
-                    // Очищаем доску
                     board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
                 } else {
                     gameOver = true;
@@ -2194,145 +2316,6 @@
             updateDisplay();
         }
 
-        function findBestPosition() {
-            if (!currentPiece) return null;
-            let bestScore = -1;
-            let bestX = currentX;
-            let bestY = currentY;
-            let bestRotation = 0;
-            
-            const originalShape = currentPiece.shape.map(row => [...row]);
-            
-            for (let rot = 0; rot < 4; rot++) {
-                if (rot > 0) {
-                    let rotated = [];
-                    for (let i = 0; i < currentPiece.shape[0].length; i++) {
-                        rotated[i] = [];
-                        for (let j = 0; j < currentPiece.shape.length; j++) {
-                            rotated[i][j] = currentPiece.shape[currentPiece.shape.length - 1 - j][i];
-                        }
-                    }
-                    currentPiece.shape = rotated;
-                }
-                
-                for (let x = 0; x < COLS - currentPiece.shape[0].length + 1; x++) {
-                    let y = 0;
-                    while (!collide(currentPiece, x, y + 1)) y++;
-                    if (y >= 0) {
-                        const score = evaluatePosition(x, y);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestX = x;
-                            bestY = y;
-                            bestRotation = rot;
-                        }
-                    }
-                }
-            }
-            
-            currentPiece.shape = originalShape;
-            
-            return { x: bestX, y: bestY, rotation: bestRotation };
-        }
-
-        function evaluatePosition(x, y) {
-            let score = 0;
-            const shape = currentPiece.shape;
-            
-            for (let r = 0; r < shape.length; r++) {
-                for (let c = 0; c < shape[r].length; c++) {
-                    if (shape[r][c]) {
-                        const boardY = y + r;
-                        const boardX = x + c;
-                        
-                        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
-                            if (boardY === ROWS - 1) score += 100;
-                            if (boardY < ROWS - 1 && board[boardY + 1] && board[boardY + 1][boardX]) score += 50;
-                            if (boardX > 0 && board[boardY] && board[boardY][boardX - 1]) score += 25;
-                            if (boardX < COLS - 1 && board[boardY] && board[boardY][boardX + 1]) score += 25;
-                            if (boardY > 0 && board[boardY - 1] && !board[boardY - 1][boardX]) score -= 10;
-                        }
-                    }
-                }
-            }
-            
-            score += (ROWS - y) * 5;
-            
-            return score;
-        }
-
-        function hideHint() {
-            document.querySelectorAll('.hint-block, .direction-arrow').forEach(el => el.remove());
-        }
-
-        function showPetBoostAnimation(pet, type, value) {
-            const animSection = document.getElementById('pet-animation-section');
-            const animEmoji = document.getElementById('pet-animation-emoji');
-            const animEffect = document.getElementById('pet-animation-effect');
-            const progressBar = document.getElementById('progress-bar-small');
-            
-            if (!animSection || !animEmoji || !animEffect) return;
-            
-            animEmoji.textContent = pet.emoji;
-            animEmoji.style.color = pet.color;
-            
-            let effectText = '';
-            if (type === 'clear') {
-                effectText = `🧹 ${value} ${getLineWord(value)}`;
-            } else if (type === 'slow') {
-                effectText = `⏰ ${Math.round(value/1000)} сек`;
-            } else if (type === 'hint') {
-                effectText = `💡 ${value} фигур`;
-            } else if (type === 'shield') {
-                effectText = `🛡️ ${value} ошибок`;
-            }
-            
-            animEffect.textContent = effectText;
-            animSection.style.display = 'flex';
-            
-            progressBar.style.width = '100%';
-            setTimeout(() => {
-                progressBar.style.width = '0%';
-                setTimeout(() => {
-                    animSection.style.display = 'none';
-                }, 300);
-            }, 800);
-        }
-
-        function showFoodAnimation(foodEmoji, count, color) {
-            for (let i = 0; i < Math.min(count, 5); i++) {
-                setTimeout(() => {
-                    const food = document.createElement('div');
-                    food.className = 'food-particle';
-                    food.style.left = (window.innerWidth - 120 + Math.random() * 80) + 'px';
-                    food.style.top = (window.innerHeight / 2 + Math.random() * 80 - 40) + 'px';
-                    food.style.color = color || '#ffd700';
-                    food.style.fontSize = '2rem';
-                    food.textContent = foodEmoji;
-                    document.body.appendChild(food);
-                    setTimeout(() => food.remove(), 1000);
-                }, i * 100);
-            }
-        }
-
-        function showCombo(combo) {
-            if (combo > 1) {
-                const div = document.createElement('div');
-                div.className = 'combo-counter';
-                div.textContent = `x${combo}!`;
-                document.querySelector('.game-area').appendChild(div);
-                setTimeout(() => div.remove(), 500);
-            }
-        }
-
-        function feedActivePet() {
-            if (!activePet) {
-                showNotification('❌ Сначала получи питомца! (500 очков)');
-                return;
-            }
-            showNotification('🍖 Еда дается за линии и получение питомцев!');
-        }
-
         function startNewGame() {
             stopGameLoop();
             
@@ -2341,14 +2324,12 @@
             gameActive = true; gamePaused = false; gameOver = false;
             comboCount = 0;
             
-            // Сбрасываем все бустеры
             hintActive = false;
             hintsRemaining = 0;
             slowActive = false;
             shieldRemaining = 0;
             hideHint();
             
-            // Скрываем все индикаторы
             document.getElementById('clear-indicator').style.display = 'none';
             document.getElementById('slow-indicator').style.display = 'none';
             document.getElementById('hint-indicator').style.display = 'none';
@@ -2358,7 +2339,6 @@
             
             loadPets();
             
-            // В начале игры нет активного питомца и еды
             petFood = {};
             savePets();
             activePet = null;
@@ -2508,13 +2488,11 @@
                 return;
             }
             
-            // Списываем еду
             petFood[petId] = foodCount - activePet.foodCost;
             savePets();
             updatePetHeaderPanel();
             updatePetLeftPanel();
             
-            // Активируем способность в зависимости от типа
             if (activePet.type === 'clear') {
                 activateClearBoost(activePet);
             } else if (activePet.type === 'slow') {
@@ -2544,6 +2522,78 @@
             if (count === 1) return 'строку';
             if (count >= 2 && count <= 4) return 'строки';
             return 'строк';
+        }
+
+        function hideHint() {
+            document.querySelectorAll('.hint-block, .direction-arrow').forEach(el => el.remove());
+        }
+
+        function showPetBoostAnimation(pet, type, value) {
+            const animSection = document.getElementById('pet-animation-section');
+            const animEmoji = document.getElementById('pet-animation-emoji');
+            const animEffect = document.getElementById('pet-animation-effect');
+            const progressBar = document.getElementById('progress-bar-small');
+            
+            if (!animSection || !animEmoji || !animEffect) return;
+            
+            animEmoji.textContent = pet.emoji;
+            animEmoji.style.color = pet.color;
+            
+            let effectText = '';
+            if (type === 'clear') {
+                effectText = `🧹 ${value} ${getLineWord(value)}`;
+            } else if (type === 'slow') {
+                effectText = `⏰ ${Math.round(value/1000)} сек`;
+            } else if (type === 'hint') {
+                effectText = `💡 ${value} фигур`;
+            } else if (type === 'shield') {
+                effectText = `🛡️ ${value} ошибок`;
+            }
+            
+            animEffect.textContent = effectText;
+            animSection.style.display = 'flex';
+            
+            progressBar.style.width = '100%';
+            setTimeout(() => {
+                progressBar.style.width = '0%';
+                setTimeout(() => {
+                    animSection.style.display = 'none';
+                }, 300);
+            }, 800);
+        }
+
+        function showFoodAnimation(foodEmoji, count, color) {
+            for (let i = 0; i < Math.min(count, 5); i++) {
+                setTimeout(() => {
+                    const food = document.createElement('div');
+                    food.className = 'food-particle';
+                    food.style.left = (window.innerWidth - 120 + Math.random() * 80) + 'px';
+                    food.style.top = (window.innerHeight / 2 + Math.random() * 80 - 40) + 'px';
+                    food.style.color = color || '#ffd700';
+                    food.style.fontSize = '2rem';
+                    food.textContent = foodEmoji;
+                    document.body.appendChild(food);
+                    setTimeout(() => food.remove(), 1000);
+                }, i * 100);
+            }
+        }
+
+        function showCombo(combo) {
+            if (combo > 1) {
+                const div = document.createElement('div');
+                div.className = 'combo-counter';
+                div.textContent = `x${combo}!`;
+                document.querySelector('.game-area').appendChild(div);
+                setTimeout(() => div.remove(), 500);
+            }
+        }
+
+        function feedActivePet() {
+            if (!activePet) {
+                showNotification('❌ Сначала получи питомца! (500 очков)');
+                return;
+            }
+            showNotification('🍖 Еда дается за линии и получение питомцев!');
         }
 
         // ========== ОТРИСОВКА ==========
@@ -3243,7 +3293,6 @@
             setupControls();
             updateNextPieceDisplay();
             
-            // Добавляем обработчики для двойного тапа
             document.getElementById('pet-emoji-header')?.addEventListener('click', handlePetTap);
             document.getElementById('pet-info-emoji')?.addEventListener('click', handlePetTap);
             
