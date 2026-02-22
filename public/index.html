@@ -996,7 +996,7 @@
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС 3D</h1>
-                <p class="subtitle">Питомцы за 500 очков • 1 линия = 1 еда</p>
+                <p class="subtitle">50 питомцев • 8 рангов • 4 бустера</p>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startNewGame()">🎮 НОВАЯ ИГРА</button>
@@ -1233,7 +1233,7 @@
             { level: 29, min: 14500, max: Infinity, speed: 80 }
         ];
 
-        // ===== ВСЕ ПИТОМЦЫ С БУСТЕРАМИ =====
+        // ===== 50 ПИТОМЦЕВ С БУСТЕРАМИ =====
         const BASE_PETS = [
             // 1-10 (500-5000)
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, food: '🐟', type: 'clear', value: 1, foodCost: 3 },
@@ -1478,7 +1478,10 @@
         }
 
         function getBoostValue(baseValue, rankMultiplier) {
-            return Math.round(baseValue * rankMultiplier);
+            if (typeof baseValue === 'number') {
+                return Math.round(baseValue * rankMultiplier);
+            }
+            return baseValue;
         }
 
         function getPetByScore(scoreValue) {
@@ -1636,86 +1639,14 @@
 
         // ========== ФУНКЦИИ ДЛЯ БУСТЕРОВ ==========
         
-        // ОЧИСТКА СТРОК
-        function activateClearBoost(pet) {
-            const linesToClear = pet.boostedValue;
-            
-            for (let i = 0; i < linesToClear; i++) {
-                board.pop();
-                board.unshift(Array(COLS).fill(0));
-            }
-            
-            drawBoard();
-            
-            const bonusScore = linesToClear * 100 * (gameLevel + 1);
-            score += bonusScore;
-            updateDisplay();
-            
-            showPetBoostAnimation(pet, 'clear', linesToClear);
-            showNotification(`${pet.emoji} ${pet.name}: убрано ${linesToClear} ${getLineWord(linesToClear)}!`);
-            
-            // Показываем индикатор
-            const indicator = document.getElementById('clear-indicator');
-            if (indicator) {
-                indicator.style.display = 'flex';
-                indicator.innerHTML = '🧹 ' + linesToClear;
-                setTimeout(() => {
-                    indicator.style.display = 'none';
-                }, 2000);
-            }
-        }
-
-        // ЗАМЕДЛЕНИЕ
-        function activateSlowBoost(pet) {
-            let duration = pet.boostedValue;
-            
-            if (!window.originalSpeed) {
-                window.originalSpeed = dropInterval;
-            }
-            
-            const slowFactor = gameLevel >= 8 ? 3 : (gameLevel >= 4 ? 2.5 : 2);
-            dropInterval = window.originalSpeed * slowFactor;
-            
-            slowActive = true;
-            slowEndTime = Date.now() + duration;
-            
-            // Показываем индикатор
-            const indicator = document.getElementById('slow-indicator');
-            if (indicator) {
-                indicator.style.display = 'flex';
-                indicator.innerHTML = '⏰ ' + Math.round(duration/1000) + 'с';
-            }
-            
-            // Запускаем таймер обновления
-            if (window.slowTimer) clearInterval(window.slowTimer);
-            window.slowTimer = setInterval(() => {
-                const remaining = Math.max(0, Math.round((slowEndTime - Date.now()) / 1000));
-                if (indicator) {
-                    indicator.innerHTML = '⏰ ' + remaining + 'с';
-                }
-                
-                if (remaining <= 0) {
-                    clearInterval(window.slowTimer);
-                    slowActive = false;
-                    if (!gamePaused && !gameOver) {
-                        dropInterval = window.originalSpeed;
-                    }
-                    if (indicator) indicator.style.display = 'none';
-                }
-            }, 200);
-            
-            showPetBoostAnimation(pet, 'slow', duration);
-            showNotification(`${pet.emoji} ${pet.name}: замедление ${Math.round(duration/1000)} сек!`);
-        }
-
-        // ПОДСКАЗКИ
+        // ПОДСКАЗКИ (Зайка, Совёнок, Дельфин)
         function activateHintBoost(pet) {
             if (!currentPiece) return;
             
             hintActive = true;
             hintsRemaining = pet.boostedValue;
             
-            // Предсказываем позиции
+            // Предсказываем позиции для всех следующих фигур
             predictNextHints();
             
             // Показываем подсказку для текущей фигуры
@@ -1730,21 +1661,6 @@
             
             showPetBoostAnimation(pet, 'hint', hintsRemaining);
             showNotification(`${pet.emoji} ${pet.name}: подсказки для ${hintsRemaining} фигур!`);
-        }
-
-        // ЩИТ
-        function activateShieldBoost(pet) {
-            shieldRemaining = pet.boostedValue;
-            
-            // Показываем индикатор
-            const indicator = document.getElementById('shield-indicator');
-            if (indicator) {
-                indicator.style.display = 'flex';
-                indicator.innerHTML = '🛡️ ' + shieldRemaining;
-            }
-            
-            showPetBoostAnimation(pet, 'shield', shieldRemaining);
-            showNotification(`${pet.emoji} ${pet.name}: щит на ${shieldRemaining} ошибок!`);
         }
 
         function predictNextHints() {
@@ -1901,7 +1817,8 @@
                 return;
             }
             
-            const hintIndex = hintsRemaining - 1;
+            // Индекс текущей подсказки (с конца)
+            const hintIndex = hintedPositions.length - hintsRemaining;
             let targetX = currentX;
             let targetY = currentY;
             
@@ -1927,6 +1844,21 @@
                     arrow.style.right = '10px';
                     arrow.style.top = '50%';
                     document.querySelector('.game-area').appendChild(arrow);
+                }
+                
+                // Если нужно повернуть фигуру
+                if (hint.rotation > 0) {
+                    // Показываем иконку поворота
+                    const rotateArrow = document.createElement('div');
+                    rotateArrow.className = 'direction-arrow';
+                    rotateArrow.textContent = '↻';
+                    rotateArrow.style.left = '50%';
+                    rotateArrow.style.top = '70%';
+                    rotateArrow.style.transform = 'translateX(-50%)';
+                    rotateArrow.style.fontSize = '2rem';
+                    document.querySelector('.game-area').appendChild(rotateArrow);
+                    
+                    showNotification(`💡 Поверни фигуру ${hint.rotation} раз(а)`);
                 }
             } else {
                 // Если нет предсказания, используем текущий алгоритм
@@ -1983,6 +1915,7 @@
                 if (hintsRemaining > 0) {
                     // Показываем подсказку для следующей фигуры
                     setTimeout(() => {
+                        // Пересчитываем предсказания с учётом новой доски
                         predictNextHints();
                         showNextHint();
                     }, 100);
@@ -1996,6 +1929,95 @@
                     }
                 }
             }
+        }
+
+        // ОЧИСТКА СТРОК
+        function activateClearBoost(pet) {
+            const linesToClear = pet.boostedValue;
+            
+            for (let i = 0; i < linesToClear; i++) {
+                board.pop();
+                board.unshift(Array(COLS).fill(0));
+            }
+            
+            drawBoard();
+            
+            const bonusScore = linesToClear * 100 * (gameLevel + 1);
+            score += bonusScore;
+            updateDisplay();
+            
+            showPetBoostAnimation(pet, 'clear', linesToClear);
+            showNotification(`${pet.emoji} ${pet.name}: убрано ${linesToClear} ${getLineWord(linesToClear)}!`);
+            
+            // Показываем индикатор
+            const indicator = document.getElementById('clear-indicator');
+            if (indicator) {
+                indicator.style.display = 'flex';
+                indicator.innerHTML = '🧹 ' + linesToClear;
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                }, 2000);
+            }
+        }
+
+        // ЗАМЕДЛЕНИЕ
+        function activateSlowBoost(pet) {
+            let duration = pet.boostedValue;
+            
+            if (!window.originalSpeed) {
+                window.originalSpeed = dropInterval;
+            }
+            
+            // Чем выше уровень, тем сильнее замедление
+            const slowFactor = gameLevel >= 8 ? 3 : (gameLevel >= 4 ? 2.5 : 2);
+            dropInterval = window.originalSpeed * slowFactor;
+            
+            slowActive = true;
+            slowEndTime = Date.now() + duration;
+            
+            // Показываем индикатор
+            const indicator = document.getElementById('slow-indicator');
+            if (indicator) {
+                indicator.style.display = 'flex';
+                indicator.innerHTML = '⏰ ' + Math.round(duration/1000) + 'с';
+            }
+            
+            // Запускаем таймер обновления
+            if (window.slowTimer) clearInterval(window.slowTimer);
+            window.slowTimer = setInterval(() => {
+                const remaining = Math.max(0, Math.round((slowEndTime - Date.now()) / 1000));
+                if (indicator) {
+                    indicator.innerHTML = '⏰ ' + remaining + 'с';
+                }
+                
+                if (remaining <= 0) {
+                    clearInterval(window.slowTimer);
+                    slowActive = false;
+                    if (!gamePaused && !gameOver) {
+                        dropInterval = window.originalSpeed;
+                    }
+                    if (indicator) indicator.style.display = 'none';
+                    showNotification('⚡ Скорость восстановлена');
+                }
+            }, 200);
+            
+            showPetBoostAnimation(pet, 'slow', duration);
+            showNotification(`${pet.emoji} ${pet.name}: замедление ${Math.round(duration/1000)} сек!`);
+        }
+
+        // ЩИТ
+        function activateShieldBoost(pet) {
+            shieldRemaining = pet.boostedValue;
+            
+            // Показываем индикатор
+            const indicator = document.getElementById('shield-indicator');
+            if (indicator) {
+                indicator.style.display = 'flex';
+                indicator.innerHTML = '🛡️ ' + shieldRemaining;
+            }
+            
+            showPetBoostAnimation(pet, 'shield', shieldRemaining);
+            showNotification(`${pet.emoji} ${pet.name}: щит на ${shieldRemaining} ошибок!`);
         }
 
         // ========== ИГРОВАЯ ЛОГИКА ==========
@@ -2256,13 +2278,13 @@
             
             let effectText = '';
             if (type === 'clear') {
-                effectText = `Убрать ${value} ${getLineWord(value)}`;
+                effectText = `🧹 ${value} ${getLineWord(value)}`;
             } else if (type === 'slow') {
-                effectText = `Замедление ${Math.round(value/1000)} сек`;
+                effectText = `⏰ ${Math.round(value/1000)} сек`;
             } else if (type === 'hint') {
-                effectText = `Подсказки ${value} фигур`;
+                effectText = `💡 ${value} фигур`;
             } else if (type === 'shield') {
-                effectText = `Щит ${value} ошибок`;
+                effectText = `🛡️ ${value} ошибок`;
             }
             
             animEffect.textContent = effectText;
@@ -2358,7 +2380,7 @@
                 drawBoard();
                 showScreen('game');
                 startGameLoop();
-                showNotification('🎮 НОВАЯ ИГРА! Питомцы за 500 очков');
+                showNotification('🎮 НОВАЯ ИГРА! 50 питомцев с бустерами');
             }
         }
 
