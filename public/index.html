@@ -1452,13 +1452,18 @@
             return baseValue;
         }
 
+        // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
         function getPetByScore(scoreValue) {
             if (scoreValue < 500) return null;
             
+            // Индекс питомца в базовом списке (0-49)
             const petIndex = Math.floor((scoreValue - 500) / 500) % BASE_PETS.length;
+            // Тиер (количество полных кругов)
             const tier = Math.floor(Math.floor((scoreValue - 500) / 500) / BASE_PETS.length);
             const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
             const basePet = BASE_PETS[petIndex];
+            
+            console.log('getPetByScore:', { scoreValue, petIndex, tier, rank, basePet });
             
             let boostedValue = basePet.value;
             if (basePet.type === 'slow') {
@@ -1479,6 +1484,32 @@
                 tier: tier,
                 boostedValue: boostedValue
             };
+        }
+
+        function checkPetUnlocks(oldScore) {
+            // Старое количество питомцев (до набора очков)
+            const oldPetsCount = Math.floor(oldScore / 500);
+            // Новое количество питомцев (после набора очков)
+            const newPetsCount = Math.floor(score / 500);
+            
+            console.log('Проверка питомцев:', { oldScore, score, oldPetsCount, newPetsCount });
+            
+            // Если получили нового питомца
+            if (newPetsCount > oldPetsCount) {
+                // Сколько новых питомцев получили (может быть несколько за раз)
+                const petsGained = newPetsCount - oldPetsCount;
+                
+                for (let i = 0; i < petsGained; i++) {
+                    // Счёт для текущего нового питомца
+                    const petScore = (oldPetsCount + i + 1) * 500;
+                    const pet = getPetByScore(petScore);
+                    
+                    if (pet) {
+                        console.log('🎉 Новый питомец:', pet);
+                        unlockPet(pet);
+                    }
+                }
+            }
         }
 
         function unlockPet(pet) {
@@ -1509,6 +1540,7 @@
             const leftFood = document.getElementById('pet-info-food');
             if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
             
+            // Анимация
             const animContainer = document.getElementById('pet-animation-container');
             const petInfoMini = document.getElementById('pet-info-mini');
             
@@ -1533,15 +1565,6 @@
             updatePetLeftPanel();
             
             return true;
-        }
-
-        function checkPetUnlocks(oldScore) {
-            const oldPetThreshold = Math.floor(oldScore / 500);
-            const newPetThreshold = Math.floor(score / 500);
-            if (newPetThreshold > oldPetThreshold) {
-                const pet = getPetByScore(score);
-                if (pet) unlockPet(pet);
-            }
         }
 
         function updatePetHeaderPanel() {
@@ -1603,113 +1626,24 @@
             }
         }
 
-        // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ПОДСКАЗКИ ==========
-        function findBestPosition() {
-            if (!currentPiece) return null;
+        // ========== ФУНКЦИИ ДЛЯ БУСТЕРОВ ==========
+        function activateHintBoost(pet) {
+            if (!currentPiece) return;
             
-            let bestScore = -1;
-            let bestX = currentX;
-            let bestY = currentY;
-            let bestRotation = 0;
+            hintActive = true;
+            hintsRemaining = pet.boostedValue;
             
-            const originalShape = currentPiece.shape.map(row => [...row]);
+            predictNextHints();
+            showNextHint();
             
-            for (let rot = 0; rot < 4; rot++) {
-                if (rot > 0) {
-                    let rotated = [];
-                    for (let i = 0; i < currentPiece.shape[0].length; i++) {
-                        rotated[i] = [];
-                        for (let j = 0; j < currentPiece.shape.length; j++) {
-                            rotated[i][j] = currentPiece.shape[currentPiece.shape.length - 1 - j][i];
-                        }
-                    }
-                    currentPiece.shape = rotated;
-                }
-                
-                for (let x = 0; x <= COLS - currentPiece.shape[0].length; x++) {
-                    let y = 0;
-                    while (!collide(currentPiece, x, y + 1) && y < ROWS - 1) {
-                        y++;
-                    }
-                    
-                    if (!collide(currentPiece, x, y)) {
-                        const score = evaluatePosition(x, y);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestX = x;
-                            bestY = y;
-                            bestRotation = rot;
-                        }
-                    }
-                }
+            const indicator = document.getElementById('hint-indicator');
+            if (indicator) {
+                indicator.style.display = 'flex';
+                indicator.innerHTML = '💡 ' + hintsRemaining;
             }
             
-            currentPiece.shape = originalShape;
-            
-            return { x: bestX, y: bestY, rotation: bestRotation };
-        }
-
-        function evaluatePosition(x, y) {
-            let score = 0;
-            const shape = currentPiece.shape;
-            
-            for (let r = 0; r < shape.length; r++) {
-                for (let c = 0; c < shape[r].length; c++) {
-                    if (shape[r][c]) {
-                        const boardY = y + r;
-                        const boardX = x + c;
-                        
-                        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
-                            if (boardY === ROWS - 1) {
-                                score += 100;
-                            }
-                            
-                            if (boardY < ROWS - 1 && board[boardY + 1] && board[boardY + 1][boardX]) {
-                                score += 50;
-                            }
-                            
-                            if (boardX > 0 && board[boardY] && board[boardY][boardX - 1]) {
-                                score += 25;
-                            }
-                            
-                            if (boardX < COLS - 1 && board[boardY] && board[boardY][boardX + 1]) {
-                                score += 25;
-                            }
-                            
-                            if (boardY > 0 && board[boardY - 1] && !board[boardY - 1][boardX]) {
-                                score -= 10;
-                            }
-                            
-                            let neighbors = 0;
-                            if (boardY > 0 && board[boardY - 1] && board[boardY - 1][boardX]) neighbors++;
-                            if (boardY < ROWS - 1 && board[boardY + 1] && board[boardY + 1][boardX]) neighbors++;
-                            if (boardX > 0 && board[boardY] && board[boardY][boardX - 1]) neighbors++;
-                            if (boardX < COLS - 1 && board[boardY] && board[boardY][boardX + 1]) neighbors++;
-                            
-                            if (neighbors === 0) {
-                                score -= 5;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            score += (ROWS - y) * 5;
-            
-            let heightDiff = 0;
-            for (let c = 0; c < COLS; c++) {
-                let colHeight = ROWS;
-                for (let r = 0; r < ROWS; r++) {
-                    if (board[r][c]) {
-                        colHeight = r;
-                        break;
-                    }
-                }
-                heightDiff += Math.abs(y - colHeight);
-            }
-            score -= heightDiff * 2;
-            
-            return score;
+            showPetBoostAnimation(pet, 'hint', hintsRemaining);
+            showNotification(`${pet.emoji} ${pet.name}: подсказки для ${hintsRemaining} фигур!`);
         }
 
         function predictNextHints() {
@@ -1993,6 +1927,98 @@
             }
         }
 
+        function findBestPosition() {
+            if (!currentPiece) return null;
+            
+            let bestScore = -1;
+            let bestX = currentX;
+            let bestY = currentY;
+            let bestRotation = 0;
+            
+            const originalShape = currentPiece.shape.map(row => [...row]);
+            
+            for (let rot = 0; rot < 4; rot++) {
+                if (rot > 0) {
+                    let rotated = [];
+                    for (let i = 0; i < currentPiece.shape[0].length; i++) {
+                        rotated[i] = [];
+                        for (let j = 0; j < currentPiece.shape.length; j++) {
+                            rotated[i][j] = currentPiece.shape[currentPiece.shape.length - 1 - j][i];
+                        }
+                    }
+                    currentPiece.shape = rotated;
+                }
+                
+                for (let x = 0; x <= COLS - currentPiece.shape[0].length; x++) {
+                    let y = 0;
+                    while (!collide(currentPiece, x, y + 1) && y < ROWS - 1) {
+                        y++;
+                    }
+                    
+                    if (!collide(currentPiece, x, y)) {
+                        const score = evaluatePosition(x, y);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestX = x;
+                            bestY = y;
+                            bestRotation = rot;
+                        }
+                    }
+                }
+            }
+            
+            currentPiece.shape = originalShape;
+            
+            return { x: bestX, y: bestY, rotation: bestRotation };
+        }
+
+        function evaluatePosition(x, y) {
+            let score = 0;
+            const shape = currentPiece.shape;
+            
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c]) {
+                        const boardY = y + r;
+                        const boardX = x + c;
+                        
+                        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
+                            if (boardY === ROWS - 1) score += 100;
+                            if (boardY < ROWS - 1 && board[boardY + 1] && board[boardY + 1][boardX]) score += 50;
+                            if (boardX > 0 && board[boardY] && board[boardY][boardX - 1]) score += 25;
+                            if (boardX < COLS - 1 && board[boardY] && board[boardY][boardX + 1]) score += 25;
+                            if (boardY > 0 && board[boardY - 1] && !board[boardY - 1][boardX]) score -= 10;
+                            
+                            let neighbors = 0;
+                            if (boardY > 0 && board[boardY - 1] && board[boardY - 1][boardX]) neighbors++;
+                            if (boardY < ROWS - 1 && board[boardY + 1] && board[boardY + 1][boardX]) neighbors++;
+                            if (boardX > 0 && board[boardY] && board[boardY][boardX - 1]) neighbors++;
+                            if (boardX < COLS - 1 && board[boardY] && board[boardY][boardX + 1]) neighbors++;
+                            
+                            if (neighbors === 0) score -= 5;
+                        }
+                    }
+                }
+            }
+            
+            score += (ROWS - y) * 5;
+            
+            let heightDiff = 0;
+            for (let c = 0; c < COLS; c++) {
+                let colHeight = ROWS;
+                for (let r = 0; r < ROWS; r++) {
+                    if (board[r][c]) {
+                        colHeight = r;
+                        break;
+                    }
+                }
+                heightDiff += Math.abs(y - colHeight);
+            }
+            score -= heightDiff * 2;
+            
+            return score;
+        }
+
         function findEmergencyPosition() {
             if (!currentPiece) return null;
             
@@ -2042,26 +2068,6 @@
                     }
                 }
             }
-        }
-
-        // ========== ФУНКЦИИ БУСТЕРОВ ==========
-        function activateHintBoost(pet) {
-            if (!currentPiece) return;
-            
-            hintActive = true;
-            hintsRemaining = pet.boostedValue;
-            
-            predictNextHints();
-            showNextHint();
-            
-            const indicator = document.getElementById('hint-indicator');
-            if (indicator) {
-                indicator.style.display = 'flex';
-                indicator.innerHTML = '💡 ' + hintsRemaining;
-            }
-            
-            showPetBoostAnimation(pet, 'hint', hintsRemaining);
-            showNotification(`${pet.emoji} ${pet.name}: подсказки для ${hintsRemaining} фигур!`);
         }
 
         function activateClearBoost(pet) {
@@ -2177,6 +2183,7 @@
                     showFoodAnimation(activePet.food, linesCleared, activePet.color);
                 }
                 
+                // Проверяем получение новых питомцев
                 checkPetUnlocks(oldScore);
                 
                 setTimeout(() => {
@@ -2339,6 +2346,7 @@
             
             loadPets();
             
+            // В начале игры нет еды
             petFood = {};
             savePets();
             activePet = null;
