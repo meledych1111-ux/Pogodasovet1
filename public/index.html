@@ -266,7 +266,6 @@
             box-shadow: 0 0 15px rgba(255,215,0,0.6) !important;
         }
 
-        /* ===== ИСПРАВЛЕННАЯ БОКОВАЯ ПАНЕЛЬ ===== */
         #next-piece-left {
             position: absolute;
             left: 5px;
@@ -562,7 +561,6 @@
             100% { opacity: 0.6; transform: translateX(0); }
         }
 
-        /* ===== ИСПРАВЛЕННОЕ ИГРОВОЕ ПОЛЕ ===== */
         .game-area {
             flex: 1;
             display: flex;
@@ -635,7 +633,6 @@
             background: linear-gradient(145deg, #3a5e4a, #2a4a3a);
         }
 
-        /* ===== НОВЫЙ ПОРЯДОК КНОПОК (ВЛЕВО, ВНИЗ, ВПРАВО, ПОВОРОТ) ===== */
         .controls {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr 1fr;
@@ -913,7 +910,6 @@
             image-rendering: pixelated;
         }
 
-        /* ===== АДАПТАЦИЯ ДЛЯ УЗКИХ ЭКРАНОВ ===== */
         @media (max-width: 400px) {
             .game-container {
                 max-width: 100%;
@@ -1002,7 +998,6 @@
 </head>
 <body>
     <div class="game-container">
-        <!-- MENU SCREEN -->
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС 3D</h1>
@@ -1019,7 +1014,6 @@
             </div>
         </div>
 
-        <!-- GAME SCREEN -->
         <div class="screen" id="game-screen">
             <div class="game-header">
                 <div><button class="back-btn" onclick="showMenu()">МЕНЮ</button></div>
@@ -1039,7 +1033,6 @@
             </div>
 
             <div class="game-area">
-                <!-- ИНДИКАТОРЫ БУСТЕРОВ -->
                 <div id="clear-indicator" class="boost-indicator clear">🧹 0</div>
                 <div id="slow-indicator" class="boost-indicator slow">⏰ 0с</div>
                 <div id="hint-indicator" class="boost-indicator hint">💡 0</div>
@@ -1071,7 +1064,6 @@
                             <span id="pet-info-food" class="pet-info-food">🍖0</span>
                         </div>
                         
-                        <!-- КНОПКА БЫСТРОЙ АКТИВАЦИИ БУСТЕРА -->
                         <div class="quick-boost" id="quick-boost-btn" onclick="quickActivateBoost()">
                             ✨ АКТИВИРОВАТЬ ✨
                         </div>
@@ -1087,9 +1079,7 @@
                     <button class="game-btn save-btn" onclick="saveGameScore()"><span>💾</span> СОХРАНИТЬ</button>
                 </div>
 
-                <!-- КНОПКИ УПРАВЛЕНИЯ (БУДУТ ПЕРЕСОЗДАНЫ В НУЖНОМ ПОРЯДКЕ) -->
                 <div class="controls" id="controls-container">
-                    <!-- Кнопки будут созданы скриптом -->
                 </div>
 
                 <div class="next-level-progress">
@@ -1102,7 +1092,6 @@
             </div>
         </div>
 
-        <!-- STATS SCREEN -->
         <div class="screen" id="stats-screen">
             <div class="header">
                 <h1 class="game-title">СТАТИСТИКА</h1>
@@ -1115,7 +1104,6 @@
             </div>
         </div>
 
-        <!-- LEVELS SCREEN -->
         <div class="screen" id="levels-screen">
             <div class="header">
                 <h1 class="game-title">УРОВНИ</h1>
@@ -1131,7 +1119,6 @@
             </div>
         </div>
 
-        <!-- LEADERBOARD SCREEN -->
         <div class="screen" id="leaderboard-screen">
             <div class="header">
                 <h1 class="game-title">ЛИДЕРБОРД</h1>
@@ -1147,7 +1134,6 @@
     <div id="notification" class="notification" style="position:fixed; top:20px; right:20px; background:linear-gradient(145deg, rgba(20,30,80,0.98), rgba(10,20,60,0.98)); color:white; padding:20px; border-radius:24px; z-index:10000; opacity:0; transition:opacity 0.3s; border:2px solid #ffd700; max-width:90vw; pointer-events:none;"></div>
 
     <script>
-        // ========== ИНИЦИАЛИЗАЦИЯ TELEGRAM ==========
         function getUrlParams() {
             const urlParams = new URLSearchParams(window.location.search);
             return { telegramId: urlParams.get('telegramId'), username: urlParams.get('username') };
@@ -1184,19 +1170,18 @@
             window.telegramUserId = telegramUserId;
         })();
 
-        // ========== КОНСТАНТЫ ==========
         const COLS = 10, ROWS = 20, BLOCK_SIZE = 22;
         
         const COLORS = ['#D68B8B', '#8FB5B0', '#8DA9B3', '#9BB5A0', '#D9CEA3', '#C4A5C4', '#9CB9B2', '#C9BC8F'];
         
         const SHAPES = [
-            [[1,1,1,1]], // I
-            [[1,1],[1,1]], // O
-            [[0,1,0],[1,1,1]], // T
-            [[0,1,1],[1,1,0]], // S
-            [[1,1,0],[0,1,1]], // Z
-            [[1,0,0],[1,1,1]], // L
-            [[0,0,1],[1,1,1]] // J
+            [[1,1,1,1]],
+            [[1,1],[1,1]],
+            [[0,1,0],[1,1,1]],
+            [[0,1,1],[1,1,0]],
+            [[1,1,0],[0,1,1]],
+            [[1,0,0],[1,1,1]],
+            [[0,0,1],[1,1,1]]
         ];
 
         const DIFFICULTY_LEVELS = [
@@ -1240,7 +1225,6 @@
             { level: 29, min: 14500, max: Infinity, speed: 80 }
         ];
 
-        // ===== 50 ПИТОМЦЕВ С БУСТЕРАМИ =====
         const BASE_PETS = [
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, food: '🐟', type: 'clear', value: 1, foodCost: 3 },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1000, food: '🦴', type: 'slow', value: 5000, foodCost: 3 },
@@ -1294,7 +1278,6 @@
             { id: 'seahorse', name: 'Морской конёк', emoji: '🦄', color: '#00CED1', score: 25000, food: '🦐', type: 'hint', value: 3, foodCost: 5 }
         ];
 
-        // РАНГИ ПИТОМЦЕВ
         const PET_RANKS = [
             { prefix: '', name: 'Обычный', min: 0, max: 49, color: '#FFFFFF', boostMultiplier: 1 },
             { prefix: '✨', name: 'Блестящий', min: 50, max: 99, color: '#FFD700', boostMultiplier: 1.5 },
@@ -1306,7 +1289,6 @@
             { prefix: '♾️', name: 'Бесконечный', min: 350, max: Infinity, color: '#00FFFF', boostMultiplier: 6 }
         ];
 
-        // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
         const screens = {
             menu: document.getElementById('menu-screen'),
             game: document.getElementById('game-screen'),
@@ -1345,7 +1327,6 @@
 
         let lastPetTap = 0;
         
-        // ===== ПЕРЕМЕННЫЕ ДЛЯ БУСТЕРОВ =====
         let hintActive = false;
         let hintsRemaining = 0;
         let hintedPositions = [];
@@ -1355,7 +1336,6 @@
         
         let shieldRemaining = 0;
 
-        // ========== ФУНКЦИИ ЗАГРУЗКИ/СОХРАНЕНИЯ ==========
         function loadPets() {
             try {
                 const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
@@ -1411,7 +1391,6 @@
             updatePetLeftPanel();
         }
 
-        // ========== ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
         function getPetByNumber(petNumber) {
             if (petNumber < 1) return null;
             
@@ -1679,7 +1658,6 @@
             }
         }
 
-        // ========== ФУНКЦИИ ДЛЯ БУСТЕРОВ ==========
         function activateHintBoost(pet) {
             if (!currentPiece) return;
             
@@ -2204,7 +2182,6 @@
             showNotification(`${pet.emoji} ${pet.name}: щит на ${shieldRemaining} ошибок!`);
         }
 
-        // ========== ИГРОВАЯ ЛОГИКА ==========
         function checkLines() {
             let linesCleared = 0;
             let clearedRows = [];
@@ -2653,7 +2630,6 @@
             showNotification('🍖 Еда дается за линии и получение питомцев!');
         }
 
-        // ========== ОТРИСОВКА ==========
         function getBoardHash() {
             return JSON.stringify(board) +
                 (currentPiece ? JSON.stringify(currentPiece.shape) + currentX + currentY : '') +
@@ -2836,7 +2812,6 @@
             }
         }
 
-        // ========== УПРАВЛЕНИЕ ==========
         let moveInterval = null;
         let moveDirection = null;
         let moveTimer = null;
@@ -2877,7 +2852,6 @@
             moveDirection = null;
         }
 
-        // ===== СОЗДАНИЕ КНОПОК В НУЖНОМ ПОРЯДКЕ =====
         function createControlButtons() {
             const controlsDiv = document.getElementById('controls-container');
             if (!controlsDiv) return;
@@ -2959,7 +2933,6 @@
             console.log('✅ Кнопки созданы в порядке: ВЛЕВО → ВНИЗ → ВПРАВО → ПОВОРОТ');
         }
 
-        // ===== УМНАЯ АДАПТАЦИЯ ПОД ЭКРАН =====
         function adaptToScreenSize() {
             const canvas = document.getElementById('tetris-canvas');
             const gameArea = document.querySelector('.game-area');
@@ -3003,7 +2976,6 @@
             console.log('📱 Адаптация под экран:', { screenWidth, screenHeight, containerWidth, nextPieceWidth });
         }
 
-        // ========== СОХРАНЕНИЕ И СТАТИСТИКА ==========
         async function saveGameToDB(gameOverFlag = false) {
             if (!telegramUserId || telegramUserId.startsWith('guest_')) {
                 return { success: false };
@@ -3251,7 +3223,6 @@
             loadUserStats();
         }
 
-        // ========== НАВИГАЦИЯ ==========
         function showLeaderboard() {
             const list = document.getElementById('leaderboard-list');
             list.innerHTML = '<div style="text-align:center; padding:30px;">🏆 Загрузка...</div>';
@@ -3344,7 +3315,33 @@
             }
         }
 
-        // ===== ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ =====
+        function showNotification(m) {
+            const n = document.getElementById('notification');
+            n.innerHTML = m.replace(/\n/g, '<br>');
+            n.style.pointerEvents = 'none';
+            n.classList.add('show');
+            setTimeout(() => {
+                n.classList.remove('show');
+                n.style.pointerEvents = 'none';
+            }, 3000);
+        }
+
+        function showScreen(s) {
+            const screens = {
+                menu: document.getElementById('menu-screen'),
+                game: document.getElementById('game-screen'),
+                stats: document.getElementById('stats-screen'),
+                levels: document.getElementById('levels-screen'),
+                leaderboard: document.getElementById('leaderboard-screen')
+            };
+            Object.keys(screens).forEach(k => screens[k].classList.remove('active'));
+            screens[s].classList.add('active');
+            if (s !== 'game') {
+                if (window.stopGameLoop) stopGameLoop();
+                if (window.hideHint) hideHint();
+            }
+        }
+
         window.addEventListener('load', () => {
             console.log('🎮 Тетрис 3D — Запуск');
             
