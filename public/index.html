@@ -1325,7 +1325,7 @@
         
         let shieldRemaining = 0;
 
-        // ========== ФУНКЦИИ ЗАГРУЗКИ/СОХРАНЕНИЯ ==========
+        // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ЗАГРУЗКИ/СОХРАНЕНИЯ ==========
         function loadPets() {
             try {
                 const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
@@ -1335,7 +1335,6 @@
                     petFood = data.food || {};
                     
                     console.log('📥 Загружены питомцы:', userPets);
-                    console.log('📥 Загружена еда:', petFood);
                 } else {
                     userPets = {};
                     petFood = {};
@@ -1355,19 +1354,18 @@
                 food: petFood 
             };
             localStorage.setItem(`tetris_pets_${telegramUserId}`, JSON.stringify(saveData));
+            console.log('💾 Сохранены питомцы:', userPets);
         }
 
-        // ========== ФУНКЦИЯ ЗАГРУЗКИ ДЛЯ НОВОЙ ИГРЫ (ЕДА ОБНУЛЯЕТСЯ) ==========
         function loadPetsForNewGame() {
             try {
                 const saved = localStorage.getItem(`tetris_pets_${telegramUserId}`);
                 if (saved) {
                     const data = JSON.parse(saved);
                     userPets = data.pets || {};
-                    petFood = {}; // ← ЕДА ОБНУЛЯЕТСЯ!
+                    petFood = {};
                     
                     console.log('📥 Загружены питомцы (новая игра):', userPets);
-                    console.log('🍖 Еда обнулена');
                 } else {
                     userPets = {};
                     petFood = {};
@@ -1381,7 +1379,124 @@
             updatePetLeftPanel();
         }
 
-        // ========== ФУНКЦИИ ОБНОВЛЕНИЯ ИНТЕРФЕЙСА ==========
+        // ========== ИСПРАВЛЕННЫЕ ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
+        function getPetByScore(scoreValue) {
+            if (scoreValue < 500) return null;
+            
+            const petIndex = Math.floor((scoreValue - 500) / 500) % BASE_PETS.length;
+            const tier = Math.floor(Math.floor((scoreValue - 500) / 500) / BASE_PETS.length);
+            const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
+            const basePet = BASE_PETS[petIndex];
+            
+            console.log('🎯 Получение питомца для', scoreValue, 'очков:', basePet.name, 'ранг', rank.name);
+            
+            let boostedValue = basePet.value;
+            if (basePet.type === 'slow') {
+                boostedValue = Math.round(basePet.value * rank.boostMultiplier);
+            } else if (basePet.type === 'clear') {
+                boostedValue = Math.max(1, Math.round(basePet.value * rank.boostMultiplier));
+            } else if (basePet.type === 'hint') {
+                boostedValue = Math.max(1, Math.round(basePet.value * rank.boostMultiplier));
+            } else if (basePet.type === 'shield') {
+                boostedValue = Math.max(1, Math.round(basePet.value * rank.boostMultiplier));
+            }
+            
+            return {
+                ...basePet,
+                rank: rank,
+                emoji: `${rank.prefix}${basePet.emoji}`,
+                color: rank.color,
+                tier: tier,
+                boostedValue: boostedValue
+            };
+        }
+
+        function checkPetUnlocks(oldScore) {
+            const oldPetsCount = Math.floor(oldScore / 500);
+            const newPetsCount = Math.floor(score / 500);
+            
+            console.log('🔍 Проверка питомцев:', { oldScore, score, oldPetsCount, newPetsCount });
+            
+            if (newPetsCount > oldPetsCount) {
+                const petsGained = newPetsCount - oldPetsCount;
+                
+                for (let i = 0; i < petsGained; i++) {
+                    const petScore = (oldPetsCount + i + 1) * 500;
+                    const pet = getPetByScore(petScore);
+                    
+                    if (pet) {
+                        console.log('🎉 ПОЛУЧАЕМ ПИТОМЦА:', pet.name, 'при', petScore, 'очках');
+                        unlockPet(pet);
+                    }
+                }
+            }
+        }
+
+        function unlockPet(pet) {
+            if (!pet) return false;
+            
+            const petId = `${pet.rank.prefix}_${pet.id}`;
+            
+            // Увеличиваем счётчик питомца
+            userPets[petId] = (userPets[petId] || 0) + 1;
+            
+            // Даём 3 еды
+            petFood[petId] = (petFood[petId] || 0) + 3;
+            
+            // Делаем этого питомца активным
+            activePet = pet;
+            
+            // Сохраняем
+            savePets();
+            
+            console.log('✨ ПОЛУЧЕН В КОЛЛЕКЦИЮ:', pet.rank.prefix + pet.name, 'теперь всего:', userPets[petId]);
+            
+            // Показываем в интерфейсе
+            document.getElementById('pet-header-panel').style.display = 'flex';
+            
+            const headerEmoji = document.getElementById('pet-emoji-header');
+            if (headerEmoji) headerEmoji.textContent = pet.emoji;
+            
+            const headerFood = document.getElementById('pet-food-count-header');
+            if (headerFood) headerFood.textContent = petFood[petId] || 0;
+            
+            const leftEmoji = document.getElementById('pet-info-emoji');
+            if (leftEmoji) {
+                leftEmoji.textContent = pet.emoji;
+                leftEmoji.style.color = pet.color;
+            }
+            
+            const leftFood = document.getElementById('pet-info-food');
+            if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
+            
+            // Анимация
+            const animContainer = document.getElementById('pet-animation-container');
+            const petInfoMini = document.getElementById('pet-info-mini');
+            
+            if (animContainer) {
+                animContainer.classList.add('active');
+                setTimeout(() => {
+                    animContainer.classList.remove('active');
+                }, 1500);
+            }
+            
+            if (petInfoMini) {
+                petInfoMini.classList.add('active');
+                setTimeout(() => {
+                    petInfoMini.classList.remove('active');
+                }, 1500);
+            }
+            
+            showFoodAnimation(pet.food, 3, pet.color);
+            showNotification(`✨ Получен ${pet.rank.prefix}${pet.name}! +3 ${pet.food}`);
+            
+            updatePetHeaderPanel();
+            updatePetLeftPanel();
+            
+            return true;
+        }
+
+        // ========== ОСТАЛЬНЫЕ ФУНКЦИИ (БЕЗ ИЗМЕНЕНИЙ) ==========
         function updateNextPieceDisplay() {
             const shapeContainer = document.getElementById('next-piece-left-shape');
             const levelSpan = document.getElementById('next-piece-level');
@@ -1474,116 +1589,6 @@
                 const progress = ((score - currentLevelData.min) / (currentLevelData.max - currentLevelData.min + 1)) * 100;
                 document.getElementById('progress-fill').style.width = Math.min(100, Math.max(0, progress)) + '%';
             }
-        }
-
-        function getBoostValue(baseValue, rankMultiplier) {
-            if (typeof baseValue === 'number') {
-                return Math.round(baseValue * rankMultiplier);
-            }
-            return baseValue;
-        }
-
-        // ========== ФУНКЦИИ ДЛЯ ПИТОМЦЕВ ==========
-        function getPetByScore(scoreValue) {
-            if (scoreValue < 500) return null;
-            
-            const petIndex = Math.floor((scoreValue - 500) / 500) % BASE_PETS.length;
-            const tier = Math.floor(Math.floor((scoreValue - 500) / 500) / BASE_PETS.length);
-            const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
-            const basePet = BASE_PETS[petIndex];
-            
-            let boostedValue = basePet.value;
-            if (basePet.type === 'slow') {
-                boostedValue = Math.round(basePet.value * rank.boostMultiplier);
-            } else if (basePet.type === 'clear') {
-                boostedValue = Math.max(1, Math.round(basePet.value * rank.boostMultiplier));
-            } else if (basePet.type === 'hint') {
-                boostedValue = Math.max(1, Math.round(basePet.value * rank.boostMultiplier));
-            } else if (basePet.type === 'shield') {
-                boostedValue = Math.max(1, Math.round(basePet.value * rank.boostMultiplier));
-            }
-            
-            return {
-                ...basePet,
-                rank: rank,
-                emoji: `${rank.prefix}${basePet.emoji}`,
-                color: rank.color,
-                tier: tier,
-                boostedValue: boostedValue
-            };
-        }
-
-        function checkPetUnlocks(oldScore) {
-            const oldPetsCount = Math.floor(oldScore / 500);
-            const newPetsCount = Math.floor(score / 500);
-            
-            if (newPetsCount > oldPetsCount) {
-                const petsGained = newPetsCount - oldPetsCount;
-                
-                for (let i = 0; i < petsGained; i++) {
-                    const petScore = (oldPetsCount + i + 1) * 500;
-                    const pet = getPetByScore(petScore);
-                    
-                    if (pet) {
-                        unlockPet(pet);
-                    }
-                }
-            }
-        }
-
-        function unlockPet(pet) {
-            if (!pet) return false;
-            
-            const petId = `${pet.rank.prefix}_${pet.id}`;
-            
-            userPets[petId] = (userPets[petId] || 0) + 1;
-            petFood[petId] = (petFood[petId] || 0) + 3;
-            
-            activePet = pet;
-            
-            savePets();
-            
-            document.getElementById('pet-header-panel').style.display = 'flex';
-            
-            const headerEmoji = document.getElementById('pet-emoji-header');
-            if (headerEmoji) headerEmoji.textContent = pet.emoji;
-            
-            const headerFood = document.getElementById('pet-food-count-header');
-            if (headerFood) headerFood.textContent = petFood[petId] || 0;
-            
-            const leftEmoji = document.getElementById('pet-info-emoji');
-            if (leftEmoji) {
-                leftEmoji.textContent = pet.emoji;
-                leftEmoji.style.color = pet.color;
-            }
-            
-            const leftFood = document.getElementById('pet-info-food');
-            if (leftFood) leftFood.textContent = `🍖${petFood[petId] || 0}`;
-            
-            const animContainer = document.getElementById('pet-animation-container');
-            const petInfoMini = document.getElementById('pet-info-mini');
-            
-            if (animContainer) {
-                animContainer.classList.add('active');
-                setTimeout(() => {
-                    animContainer.classList.remove('active');
-                }, 1500);
-            }
-            
-            if (petInfoMini) {
-                petInfoMini.classList.add('active');
-                setTimeout(() => {
-                    petInfoMini.classList.remove('active');
-                }, 1500);
-            }
-            
-            showFoodAnimation(pet.food, 3, pet.color);
-            showNotification(`✨ Получен ${pet.rank.prefix}${pet.name}! +3 ${pet.food}`);
-            
-            updatePetHeaderPanel();
-            updatePetLeftPanel();
-            
-            return true;
         }
 
         function updatePetHeaderPanel() {
@@ -2202,6 +2207,7 @@
                     showFoodAnimation(activePet.food, linesCleared, activePet.color);
                 }
                 
+                // Проверяем получение новых питомцев
                 checkPetUnlocks(oldScore);
                 
                 setTimeout(() => {
@@ -3055,7 +3061,7 @@
             totalLinesAll = totalLines;
             const petGroups = {};
             
-            // Группируем питомцев для отображения (БЕЗ ЕДЫ)
+            // Группируем питомцев для отображения
             Object.keys(petCounts).forEach(petId => {
                 const count = petCounts[petId];
                 if (count > 0) {
