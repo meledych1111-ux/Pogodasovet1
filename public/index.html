@@ -994,69 +994,68 @@
             { level: 29, min: 14500, max: Infinity, speed: 80 }
         ];
 
-        // ===== 50 ПИТОМЦЕВ СТРОГО ПО ПОРЯДКУ (Котёнок → Щенок → Зайка → ...) =====
-        const BASE_PETS = [
-            // 1-10: Первая десятка
-            { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, food: '🐟', type: 'clear', value: 1, foodCost: 3 },
-            { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1000, food: '🦴', type: 'slow', value: 5000, foodCost: 3 },
-            { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 1500, food: '🥕', type: 'magnet', value: 3, foodCost: 4 },
-            { id: 'fox', name: 'Лисёнок', emoji: '🦊', color: '#FF8C42', score: 2000, food: '🍇', type: 'slow', value: 8000, foodCost: 4 },
-            { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 2500, food: '🎋', type: 'clear', value: 2, foodCost: 5 },
-            { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 3000, food: '🦐', type: 'slow', value: 10000, foodCost: 4 },
-            { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 3500, food: '🌿', type: 'random', value: 1, foodCost: 5 },
-            { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4000, food: '🐭', type: 'magnet', value: 5, foodCost: 4 },
-            { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 4500, food: '🥩', type: 'clear', value: 2, foodCost: 5 },
-            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, food: '🥩', type: 'clear', value: 3, foodCost: 7 },
+// ===== 50 ПИТОМЦЕВ С ИСПРАВЛЕННОЙ СТОИМОСТЬЮ ЕДЫ =====
+const BASE_PETS = [
+    // 1-10: Первая десятка
+    { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, food: '🐟', type: 'clear', value: 1, foodCost: 3 },
+    { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1000, food: '🦴', type: 'slow', value: 5000, foodCost: 3 },
+    { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 1500, food: '🥕', type: 'magnet', value: 3, foodCost: 3 },
+    { id: 'fox', name: 'Лисёнок', emoji: '🦊', color: '#FF8C42', score: 2000, food: '🍇', type: 'slow', value: 8000, foodCost: 3 },
+    { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 2500, food: '🎋', type: 'clear', value: 2, foodCost: 3 },
+    { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 3000, food: '🦐', type: 'slow', value: 10000, foodCost: 3 },
+    { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 3500, food: '🌿', type: 'random', value: 1, foodCost: 2 },
+    { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4000, food: '🐭', type: 'magnet', value: 5, foodCost: 3 },
+    { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 4500, food: '🥩', type: 'clear', value: 2, foodCost: 3 },
+    { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
 
-            // 11-20: Вторая десятка
-            { id: 'leopard', name: 'Леопард', emoji: '🐆', color: '#FF8C00', score: 5500, food: '🥩', type: 'clear', value: 3, foodCost: 5 },
-            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿', type: 'slow', value: 12000, foodCost: 4 },
-            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🌿', type: 'slow', value: 10000, foodCost: 4 },
-            { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 7000, food: '🍌', type: 'clear', value: 4, foodCost: 8 },
-            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🌿', type: 'random', value: 2, foodCost: 7 },
-            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '🌿', type: 'clear', value: 3, foodCost: 6 },
-            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌', type: 'clear', value: 2, foodCost: 4 },
-            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '🌿', type: 'slow', value: 20000, foodCost: 5 },
-            { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎', type: 'clear', value: 2, foodCost: 4 },
-            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰', type: 'clear', value: 1, foodCost: 2 },
+    // 11-20: Вторая десятка
+    { id: 'leopard', name: 'Леопард', emoji: '🐆', color: '#FF8C00', score: 5500, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
+    { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿', type: 'slow', value: 12000, foodCost: 3 },
+    { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🌿', type: 'slow', value: 10000, foodCost: 3 },
+    { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 7000, food: '🍌', type: 'clear', value: 4, foodCost: 3 },
+    { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🌿', type: 'random', value: 2, foodCost: 2 },
+    { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '🌿', type: 'clear', value: 3, foodCost: 3 },
+    { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌', type: 'clear', value: 2, foodCost: 3 },
+    { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '🌿', type: 'slow', value: 20000, foodCost: 3 },
+    { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎', type: 'clear', value: 2, foodCost: 3 },
+    { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰', type: 'clear', value: 1, foodCost: 3 },
 
-            // 21-30: Третья десятка
-            { id: 'deer', name: 'Олень', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿', type: 'slow', value: 15000, foodCost: 4 },
-            { id: 'moose', name: 'Лось', emoji: '🦌', color: '#5D3A1A', score: 11000, food: '🌲', type: 'slow', value: 20000, foodCost: 7 },
-            { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 11500, food: '🌿', type: 'slow', value: 15000, foodCost: 5 },
-            { id: 'otter', name: 'Выдра', emoji: '🦦', color: '#8B4513', score: 12000, food: '🐟', type: 'clear', value: 2, foodCost: 4 },
-            { id: 'seal', name: 'Тюлень', emoji: '🦭', color: '#808080', score: 12500, food: '🐟', type: 'slow', value: 12000, foodCost: 4 },
-            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 13000, food: '🦐', type: 'clear', value: 4, foodCost: 8 },
-            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13500, food: '🐟', type: 'magnet', value: 7, foodCost: 6 },
-            { id: 'wolf', name: 'Волчонок', emoji: '🐺', color: '#808080', score: 14000, food: '🥩', type: 'slow', value: 15000, foodCost: 5 },
-            { id: 'raccoon', name: 'Енот', emoji: '🦝', color: '#8B4513', score: 14500, food: '🍇', type: 'antibloc', value: 1, foodCost: 4 },
-            { id: 'llama', name: 'Лама', emoji: '🦙', color: '#F0E68C', score: 15000, food: '🌿', type: 'random', value: 2, foodCost: 5 },
+    // 21-30: Третья десятка
+    { id: 'deer', name: 'Олень', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿', type: 'slow', value: 15000, foodCost: 3 },
+    { id: 'moose', name: 'Лось', emoji: '🦌', color: '#5D3A1A', score: 11000, food: '🌲', type: 'slow', value: 20000, foodCost: 3 },
+    { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 11500, food: '🌿', type: 'slow', value: 15000, foodCost: 3 },
+    { id: 'otter', name: 'Выдра', emoji: '🦦', color: '#8B4513', score: 12000, food: '🐟', type: 'clear', value: 2, foodCost: 3 },
+    { id: 'seal', name: 'Тюлень', emoji: '🦭', color: '#808080', score: 12500, food: '🐟', type: 'slow', value: 12000, foodCost: 3 },
+    { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 13000, food: '🦐', type: 'clear', value: 4, foodCost: 3 },
+    { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13500, food: '🐟', type: 'magnet', value: 7, foodCost: 3 },
+    { id: 'wolf', name: 'Волчонок', emoji: '🐺', color: '#808080', score: 14000, food: '🥩', type: 'slow', value: 15000, foodCost: 3 },
+    { id: 'raccoon', name: 'Енот', emoji: '🦝', color: '#8B4513', score: 14500, food: '🍇', type: 'antibloc', value: 1, foodCost: 2 },
+    { id: 'llama', name: 'Лама', emoji: '🦙', color: '#F0E68C', score: 15000, food: '🌿', type: 'random', value: 2, foodCost: 2 },
 
-            // 31-40: Четвертая десятка
-            { id: 'kangaroo', name: 'Кенгуру', emoji: '🦘', color: '#CD853F', score: 15500, food: '🌿', type: 'antibloc', value: 2, foodCost: 6 },
-            { id: 'badger', name: 'Барсук', emoji: '🦡', color: '#2E2E2E', score: 16000, food: '🌿', type: 'random', value: 2, foodCost: 5 },
-            { id: 'skunk', name: 'Скунс', emoji: '🦨', color: '#2E2E2E', score: 16500, food: '🌿', type: 'slow', value: 12000, foodCost: 4 },
-            { id: 'flamingo', name: 'Фламинго', emoji: '🦩', color: '#FF69B4', score: 17000, food: '🦐', type: 'magnet', value: 5, foodCost: 4 },
-            { id: 'peacock', name: 'Павлин', emoji: '🦚', color: '#4169E1', score: 17500, food: '🌿', type: 'clear', value: 3, foodCost: 6 },
-            { id: 'parrot', name: 'Попугай', emoji: '🦜', color: '#FF0000', score: 18000, food: '🌰', type: 'reroll', value: 2, foodCost: 4 },
-            { id: 'rooster', name: 'Петух', emoji: '🐓', color: '#FF4500', score: 18500, food: '🌽', type: 'clear', value: 2, foodCost: 4 },
-            { id: 'swan', name: 'Лебедь', emoji: '🦢', color: '#FFFFFF', score: 19000, food: '🐟', type: 'slow', value: 15000, foodCost: 5 },
-            { id: 'crocodile', name: 'Крокодил', emoji: '🐊', color: '#2E8B57', score: 19500, food: '🥩', type: 'clear', value: 3, foodCost: 6 },
-            { id: 'lizard', name: 'Ящерица', emoji: '🦎', color: '#32CD32', score: 20000, food: '🦗', type: 'reroll', value: 2, foodCost: 4 },
+    // 31-40: Четвертая десятка
+    { id: 'kangaroo', name: 'Кенгуру', emoji: '🦘', color: '#CD853F', score: 15500, food: '🌿', type: 'antibloc', value: 2, foodCost: 2 },
+    { id: 'badger', name: 'Барсук', emoji: '🦡', color: '#2E2E2E', score: 16000, food: '🌿', type: 'random', value: 2, foodCost: 2 },
+    { id: 'skunk', name: 'Скунс', emoji: '🦨', color: '#2E2E2E', score: 16500, food: '🌿', type: 'slow', value: 12000, foodCost: 3 },
+    { id: 'flamingo', name: 'Фламинго', emoji: '🦩', color: '#FF69B4', score: 17000, food: '🦐', type: 'double', value: 2, foodCost: 2 },
+    { id: 'peacock', name: 'Павлин', emoji: '🦚', color: '#4169E1', score: 17500, food: '🌿', type: 'clear', value: 3, foodCost: 3 },
+    { id: 'parrot', name: 'Попугай', emoji: '🦜', color: '#FF0000', score: 18000, food: '🌰', type: 'reroll', value: 2, foodCost: 2 },
+    { id: 'rooster', name: 'Петух', emoji: '🐓', color: '#FF4500', score: 18500, food: '🌽', type: 'clear', value: 2, foodCost: 3 },
+    { id: 'swan', name: 'Лебедь', emoji: '🦢', color: '#FFFFFF', score: 19000, food: '🐟', type: 'slow', value: 15000, foodCost: 3 },
+    { id: 'crocodile', name: 'Крокодил', emoji: '🐊', color: '#2E8B57', score: 19500, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
+    { id: 'lizard', name: 'Ящерица', emoji: '🦎', color: '#32CD32', score: 20000, food: '🦗', type: 'reroll', value: 2, foodCost: 2 },
 
-            // 41-50: Пятая десятка
-            { id: 'snake', name: 'Змея', emoji: '🐍', color: '#228B22', score: 20500, food: '🐭', type: 'slow', value: 15000, foodCost: 5 },
-            { id: 'turtle2', name: 'Черепаха', emoji: '🐢', color: '#2E8B57', score: 21000, food: '🌿', type: 'random', value: 3, foodCost: 6 },
-            { id: 'frog', name: 'Лягушка', emoji: '🐸', color: '#32CD32', score: 21500, food: '🦗', type: 'clear', value: 2, foodCost: 4 },
-            { id: 'puffer', name: 'Рыба-шар', emoji: '🐡', color: '#FFD700', score: 22000, food: '🦐', type: 'random', value: 2, foodCost: 5 },
-            { id: 'octopus', name: 'Осьминог', emoji: '🐙', color: '#FF69B4', score: 22500, food: '🦐', type: 'reroll', value: 3, foodCost: 5 },
-            { id: 'squid', name: 'Кальмар', emoji: '🦑', color: '#8B4513', score: 23000, food: '🦐', type: 'slow', value: 15000, foodCost: 5 },
-            { id: 'shrimp', name: 'Креветка', emoji: '🦐', color: '#FF69B4', score: 23500, food: '🌿', type: 'clear', value: 1, foodCost: 2 },
-            { id: 'lobster', name: 'Омар', emoji: '🦞', color: '#FF4500', score: 24000, food: '🐟', type: 'random', value: 2, foodCost: 5 },
-            { id: 'shell', name: 'Ракушка', emoji: '🐚', color: '#FFB6C1', score: 24500, food: '🌊', type: 'random', value: 2, foodCost: 4 },
-            { id: 'seahorse', name: 'Морской конёк', emoji: '🦄', color: '#00CED1', score: 25000, food: '🦐', type: 'magnet', value: 7, foodCost: 5 }
-        ];
-
+    // 41-50: Пятая десятка
+    { id: 'snake', name: 'Змея', emoji: '🐍', color: '#228B22', score: 20500, food: '🐭', type: 'slow', value: 15000, foodCost: 3 },
+    { id: 'turtle2', name: 'Черепаха', emoji: '🐢', color: '#2E8B57', score: 21000, food: '🌿', type: 'random', value: 3, foodCost: 2 },
+    { id: 'frog', name: 'Лягушка', emoji: '🐸', color: '#32CD32', score: 21500, food: '🦗', type: 'clear', value: 2, foodCost: 3 },
+    { id: 'puffer', name: 'Рыба-шар', emoji: '🐡', color: '#FFD700', score: 22000, food: '🦐', type: 'random', value: 2, foodCost: 2 },
+    { id: 'octopus', name: 'Осьминог', emoji: '🐙', color: '#FF69B4', score: 22500, food: '🦐', type: 'reroll', value: 3, foodCost: 2 },
+    { id: 'squid', name: 'Кальмар', emoji: '🦑', color: '#8B4513', score: 23000, food: '🦐', type: 'slow', value: 15000, foodCost: 3 },
+    { id: 'shrimp', name: 'Креветка', emoji: '🦐', color: '#FF69B4', score: 23500, food: '🌿', type: 'clear', value: 1, foodCost: 3 },
+    { id: 'lobster', name: 'Омар', emoji: '🦞', color: '#FF4500', score: 24000, food: '🐟', type: 'random', value: 2, foodCost: 2 },
+    { id: 'shell', name: 'Ракушка', emoji: '🐚', color: '#FFB6C1', score: 24500, food: '🌊', type: 'random', value: 2, foodCost: 2 },
+    { id: 'seahorse', name: 'Морской конёк', emoji: '🦄', color: '#00CED1', score: 25000, food: '🦐', type: 'magnet', value: 7, foodCost: 3 }
+];
         // РАНГИ ПИТОМЦЕВ
         const PET_RANKS = [
             { prefix: '', name: 'Обычный', min: 0, max: 49, color: '#FFFFFF', boostMultiplier: 1 },
