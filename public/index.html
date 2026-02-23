@@ -1465,12 +1465,30 @@ const BASE_PETS = [
 
         // ========== ИГРОВАЯ ЛОГИКА ==========
         function updateGameLevel() {
-            gameLevel = Math.floor(score / 500);
-            document.getElementById('game-level').textContent = gameLevel;
-            document.getElementById('level-display').textContent = gameLevel;
-            dropInterval = Math.max(80, 800 - gameLevel * 40);
-        }
+    const oldLevel = gameLevel;
+    gameLevel = Math.floor(score / 500);
+    
+    if (gameLevel > oldLevel) {
+        showNotification('⚡ УРОВЕНЬ ' + gameLevel + '! ⚡');
+    }
+    
+    // Классическая скорость тетриса (медленное падение)
+    const speedTable = [800, 720, 630, 550, 470, 380, 300, 220, 150, 100, 80];
+    if (gameLevel < speedTable.length) {
+        dropInterval = speedTable[gameLevel];
+    } else {
+        dropInterval = 80; // минимальная скорость
+    }
+    
+    document.getElementById('game-level').textContent = gameLevel;
+    document.getElementById('level-display').textContent = gameLevel;
 
+    const nextLevel = (gameLevel + 1) * 500;
+    document.getElementById('next-level-target').textContent = nextLevel;
+
+    const progress = ((score - gameLevel * 500) / 500) * 100;
+    document.getElementById('progress-fill').style.width = Math.min(100, Math.max(0, progress)) + '%';
+}
         function checkLines() {
             let cleared = 0;
             let rows = [];
