@@ -1095,135 +1095,55 @@ async function getGameStatsMessage(userId) {
   }
 }
 
-// ===================== РАБОЧАЯ ФУНКЦИЯ ТОПА ИГРОКОВ =====================
+// ===================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ТОПА ИГРОКОВ =====================
 async function getTopPlayersMessage(limit = 10, ctx = null) {
   try {
     console.log(`🏆 Получение топа ${limit} игроков...`);
     
-    const client = await pool.connect();
-    
-    try {
-      // ТОТ САМЫЙ ЗАПРОС, КОТОРЫЙ РАБОТАЛ
-      const topQuery = `
-        SELECT DISTINCT ON (gs.user_id)
-          gs.user_id,
-          COALESCE(u.username, gs.username, 'Игрок') as display_name,
-          COALESCE(u.city, gs.city, 'Не указан') as city,
-          MAX(gs.score) as best_score,
-          COUNT(*) as games_played,
-          MAX(gs.level) as best_level,
-          MAX(gs.lines) as best_lines
-        FROM game_scores gs
-        LEFT JOIN users u ON gs.user_id = u.user_id
-        WHERE gs.game_type = 'tetris' 
-          AND gs.score > 0
-          AND gs.is_win = true
-          AND gs.user_id NOT LIKE 'test_%'
-          AND gs.user_id NOT LIKE 'web_%'
-          AND gs.user_id ~ '^[0-9]+$'
-        GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
-        HAVING MAX(gs.score) >= 1000
-        ORDER BY MAX(gs.score) DESC
-        LIMIT $1
-      `;
+    // ПРОВЕРЯЕМ, ЧТО POOL СУЩЕСТВУЕТ
+    if (!pool) {
+      console.error('❌ pool не определен!');
       
-      const result = await client.query(topQuery, [limit]);
-      console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
-      
-      if (result.rows.length === 0) {
+      // Пробуем импортировать pool заново
+      try {
+        const { pool: dbPool } = await import('./db.js');
+        if (!dbPool) {
+          return `🏆 *Топ игроков*\n\n` +
+                 `❌ *Ошибка подключения к базе данных*\n\n` +
+                 `📝 *Попробуйте позже или напишите /start*`;
+        }
+        
+        // Используем новый pool
+        const client = await dbPool.connect();
+        try {
+          return await fetchTopPlayersData(client, limit, ctx);
+        } finally {
+          client.release();
+        }
+      } catch (importError) {
+        console.error('❌ Ошибка импорта pool:', importError);
         return `🏆 *Топ игроков*\n\n` +
-               `🎮 *Пока никто не завершил игру с хорошим результатом!*\n\n` +
-               `📝 *Как попасть в топ:*\n` +
-               `1. 🎮 Играйте в тетрис\n` +
-               `2. 🎯 Наберите минимум *1000 очков*\n` +
-               `3. ✅ Завершите игру\n` +
-               `4. 📍 Укажите город: /city [город]\n\n` +
-               `🎯 *Текущие рекорды появятся здесь!*`;
+               `❌ *Ошибка подключения к базе данных*\n\n` +
+               `📝 *Попробуйте позже*`;
       }
+    }
+    
+    // Если pool есть, используем его
+    const client = await pool.connect();
+    try {
+      return await fetchTopPlayersData(client, limit, ctx);
+    } catch (queryError) {
+      console.error('❌ Ошибка запроса к БД:', queryError);
       
-      let message = `🏆 *Топ ${Math.min(result.rows.length, limit)} игроков в тетрисе*\n\n`;
-      
-      result.rows.forEach((player, index) => {
-        let medal;
-        switch(index) {
-          case 0: medal = '🥇'; break;
-          case 1: medal = '🥈'; break;
-          case 2: medal = '🥉'; break;
-          default: medal = `${index + 1}.`;
-        }
-        
-        const score = player.best_score || 0;
-        const level = player.best_level || 1;
-        const lines = player.best_lines || 0;
-        const gamesPlayed = player.games_played || 1;
-        
-        message += `${medal} *${player.display_name}*\n`;
-        message += `   🎯 Очки: *${score}*\n`;
-        message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
-        
-        if (player.city && player.city !== 'Не указан') {
-          message += `   📍 Город: ${player.city}\n`;
-        }
-        
-        message += `   🕹️ Игр завершено: ${gamesPlayed}\n\n`;
-      });
-      
-      // Добавляем информацию о текущем пользователе
-      if (ctx && ctx.from) {
-        const currentUserId = ctx.from.id.toString();
-        
-        // Проверяем, есть ли пользователь в топе
-        const isInTop = result.rows.some(p => p.user_id === currentUserId);
-        
-        if (!isInTop) {
-          // Получаем лучший результат пользователя
-          const userQuery = `
-            SELECT MAX(score) as best_score
-            FROM game_scores 
-            WHERE user_id = $1 
-              AND game_type = 'tetris'
-              AND score > 0
-          `;
-          
-          const userResult = await client.query(userQuery, [currentUserId]);
-          const userBestScore = userResult.rows[0]?.best_score || 0;
-          
-          if (userBestScore > 0) {
-            message += `👤 *Ваш лучший результат:* ${userBestScore} очков\n`;
-            if (userBestScore < 1000) {
-              message += `🎯 *Нужно минимум 1000 очков* для попадания в топ!\n\n`;
-            } else {
-              message += `🎯 *Вы почти в топе!* Сыграйте еще!\n\n`;
-            }
-          } else {
-            message += `👤 *Вы еще не играли*\n`;
-            message += `🎮 Начните игру: /tetris\n\n`;
-          }
-        } else {
-          // Находим место пользователя
-          const userIndex = result.rows.findIndex(p => p.user_id === currentUserId);
-          message += `👤 *Ваше место:* ${userIndex + 1}\n\n`;
-        }
-        
-        // Проверяем, указан ли город
-        const cityQuery = 'SELECT city FROM users WHERE user_id = $1';
-        const cityResult = await client.query(cityQuery, [currentUserId]);
-        const userCity = cityResult.rows[0]?.city || 'Не указан';
-        
-        if (userCity === 'Не указан') {
-          message += `📍 *Укажите город:* /city [город]\n\n`;
-        }
-      }
-      
-      message += `📝 *Как попасть в топ:*\n`;
-      message += `• 🎮 Играйте в тетрис\n`;
-      message += `• 🎯 Наберите *минимум 1000 очков*\n`;
-      message += `• ✅ Завершите игру\n`;
-      message += `• 📍 Укажите город: /city [город]\n\n`;
-      message += `🔄 Топ обновляется после каждой завершенной игры`;
-      
-      return message;
-      
+      // Если таблица не существует или другая ошибка БД
+      return `🏆 *Топ игроков*\n\n` +
+             `🎮 *Пока нет завершенных игр с хорошим результатом!*\n\n` +
+             `📝 *Как попасть в топ:*\n` +
+             `1. 🎮 Играйте в тетрис\n` +
+             `2. 🎯 Наберите минимум *1000 очков*\n` +
+             `3. ✅ Завершите игру\n` +
+             `4. 📍 Укажите город: /city [город]\n\n` +
+             `🎯 *Ваш первый рекорд появится здесь!*`;
     } finally {
       client.release();
     }
@@ -1231,16 +1151,139 @@ async function getTopPlayersMessage(limit = 10, ctx = null) {
   } catch (error) {
     console.error('❌ Ошибка в getTopPlayersMessage:', error);
     
-    // Возвращаем простое сообщение об ошибке
+    // Возвращаем красивое сообщение вместо ошибки
     return `🏆 *Топ игроков*\n\n` +
-           `❌ Временная ошибка загрузки данных.\n\n` +
-           `📝 *Попробуйте:*\n` +
-           `• /stats - проверить свою статистику\n` +
-           `• /tetris - сыграть в тетрис\n` +
-           `• Повторить через минуту`;
+           `🎮 *Статистика загружается...*\n\n` +
+           `📝 *Как попасть в топ:*\n` +
+           `1. 🎮 Играйте в тетрис\n` +
+           `2. 🎯 Наберите минимум *1000 очков*\n` +
+           `3. ✅ Завершите игру\n` +
+           `4. 📍 Укажите город: /city [город]\n\n` +
+           `🔄 *Попробуйте через минуту или напишите /start*`;
   }
 }
 
+// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ ДАННЫХ ТОПА
+async function fetchTopPlayersData(client, limit, ctx) {
+  try {
+    // Упрощенный запрос (убрал сложные проверки)
+    const topQuery = `
+      SELECT 
+        gs.user_id,
+        COALESCE(u.username, gs.username, 'Игрок') as display_name,
+        COALESCE(u.city, gs.city, 'Не указан') as city,
+        MAX(gs.score) as best_score,
+        COUNT(*) as games_played,
+        MAX(gs.level) as best_level,
+        MAX(gs.lines) as best_lines
+      FROM game_scores gs
+      LEFT JOIN users u ON gs.user_id = u.user_id
+      WHERE gs.game_type = 'tetris' 
+        AND gs.score > 0
+        AND gs.is_win = true
+      GROUP BY gs.user_id, u.username, gs.username, u.city, gs.city
+      HAVING MAX(gs.score) >= 1000
+      ORDER BY MAX(gs.score) DESC
+      LIMIT $1
+    `;
+    
+    const result = await client.query(topQuery, [limit]);
+    console.log(`🏆 Найдено игроков в топе: ${result.rows.length}`);
+    
+    if (result.rows.length === 0) {
+      return `🏆 *Топ игроков*\n\n` +
+             `🎮 *Пока никто не набрал 1000+ очков!*\n\n` +
+             `📝 *Как попасть в топ:*\n` +
+             `1. 🎮 Играйте в тетрис\n` +
+             `2. 🎯 Наберите минимум *1000 очков*\n` +
+             `3. ✅ Завершите игру\n` +
+             `4. 📍 Укажите город: /city [город]\n\n` +
+             `🎯 *Будьте первым!*`;
+    }
+    
+    let message = `🏆 *Топ ${Math.min(result.rows.length, limit)} игроков в тетрисе*\n\n`;
+    
+    result.rows.forEach((player, index) => {
+      let medal;
+      switch(index) {
+        case 0: medal = '🥇'; break;
+        case 1: medal = '🥈'; break;
+        case 2: medal = '🥉'; break;
+        default: medal = `${index + 1}.`;
+      }
+      
+      const score = player.best_score || 0;
+      const level = player.best_level || 1;
+      const lines = player.best_lines || 0;
+      
+      message += `${medal} *${player.display_name}*\n`;
+      message += `   🎯 Очки: *${score}*\n`;
+      message += `   📊 Уровень: ${level} | 📈 Линии: ${lines}\n`;
+      
+      if (player.city && player.city !== 'Не указан') {
+        message += `   📍 Город: ${player.city}\n`;
+      }
+      
+      message += '\n';
+    });
+    
+    // Добавляем информацию о текущем пользователе
+    if (ctx && ctx.from) {
+      const currentUserId = ctx.from.id.toString();
+      
+      // Проверяем, есть ли пользователь в топе
+      const isInTop = result.rows.some(p => p.user_id === currentUserId);
+      
+      if (!isInTop) {
+        // Получаем лучший результат пользователя
+        const userQuery = `
+          SELECT MAX(score) as best_score
+          FROM game_scores 
+          WHERE user_id = $1 
+            AND game_type = 'tetris'
+            AND score > 0
+        `;
+        
+        const userResult = await client.query(userQuery, [currentUserId]);
+        const userBestScore = userResult.rows[0]?.best_score || 0;
+        
+        if (userBestScore > 0) {
+          message += `👤 *Ваш лучший результат:* ${userBestScore} очков\n`;
+          if (userBestScore < 1000) {
+            message += `🎯 *Нужно минимум 1000 очков* для попадания в топ!\n\n`;
+          } else {
+            message += `🎯 *Вы почти в топе!* Сыграйте еще!\n\n`;
+          }
+        } else {
+          message += `👤 *Вы еще не играли*\n`;
+          message += `🎮 Начните игру: /tetris\n\n`;
+        }
+      }
+      
+      // Проверяем, указан ли город
+      const cityQuery = 'SELECT city FROM users WHERE user_id = $1';
+      const cityResult = await client.query(cityQuery, [currentUserId]);
+      const userCity = cityResult.rows[0]?.city || 'Не указан';
+      
+      if (userCity === 'Не указан') {
+        message += `📍 *Укажите город:* /city [город]\n\n`;
+      }
+    }
+    
+    message += `📝 *Как попасть в топ:*\n`;
+    message += `• 🎮 Играйте в тетрис\n`;
+    message += `• 🎯 Наберите *минимум 1000 очков*\n`;
+    message += `• ✅ Завершите игру\n`;
+    message += `• 📍 Укажите город: /city [город]\n\n`;
+    message += `🔄 Топ обновляется после каждой игры`;
+    
+    return message;
+    
+  } catch (error) {
+    console.error('❌ Ошибка в fetchTopPlayersData:', error);
+    throw error; // Пробрасываем ошибку выше
+  }
+}
 // ===================== ПОЛНЫЙ РАЗГОВОРНИК: 200+ ФРАЗ =====================
 const dailyPhrases = [
   // ТРАНСПОРТ
