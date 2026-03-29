@@ -218,7 +218,7 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // --- ДАННЫЕ О ПИТОМЦАХ (50 ШТУК) ---
+        // --- ДАННЫЕ О ПИТОМЦАХ ---
         const BASE_PETS = [
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, type: 'clear', value: 1 },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1000, type: 'slow', value: 5000 },
@@ -229,21 +229,9 @@
             { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 3500, type: 'clear', value: 3 },
             { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4000, type: 'slow', value: 12000 },
             { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 4500, type: 'clear', value: 2 },
-            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, type: 'clear', value: 3 },
-            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, type: 'slow', value: 15000 },
-            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, type: 'slow', value: 10000 },
-            { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 7000, type: 'clear', value: 4 },
-            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, type: 'clear', value: 2 },
-            { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 9500, type: 'clear', value: 2 },
-            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, type: 'clear', value: 1 },
-            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 13000, type: 'clear', value: 4 },
-            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13500, type: 'slow', value: 15000 },
-            { id: 'parrot', name: 'Попугай', emoji: '🦜', color: '#FF0000', score: 18000, type: 'clear', value: 2 },
-            { id: 'turtle', name: 'Черепаха', emoji: '🐢', color: '#2E8B57', score: 21000, type: 'slow', value: 20000 },
-            // ... остальные 30 будут считаться математически от индекса
+            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, type: 'clear', value: 3 }
         ];
 
-        // Дозаполняем до 50 если не хватает
         const extraEmojis = ['🐸','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐆','🐅','🐘','🐫','🐪','🐎','🐗','🐖','🐏','🐑','🐐','🦌','🐕','🐩','🐈','🐓'];
         while(BASE_PETS.length < 50) {
             const i = BASE_PETS.length;
@@ -290,7 +278,20 @@
                     loginSelect.appendChild(opt);
                 });
 
+                // Очищаем и заново заполняем список регистрации
                 regSelect.innerHTML = '<option value="">-- Выберите Имя --</option>';
+                
+                // Добавляем имя от бота, если оно есть
+                const urlParams = new URLSearchParams(window.location.search);
+                const botUsername = urlParams.get('username');
+                if (botUsername && !taken.includes(botUsername)) {
+                    const opt = document.createElement('option');
+                    opt.value = botUsername;
+                    opt.textContent = botUsername + " (из бота)";
+                    opt.selected = true;
+                    regSelect.appendChild(opt);
+                }
+
                 availableNames.forEach(name => {
                     if (!taken.includes(name)) {
                         const opt = document.createElement('option');
@@ -317,12 +318,14 @@
 
         async function doAuth(login, pin) {
             const urlParams = new URLSearchParams(window.location.search);
-            const telegramId = urlParams.get('telegramId');
+            // Пытаемся взять город из ссылки бота
+            const city = urlParams.get('city');
+            
             try {
                 const res = await fetch('/api/auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ login, pin, telegramId })
+                    body: JSON.stringify({ login, pin, city }) // Город теперь передается
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -397,47 +400,32 @@
             clearLines();
         }
 
-        // --- ПИТОМЦЫ И БУСТЕРЫ ---
         function checkPets() {
             const petIndex = Math.floor(score / 500);
             const rankIndex = Math.floor(petIndex / 50);
             const basePet = BASE_PETS[petIndex % 50];
             const rank = PET_RANKS[Math.min(rankIndex, 7)];
-            
             currentPet = { ...basePet, rank: rank, emoji: rank.prefix + basePet.emoji };
-            
             document.getElementById('pet-emoji-display').textContent = currentPet.emoji;
             document.getElementById('pet-food-count').textContent = `${score % 500}/500`;
-            
             if (score > 0 && score % 500 === 0) {
                 document.getElementById('pet-block').classList.add('ready');
-                showNotification(`✨ ${currentPet.emoji} ${currentPet.name} готов!`);
+                showNotification(`✨ ${currentPet.emoji} готов!`);
             }
         }
 
         function usePetAbility() {
             if (!currentPet || score < 500) return showNotification('❌ Нужно 500 очков!');
-            
             if (currentPet.type === 'clear') {
                 for(let i=0; i<currentPet.value; i++) { board.pop(); board.unshift(Array(COLS).fill(0)); }
-                showNotification(`🧹 ${currentPet.emoji}: Очищено ${currentPet.value} стр.`);
+                showNotification(`🧹 ${currentPet.emoji}: Очищено!`);
             } else if (currentPet.type === 'slow') {
-                const duration = currentPet.value;
                 slowActive = true;
                 const ind = document.getElementById('slow-indicator');
                 ind.style.display = 'flex';
-                let timeLeft = duration / 1000;
-                const timer = setInterval(() => {
-                    timeLeft--;
-                    ind.textContent = `⏰ ${timeLeft}с`;
-                    if (timeLeft <= 0) {
-                        clearInterval(timer); slowActive = false;
-                        ind.style.display = 'none';
-                    }
-                }, 1000);
+                setTimeout(() => { slowActive = false; ind.style.display = 'none'; }, currentPet.value);
                 showNotification(`⏰ ${currentPet.emoji}: Замедление!`);
             }
-            
             document.getElementById('pet-block').classList.remove('ready');
         }
 
@@ -458,7 +446,6 @@
                     <p>🎮 Игр: <b>${data.games_played}</b></p>
                     <p>📏 Линий: <b>${data.best_lines}</b></p>
                     <p>🐾 Питомцев: <b>${petCount} / 400</b></p>
-                    <div style="margin-top:10px; font-size:1.5rem;">${extraEmojis.slice(0, Math.min(petCount, 30)).join(' ')}</div>
                 </div>`;
             } catch (e) { content.innerHTML = '❌ Ошибка'; }
         }
@@ -494,7 +481,6 @@
             if(currentPiece) currentPiece.shape.forEach((row, y) => row.forEach((val, x) => { if(val) drawBlock(curX+x, curY+y, currentPiece.color); }));
         }
 
-        // --- УПРАВЛЕНИЕ КЛАВИАТУРОЙ ---
         window.addEventListener('keydown', e => {
             if (!gameActive) return;
             if (e.key === 'ArrowLeft') moveLeft();
