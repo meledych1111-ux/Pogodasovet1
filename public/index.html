@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Тетрис 3D — Питомцы и Бустеры</title>
+    <title>Тетрис 3D — Питомцы</title>
     <style>
         * {
             margin: 0; padding: 0; box-sizing: border-box;
@@ -41,17 +41,6 @@
             background: rgba(106,91,255,0.3); border-radius: 20px; padding: 4px 12px;
             display: inline-block; margin-top: 5px; font-size: 0.8rem; color: #ffd700;
         }
-        
-        /* Auth Screen Styling */
-        .auth-card {
-            background: rgba(30,40,100,0.5); border-radius: 24px; padding: 20px;
-            margin-bottom: 15px; border: 1px solid rgba(255,215,0,0.2);
-        }
-        .auth-select, .auth-input {
-            width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 12px;
-            border: none; background: #0a1432; color: white; font-size: 1rem;
-        }
-        .auth-input { text-align: center; letter-spacing: 4px; }
 
         .menu-buttons { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; overflow-y: auto; }
         .menu-btn {
@@ -62,8 +51,20 @@
             border: 1px solid rgba(255,255,255,0.1); transition: 0.1s;
         }
         .menu-btn:active { transform: scale(0.97); }
-        .menu-btn.primary { background: linear-gradient(145deg, #3a6a5e, #2a4a3e); }
-        .menu-btn.secondary { background: linear-gradient(145deg, #5e4a6a, #4a3a5a); }
+        .menu-btn.new-game { background: linear-gradient(145deg, #3a6a5e, #2a4a3e); }
+        .menu-btn.stats-btn { background: linear-gradient(145deg, #5e4a6a, #4a3a5a); }
+        .menu-btn.leaderboard-btn { background: linear-gradient(145deg, #6a3a4a, #5a2a3a); }
+
+        /* Auth Screen Styling */
+        .auth-card {
+            background: rgba(30,40,100,0.5); border-radius: 24px; padding: 20px;
+            margin-bottom: 15px; border: 1px solid rgba(255,215,0,0.2);
+        }
+        .auth-select, .auth-input {
+            width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 12px;
+            border: none; background: #0a1432; color: white; font-size: 1rem;
+        }
+        .auth-input { text-align: center; letter-spacing: 4px; }
 
         #game-screen { display: flex; flex-direction: column; padding: 8px; }
         .game-header {
@@ -539,12 +540,11 @@
             } else if (type === 'double') {
                 activateBoost('✨ x2 ОЧКИ', '#ffd700');
                 doubleActive = true;
-                doubleRemaining = 5; // Fixed lines for double
+                doubleRemaining = 5; 
             } else if (type === 'reroll') {
                 currentPiece = getRandomPiece();
                 showNotification('🔄 ФИГУРА ЗАМЕНЕНА');
             } else if (type === 'antibloc') {
-                // Clear 10 random blocks
                 let cleared = 0;
                 for(let i=0; i<50 && cleared < 10; i++) {
                     let rx = Math.floor(Math.random()*COLS);
@@ -621,7 +621,6 @@
             lastTime = time;
             dropCounter += deltaTime;
 
-            // Speed formula: smoother acceleration up to 100ms
             const currentLevel = Math.floor(score / 500);
             const baseSpeed = Math.max(80, 800 - (currentLevel * 15));
             const speed = slowActive ? baseSpeed * 3 : baseSpeed;
@@ -646,7 +645,6 @@
 
         function draw() {
             ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0,0,canvas.width,canvas.height);
-            // Grid
             ctx.strokeStyle = 'rgba(106,91,255,0.1)';
             ctx.lineWidth = 1;
             for(let i=0; i<=COLS; i++) { ctx.beginPath(); ctx.moveTo(i*BLOCK_SIZE, 0); ctx.lineTo(i*BLOCK_SIZE, canvas.height); ctx.stroke(); }
