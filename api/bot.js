@@ -33,7 +33,7 @@ function getWindDirection(degrees) {
 function getWeatherDescription(code) {
   const weatherMap = {
     0: 'Ясно ☀️', 1: 'В основном ясно 🌤️', 2: 'Переменная облачность ⛅', 3: 'Пасмурно ☁️',
-    45: 'Туман 🌫️', 48: 'Изморозь 🌫️', 51: 'Лёгкая морось 🌧️', 53: 'Умеренная морось 🌧️', 55: 'Сильная морось 🌧️',
+    45: 'Туман 🌫️', 48: 'Изморозь 🌫️', 51: 'Лёгкая морось 🌧️', 53: 'Морось 🌧️', 55: 'Сильная морось 🌧️',
     61: 'Небольшой дождь 🌧️', 63: 'Дождь 🌧️', 65: 'Сильный дождь 🌧️',
     71: 'Небольшой снег ❄️', 73: 'Снег ❄️', 75: 'Сильный снег ❄️',
     80: 'Ливень 🌧️', 81: 'Сильный ливень 🌧️', 95: 'Гроза ⛈️'
@@ -61,6 +61,8 @@ async function getDetailedWeatherData(cityName) {
     const wData = await wRes.json();
     const cur = wData.current;
 
+    if (!cur) throw new Error('Данные не получены');
+
     return {
       success: true,
       city: name,
@@ -72,8 +74,7 @@ async function getDetailedWeatherData(cityName) {
       humidity: cur.relative_humidity_2m,
       pressure: Math.round(cur.pressure_msl * 0.750062),
       has_rain: cur.rain > 0,
-      has_snow: cur.snowfall > 0,
-      raw: cur
+      has_snow: cur.snowfall > 0
     };
   } catch (e) { return { success: false, error: e.message }; }
 }
@@ -85,7 +86,7 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
     const geoData = await geoRes.json();
     const { latitude, longitude, name } = geoData.results[0];
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=${dayOffset + 1}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code&daily=sunrise,sunset&timezone=auto&forecast_days=${dayOffset + 1}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -106,17 +107,20 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
       const t = Math.round(data.hourly.temperature_2m[p.i]);
       const f = Math.round(data.hourly.apparent_temperature[p.i]);
       const pr = data.hourly.precipitation_probability[p.i];
-      msg += `${p.e} *${p.n}:* ${t}°C (ощ. ${f}°C)\n   ${getWeatherDescription(data.hourly.weather_code[p.i])}${pr > 5 ? ` | ☔️ ${pr}%` : ''}\n\n`;
+      const desc = getWeatherDescription(data.hourly.weather_code[p.i]);
+      msg += `${p.e} *${p.n}:* ${t}°C (ощ. ${f}°C)\n   ${desc}${pr > 5 ? ` | ☔️ ${pr}%` : ''}\n\n`;
     });
 
+    msg += `───────────────────\n`;
+    msg += `🌅 Восход: ${data.daily.sunrise[dayOffset].substring(11, 16)} | 🌇 Закат: ${data.daily.sunset[dayOffset].substring(11, 16)}`;
     return { success: true, message: msg };
-  } catch (e) { return { success: false }; }
+  } catch (e) { return { success: false, message: "❌ Не удалось получить прогноз." }; }
 }
 
 // ===================== СОВЕТЫ ПО ОДЕЖДЕ =====================
 function getWardrobeAdvice(w) {
   if (!w || !w.success) return '❌ Данные о погоде недоступны.';
-  const { temp, feels_like, city, description, has_rain, has_snow } = w;
+  const { temp, feels_like, city, description, has_rain, has_snow, wind_speed } = w;
   const t = feels_like;
   
   let advice = `👕 *Что надеть в ${city} сейчас?*\n`;
@@ -140,22 +144,31 @@ function getWardrobeAdvice(w) {
 
   if (has_rain) advice += "\n\n☔️ *Внимание:* Идет дождь, возьмите зонт!";
   if (has_snow) advice += "\n\n☃️ *Внимание:* На улице снег, выбирайте обувь с протектором.";
+  if (wind_speed > 8) advice += "\n\n💨 *Ветрено:* Наденьте непродуваемую одежду.";
 
   return advice;
 }
 
-// ===================== СПРАВОЧНИК ФРАЗ =====================
+// ===================== СПРАВОЧНИК ФРАЗ (ПОЛНЫЙ) =====================
 const dailyPhrases = [
   { e: "Where is the nearest bus stop?", r: "Где ближайшая остановка?", c: "Транспорт" },
   { e: "How much is the fare?", r: "Сколько стоит проезд?", c: "Транспорт" },
+  { e: "I'd like a window seat, please.", r: "Я хотел бы место у окна.", c: "Транспорт" },
   { e: "Keep the change.", r: "Сдачи не надо.", c: "Транспорт" },
   { e: "A table for two, please.", r: "Столик на двоих, пожалуйста.", c: "Еда" },
   { e: "The bill, please.", r: "Счет, пожалуйста.", c: "Еда" },
+  { e: "What do you recommend?", r: "Что вы порекомендуете?", c: "Еда" },
   { e: "Can I try this on?", r: "Можно это примерить?", c: "Покупки" },
+  { e: "How much does this cost?", r: "Сколько это стоит?", c: "Покупки" },
+  { e: "I'll take it.", r: "Я это беру.", c: "Покупки" },
   { e: "Nice to meet you!", r: "Приятно познакомиться!", c: "Общение" },
   { e: "I don't understand.", r: "Я не понимаю.", c: "Общение" },
+  { e: "Could you speak slower?", r: "Могли бы вы говорить медленнее?", c: "Общение" },
   { e: "I need a doctor.", r: "Мне нужен врач.", c: "Здоровье" },
-  { e: "Call an ambulance!", r: "Вызовите скорую!", c: "Здоровье" }
+  { e: "Where is the pharmacy?", r: "Где находится аптека?", c: "Здоровье" },
+  { e: "Call an ambulance!", r: "Вызовите скорую!", c: "Здоровье" },
+  { e: "I'm lost, help me please.", r: "Я заблудился, помогите пожалуйста.", c: "Город" },
+  { e: "Where is the restroom?", r: "Где туалет?", c: "Город" }
 ];
 
 // ===================== КЛАВИАТУРЫ =====================
@@ -176,8 +189,20 @@ const cityKeyboard = new Keyboard()
 
 bot.command('start', async (ctx) => {
   const name = generateAnonymousName(ctx.from.id);
+  // Сохраняем анонимно без chat_id
   await saveOrUpdateUser({ user_id: name, city: 'Не указан' });
-  const welcome = `👋 *Привет!* Твой анонимный ник: *${name}*\n\nЯ помогу с погодой и английским.\n\n🚀 *Команды:*\n🌤 /weather — Погода сейчас\n📅 /today — На сегодня\n👕 /wardrobe — Что надеть\n💬 /phrase — Английский\n🎮 /tetris — Играть\n\n📍 *Выбери город:*`;
+  
+  const welcome = 
+    `👋 *Привет!* Твой анонимный ник: *${name}*\n\n` +
+    `Я твой ассистент по погоде и английскому. Никаких личных данных в базе.\n\n` +
+    `🚀 *Команды:*\n` +
+    `🌤 /weather — Погода сейчас\n` +
+    `📅 /today — Прогноз на сегодня\n` +
+    `👕 /wardrobe — Что надеть\n` +
+    `💬 /phrase — Учить английский\n` +
+    `🎮 /tetris — Мини-игра\n\n` +
+    `📍 *Чтобы начать, выбери свой город:*`;
+
   await ctx.reply(welcome, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
 });
 
@@ -232,9 +257,14 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
   const res = await getUserCity(name);
   const hash = generateAuthHash(name);
   const url = `https://pogodasovet1.vercel.app?username=${encodeURIComponent(name)}&city=${encodeURIComponent(res.city || 'Не указан')}&hash=${hash}`;
-  await ctx.reply(`🕹️ *Тетрис*\nНик: *${name}*\n\nНажми кнопку, чтобы играть анонимно:`, {
+  
+  const msg = `🕹️ *Тетрис*\n\nВаше имя: *${name}*\n\n` +
+              `Играть можно через кнопку ниже или по прямой ссылке (удобно для браузера):\n` +
+              `🔗 ${url}`;
+
+  await ctx.reply(msg, {
     parse_mode: 'Markdown',
-    reply_markup: { inline_keyboard: [[{ text: '🎮 Начать игру', web_app: { url } }]] }
+    reply_markup: { inline_keyboard: [[{ text: '🎮 Открыть Игру', web_app: { url } }]] }
   });
 });
 
@@ -250,15 +280,17 @@ bot.hears(/^📍 /, async (ctx) => {
 bot.on('message:text', async (ctx) => {
   if (ctx.message.text.startsWith('/')) return;
   const name = generateAnonymousName(ctx.from.id);
-  const check = await getDetailedWeatherData(ctx.message.text.trim());
-  if (check.success) {
+  try {
+    const check = await getDetailedWeatherData(ctx.message.text.trim());
+    if (!check.success) throw new Error();
     await saveUserCity(name, check.city);
     await ctx.reply(`✅ Город *${check.city}* выбран!`, { reply_markup: mainMenuKeyboard, parse_mode: 'Markdown' });
-  } else {
-    ctx.reply('❌ Город не найден.');
+  } catch (e) {
+    ctx.reply('❌ Город не найден.', { reply_markup: cityKeyboard });
   }
 });
 
+// ===================== ЭКСПОРТ ДЛЯ VERCEL =====================
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
