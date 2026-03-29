@@ -1,0 +1,20 @@
+{
+  "name": "weather-english-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot with weather and English phrases",
+  "main": "api/bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node api/bot.js",
+    "dev": "node --watch api/bot.js",
+    "build": "echo 'Build completed'"
+  },
+  "dependencies": {
+    "grammy": "^1.21.1",
+    "pg": "^8.11.3",
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
