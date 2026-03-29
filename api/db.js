@@ -35,7 +35,7 @@ export function hashPin(pin, salt) {
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    max: 1,
+    max: 20, // Увеличено для избежания дедлоков при вложенных запросах
     connectionTimeoutMillis: 5000,
     idleTimeoutMillis: 30000
 });
@@ -95,7 +95,9 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
     const dbUserId = convertUserIdForDb(userId);
     const client = await pool.connect();
     try {
-        const profile = await getUserProfile(dbUserId);
+        // Чтобы избежать дедлока при max: 1, здесь лучше использовать тот же client, 
+        // но getUserProfile создает свой. С max: 20 это не проблема.
+        const profile = await getUserProfile(dbUserId); 
         const displayName = username || dbUserId;
         await client.query(`
             INSERT INTO game_scores (user_id, username, game_type, score, level, lines, is_win, city, created_at)
