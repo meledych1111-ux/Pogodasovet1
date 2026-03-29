@@ -1,4 +1,4 @@
-import { Bot, Keyboard } from 'grammy';
+import { Bot, Keyboard, InlineKeyboard } from 'grammy';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 
@@ -199,17 +199,7 @@ const dailyPhrases = [
   { e: "Where is the restroom?", r: "Где туалет?", c: "Город" },
   { e: "How is it going?", r: "Как дела?", c: "Общение" },
   { e: "I don't understand.", r: "Я не понимаю.", c: "Общение" },
-  { e: "Speak slower, please.", r: "Говорите медленнее, пожалуйста.", c: "Общение" },
-  { e: "Could you help me?", r: "Вы не могли бы мне помочь?", c: "Общение" },
-  { e: "Thank you for your help.", r: "Спасибо за помощь.", c: "Общение" },
-  { e: "What time is it?", r: "Который час?", c: "Общение" },
-  { e: "Where can I buy a ticket?", r: "Где я могу купить билет?", c: "Транспорт" },
-  { e: "The check, please.", r: "Счет, пожалуйста.", c: "Еда" },
-  { e: "Do you have any vegetarian dishes?", r: "У вас есть вегетарианские блюда?", c: "Еда" },
-  { e: "Is there a pharmacy nearby?", r: "Поблизости есть аптека?", c: "Город" },
-  { e: "Can I pay by card?", r: "Можно оплатить картой?", c: "Покупки" },
-  { e: "I'm just looking, thanks.", r: "Я просто смотрю, спасибо.", c: "Покупки" },
-  { e: "It's too expensive.", r: "Это слишком дорого.", c: "Покупки" }
+  { e: "Speak slower, please.", r: "Говорите медленнее, пожалуйста.", c: "Общение" }
 ];
 
 const mainMenuKeyboard = new Keyboard()
@@ -228,12 +218,22 @@ const cityKeyboard = new Keyboard()
 bot.command('start', async (ctx) => {
   const name = generateAnonymousName(ctx.from.id);
   const res = await getUserCity(name);
+  const hash = generateAuthHash(name);
+  const url = `https://pogodasovet1.vercel.app/game?login=${encodeURIComponent(name)}&hash=${hash}&city=${encodeURIComponent(res.city)}&tg_id=${ctx.from.id}`;
   
+  const startInlineKeyboard = new InlineKeyboard()
+    .webApp('🎮 ИГРАТЬ В ТЕТРИС', url).row()
+    .url('📢 Канал проекта', 'https://t.me/pogodasovet_news');
+
+  let welcome = `👋 *Привет! Я твой личный помощник по погоде и английскому!*\n\n`;
+  welcome += `Твой анонимный ник: *${name}*\n`;
   if (res.city !== 'Не указан') {
-    let welcome = `👋 *С возвращением!* Твой ник: *${name}*\n📍 Город: *${res.city}*\n\nВыбирай нужную кнопку в меню! 👇`;
+    welcome += `📍 Твой город: *${res.city}*\n\n`;
+    welcome += `Нажимай кнопку ниже, чтобы начать игру, или используй меню для прогноза! 👇`;
     await ctx.reply(welcome, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+    await ctx.reply('🚀 *Готов к рекордам?*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
   } else {
-    let welcome = `👋 *Привет! Я твой помощник по погоде и английскому!*\n\nТвой анонимный ник: *${name}*\n\nЧтобы начать, выбери свой город: 👇`;
+    welcome += `Чтобы я мог давать точные советы, сначала выбери свой город: 👇`;
     await ctx.reply(welcome, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
   }
 });
