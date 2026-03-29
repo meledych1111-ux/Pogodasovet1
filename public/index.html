@@ -281,10 +281,12 @@
     <script>
         // Инициализация Telegram Web App
         const tg = window.Telegram?.WebApp;
+        let tgUser = null;
         if (tg) {
             tg.ready();
-            tg.expand(); // Развернуть на весь экран
-            console.log("Telegram WebApp initialized");
+            tg.expand();
+            tgUser = tg.initDataUnsafe?.user;
+            console.log("Telegram User:", tgUser);
         }
 
         // --- ДАННЫЕ О ПИТОМЦАХ (50 ШТУК) ---
@@ -350,6 +352,15 @@
 
         // --- АВТОРИЗАЦИЯ ---
         async function refreshLists() {
+            // Если мы в Telegram, пытаемся войти автоматически по tgUser.id
+            if (tgUser && tgUser.id) {
+                const autoLogin = tgUser.username || `user_${tgUser.id}`;
+                console.log("Auto-login attempt for:", autoLogin);
+                // Пробуем войти без пароля (упрощенная схема для бота)
+                doAuth(autoLogin, "0000"); 
+                return;
+            }
+
             try {
                 const res = await fetch('/api/taken-names');
                 const taken = await res.json();
@@ -364,18 +375,6 @@
                 });
 
                 regSelect.innerHTML = '<option value="">-- Выберите Имя --</option>';
-                const urlParams = new URLSearchParams(window.location.search);
-                const botUsername = urlParams.get('username');
-                
-                // Если имя из бота уже занято, выбираем его в логине
-                if (botUsername && taken.includes(botUsername)) {
-                    loginSelect.value = botUsername;
-                } else if (botUsername) {
-                    const opt = document.createElement('option');
-                    opt.value = botUsername; opt.textContent = botUsername + " (из бота)";
-                    opt.selected = true; regSelect.appendChild(opt);
-                }
-
                 availableNames.forEach(name => {
                     if (!taken.includes(name)) {
                         const opt = document.createElement('option');
@@ -407,16 +406,17 @@
                 const res = await fetch('/api/auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ login, pin, city })
+                    body: JSON.stringify({ login, pin, city, telegramId: tgUser?.id })
                 });
                 const data = await res.json();
                 if (data.success) {
                     currentUserId = login;
                     localStorage.setItem('tetris_userId', login);
-                    showNotification(data.isNew ? '✨ Аккаунт успешно создан!' : '✅ С возвращением!');
                     showMenu();
-                } else { showNotification('❌ ' + data.error); }
-            } catch (e) { showNotification('❌ Ошибка подключения'); }
+                } else if (!tgUser) { 
+                    showNotification('❌ ' + data.error); 
+                }
+            } catch (e) { if(!tgUser) showNotification('❌ Ошибка подключения'); }
         }
 
         function logout() {
