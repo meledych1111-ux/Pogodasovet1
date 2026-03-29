@@ -10,9 +10,10 @@
     "build": "echo 'Build completed'"
   },
   "dependencies": {
+    "dotenv": "^16.6.1",
     "grammy": "^1.21.1",
-    "pg": "^8.11.3",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "pg": "^8.11.3"
   },
   "engines": {
     "node": ">=18.0.0"
