@@ -214,8 +214,8 @@ const cityKeyboard = new Keyboard().text('📍 МОСКВА').text('📍 САН�
 
 bot.command('start', async (ctx) => {
   const name = generateAnonymousName(ctx.from.id);
-  // Используем анонимное имя как ID в базе
-  await saveOrUpdateUser({ user_id: name, chat_id: ctx.chat.id, city: 'Не указан' });
+  // Анонимность: НЕ сохраняем chat_id и используем имя вместо user_id
+  await saveOrUpdateUser({ user_id: name, city: 'Не указан' });
   await ctx.reply(`👋 Привет! Твое имя: *${name}*\n\nВыбери город для прогноза:`, {
     parse_mode: 'Markdown',
     reply_markup: new Keyboard().text('🚀 НАЧАТЬ РАБОТУ').resized()
@@ -257,6 +257,7 @@ bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
 bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
   const name = generateAnonymousName(ctx.from.id);
   const res = await getUserCity(name);
+  // Никаких реальных ID в ссылке
   const url = `https://pogodasovet1.vercel.app?username=${encodeURIComponent(name)}&city=${encodeURIComponent(res.city || 'Не указан')}`;
   await ctx.reply(`🕹️ *Тетрис 3D*\n\nТвое имя: *${name}*\n\nЖми на кнопку, чтобы играть!`, {
     parse_mode: 'Markdown',
