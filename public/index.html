@@ -10,12 +10,14 @@
             -webkit-user-select: none; user-select: none;
             -webkit-tap-highlight-color: transparent; touch-action: manipulation;
         }
+
         html, body {
             height: 100%; width: 100%; overflow: hidden;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 100%); color: #fff;
             display: flex; justify-content: center; align-items: center; padding: 5px;
         }
+
         .game-container {
             width: 100%; max-width: 480px; height: 98vh; max-height: 900px;
             position: relative; overflow: hidden; border-radius: 24px;
@@ -23,12 +25,15 @@
             background: linear-gradient(145deg, #0f1430, #1a1f40);
             border: 2px solid #6a5bff; display: flex; flex-direction: column;
         }
+
         .screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; padding: 12px;
             opacity: 0; pointer-events: none; transition: opacity 0.3s ease; background: inherit;
         }
+
         .screen.active { opacity: 1; pointer-events: all; }
+
         .header { text-align: center; margin-bottom: 12px; padding: 6px; flex-shrink: 0; }
         .game-title {
             font-size: 1.8rem; font-weight: 900;
@@ -36,11 +41,14 @@
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-shadow: 0 0 15px rgba(255,215,0,0.4); letter-spacing: 1px; margin-bottom: 3px;
         }
+
         .subtitle { color: #b5aaff; font-size: 0.75rem; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+
         .anonymous-name {
             background: rgba(106,91,255,0.3); border-radius: 20px; padding: 4px 12px;
             display: inline-block; margin-top: 5px; font-size: 0.8rem; color: #ffd700;
         }
+
         .menu-buttons { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; overflow-y: auto; }
         .menu-btn {
             background: linear-gradient(145deg, #2a3f5e, #1a2a3a); border: none; border-radius: 20px;
@@ -61,11 +69,14 @@
             background: rgba(20,30,80,0.7); border-radius: 18px; margin-bottom: 8px;
             border: 1px solid rgba(106,91,255,0.3); width: 100%; flex-shrink: 0;
         }
+
         .back-btn {
             background: linear-gradient(145deg, #2a3f5e, #1a2a3a); border: none; color: white;
             padding: 6px 14px; border-radius: 25px; font-size: 0.85rem; font-weight: bold;
             display: flex; align-items: center; gap: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.6);
+            cursor: pointer;
         }
+
         .game-info { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex: 1; margin-left: 6px; }
         .info-box { background: rgba(10,20,50,0.9); padding: 4px 10px; border-radius: 25px; border: 1px solid rgba(106,91,255,0.4); }
         .info-value { font-size: 0.85rem; font-weight: bold; color: #66ffaa; text-shadow: 0 0 8px rgba(102,255,170,0.6); }
@@ -76,11 +87,13 @@
             background: rgba(20,30,80,0.95); border: 2px solid #ffd700; border-radius: 12px; padding: 10px 3px;
             z-index: 1000; box-shadow: 3px 3px 15px rgba(0,0,0,0.8); width: 75px; font-size: 0.6rem;
         }
+
         .section-title { color: #ffd700; font-size: 0.6rem; font-weight: bold; text-transform: uppercase; }
         .next-piece-shape {
             display: flex; justify-content: center; align-items: center; width: 60px; min-height: 60px;
             background: rgba(0,0,0,0.3); border-radius: 6px; margin: 2px 0;
         }
+
         .piece-grid { display: inline-grid; gap: 2px; }
         .piece-cell { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.2); }
         .piece-cell.empty { opacity: 0; border: none; }
@@ -105,11 +118,12 @@
             box-shadow: 0 0 20px rgba(0,0,0,0.5); width: 220px; height: 440px;
         }
 
-        /* Кнопки управления */
+        /* Управление */
         .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px; background: rgba(20,30,80,0.6); border-radius: 18px; }
         .control-btn {
             background: linear-gradient(145deg, #3a4a6a, #2a3a5a); border: none; border-radius: 22px;
             padding: 16px 8px; color: white; font-size: 1.8rem; box-shadow: 4px 4px 8px rgba(0,0,0,0.6);
+            cursor: pointer;
         }
 
         .notification {
@@ -125,7 +139,7 @@
 </head>
 <body>
     <div class="game-container">
-        <!-- ЭКРАН ВХОДА -->
+        <!-- АВТОРИЗАЦИЯ -->
         <div class="screen active" id="auth-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС 3D</h1>
@@ -134,33 +148,34 @@
             <div class="menu-buttons">
                 <div style="background: rgba(30,40,100,0.5); border-radius: 20px; padding: 15px;">
                     <h3 style="color: #ffd700; margin-bottom: 10px;">🔐 ВХОД / РЕГИСТРАЦИЯ</h3>
-                    <input type="text" id="login-input" placeholder="Введите ваш Логин" 
-                           style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 12px; border: none; background: #0a1432; color: white;">
-                    <input type="password" id="login-pin" placeholder="PIN-код (4 цифры)" maxlength="4" 
-                           style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px; border: none; background: #0a1432; color: white;">
+                    <select id="auth-login-select" style="width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 12px; border: none; background: #0a1432; color: white; font-size: 1rem;">
+                        <option value="">-- Выберите Имя --</option>
+                    </select>
+                    <input type="password" id="auth-pin-input" placeholder="PIN-код (4 цифры)" maxlength="4" 
+                           style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 12px; border: none; background: #0a1432; color: white; font-size: 1.2rem; text-align: center;">
                     <button class="menu-btn new-game" onclick="handleAuth()">🚀 ВОЙТИ В ИГРУ</button>
                 </div>
             </div>
             <p style="text-align: center; font-size: 0.7rem; color: #aaccff; padding: 10px;">
-                *Если логин новый, аккаунт создастся автоматически
+                *Выберите имя из списка и введите PIN. Если имя новое, оно закрепится за вами.
             </p>
         </div>
 
-        <!-- ГЛАВНОЕ МЕНЮ -->
+        <!-- МЕНЮ -->
         <div class="screen" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС 3D</h1>
-                <div class="anonymous-name" id="user-display">☁️ Загрузка...</div>
+                <div class="anonymous-name" id="user-display">👤 Загрузка...</div>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn new-game" onclick="startNewGame()">🎮 ИГРАТЬ</button>
-                <button class="menu-btn stats" onclick="showStats()">📊 МОИ УСПЕХИ</button>
+                <button class="menu-btn stats" onclick="showStats()">📊 МОЯ СТАТИСТИКА</button>
                 <button class="menu-btn leaderboard" onclick="showLeaderboard()">🏆 РЕЙТИНГ</button>
                 <button class="menu-btn" onclick="logout()">🚪 ВЫЙТИ</button>
             </div>
         </div>
 
-        <!-- ЭКРАН ИГРЫ -->
+        <!-- ИГРА -->
         <div class="screen" id="game-screen">
             <div class="game-header">
                 <button class="back-btn" onclick="showMenu()">МЕНЮ</button>
@@ -175,7 +190,7 @@
                     <div id="next-piece-shape" class="next-piece-shape"></div>
                     <div class="pet-block" id="pet-block">
                         <span id="pet-emoji-display" class="pet-emoji-large">🐣</span>
-                        <div style="font-size: 0.7rem; color: #ffd700;" id="pet-food-count">0/5</div>
+                        <div style="font-size: 0.7rem; color: #ffd700;" id="pet-food-count">0/500</div>
                         <div class="pet-activate-btn" onclick="usePetAbility()">🔥</div>
                     </div>
                 </div>
@@ -191,15 +206,15 @@
 
         <!-- СТАТИСТИКА -->
         <div class="screen" id="stats-screen">
-            <div class="header"><h1 class="game-title">ВАШИ ДОСТИЖЕНИЯ</h1></div>
-            <div id="stats-content" style="padding: 10px; overflow-y: auto;"></div>
+            <div class="header"><h1 class="game-title">ДОСТИЖЕНИЯ</h1></div>
+            <div id="stats-content" style="padding: 10px; overflow-y: auto; flex: 1;"></div>
             <button class="menu-btn" onclick="showMenu()" style="margin: 10px;">НАЗАД</button>
         </div>
 
         <!-- ЛИДЕРБОРД -->
         <div class="screen" id="leaderboard-screen">
-            <div class="header"><h1 class="game-title">ТОП ИГРОКОВ</h1></div>
-            <div id="leaderboard-content" style="padding: 10px; overflow-y: auto;"></div>
+            <div class="header"><h1 class="game-title">ТОП-10 ИГРОКОВ</h1></div>
+            <div id="leaderboard-content" style="padding: 10px; overflow-y: auto; flex: 1;"></div>
             <button class="menu-btn" onclick="showMenu()" style="margin: 10px;">НАЗАД</button>
         </div>
     </div>
@@ -207,19 +222,33 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        const API_URL = ''; // Оставляем пустым для относительных путей Vercel
+        // --- ДАННЫЕ ---
+        const availableNames = [
+            '☁️ Облачко', '🌤️ Тучка', '⛅ Перистое Облако', '🌥️ Кучевое Облако', '🌦️ Слоистое Облако',
+            '🌧️ Дождевое Облако', '⛈️ Грозовое Облако', '🌩️ Снежное Облако', '❄️ Серебристое Облако',
+            '🌈 Радужное Облако', '⭐ Золотое Облако', '🌙 Лунное Облако', '🌟 Звёздное Облако', '✨ Сияющее Облако'
+        ];
+
         let currentUserId = localStorage.getItem('tetris_userId');
         
         // --- АВТОРИЗАЦИЯ ---
+        function populateLogins() {
+            const select = document.getElementById('auth-login-select');
+            select.innerHTML = '<option value="">-- Выберите Имя --</option>';
+            availableNames.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name; opt.textContent = name;
+                select.appendChild(opt);
+            });
+        }
+
         async function handleAuth() {
-            const login = document.getElementById('login-input').value.trim();
-            const pin = document.getElementById('login-pin').value.trim();
+            const login = document.getElementById('auth-login-select').value;
+            const pin = document.getElementById('auth-pin-input').value;
             const urlParams = new URLSearchParams(window.location.search);
             const telegramId = urlParams.get('telegramId');
 
-            if (!login || pin.length !== 4) {
-                return showNotification('❌ Введите логин и 4 цифры ПИН');
-            }
+            if (!login || pin.length !== 4) return showNotification('❌ Выберите имя и введите 4 цифры ПИН');
 
             try {
                 const res = await fetch('/api/auth', {
@@ -228,11 +257,10 @@
                     body: JSON.stringify({ login, pin, telegramId })
                 });
                 const data = await res.json();
-
                 if (data.success) {
                     currentUserId = login;
                     localStorage.setItem('tetris_userId', login);
-                    showNotification(data.isNew ? '✨ Аккаунт создан!' : '✅ С возвращением!');
+                    showNotification(data.isNew ? '✨ Добро пожаловать!' : '✅ С возвращением!');
                     showMenu();
                 } else {
                     showNotification('❌ ' + data.error);
@@ -246,7 +274,7 @@
             showScreen('auth');
         }
 
-        // --- ИГРОВАЯ ЛОГИКА (БАЗОВАЯ) ---
+        // --- ИГРОВАЯ ЛОГИКА ---
         const COLS = 10, ROWS = 20, BLOCK_SIZE = 22;
         const SHAPES = [
             [[1,1,1,1]], [[1,1],[1,1]], [[0,1,0],[1,1,1]], 
@@ -266,7 +294,7 @@
             spawnPiece();
             updateDisplay();
             showScreen('game');
-            gameLoop();
+            requestAnimationFrame(gameLoop);
         }
 
         function spawnPiece() {
@@ -277,7 +305,7 @@
             if (collide(0, 0)) {
                 gameActive = false;
                 saveScore();
-                showNotification('🎯 ИГРА ОКОНЧЕНА! Счет: ' + score);
+                showNotification('🎯 ИГРА ОКОНЧЕНА!');
                 setTimeout(showMenu, 2000);
             }
         }
@@ -292,15 +320,6 @@
                 }
             }
             return false;
-        }
-
-        function merge() {
-            currentPiece.shape.forEach((row, y) => {
-                row.forEach((val, x) => {
-                    if(val) board[curY+y][curX+x] = currentPiece.color;
-                });
-            });
-            clearLines();
         }
 
         function clearLines() {
@@ -321,27 +340,33 @@
             }
         }
 
-        // --- ПИТОМЦЫ (МАТЕМАТИКА) ---
+        function merge() {
+            currentPiece.shape.forEach((row, y) => {
+                row.forEach((val, x) => {
+                    if(val) board[curY+y][curX+x] = currentPiece.color;
+                });
+            });
+            clearLines();
+        }
+
+        // --- ПИТОМЦЫ ---
         function checkPets() {
             const petCount = Math.floor(score / 500);
-            const petEmoji = ['🐱','🐶','🦊','🐰','🐼','🦁','🐯','🦒'][petCount % 8];
-            document.getElementById('pet-emoji-display').textContent = petEmoji || '🦖';
+            const petEmojis = ['🐱','🐶','🦊','🐰','🐼','🦁','🐯','🦒'];
+            document.getElementById('pet-emoji-display').textContent = petEmojis[petCount % 8] || '🦖';
             document.getElementById('pet-food-count').textContent = `${score % 500}/500`;
-            if (score > 0 && score % 500 === 0) {
-                document.getElementById('pet-block').classList.add('ready');
-            }
+            if (score > 0 && score % 500 === 0) document.getElementById('pet-block').classList.add('ready');
         }
 
         function usePetAbility() {
             if (score < 500) return showNotification('❌ Нужно 500 очков!');
             board.pop(); board.unshift(Array(COLS).fill(0));
-            score -= 100;
+            score -= 100; updateDisplay();
             showNotification('✨ Питомец очистил строку!');
-            updateDisplay();
             document.getElementById('pet-block').classList.remove('ready');
         }
 
-        // --- API ВЗАИМОДЕЙСТВИЕ ---
+        // --- API ---
         async function saveScore() {
             if (!currentUserId) return;
             try {
@@ -358,7 +383,7 @@
             content.innerHTML = '⏳ Загрузка...';
             showScreen('stats');
             try {
-                const res = await fetch(`/api/user-stats?userId=${currentUserId}`);
+                const res = await fetch(`/api/user-stats?userId=${encodeURIComponent(currentUserId)}`);
                 const data = await res.json();
                 content.innerHTML = `
                     <div style="background:rgba(255,255,255,0.1); padding:20px; border-radius:15px;">
@@ -379,15 +404,28 @@
                 const data = await res.json();
                 content.innerHTML = data.players.map(p => `
                     <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #444;">
-                        <span>${p.rank}. ${p.username} (${p.city})</span>
+                        <span>${p.rank}. ${p.username}</span>
                         <span style="color:#ffd700">${p.score}</span>
                     </div>`).join('');
             } catch (e) { content.innerHTML = '❌ Ошибка'; }
         }
 
-        // --- ОТРИСОВКА И ЦИКЛ ---
+        // --- ЦИКЛ И ОТРИСОВКА ---
         const canvas = document.getElementById('tetris-canvas');
         const ctx = canvas.getContext('2d');
+        let lastTime = 0;
+
+        function gameLoop(time = 0) {
+            if (!gameActive) return;
+            const deltaTime = time - lastTime;
+            if (deltaTime > Math.max(100, 800 - (level * 50))) {
+                if (!collide(0, 1)) curY++;
+                else { merge(); spawnPiece(); }
+                lastTime = time;
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
 
         function draw() {
             ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -407,8 +445,8 @@
         }
 
         function drawNextPiece() {
-            const nCanvas = document.getElementById('next-piece-shape');
-            nCanvas.innerHTML = '';
+            const container = document.getElementById('next-piece-shape');
+            container.innerHTML = '';
             const grid = document.createElement('div');
             grid.className = 'piece-grid';
             grid.style.gridTemplateColumns = `repeat(${nextPiece.shape[0].length}, 1fr)`;
@@ -418,15 +456,7 @@
                 if(val) cell.style.backgroundColor = nextPiece.color;
                 grid.appendChild(cell);
             }));
-            nCanvas.appendChild(grid);
-        }
-
-        function gameLoop() {
-            if(!gameActive) return;
-            if(!collide(0, 1)) { curY++; } 
-            else { merge(); spawnPiece(); }
-            draw();
-            setTimeout(gameLoop, Math.max(100, 800 - (level * 50)));
+            container.appendChild(grid);
         }
 
         // --- УПРАВЛЕНИЕ ---
@@ -438,12 +468,17 @@
             if(!collide(0, 0, rotated)) { currentPiece.shape = rotated; draw(); }
         }
 
-        // --- ВСПОМОГАТЕЛЬНОЕ ---
+        function updateDisplay() {
+            document.getElementById('score-display').textContent = score;
+            document.getElementById('level-display').textContent = level;
+        }
+
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id + '-screen').classList.add('active');
             if(id === 'menu' && currentUserId) document.getElementById('user-display').textContent = '👤 ' + currentUserId;
         }
+
         function showMenu() { gameActive = false; showScreen('menu'); }
         function showNotification(m) {
             const n = document.getElementById('notification');
@@ -452,6 +487,7 @@
         }
 
         window.onload = () => {
+            populateLogins();
             if(currentUserId) showMenu();
             else showScreen('auth');
         };
