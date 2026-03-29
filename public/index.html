@@ -493,6 +493,17 @@
             board.forEach((row, y) => row.forEach((color, x) => { if(color) drawBlock(x, y, color); }));
             if(currentPiece) currentPiece.shape.forEach((row, y) => row.forEach((val, x) => { if(val) drawBlock(curX+x, curY+y, currentPiece.color); }));
         }
+
+        // --- УПРАВЛЕНИЕ КЛАВИАТУРОЙ ---
+        window.addEventListener('keydown', e => {
+            if (!gameActive) return;
+            if (e.key === 'ArrowLeft') moveLeft();
+            if (e.key === 'ArrowRight') moveRight();
+            if (e.key === 'ArrowDown') moveDown();
+            if (e.key === 'ArrowUp') rotatePiece();
+            if (e.key === ' ') rotatePiece(); 
+        });
+
         function drawBlock(x, y, color) { ctx.fillStyle = color; ctx.fillRect(x*BLOCK_SIZE, y*BLOCK_SIZE, BLOCK_SIZE-1, BLOCK_SIZE-1); }
         function drawNextPiece() {
             const container = document.getElementById('next-piece-shape'); container.innerHTML = '';
@@ -503,7 +514,11 @@
         function moveLeft() { if(!collide(-1, 0)) { curX--; draw(); } }
         function moveRight() { if(!collide(1, 0)) { curX++; draw(); } }
         function moveDown() { if(!collide(0, 1)) { curY++; draw(); } }
-        function rotatePiece() { const rotated = currentPiece.shape[0].map((_, i) => currentPiece.shape.map(row => row[i]).reverse()); if(!collide(0, 0, rotated)) { currentPiece.shape = rotated; draw(); } }
+        function rotatePiece() { 
+            if(!currentPiece) return;
+            const rotated = currentPiece.shape[0].map((_, i) => currentPiece.shape.map(row => row[i]).reverse()); 
+            if(!collide(0, 0, rotated)) { currentPiece.shape = rotated; draw(); } 
+        }
         function updateDisplay() { document.getElementById('score-display').textContent = score; document.getElementById('level-display').textContent = level; }
         function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id + '-screen').classList.add('active'); if(id === 'menu' && currentUserId) document.getElementById('user-display').textContent = '👤 ' + currentUserId; }
         function showMenu() { gameActive = false; showScreen('menu'); }
