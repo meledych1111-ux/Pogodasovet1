@@ -12,7 +12,6 @@ const pool = new Pool({
 const cloudEmojis = ['☁️', '🌤️', '⛅', '🌥️', '🌦️', '🌧️', '⛈️', '🌩️', '❄️', '🌈'];
 const cloudNames = ['Облачко', 'Тучка', 'Перистое Облако', 'Кучевое Облако', 'Слоистое Облако', 'Дождевое Облако', 'Грозовое Облако', 'Снежное Облако', 'Серебристое Облако', 'Жемчужное Облако', 'Золотое Облако', 'Лунное Облако', 'Лунная Лаванда', 'Лунный Свет', 'Звёздное Облако', 'Звёздочка', 'Звёздный Дождь', 'Комета', 'Хвостатая Комета', 'Звездопад'];
 
-// Генерируем уникальный анонимный ник на основе Telegram ID
 export function generateAnonymousName(id) {
     if (!id) return '❓ Странник';
     const hash = crypto.createHash('md5').update(String(id)).digest('hex');
@@ -26,14 +25,8 @@ async function query(text, params) {
     return await pool.query(text, params);
 }
 
-// ФУНКЦИИ ДЛЯ БОТА И АВТОРИЗАЦИИ
 export async function saveUserCity(cloudName, city) {
-    const sql = `
-        INSERT INTO users_cloud (cloud_name, city, last_active) 
-        VALUES ($1, $2, NOW())
-        ON CONFLICT (cloud_name) DO UPDATE SET 
-            city = $2,
-            last_active = NOW()`;
+    const sql = `INSERT INTO users_cloud (cloud_name, city, last_active) VALUES ($1, $2, NOW()) ON CONFLICT (cloud_name) DO UPDATE SET city = $2, last_active = NOW()`;
     return await query(sql, [cloudName, city]);
 }
 
@@ -42,49 +35,24 @@ export async function getUserCity(cloudName) {
     return { success: true, city: res.rows[0]?.city || 'Не указан' };
 }
 
-// Новая функция для полной регистрации/обновления пользователя
 export async function saveOrUpdateUser({ user_id, city }) {
-    const sql = `
-        INSERT INTO users_cloud (cloud_name, city, last_active) 
-        VALUES ($1, $2, NOW())
-        ON CONFLICT (cloud_name) DO UPDATE SET 
-            city = CASE WHEN $2 != 'Не указан' THEN $2 ELSE users_cloud.city END,
-            last_active = NOW()`;
+    const sql = `INSERT INTO users_cloud (cloud_name, city, last_active) VALUES ($1, $2, NOW()) ON CONFLICT (cloud_name) DO UPDATE SET city = CASE WHEN $2 != 'Не указан' THEN $2 ELSE users_cloud.city END, last_active = NOW()`;
     return await query(sql, [user_id, city || 'Не указан']);
 }
 
-// Сохранение результата игры
 export async function saveGameScore(cloudName, gameType, score, level, lines, city) {
-    const sql = `
-        INSERT INTO game_scores (cloud_name, game_type, score, level, lines, city, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())`;
+    const sql = `INSERT INTO game_scores (cloud_name, game_type, score, level, lines, city, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())`;
     return await query(sql, [cloudName, gameType, score, level, lines, city || 'Не указан']);
 }
 
-// Полная статистика игрока
 export async function getGameStats(cloudName, gameType) {
-    const sql = `
-        SELECT 
-            COUNT(*) as games_played, 
-            MAX(score) as best_score, 
-            MAX(level) as best_level, 
-            MAX(lines) as best_lines, 
-            AVG(score) as avg_score
-        FROM game_scores 
-        WHERE cloud_name = $1 AND game_type = $2`;
+    const sql = `SELECT COUNT(*) as games_played, MAX(score) as best_score, MAX(level) as best_level, MAX(lines) as best_lines, AVG(score) as avg_score FROM game_scores WHERE cloud_name = $1 AND game_type = $2`;
     const res = await query(sql, [cloudName, gameType]);
     return res.rows[0];
 }
 
-// ТОП игроков (с именами и городами)
 export async function getTopPlayers(gameType, limit = 10) {
-    const sql = `
-        SELECT cloud_name as username, MAX(score) as score, MAX(city) as city
-        FROM game_scores
-        WHERE game_type = $1
-        GROUP BY cloud_name
-        ORDER BY score DESC
-        LIMIT $2`;
+    const sql = `SELECT cloud_name as username, MAX(score) as score, MAX(city) as city, MAX(level) as level FROM game_scores WHERE game_type = $1 GROUP BY cloud_name ORDER BY score DESC LIMIT $2`;
     const res = await query(sql, [gameType, limit]);
     return {
         success: true,
@@ -92,12 +60,12 @@ export async function getTopPlayers(gameType, limit = 10) {
             rank: index + 1,
             username: row.username,
             score: row.score,
+            level: row.level,
             city: row.city || 'Не указан'
         }))
     };
 }
 
-// Список уже занятых имен (для ручного входа в игру)
 export async function getTakenNames() {
     const res = await query('SELECT cloud_name FROM users_cloud ORDER BY last_active DESC LIMIT 100');
     return res.rows.map(r => r.cloud_name);
@@ -105,21 +73,8 @@ export async function getTakenNames() {
 
 export const initDb = async () => {
     await query(`
-        CREATE TABLE IF NOT EXISTS users_cloud (
-            cloud_name VARCHAR(100) PRIMARY KEY, 
-            city VARCHAR(100) DEFAULT 'Не указан', 
-            last_active TIMESTAMP DEFAULT NOW()
-        );
-        CREATE TABLE IF NOT EXISTS game_scores (
-            id SERIAL PRIMARY KEY, 
-            cloud_name VARCHAR(100), 
-            game_type VARCHAR(50), 
-            score INTEGER, 
-            level INTEGER, 
-            lines INTEGER, 
-            city VARCHAR(100), 
-            created_at TIMESTAMP DEFAULT NOW()
-        );
+        CREATE TABLE IF NOT EXISTS users_cloud (cloud_name VARCHAR(100) PRIMARY KEY, city VARCHAR(100) DEFAULT 'Не указан', last_active TIMESTAMP DEFAULT NOW());
+        CREATE TABLE IF NOT EXISTS game_scores (id SERIAL PRIMARY KEY, cloud_name VARCHAR(100), game_type VARCHAR(50), score INTEGER, level INTEGER, lines INTEGER, city VARCHAR(100), created_at TIMESTAMP DEFAULT NOW());
     `);
 };
 
