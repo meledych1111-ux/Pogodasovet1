@@ -1,4 +1,4 @@
-import { saveScore, getStats } from './db.js';
+import { saveGameScore, getGameStats } from './db.js';
 
 export default async function handler(req, res) {
   // CORS headers
@@ -15,31 +15,30 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { username, score, level = 1, lines = 0, gameType = 'tetris' } = req.body;
+    const { userId, score, level = 1, lines = 0, gameType = 'tetris', username } = req.body;
     
-    // В новой системе мы работаем только по username (логину), а не по ID
-    if (!username || score === undefined) {
+    if (!userId || score === undefined) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: username, score'
+        error: 'Missing required fields: userId, score'
       });
     }
 
-    console.log(`💾 Сохранение счета для игрока ${username}: ${score}`);
+    console.log(`💾 Сохранение счета для пользователя ${userId}: ${score}`);
     
     // Сохраняем в БД
-    await saveScore(username, parseInt(score), parseInt(level), parseInt(lines));
+    const result = await saveGameScore(userId, gameType, parseInt(score), parseInt(level), parseInt(lines), username);
     
     // Получаем обновленную статистику
-    const stats = await getStats(username);
+    const stats = await getGameStats(userId, gameType);
     
     return res.status(200).json({
       success: true,
-      username: username,
+      userId: userId,
       score: parseInt(score),
       stats: {
         best_score: stats?.best_score || 0,
-        games_played: stats?.games || 0
+        games_played: stats?.games_played || 0
       }
     });
 
