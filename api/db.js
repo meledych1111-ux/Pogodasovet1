@@ -26,7 +26,23 @@ async function query(text, params) {
     return await pool.query(text, params);
 }
 
-// Сохранение результата по Облачному нику
+// ФУНКЦИИ ДЛЯ БОТА (Адаптированные под Облака)
+export async function saveUserCity(cloudName, city) {
+    const sql = `
+        INSERT INTO users_cloud (cloud_name, city, last_active) 
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (cloud_name) DO UPDATE SET 
+            city = $2,
+            last_active = NOW()`;
+    return await query(sql, [cloudName, city]);
+}
+
+export async function getUserCity(cloudName) {
+    const res = await query('SELECT city FROM users_cloud WHERE cloud_name = $1', [cloudName]);
+    return { success: true, city: res.rows[0]?.city || 'Не указан' };
+}
+
+// Сохранение результата
 export async function saveGameScore(cloudName, gameType, score, level, lines, city) {
     const sql = `
         INSERT INTO game_scores (cloud_name, game_type, score, level, lines, city, created_at)
@@ -34,7 +50,7 @@ export async function saveGameScore(cloudName, gameType, score, level, lines, ci
     return await query(sql, [cloudName, gameType, score, level, lines, city || 'Не указан']);
 }
 
-// Статистика по Облачному нику
+// Статистика
 export async function getGameStats(cloudName, gameType) {
     const sql = `
         SELECT COUNT(*) as games_played, MAX(score) as best_score, MAX(level) as best_level, MAX(lines) as best_lines, AVG(score) as avg_score
@@ -43,7 +59,7 @@ export async function getGameStats(cloudName, gameType) {
     return res.rows[0];
 }
 
-// ТОП игроков по Облачному нику
+// ТОП игроков
 export async function getTopPlayers(gameType, limit = 10) {
     const sql = `
         SELECT cloud_name as username, MAX(score) as score, MAX(city) as city
@@ -65,7 +81,6 @@ export async function getTopPlayers(gameType, limit = 10) {
 }
 
 export const initDb = async () => {
-    // Удаляем старые таблицы или создаем новые без ID
     await query(`
         CREATE TABLE IF NOT EXISTS users_cloud (
             cloud_name VARCHAR(100) PRIMARY KEY, 
