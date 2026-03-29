@@ -286,386 +286,69 @@ async function getWeatherData(cityName, forceRefresh = false) {
   }
 }
 
-// ===================== РАСШИРЕННЫЙ ПРОГНОЗ НА СЕГОДНЯ (ПО ПЕРИОДАМ) =====================
-async function getDetailedTodayWeather(cityName, forceRefresh = false) {
+// ===================== РАСШИРЕННЫЙ ПРОГНОЗ ПО ПЕРИОДАМ (УНИВЕРСАЛЬНЫЙ) =====================
+async function getDetailedForecast(cityName, dayOffset = 0) {
   try {
-    if (!cityName) {
-      return { success: false, error: 'Город не указан', city: 'Неизвестно' };
-    }
-
-    const cacheKey = `detailed_today_${cityName.toLowerCase()}`;
-    const now = Date.now();
-
-    if (!forceRefresh && weatherCache.has(cacheKey)) {
-      const cached = weatherCache.get(cacheKey);
-      if (now - cached.timestamp < 1800000) {
-        return cached.data;
-      }
-    }
-
     const encodedCity = encodeURIComponent(cityName);
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodedCity}&count=1&language=ru`;
-
-    const geoResponse = await fetch(geoUrl);
-    const geoData = await geoResponse.json();
-
-    if (!geoData.results || geoData.results.length === 0) {
-      throw new Error('Город не найден');
-    }
+    const geoRes = await fetch(geoUrl);
+    const geoData = await geoRes.json();
+    if (!geoData.results?.[0]) throw new Error('Город не найден');
 
     const { latitude, longitude, name } = geoData.results[0];
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=sunrise,sunset&timezone=auto&forecast_days=${dayOffset + 1}`;
+    
+    const response = await fetch(url);
+    const data = await response.json();
 
-    // РАСШИРЕННЫЙ ЗАПРОС С ДАВЛЕНИЕМ И ОСАДКАМИ
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?
-      latitude=${latitude}
-      &longitude=${longitude}
-      &hourly=
-        temperature_2m,
-        apparent_temperature,
-        precipitation_probability,
-        precipitation,
-        rain,
-        snowfall,
-        weather_code,
-        wind_speed_10m,
-        wind_direction_10m,
-        wind_gusts_10m,
-        pressure_msl,
-        cloud_cover,
-        visibility,
-        is_day
-      &daily=
-        temperature_2m_max,
-        temperature_2m_min,
-        apparent_temperature_max,
-        apparent_temperature_min,
-        sunrise,
-        sunset,
-        uv_index_max,
-        precipitation_sum,
-        precipitation_hours,
-        precipitation_probability_max,
-        wind_speed_10m_max,
-        wind_gusts_10m_max,
-        wind_direction_10m_dominant
-      &wind_speed_unit=ms
-      &timezone=auto
-      &forecast_days=1`.replace(/\s+/g, '');
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + dayOffset);
+    const dateStr = targetDate.toISOString().split('T')[0];
 
-    const forecastResponse = await fetch(forecastUrl);
-    const forecastData = await forecastResponse.json();
+    const periods = [
+      { name: 'Ночь', hours: [0, 1, 2, 3, 4, 5], emoji: '🌙' },
+      { name: 'Утро', hours: [6, 7, 8, 9, 10, 11], emoji: '🌅' },
+      { name: 'День', hours: [12, 13, 14, 15, 16, 17], emoji: '☀️' },
+      { name: 'Вечер', hours: [18, 19, 20, 21, 22, 23], emoji: '🌆' }
+    ];
 
-    if (!forecastData.hourly || !forecastData.daily) {
-      throw new Error('Нет данных прогноза');
-    }
+    let output = "";
+    periods.forEach(p => {
+      const indices = data.hourly.time.map((t, i) => t.startsWith(dateStr) && p.hours.includes(new Date(t).getHours()) ? i : -1).filter(i => i !== -1);
+      if (indices.length > 0) {
+        const temps = indices.map(i => data.hourly.temperature_2m[i]);
+        const feels = indices.map(i => data.hourly.apparent_temperature[i]);
+        const codes = indices.map(i => data.hourly.weather_code[i]);
+        const winds = indices.map(i => data.hourly.wind_speed_10m[i]);
+        const probs = indices.map(i => data.hourly.precipitation_probability[i]);
 
-    const todayDate = new Date();
-    const todayDateStr = todayDate.toISOString().split('T')[0];
-
-    // Получаем индексы часов на сегодня
-    const todayHours = [];
-    forecastData.hourly.time.forEach((time, index) => {
-      if (time.startsWith(todayDateStr)) {
-        todayHours.push(index);
-      }
-    });
-
-    if (todayHours.length === 0) {
-      throw new Error('Нет данных на сегодня');
-    }
-
-    // Периоды дня
-    const periods = {
-      'ночь': { start: 0, end: 5, emoji: '🌙', title: 'Ночь (00:00-06:00)' },
-      'утро': { start: 6, end: 11, emoji: '🌅', title: 'Утро (06:00-12:00)' },
-      'день': { start: 12, end: 17, emoji: '☀️', title: 'День (12:00-18:00)' },
-      'вечер': { start: 18, end: 23, emoji: '🌆', title: 'Вечер (18:00-00:00)' }
-    };
-
-    const periodData = {};
-    let maxTemp = -100;
-    let minTemp = 100;
-    let maxWindGust = 0;
-    let totalPrecip = 0;
-
-    for (const [periodName, range] of Object.entries(periods)) {
-      const periodHours = todayHours.filter(index => {
-        const hour = new Date(forecastData.hourly.time[index]).getHours();
-        return hour >= range.start && hour <= range.end;
-      });
-
-      if (periodHours.length > 0) {
-        // Собираем данные по периоду
-        const temps = periodHours.map(i => forecastData.hourly.temperature_2m[i]);
-        const feels = periodHours.map(i => forecastData.hourly.apparent_temperature[i]);
-        const precipProb = periodHours.map(i => forecastData.hourly.precipitation_probability[i] || 0);
-        const precip = periodHours.map(i => forecastData.hourly.precipitation[i] || 0);
-        const rain = periodHours.map(i => forecastData.hourly.rain[i] || 0);
-        const snow = periodHours.map(i => forecastData.hourly.snowfall[i] || 0);
-        const weatherCodes = periodHours.map(i => forecastData.hourly.weather_code[i]);
-        const windSpeed = periodHours.map(i => forecastData.hourly.wind_speed_10m[i]);
-        const windGusts = periodHours.map(i => forecastData.hourly.wind_gusts_10m[i] || 0);
-        const pressure = periodHours.map(i => forecastData.hourly.pressure_msl[i] || 0);
-        const cloudCover = periodHours.map(i => forecastData.hourly.cloud_cover[i] || 0);
-
-        const tempMin = Math.min(...temps);
-        const tempMax = Math.max(...temps);
-        const feelsMin = Math.min(...feels);
-        const feelsMax = Math.max(...feels);
-        const precipProbAvg = Math.round(precipProb.reduce((a, b) => a + b, 0) / precipProb.length);
-        const precipSum = precip.reduce((a, b) => a + b, 0);
-        const rainSum = rain.reduce((a, b) => a + b, 0);
-        const snowSum = snow.reduce((a, b) => a + b, 0);
-        const windAvg = (windSpeed.reduce((a, b) => a + b, 0) / windSpeed.length).toFixed(1);
-        const windGustsMax = Math.max(...windGusts).toFixed(1);
-        const pressureAvg = pressure.length > 0 ? Math.round(pressure.reduce((a, b) => a + b, 0) / pressure.length * 0.750062) : null;
-        const cloudAvg = Math.round(cloudCover.reduce((a, b) => a + b, 0) / cloudCover.length);
-
+        const avgTemp = Math.round(temps.reduce((a, b) => a + b) / temps.length);
+        const avgFeel = Math.round(feels.reduce((a, b) => a + b) / feels.length);
+        const maxProb = Math.max(...probs);
+        const avgWind = (winds.reduce((a, b) => a + b) / winds.length).toFixed(1);
+        
         // Самый частый код погоды
-        const codeFreq = {};
-        weatherCodes.forEach(code => {
-          codeFreq[code] = (codeFreq[code] || 0) + 1;
-        });
-        const mostFrequentCode = Object.keys(codeFreq).reduce((a, b) =>
-          codeFreq[a] >= codeFreq[b] ? a : b
-        );
+        const counts = {}; codes.forEach(c => counts[c] = (counts[c] || 0) + 1);
+        const mainCode = Object.keys(counts).reduce((a, b) => counts[a] >= counts[b] ? a : b);
 
-        maxTemp = Math.max(maxTemp, tempMax);
-        minTemp = Math.min(minTemp, tempMin);
-        maxWindGust = Math.max(maxWindGust, parseFloat(windGustsMax));
-        totalPrecip += precipSum;
-
-        let precipType = 'Без осадков ✨';
-        if (snowSum > 0) {
-          if (snowSum < 1) precipType = 'Небольшой снег ❄️';
-          else if (snowSum < 3) precipType = 'Снег ❄️';
-          else precipType = 'Сильный снегопад ❄️❄️';
-        } else if (rainSum > 0) {
-          if (rainSum < 1) precipType = 'Небольшой дождь 🌦️';
-          else if (rainSum < 3) precipType = 'Дождь 🌧️';
-          else precipType = 'Сильный дождь 🌧️🌧️';
-        }
-
-        periodData[periodName] = {
-          title: range.title,
-          emoji: range.emoji,
-          temp_min: Math.round(tempMin),
-          temp_max: Math.round(tempMax),
-          feels_min: Math.round(feelsMin),
-          feels_max: Math.round(feelsMax),
-          precip_prob: precipProbAvg,
-          precip_sum: precipSum.toFixed(1),
-          precip_type: precipType,
-          rain_sum: rainSum.toFixed(1),
-          snow_sum: snowSum.toFixed(1),
-          wind_avg: windAvg,
-          wind_gusts_max: windGustsMax,
-          pressure_avg: pressureAvg,
-          cloud_avg: cloudAvg,
-          weather_code: parseInt(mostFrequentCode),
-          description: getWeatherDescription(parseInt(mostFrequentCode))
-        };
-      }
-    }
-
-    const daily = forecastData.daily;
-    const sunrise = daily?.sunrise?.[0]?.substring(11, 16) || '—';
-    const sunset = daily?.sunset?.[0]?.substring(11, 16) || '—';
-    const uvMax = daily?.uv_index_max?.[0]?.toFixed(1) || '—';
-
-    // Форматируем периоды в текст для вывода
-    let periodsText = "";
-    for (const p of Object.values(periodData)) {
-      periodsText += `${p.emoji} *${p.title}:* ${p.temp_min}°...${p.temp_max}°C, ${p.description}\n`;
-    }
-
-    const forecastResult = {
-      success: true,
-      city: name,
-      date: todayDate.toLocaleDateString('ru-RU', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long'
-      }),
-      temp_min: minTemp !== 100 ? Math.round(minTemp) : null,
-      temp_max: maxTemp !== -100 ? Math.round(maxTemp) : null,
-      feels_min: daily?.apparent_temperature_min ? Math.round(daily.apparent_temperature_min[0]) : null,
-      feels_max: daily?.apparent_temperature_max ? Math.round(daily.apparent_temperature_max[0]) : null,
-      precipitation_today: daily?.precipitation_sum?.[0] || 0,
-      precipitation_hours: daily?.precipitation_hours?.[0] || 0,
-      precipitation_prob_max: daily?.precipitation_probability_max?.[0] || 0,
-      wind_max: daily?.wind_speed_10m_max?.[0]?.toFixed(1) || '—',
-      wind_gusts_max: daily?.wind_gusts_10m_max?.[0]?.toFixed(1) || '—',
-      wind_dir: getWindDirection(daily?.wind_direction_10m_dominant?.[0]),
-      uv_max: uvMax,
-      sunrise: sunrise,
-      sunset: sunset,
-      day_length: calculateDayLength(sunrise, sunset),
-      periods: periodsText,
-      updated: new Date().toLocaleTimeString('ru-RU')
-    };
-
-    weatherCache.set(cacheKey, { data: forecastResult, timestamp: now });
-    return forecastResult;
-
-  } catch (error) {
-    console.error('❌ Ошибка получения детального прогноза:', error.message);
-    return {
-      success: false,
-      error: `Не удалось получить прогноз: ${error.message}`,
-      city: cityName
-    };
-  }
-}
-
-// ===================== РАСШИРЕННЫЙ ПРОГНОЗ НА ЗАВТРА =====================
-async function getWeatherForecast(cityName, forceRefresh = false) {
-  try {
-    if (!cityName) {
-      return { success: false, error: 'Город не указан', city: 'Неизвестно' };
-    }
-
-    const cacheKey = `forecast_${cityName.toLowerCase()}`;
-    const now = Date.now();
-
-    if (!forceRefresh && weatherCache.has(cacheKey)) {
-      const cached = weatherCache.get(cacheKey);
-      if (now - cached.timestamp < 1800000) {
-        return cached.data;
-      }
-    }
-
-    const encodedCity = encodeURIComponent(cityName);
-    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodedCity}&count=1&language=ru`;
-
-    const geoResponse = await fetch(geoUrl);
-    const geoData = await geoResponse.json();
-
-    if (!geoData.results || geoData.results.length === 0) {
-      throw new Error('Город не найден');
-    }
-
-    const { latitude, longitude, name } = geoData.results[0];
-
-    // РАСШИРЕННЫЙ ЗАПРОС НА ЗАВТРА
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?
-      latitude=${latitude}
-      &longitude=${longitude}
-      &hourly=
-        temperature_2m,
-        apparent_temperature,
-        precipitation_probability,
-        precipitation,
-        rain,
-        snowfall,
-        weather_code,
-        wind_speed_10m,
-        wind_direction_10m,
-        wind_gusts_10m,
-        pressure_msl,
-        cloud_cover,
-        visibility,
-        is_day
-      &daily=
-        temperature_2m_max,
-        temperature_2m_min,
-        apparent_temperature_max,
-        apparent_temperature_min,
-        sunrise,
-        sunset,
-        uv_index_max,
-        precipitation_sum,
-        precipitation_hours,
-        precipitation_probability_max,
-        wind_speed_10m_max,
-        wind_gusts_10m_max,
-        wind_direction_10m_dominant
-      &wind_speed_unit=ms
-      &timezone=auto
-      &forecast_days=2`.replace(/\s+/g, '');
-
-    const forecastResponse = await fetch(forecastUrl);
-    const forecastData = await forecastResponse.json();
-
-    if (!forecastData.hourly || !forecastData.daily) {
-      throw new Error('Нет данных прогноза');
-    }
-
-    const tomorrowDate = new Date();
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrowDateStr = tomorrowDate.toISOString().split('T')[0];
-
-    // Получаем индексы часов на завтра
-    const tomorrowHours = [];
-    forecastData.hourly.time.forEach((time, index) => {
-      if (time.startsWith(tomorrowDateStr)) {
-        tomorrowHours.push(index);
+        output += `${p.emoji} *${p.name}:* ${Math.min(...temps).toFixed(0)}°...${Math.max(...temps).toFixed(0)}°C\n`;
+        output += `   ${getWeatherDescription(parseInt(mainCode))} (ощущ. ${avgFeel}°)\n`;
+        output += `   💨 ${avgWind} м/с | ☔ ${maxProb}%\n\n`;
       }
     });
 
-    if (tomorrowHours.length === 0) {
-      throw new Error('Нет данных на завтра');
-    }
+    const sunrise = data.daily.sunrise[dayOffset].split('T')[1];
+    const sunset = data.daily.sunset[dayOffset].split('T')[1];
+    output += `🌅 Восход: ${sunrise} | 🌆 Закат: ${sunset}`;
 
-    // Периоды дня
-    const periods = {
-      'ночь': { start: 0, end: 5, emoji: '🌙', title: 'Ночь (00:00-06:00)' },
-      'утро': { start: 6, end: 11, emoji: '🌅', title: 'Утро (06:00-12:00)' },
-      'день': { start: 12, end: 17, emoji: '☀️', title: 'День (12:00-18:00)' },
-      'вечер': { start: 18, end: 23, emoji: '🌆', title: 'Вечер (18:00-00:00)' }
-    };
-
-    const periodData = {};
-    let maxTemp = -100;
-    let minTemp = 100;
-
-    for (const [periodName, range] of Object.entries(periods)) {
-      const periodHours = tomorrowHours.filter(index => {
-        const hour = new Date(forecastData.hourly.time[index]).getHours();
-        return hour >= range.start && hour <= range.end;
-      });
-
-      if (periodHours.length > 0) {
-        const temps = periodHours.map(i => forecastData.hourly.temperature_2m[i]);
-        const weatherCodes = periodHours.map(i => forecastData.hourly.weather_code[i]);
-        const tempMin = Math.min(...temps);
-        const tempMax = Math.max(...temps);
-
-        const codeFreq = {};
-        weatherCodes.forEach(code => codeFreq[code] = (codeFreq[code] || 0) + 1);
-        const mostFrequentCode = Object.keys(codeFreq).reduce((a, b) => codeFreq[a] >= codeFreq[b] ? a : b);
-
-        maxTemp = Math.max(maxTemp, tempMax);
-        minTemp = Math.min(minTemp, tempMin);
-
-        periodData[periodName] = {
-          title: range.title,
-          emoji: range.emoji,
-          temp_min: Math.round(tempMin),
-          temp_max: Math.round(tempMax),
-          description: getWeatherDescription(parseInt(mostFrequentCode))
-        };
-      }
-    }
-
-    let periodsText = "";
-    for (const p of Object.values(periodData)) {
-      periodsText += `${p.emoji} *${p.title}:* ${p.temp_min}°...${p.temp_max}°C, ${p.description}\n`;
-    }
-
-    const forecastResult = {
-      success: true,
-      city: name,
-      periods: periodsText
-    };
-
-    weatherCache.set(cacheKey, { data: forecastResult, timestamp: now });
-    return forecastResult;
-
-  } catch (error) {
-    return { success: false, error: error.message };
+    return { success: true, city: name, periods: output };
+  } catch (e) {
+    return { success: false, error: e.message };
   }
 }
+
+async function getDetailedTodayWeather(cityName) { return await getDetailedForecast(cityName, 0); }
+async function getWeatherForecast(cityName) { return await getDetailedForecast(cityName, 1); }
 
 // ===================== ФУНКЦИЯ РЕКОМЕНДАЦИЙ ПО ОДЕЖДЕ =====================
 function getWardrobeAdvice(weatherData) {
