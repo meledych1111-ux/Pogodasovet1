@@ -56,6 +56,7 @@ export async function saveOrUpdateUser(userData) {
     const anonymousName = generateAnonymousName(dbUserId);
     const client = await pool.connect();
     try {
+        await initDb(client); // Гарантируем таблицы
         const query = `
             INSERT INTO users (user_id, chat_id, username, first_name, city, last_active) 
             VALUES ($1, $2, $3, $4, $5, NOW())
@@ -113,11 +114,11 @@ export async function getGameStats(userId, gameType = 'tetris') {
         const result = await client.query(query, [dbUserId, gameType]);
         const r = result.rows[0];
         return {
-            games_played: parseInt(r.games_played || 0),
-            best_score: parseInt(r.best_score || 0),
-            best_level: parseInt(r.best_level || 0),
-            best_lines: parseInt(r.best_lines || 0),
-            avg_score: Math.round(parseFloat(r.avg_score) || 0)
+            games_played: parseInt(r?.games_played || 0),
+            best_score: parseInt(r?.best_score || 0),
+            best_level: parseInt(r?.best_level || 0),
+            best_lines: parseInt(r?.best_lines || 0),
+            avg_score: Math.round(parseFloat(r?.avg_score) || 0)
         };
     } finally { client.release(); }
 }
@@ -167,16 +168,45 @@ export async function deleteGameProgress(userId, gameType) {
 }
 
 // ===================== ИНИЦИАЛИЗАЦИЯ =====================
-export const initDb = async () => {
-    const client = await pool.connect();
+export const initDb = async (passClient = null) => {
+    const client = passClient || await pool.connect();
     try {
         await client.query(`
-            CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, user_id VARCHAR(50) UNIQUE, chat_id BIGINT, username VARCHAR(100), first_name VARCHAR(100), city VARCHAR(100) DEFAULT 'Не указан', last_active TIMESTAMP DEFAULT NOW());
-            CREATE TABLE IF NOT EXISTS game_scores (id SERIAL PRIMARY KEY, user_id VARCHAR(50), username VARCHAR(100), game_type VARCHAR(50), score INTEGER, level INTEGER, lines INTEGER, is_win BOOLEAN, city VARCHAR(100), created_at TIMESTAMP DEFAULT NOW());
-            CREATE TABLE IF NOT EXISTS game_progress (user_id VARCHAR(50), game_type VARCHAR(50), score INTEGER, level INTEGER, lines INTEGER, last_saved TIMESTAMP, PRIMARY KEY(user_id, game_type));
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY, 
+                user_id VARCHAR(100) UNIQUE, 
+                chat_id BIGINT, 
+                username VARCHAR(100), 
+                first_name VARCHAR(100), 
+                city VARCHAR(100) DEFAULT 'Не указан', 
+                last_active TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS game_scores (
+                id SERIAL PRIMARY KEY, 
+                user_id VARCHAR(100), 
+                username VARCHAR(100), 
+                game_type VARCHAR(50), 
+                score INTEGER, 
+                level INTEGER, 
+                lines INTEGER, 
+                is_win BOOLEAN, 
+                city VARCHAR(100), 
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS game_progress (
+                user_id VARCHAR(100), 
+                game_type VARCHAR(50), 
+                score INTEGER, 
+                level INTEGER, 
+                lines INTEGER, 
+                last_saved TIMESTAMP, 
+                PRIMARY KEY(user_id, game_type)
+            );
         `);
-    } finally { client.release(); }
+    } finally { if(!passClient) client.release(); }
 };
-initDb().catch(console.error);
+
+// Проверка при запуске
+initDb().catch(e => console.error('SQL Init Error:', e.message));
 
 export { pool };
