@@ -21,34 +21,16 @@ dotenv.config({ path: envPath });
 const bot = new Bot(process.env.BOT_TOKEN || 'dummy');
 
 // ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
-// ===================== КЭШ ПОГОДЫ =====================
 const weatherCache = new Map();
-
-// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ПОГОДЫ =====================
 
 /**
  * Получить текстовое описание направления ветра
  */
 function getWindDirection(degrees) {
   if (degrees === undefined || degrees === null) return '—';
-
   const directions = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
   const index = Math.round(degrees / 45) % 8;
   return directions[index];
-}
-
-/**
- * Описание облачности
- */
-function getCloudDescription(cloudPercent) {
-  if (cloudPercent === undefined || cloudPercent === null) return '—';
-
-  if (cloudPercent < 10) return 'Ясно ☀️';
-  if (cloudPercent < 30) return 'Малооблачно 🌤️';
-  if (cloudPercent < 50) return 'Переменная облачность ⛅';
-  if (cloudPercent < 70) return 'Облачно с прояснениями 🌥️';
-  if (cloudPercent < 85) return 'Облачно ☁️';
-  return 'Пасмурно ☁️';
 }
 
 /**
@@ -56,18 +38,11 @@ function getCloudDescription(cloudPercent) {
  */
 function calculateDayLength(sunrise, sunset) {
   if (!sunrise || !sunset || sunrise === '—' || sunset === '—') return '—';
-
   const [sunriseHour, sunriseMin] = sunrise.split(':').map(Number);
   const [sunsetHour, sunsetMin] = sunset.split(':').map(Number);
-
   let hours = sunsetHour - sunriseHour;
   let minutes = sunsetMin - sunriseMin;
-
-  if (minutes < 0) {
-    hours--;
-    minutes += 60;
-  }
-
+  if (minutes < 0) { hours--; minutes += 60; }
   return `${hours} ч ${minutes} мин`;
 }
 
@@ -76,217 +51,66 @@ function calculateDayLength(sunrise, sunset) {
  */
 function getWeatherDescription(code) {
   const weatherMap = {
-    0: 'Ясно ☀️',
-    1: 'В основном ясно 🌤️',
-    2: 'Переменная облачность ⛅',
-    3: 'Пасмурно ☁️',
-    45: 'Туман 🌫️',
-    48: 'Изморозь 🌫️',
-    51: 'Лёгкая морось 🌧️',
-    53: 'Морось 🌧️',
-    55: 'Сильная морось 🌧️',
-    61: 'Небольшой дождь 🌧️',
-    63: 'Дождь 🌧️',
-    65: 'Сильный дождь 🌧️',
-    71: 'Небольшой снег ❄️',
-    73: 'Снег ❄️',
-    75: 'Сильный снег ❄️',
-    80: 'Небольшой ливень 🌧️',
-    81: 'Ливень 🌧️',
-    82: 'Сильный ливень 🌧️',
-    85: 'Небольшой снегопад ❄️',
-    86: 'Сильный снегопад ❄️',
-    95: 'Гроза ⛈️',
-    96: 'Гроза с градом ⛈️',
-    99: 'Сильная гроза с градом ⛈️'
+    0: 'Ясно ☀️', 1: 'В основном ясно 🌤️', 2: 'Переменная облачность ⛅', 3: 'Пасмурно ☁️',
+    45: 'Туман 🌫️', 48: 'Изморозь 🌫️', 51: 'Лёгкая морось 🌧️', 53: 'Морось 🌧️',
+    55: 'Сильная морось 🌧️', 61: 'Небольшой дождь 🌧️', 63: 'Дождь 🌧️', 65: 'Сильный дождь 🌧️',
+    71: 'Небольшой снег ❄️', 73: 'Снег ❄️', 75: 'Сильный снег ❄️', 80: 'Небольшой ливень 🌧️',
+    81: 'Ливень 🌧️', 82: 'Сильный ливень 🌧️', 85: 'Небольшой снегопад ❄️', 86: 'Сильный снегопад ❄️',
+    95: 'Гроза ⛈️', 96: 'Гроза с градом ⛈️', 99: 'Сильная гроза с градом ⛈️'
   };
   return weatherMap[code] || `Код погоды: ${code}`;
-}
-
-/**
- * Определение типа осадков
- */
-function getPrecipitationType(rain, snow) {
-  if (snow > 0) {
-    if (snow < 1) return 'Небольшой снег ❄️';
-    if (snow < 3) return 'Снег ❄️';
-    return 'Сильный снегопад ❄️❄️';
-  }
-  if (rain > 0) {
-    if (rain < 1) return 'Небольшой дождь 🌦️';
-    if (rain < 3) return 'Дождь 🌧️';
-    return 'Сильный дождь 🌧️🌧️';
-  }
-  return 'Без осадков ✨';
 }
 
 // ===================== УЛУЧШЕННАЯ ФУНКЦИЯ ПОГОДЫ НА СЕЙЧАС =====================
 async function getWeatherData(cityName, forceRefresh = false) {
   try {
-    if (!cityName) {
-      return { success: false, error: 'Город не указан', city: 'Неизвестно' };
-    }
-
+    if (!cityName) return { success: false, error: 'Город не указан' };
     const cacheKey = `current_${cityName.toLowerCase()}`;
     const now = Date.now();
-
     if (!forceRefresh && weatherCache.has(cacheKey)) {
       const cached = weatherCache.get(cacheKey);
-      if (now - cached.timestamp < 600000) {
-        return cached.data;
-      }
+      if (now - cached.timestamp < 600000) return cached.data;
     }
 
     const encodedCity = encodeURIComponent(cityName);
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodedCity}&count=1&language=ru`;
-
     const geoResponse = await fetch(geoUrl);
     const geoData = await geoResponse.json();
-
-    if (!geoData.results || geoData.results.length === 0) {
-      throw new Error('Город не найден');
-    }
-
+    if (!geoData.results || geoData.results.length === 0) throw new Error('Город не найден');
     const { latitude, longitude, name } = geoData.results[0];
 
-    // Расширенный запрос
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?
-      latitude=${latitude}
-      &longitude=${longitude}
-      &current=
-        temperature_2m,
-        apparent_temperature,
-        relative_humidity_2m,
-        wind_speed_10m,
-        wind_direction_10m,
-        wind_gusts_10m,
-        pressure_msl,
-        precipitation,
-        rain,
-        snowfall,
-        weather_code,
-        cloud_cover,
-        visibility,
-        is_day
-      &daily=
-        temperature_2m_max,
-        temperature_2m_min,
-        sunrise,
-        sunset,
-        precipitation_sum
-      &wind_speed_unit=ms
-      &timezone=auto
-      &forecast_days=1`.replace(/\s+/g, '');
-
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl,precipitation,rain,snowfall,weather_code,is_day&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&wind_speed_unit=ms&timezone=auto&forecast_days=1`;
     const weatherResponse = await fetch(weatherUrl);
     const weatherData = await weatherResponse.json();
-
-    if (!weatherData.current) {
-      throw new Error('Нет данных о погоде');
-    }
-
     const current = weatherData.current;
     const daily = weatherData.daily;
 
-    // Преобразование давления
-    const pressureMmHg = current.pressure_msl ? Math.round(current.pressure_msl * 0.750062) : null;
-
-    // Направление ветра
-    const windDir = getWindDirection(current.wind_direction_10m);
-
-    // Тип осадков
-    const precipType = getPrecipitationType(current.rain || 0, current.snowfall || 0);
-    const hasPrecipitation = (current.rain > 0 || current.snowfall > 0);
-
-    // Описание облачности
-    const cloudDesc = getCloudDescription(current.cloud_cover);
-
-    // Видимость
-    const visibilityKm = current.visibility ? (current.visibility / 1000).toFixed(1) : '>10';
-
-    // Восход/закат
     const sunrise = daily?.sunrise?.[0]?.substring(11, 16) || '—';
     const sunset = daily?.sunset?.[0]?.substring(11, 16) || '—';
-
-    // Комфортность
-    let comfortLevel = 'Комфортно 👍';
-    if (current.temperature_2m < 0) comfortLevel = 'Холодно 🥶';
-    if (current.temperature_2m > 25) comfortLevel = 'Жарко 🥵';
-    if (current.wind_speed_10m > 8) comfortLevel = 'Ветрено 🌪️';
-    if (current.precipitation > 2) comfortLevel = 'Сыро 🌧️';
 
     const weatherResult = {
       success: true,
       city: name,
-      timestamp: new Date().toLocaleTimeString('ru-RU'),
-      date: new Date().toLocaleDateString('ru-RU', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }),
-      isDay: current.is_day === 1,
-
-      // Температура
       temp: Math.round(current.temperature_2m),
       feels_like: Math.round(current.apparent_temperature),
-      temp_min: daily?.temperature_2m_min ? Math.round(daily.temperature_2m_min[0]) : null,
-      temp_max: daily?.temperature_2m_max ? Math.round(daily.temperature_2m_max[0]) : null,
-
-      // Влажность и осадки
       humidity: current.relative_humidity_2m,
-      precipitation_now: current.precipitation || 0,
+      wind_speed: current.wind_speed_10m.toFixed(1),
+      wind_dir: getWindDirection(current.wind_direction_10m),
+      pressure: Math.round(current.pressure_msl * 0.750062),
+      description: getWeatherDescription(current.weather_code),
+      has_precipitation: (current.precipitation > 0),
       rain_now: current.rain || 0,
       snow_now: current.snowfall || 0,
-      precip_type: precipType,
-      has_precipitation: hasPrecipitation,
-      precipitation_today: daily?.precipitation_sum?.[0] || 0,
-
-      // Ветер
-      wind_speed: current.wind_speed_10m?.toFixed(1) || '0',
-      wind_gusts: current.wind_gusts_10m?.toFixed(1) || null,
-      wind_dir: windDir,
-
-      // Давление
-      pressure: pressureMmHg,
-
-      // Облачность
-      cloud_cover: current.cloud_cover || 0,
-      cloud_desc: cloudDesc,
-
-      // Видимость
-      visibility_km: visibilityKm,
-
-      // Астрономия
-      sunrise: sunrise,
-      sunset: sunset,
-      day_length: calculateDayLength(sunrise, sunset),
-
-      // Комфорт
-      comfort: comfortLevel,
-
-      // Описание
-      weather_code: current.weather_code,
-      description: getWeatherDescription(current.weather_code)
+      day_length: calculateDayLength(sunrise, sunset)
     };
-
     weatherCache.set(cacheKey, { data: weatherResult, timestamp: now });
     return weatherResult;
-
   } catch (error) {
-    console.error('❌ Ошибка получения погоды:', error.message);
-    if (weatherCache.has(cityName?.toLowerCase())) {
-      return weatherCache.get(cityName.toLowerCase()).data;
-    }
-    return {
-      success: false,
-      error: `Не удалось получить погоду: ${error.message}`,
-      city: cityName
-    };
+    return { success: false, error: error.message };
   }
 }
 
-// ===================== РАСШИРЕННЫЙ ПРОГНОЗ ПО ПЕРИОДАМ (УНИВЕРСАЛЬНЫЙ) =====================
+// ===================== ПОЛНЫЙ ИНФОРМАТИВНЫЙ ПРОГНОЗ =====================
 async function getDetailedForecast(cityName, dayOffset = 0) {
   try {
     const encodedCity = encodeURIComponent(cityName);
@@ -296,7 +120,7 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
     if (!geoData.results?.[0]) throw new Error('Город не найден');
 
     const { latitude, longitude, name } = geoData.results[0];
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=sunrise,sunset&timezone=auto&forecast_days=${dayOffset + 1}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m,relative_humidity_2m,pressure_msl&daily=sunrise,sunset,uv_index_max&wind_speed_unit=ms&timezone=auto&forecast_days=${dayOffset + 1}`;
     
     const response = await fetch(url);
     const data = await response.json();
@@ -314,32 +138,42 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
 
     let output = "";
     periods.forEach(p => {
-      const indices = data.hourly.time.map((t, i) => t.startsWith(dateStr) && p.hours.includes(new Date(t).getHours()) ? i : -1).filter(i => i !== -1);
+      const indices = data.hourly.time.map((t, i) => {
+        const d = new Date(t);
+        return (t.startsWith(dateStr) && p.hours.includes(d.getHours())) ? i : -1;
+      }).filter(i => i !== -1);
+
       if (indices.length > 0) {
         const temps = indices.map(i => data.hourly.temperature_2m[i]);
         const feels = indices.map(i => data.hourly.apparent_temperature[i]);
         const codes = indices.map(i => data.hourly.weather_code[i]);
         const winds = indices.map(i => data.hourly.wind_speed_10m[i]);
         const probs = indices.map(i => data.hourly.precipitation_probability[i]);
+        const hums = indices.map(i => data.hourly.relative_humidity_2m[i]);
+        const pressures = indices.map(i => data.hourly.pressure_msl[i]);
 
-        const avgTemp = Math.round(temps.reduce((a, b) => a + b) / temps.length);
         const avgFeel = Math.round(feels.reduce((a, b) => a + b) / feels.length);
         const maxProb = Math.max(...probs);
         const avgWind = (winds.reduce((a, b) => a + b) / winds.length).toFixed(1);
+        const avgHum = Math.round(hums.reduce((a, b) => a + b) / hums.length);
+        const avgPress = Math.round((pressures.reduce((a, b) => a + b) / pressures.length) * 0.750062);
         
-        // Самый частый код погоды
         const counts = {}; codes.forEach(c => counts[c] = (counts[c] || 0) + 1);
         const mainCode = Object.keys(counts).reduce((a, b) => counts[a] >= counts[b] ? a : b);
 
         output += `${p.emoji} *${p.name}:* ${Math.min(...temps).toFixed(0)}°...${Math.max(...temps).toFixed(0)}°C\n`;
         output += `   ${getWeatherDescription(parseInt(mainCode))} (ощущ. ${avgFeel}°)\n`;
-        output += `   💨 ${avgWind} м/с | ☔ ${maxProb}%\n\n`;
+        output += `   💨 ${avgWind} м/с | 💧 ${avgHum}% | ☔ ${maxProb}%\n`;
+        output += `   📊 ${avgPress} мм рт. ст.\n\n`;
       }
     });
 
     const sunrise = data.daily.sunrise[dayOffset].split('T')[1];
     const sunset = data.daily.sunset[dayOffset].split('T')[1];
-    output += `🌅 Восход: ${sunrise} | 🌆 Закат: ${sunset}`;
+    const uv = data.daily.uv_index_max[dayOffset];
+    
+    output += `🌅 Восход: ${sunrise} | 🌆 Закат: ${sunset}\n`;
+    output += `☀️ УФ-индекс: ${uv.toFixed(1)}`;
 
     return { success: true, city: name, periods: output };
   } catch (e) {
@@ -352,1238 +186,183 @@ async function getWeatherForecast(cityName) { return await getDetailedForecast(c
 
 // ===================== ФУНКЦИЯ РЕКОМЕНДАЦИЙ ПО ОДЕЖДЕ =====================
 function getWardrobeAdvice(weatherData) {
-  if (!weatherData || !weatherData.success) {
-    return '❌ Нет данных о погоде для рекомендаций по одежде.';
-  }
-
-  const {
-    temp,
-    feels_like,
-    wind_speed,
-    rain_now,
-    snow_now,
-    has_precipitation,
-    city,
-    description
-  } = weatherData;
-
-  const advice = [];
-
-  // Заголовок
-  advice.push(`👕 *Что надеть в ${city} сейчас?*\n`);
-  advice.push(`🌡️ *Сейчас:* ${temp}°C (ощущается ${feels_like}°C)`);
-  if (description) advice.push(`📝 ${description}\n`);
-
-  // Основные слои по температуре
-  advice.push('\n📋 *Одеваемся по погоде:*\n');
-
-  if (temp >= 25) {
-    advice.push('👕 *Базовый слой:* майка, футболка из хлопка');
-    advice.push('🩳 *Низ:* шорты, легкие брюки, юбка');
-    advice.push('👟 *Обувь:* сандалии, кеды');
-    advice.push('🕶️ *Аксессуары:* кепка, солнцезащитные очки');
-  }
-  else if (temp >= 20) {
-    advice.push('👕 *Базовый слой:* футболка, рубашка');
-    advice.push('👖 *Низ:* джинсы, брюки');
-    advice.push('👟 *Обувь:* кроссовки, кеды');
-    advice.push('🧥 *На вечер:* легкая кофта, джинсовка');
-  }
-  else if (temp >= 15) {
-    advice.push('👕 *Базовый слой:* лонгслив, рубашка с длинным рукавом');
-    advice.push('🧥 *Верх:* свитер, худи, легкая куртка');
-    advice.push('👖 *Низ:* джинсы, брюки');
-    advice.push('👟 *Обувь:* кроссовки, ботинки');
-  }
-  else if (temp >= 10) {
-    advice.push('👕 *Базовый слой:* термобелье, лонгслив');
-    advice.push('🧥 *Верх:* свитер, худи, ветровка');
-    advice.push('👖 *Низ:* джинсы, утепленные брюки');
-    advice.push('👟 *Обувь:* кроссовки, ботинки');
-    advice.push('🧣 *Аксессуары:* шарф');
-  }
-  else if (temp >= 5) {
-    advice.push('👕 *Базовый слой:* термобелье, флисовая кофта');
-    advice.push('🧥 *Верх:* теплый свитер, зимняя куртка');
-    advice.push('👖 *Низ:* утепленные штаны');
-    advice.push('👟 *Обувь:* зимние ботинки');
-    advice.push('🧣 *Аксессуары:* шапка, шарф, перчатки');
-  }
-  else if (temp >= 0) {
-    advice.push('👕 *Базовый слой:* термобелье, флис');
-    advice.push('🧥 *Верх:* пуховик, зимняя куртка');
-    advice.push('👖 *Низ:* утепленные штаны');
-    advice.push('👟 *Обувь:* зимние ботинки с мехом');
-    advice.push('🧣 *Аксессуары:* шапка, шарф, варежки');
-  }
-  else {
-    advice.push('👕 *Базовый слой:* плотное термобелье, флис');
-    advice.push('🧥 *Верх:* пуховик, парка');
-    advice.push('👖 *Низ:* термоштаны, утепленные брюки');
-    advice.push('👟 *Обувь:* зимние ботинки -25°C');
-    advice.push('🧣 *Аксессуары:* шапка, шарф, варежки, балаклава');
-  }
-
-  // Рекомендации по осадкам
-  if (has_precipitation) {
-    advice.push('\n🌧️ *Идут осадки:*');
-    if (snow_now > 0) {
-      advice.push('   • ❄️ Непромокаемая обувь');
-      advice.push('   • 🧤 Варежки, а не перчатки');
-    } else if (rain_now > 0) {
-      advice.push('   • ☔ Зонт или дождевик');
-      advice.push('   • 👢 Непромокаемая обувь');
-    }
-  }
-
-  // Рекомендации по ветру
-  if (wind_speed && parseFloat(wind_speed) > 5) {
-    advice.push('\n💨 *Ветрено:*');
-    advice.push('   • 🧥 Непродуваемая куртка');
-  }
-
+  if (!weatherData || !weatherData.success) return '❌ Нет данных о погоде.';
+  const { temp, feels_like, wind_speed, rain_now, snow_now, city, description } = weatherData;
+  const advice = [`👕 *Что надеть в ${city} сейчас?*\n`, `🌡️ *Сейчас:* ${temp}°C (ощущается ${feels_like}°C)`, `📝 ${description}\n`, `\n📋 *Одеваемся по погоде:*\n`];
+  if (temp >= 25) advice.push('👕 Майка, шорты, сандалии, очки.');
+  else if (temp >= 20) advice.push('👕 Футболка, легкие брюки, кеды.');
+  else if (temp >= 15) advice.push('🧥 Лонгслив, легкая куртка, джинсы.');
+  else if (temp >= 10) advice.push('🧥 Ветровка, свитер, джинсы, ботинки.');
+  else if (temp >= 5) advice.push('🧥 Осенняя куртка, шапка, перчатки.');
+  else if (temp >= 0) advice.push('🧥 Теплая куртка/пуховик, шапка, шарф.');
+  else advice.push('🧥 Пуховик, термобелье, теплая шапка и варежки.');
+  if (rain_now > 0) advice.push('\n☔ *Возьми зонт!* Идет дождь.');
+  if (snow_now > 0) advice.push('\n❄️ *Надень зимнюю обувь!* Идет снег.');
   return advice.join('\n');
 }
 
-// ===================== ПОЛНЫЙ РАЗГОВОРНИК: 200+ ФРАЗ =====================
+// ===================== РАЗГОВОРНИК (200+ ФРАЗ) =====================
 const dailyPhrases = [
-  // ТРАНСПОРТ
-  {
-    english: "Where is the nearest bus stop?",
-    russian: "Где ближайшая автобусная остановка?",
-    explanation: "Спрашиваем про общественный транспорт",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "I'd like a window seat, please.",
-    russian: "Я хотел бы место у окна, пожалуйста.",
-    explanation: "Заказываем место в самолете или поезде",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "What time is the last train?",
-    russian: "Во сколько последний поезд?",
-    explanation: "Уточняем расписание",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "How often do the buses run?",
-    russian: "Как часто ходят автобусы?",
-    explanation: "Интервал движения",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "Is this the right platform for Oxford?",
-    russian: "Это правильная платформа на Оксфорд?",
-    explanation: "Проверяем платформу",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "Do I need to validate my ticket?",
-    russian: "Мне нужно компостировать билет?",
-    explanation: "Спрашиваем про валидацию",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "Can I pay by card?",
-    russian: "Можно оплатить картой?",
-    explanation: "Способ оплаты",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "A return ticket to Brighton, please.",
-    russian: "Билет туда-обратно в Брайтон, пожалуйста.",
-    explanation: "Покупаем билет",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "Is there a direct flight?",
-    russian: "Есть прямой рейс?",
-    explanation: "Без пересадок",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "What's the boarding time?",
-    russian: "Во сколько посадка?",
-    explanation: "Уточняем время посадки",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "Which gate do I need?",
-    russian: "Какой выход мне нужен?",
-    explanation: "В аэропорту",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "I missed my connection.",
-    russian: "Я опоздал на стыковку.",
-    explanation: "Проблема в аэропорту",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "Can you call me a taxi?",
-    russian: "Вы можете вызвать мне такси?",
-    explanation: "В отеле или ресторане",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "How much to the city center?",
-    russian: "Сколько стоит до центра города?",
-    explanation: "Торгуемся с таксистом",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "Keep the change.",
-    russian: "Сдачи не надо.",
-    explanation: "Чаевые таксисту",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "I need to rent a car.",
-    russian: "Мне нужно арендовать машину.",
-    explanation: "В прокате авто",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "Is insurance included?",
-    russian: "Страховка включена?",
-    explanation: "При аренде авто",
-    category: "Транспорт",
-    level: "Средний"
-  },
-  {
-    english: "I'd like automatic transmission.",
-    russian: "Я хотел бы автоматическую коробку.",
-    explanation: "Выбор авто",
-    category: "Транспорт",
-    level: "Продвинутый"
-  },
-  {
-    english: "Where can I park?",
-    russian: "Где можно припарковаться?",
-    explanation: "Поиск парковки",
-    category: "Транспорт",
-    level: "Начальный"
-  },
-  {
-    english: "My car broke down.",
-    russian: "Моя машина сломалась.",
-    explanation: "Экстренная ситуация",
-    category: "Транспорт",
-    level: "Средний"
-  },
-
-  // ЕДА И РЕСТОРАНЫ
-  {
-    english: "Could you recommend a good restaurant?",
-    russian: "Не могли бы вы порекомендовать хороший ресторан?",
-    explanation: "Просим рекомендацию",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "A table for two, please.",
-    russian: "Столик на двоих, пожалуйста.",
-    explanation: "В ресторане",
-    category: "Еда",
-    level: "Начальный"
-  },
-  {
-    english: "Do you have a vegetarian menu?",
-    russian: "У вас есть вегетарианское меню?",
-    explanation: "Особое питание",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "I'm allergic to nuts.",
-    russian: "У меня аллергия на орехи.",
-    explanation: "Предупреждение об аллергии",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "What's the dish of the day?",
-    russian: "Какое блюдо дня?",
-    explanation: "Спецпредложение",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "I'd like it medium rare.",
-    russian: "Я хотел бы с кровью.",
-    explanation: "Степень прожарки стейка",
-    category: "Еда",
-    level: "Продвинутый"
-  },
-  {
-    english: "Could we see the wine list?",
-    russian: "Можно посмотреть винную карту?",
-    explanation: "Заказ вина",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "Is service included?",
-    russian: "Обслуживание включено?",
-    explanation: "Проверка счета",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "Can we sit outside?",
-    russian: "Можно сесть на улице?",
-    explanation: "На террасе",
-    category: "Еда",
-    level: "Начальный"
-  },
-  {
-    english: "I didn't order this.",
-    russian: "Я это не заказывал.",
-    explanation: "Ошибка в заказе",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "Could we have some more bread?",
-    russian: "Можно еще хлеба?",
-    explanation: "Дополнительный заказ",
-    category: "Еда",
-    level: "Начальный"
-  },
-  {
-    english: "Is this spicy?",
-    russian: "Это острое?",
-    explanation: "Уточняем остроту",
-    category: "Еда",
-    level: "Начальный"
-  },
-  {
-    english: "I'd like the bill, please.",
-    russian: "Счет, пожалуйста.",
-    explanation: "Просим счет",
-    category: "Еда",
-    level: "Начальный"
-  },
-  {
-    english: "We'd like to order.",
-    russian: "Мы хотели бы сделать заказ.",
-    explanation: "Готовы заказывать",
-    category: "Еда",
-    level: "Начальный"
-  },
-  {
-    english: "What do you recommend?",
-    russian: "Что вы порекомендуете?",
-    explanation: "Совет официанта",
-    category: "Еда",
-    level: "Начальный"
-  },
-  {
-    english: "Can I have this to go?",
-    russian: "Можно это с собой?",
-    explanation: "Еда на вынос",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "Is there a kids' menu?",
-    russian: "Есть детское меню?",
-    explanation: "Для детей",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "Could we change tables?",
-    russian: "Можно пересесть?",
-    explanation: "Смена столика",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "The food is cold.",
-    russian: "Еда холодная.",
-    explanation: "Жалоба",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "I'd like to make a reservation.",
-    russian: "Я хотел бы забронировать столик.",
-    explanation: "Бронь по телефону",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "For 7:30 PM.",
-    russian: "На 19:30.",
-    explanation: "Время брони",
-    category: "Еда",
-    level: "Начальный"
-  },
-  {
-    english: "Do you have gluten-free options?",
-    russian: "У вас есть безглютеновые блюда?",
-    explanation: "Диетическое питание",
-    category: "Еда",
-    level: "Продвинутый"
-  },
-  {
-    english: "Could we have a high chair?",
-    russian: "Можно детский стульчик?",
-    explanation: "Для ребенка",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "Is tap water free?",
-    russian: "Вода из-под крана бесплатная?",
-    explanation: "Экономим на воде",
-    category: "Еда",
-    level: "Средний"
-  },
-  {
-    english: "Can I pay separately?",
-    russian: "Можно оплатить отдельно?",
-    explanation: "Раздельный счет",
-    category: "Еда",
-    level: "Средний"
-  },
-
-  // ПОКУПКИ
-  {
-    english: "How much does this cost?",
-    russian: "Сколько это стоит?",
-    explanation: "Спрашиваем цену",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "I'm just looking, thanks.",
-    russian: "Я просто смотрю, спасибо.",
-    explanation: "Отказ от помощи",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "Do you have this in a different color?",
-    russian: "У вас есть это другого цвета?",
-    explanation: "Выбор цвета",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "Can I try this on?",
-    russian: "Можно это примерить?",
-    explanation: "Примерка",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "Where are the fitting rooms?",
-    russian: "Где примерочные?",
-    explanation: "Поиск примерочной",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "It doesn't fit.",
-    russian: "Не подходит по размеру.",
-    explanation: "Неправильный размер",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "Do you have a larger size?",
-    russian: "У вас есть размер побольше?",
-    explanation: "Нужен больше",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "Is this on sale?",
-    russian: "Это по акции?",
-    explanation: "Скидка",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "Can I get a tax refund?",
-    russian: "Можно вернуть налог?",
-    explanation: "Tax Free",
-    category: "Покупки",
-    level: "Продвинутый"
-  },
-  {
-    english: "I'd like to return this.",
-    russian: "Я хотел бы вернуть это.",
-    explanation: "Возврат товара",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "Do you offer gift wrapping?",
-    russian: "У вас есть подарочная упаковка?",
-    explanation: "Упаковка подарка",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "Is there a warranty?",
-    russian: "Есть гарантия?",
-    explanation: "На электронику",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "Can you order it for me?",
-    russian: "Можете заказать для меня?",
-    explanation: "Нет в наличии",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "I'll take it.",
-    russian: "Я беру это.",
-    explanation: "Решение купить",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "Where's the nearest supermarket?",
-    russian: "Где ближайший супермаркет?",
-    explanation: "Поиск продуктов",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "Do you have a loyalty card?",
-    russian: "У вас есть карта лояльности?",
-    explanation: "Скидочная карта",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "Can I have a receipt, please?",
-    russian: "Можно чек, пожалуйста?",
-    explanation: "Просим чек",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "Is this real leather?",
-    russian: "Это настоящая кожа?",
-    explanation: "Проверка материала",
-    category: "Покупки",
-    level: "Средний"
-  },
-  {
-    english: "Where can I find cosmetics?",
-    russian: "Где найти косметику?",
-    explanation: "Отдел косметики",
-    category: "Покупки",
-    level: "Начальный"
-  },
-  {
-    english: "Do you have this in stock?",
-    russian: "Это есть в наличии?",
-    explanation: "Наличие товара",
-    category: "Покупки",
-    level: "Средний"
-  },
-
-  // ЗДОРОВЬЕ
-  {
-    english: "I need to see a doctor.",
-    russian: "Мне нужно к врачу.",
-    explanation: "Вызов врача",
-    category: "Здоровье",
-    level: "Начальный"
-  },
-  {
-    english: "Where's the nearest pharmacy?",
-    russian: "Где ближайшая аптека?",
-    explanation: "Поиск аптеки",
-    category: "Здоровье",
-    level: "Начальный"
-  },
-  {
-    english: "I have a headache.",
-    russian: "У меня болит голова.",
-    explanation: "Симптомы",
-    category: "Здоровье",
-    level: "Начальный"
-  },
-  {
-    english: "I feel dizzy.",
-    russian: "У меня кружится голова.",
-    explanation: "Плохое самочувствие",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "I have a fever.",
-    russian: "У меня температура.",
-    explanation: "Жар",
-    category: "Здоровье",
-    level: "Начальный"
-  },
-  {
-    english: "I need antibiotics.",
-    russian: "Мне нужны антибиотики.",
-    explanation: "По рецепту",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "I'm allergic to penicillin.",
-    russian: "У меня аллергия на пенициллин.",
-    explanation: "Предупреждение",
-    category: "Здоровье",
-    level: "Продвинутый"
-  },
-  {
-    english: "I have asthma.",
-    russian: "У меня астма.",
-    explanation: "Хроническое заболевание",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "I need painkillers.",
-    russian: "Мне нужны обезболивающие.",
-    explanation: "От боли",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "I think I broke my arm.",
-    russian: "Кажется, я сломал руку.",
-    explanation: "Травма",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "Call an ambulance!",
-    russian: "Вызовите скорую!",
-    explanation: "Экстренный вызов",
-    category: "Здоровье",
-    level: "Начальный"
-  },
-  {
-    english: "I have diabetes.",
-    russian: "У меня диабет.",
-    explanation: "Важная информация",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "I need insulin.",
-    russian: "Мне нужен инсулин.",
-    explanation: "Лекарство",
-    category: "Здоровье",
-    level: "Продвинутый"
-  },
-  {
-    english: "I can't sleep.",
-    russian: "Я не могу спать.",
-    explanation: "Бессонница",
-    category: "Здоровье",
-    level: "Начальный"
-  },
-  {
-    english: "Do I need a prescription?",
-    russian: "Нужен рецепт?",
-    explanation: "Уточнение",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "I have heart problems.",
-    russian: "У меня проблемы с сердцем.",
-    explanation: "Сердечное заболевание",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "I'm pregnant.",
-    russian: "Я беременна.",
-    explanation: "Важная информация",
-    category: "Здоровье",
-    level: "Средний"
-  },
-  {
-    english: "I need a dentist.",
-    russian: "Мне нужен стоматолог.",
-    explanation: "Зубная боль",
-    category: "Здоровье",
-    level: "Начальный"
-  },
-  {
-    english: "I have a sore throat.",
-    russian: "У меня болит горло.",
-    explanation: "Простуда",
-    category: "Здоровье",
-    level: "Начальный"
-  },
-  {
-    english: "Is it serious?",
-    russian: "Это серьезно?",
-    explanation: "Оценка состояния",
-    category: "Здоровье",
-    level: "Средний"
-  },
-
-  // ГОСТИНИЦА
-  {
-    english: "I have a reservation.",
-    russian: "У меня забронировано.",
-    explanation: "На ресепшн",
-    category: "Гостиница",
-    level: "Начальный"
-  },
-  {
-    english: "Check-in, please.",
-    russian: "Заселение, пожалуйста.",
-    explanation: "Прибытие в отель",
-    category: "Гостиница",
-    level: "Начальный"
-  },
-  {
-    english: "What time is check-out?",
-    russian: "Во сколько выезд?",
-    explanation: "Время выезда",
-    category: "Гостиница",
-    level: "Начальный"
-  },
-  {
-    english: "Can I have a late check-out?",
-    russian: "Можно поздний выезд?",
-    explanation: "Дополнительное время",
-    category: "Гостиница",
-    level: "Средний"
-  },
-  {
-    english: "Is breakfast included?",
-    russian: "Завтрак включен?",
-    explanation: "Уточнение",
-    category: "Гостиница",
-    level: "Начальный"
-  },
-  {
-    english: "The air conditioner doesn't work.",
-    russian: "Кондиционер не работает.",
-    explanation: "Проблема в номере",
-    category: "Гостиница",
-    level: "Средний"
-  },
-  {
-    english: "There's no hot water.",
-    russian: "Нет горячей воды.",
-    explanation: "Проблема в номере",
-    category: "Гостиница",
-    level: "Средний"
-  },
-  {
-    english: "Could I have extra towels?",
-    russian: "Можно дополнительные полотенца?",
-    explanation: "В номер",
-    category: "Гостиница",
-    level: "Средний"
-  },
-  {
-    english: "Is there WiFi in the room?",
-    russian: "В номере есть WiFi?",
-    explanation: "Интернет",
-    category: "Гостиница",
-    level: "Начальный"
-  },
-  {
-    english: "What's the WiFi password?",
-    russian: "Какой пароль от WiFi?",
-    explanation: "Доступ в интернет",
-    category: "Гостиница",
-    level: "Начальный"
-  },
-  {
-    english: "Can you store my luggage?",
-    russian: "Можете оставить мой багаж?",
-    explanation: "Камера хранения",
-    category: "Гостиница",
-    level: "Средний"
-  },
-  {
-    english: "I need a wake-up call at 7 AM.",
-    russian: "Мне нужен звонок-будильник в 7 утра.",
-    explanation: "Будильник",
-    category: "Гостиница",
-    level: "Средний"
-  },
-  {
-    english: "Can I change rooms?",
-    russian: "Можно поменять номер?",
-    explanation: "Смена номера",
-    category: "Гостиница",
-    level: "Средний"
-  },
-  {
-    english: "Is there a gym?",
-    russian: "У вас есть тренажерный зал?",
-    explanation: "Услуги отеля",
-    category: "Гостиница",
-    level: "Средний"
-  },
-  {
-    english: "Do you have a swimming pool?",
-    russian: "У вас есть бассейн?",
-    explanation: "Удобства",
-    category: "Гостиница",
-    level: "Начальный"
-  },
-
-  // ОРИЕНТАЦИЯ В ГОРОДЕ
-  {
-    english: "How do I get to the museum?",
-    russian: "Как мне добраться до музея?",
-    explanation: "Маршрут",
-    category: "Город",
-    level: "Начальный"
-  },
-  {
-    english: "Is it far from here?",
-    russian: "Это далеко отсюда?",
-    explanation: "Расстояние",
-    category: "Город",
-    level: "Начальный"
-  },
-  {
-    english: "Can I walk there?",
-    russian: "Туда можно дойти пешком?",
-    explanation: "Пешая доступность",
-    category: "Город",
-    level: "Средний"
-  },
-  {
-    english: "Which bus goes to the beach?",
-    russian: "Какой автобус идет на пляж?",
-    explanation: "Общественный транспорт",
-    category: "Город",
-    level: "Средний"
-  },
-  {
-    english: "Where's the city center?",
-    russian: "Где центр города?",
-    explanation: "Ориентация",
-    category: "Город",
-    level: "Начальный"
-  },
-  {
-    english: "I'm lost.",
-    russian: "Я заблудился.",
-    explanation: "Потерялся",
-    category: "Город",
-    level: "Начальный"
-  },
-  {
-    english: "Can you show me on the map?",
-    russian: "Можете показать на карте?",
-    explanation: "Просьба показать",
-    category: "Город",
-    level: "Средний"
-  },
-  {
-    english: "What's the address?",
-    russian: "Какой адрес?",
-    explanation: "Уточнение",
-    category: "Город",
-    level: "Начальный"
-  },
-  {
-    english: "Turn left at the traffic lights.",
-    russian: "Поверните налево на светофоре.",
-    explanation: "Маршрут",
-    category: "Город",
-    level: "Средний"
-  },
-  {
-    english: "Is this the way to the station?",
-    russian: "Это дорога к вокзалу?",
-    explanation: "Проверка маршрута",
-    category: "Город",
-    level: "Средний"
-  },
-  {
-    english: "Go straight ahead.",
-    russian: "Идите прямо.",
-    explanation: "Направление",
-    category: "Город",
-    level: "Начальный"
-  },
-  {
-    english: "It's around the corner.",
-    russian: "Это за углом.",
-    explanation: "Близко",
-    category: "Город",
-    level: "Начальный"
-  },
-  {
-    english: "I'm looking for this street.",
-    russian: "Я ищу эту улицу.",
-    explanation: "Поиск",
-    category: "Город",
-    level: "Средний"
-  },
-  {
-    english: "What's the best route?",
-    russian: "Какой лучший маршрут?",
-    explanation: "Оптимальный путь",
-    category: "Город",
-    level: "Средний"
-  },
-  {
-    english: "Is it safe to walk at night?",
-    russian: "Здесь безопасно гулять ночью?",
-    explanation: "Безопасность",
-    category: "Город",
-    level: "Средний"
-  },
-
-  // ЭКСТРЕННЫЕ СЛУЧАИ
-  {
-    english: "Help!",
-    russian: "Помогите!",
-    explanation: "Крик о помощи",
-    category: "Экстренное",
-    level: "Начальный"
-  },
-  {
-    english: "Call the police!",
-    russian: "Вызовите полицию!",
-    explanation: "Экстренный вызов",
-    category: "Экстренное",
-    level: "Начальный"
-  },
-  {
-    english: "There's a fire!",
-    russian: "Пожар!",
-    explanation: "Пожарная тревога",
-    category: "Экстренное",
-    level: "Начальный"
-  },
-  {
-    english: "I've been robbed.",
-    russian: "Меня ограбили.",
-    explanation: "Кража",
-    category: "Экстренное",
-    level: "Средний"
-  },
-  {
-    english: "I lost my passport.",
-    russian: "Я потерял паспорт.",
-    explanation: "Потеря документа",
-    category: "Экстренное",
-    level: "Средний"
-  },
-  {
-    english: "My wallet was stolen.",
-    russian: "У меня украли кошелек.",
-    explanation: "Кража",
-    category: "Экстренное",
-    level: "Средний"
-  },
-  {
-    english: "I need to contact the embassy.",
-    russian: "Мне нужно связаться с посольством.",
-    explanation: "ЧП за границей",
-    category: "Экстренное",
-    level: "Средний"
-  },
-  {
-    english: "There's been an accident.",
-    russian: "Произошла авария.",
-    explanation: "Сообщение о ДТП",
-    category: "Экстренное",
-    level: "Средний"
-  },
-  {
-    english: "I'm being followed.",
-    russian: "За мной следят.",
-    explanation: "Опасная ситуация",
-    category: "Экстренное",
-    level: "Продвинутый"
-  },
-  {
-    english: "I need a lawyer.",
-    russian: "Мне нужен адвокат.",
-    explanation: "Юридическая помощь",
-    category: "Экстренное",
-    level: "Средний"
-  },
-  {
-    english: "I've been assaulted.",
-    russian: "На меня напали.",
-    explanation: "Физическое насилие",
-    category: "Экстренное",
-    level: "Продвинутый"
-  },
-  {
-    english: "Where is the police station?",
-    russian: "Где полицейский участок?",
-    explanation: "Поиск полиции",
-    category: "Экстренное",
-    level: "Начальный"
-  },
-  {
-    english: "I want to report a crime.",
-    russian: "Я хочу заявить о преступлении.",
-    explanation: "В полиции",
-    category: "Экстренное",
-    level: "Продвинутый"
-  },
-  {
-    english: "My child is missing.",
-    russian: "Мой ребенок пропал.",
-    explanation: "Пропал человек",
-    category: "Экстренное",
-    level: "Средний"
-  },
-  {
-    english: "I need a translator.",
-    russian: "Мне нужен переводчик.",
-    explanation: "Языковой барьер",
-    category: "Экстренное",
-    level: "Средний"
-  },
-
-  // РАБОТА И БИЗНЕС
-  {
-    english: "I have a job interview.",
-    russian: "У меня собеседование.",
-    explanation: "Поиск работы",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "What's the salary?",
-    russian: "Какая зарплата?",
-    explanation: "Обсуждение оплаты",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "When can I start?",
-    russian: "Когда я могу приступить?",
-    explanation: "Готовность работать",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "I need a work visa.",
-    russian: "Мне нужна рабочая виза.",
-    explanation: "Документы",
-    category: "Работа",
-    level: "Продвинутый"
-  },
-  {
-    english: "I'm here for a conference.",
-    russian: "Я здесь на конференции.",
-    explanation: "Командировка",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "Let's schedule a meeting.",
-    russian: "Давайте назначим встречу.",
-    explanation: "Деловая встреча",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "I'll send you an email.",
-    russian: "Я пришлю вам письмо.",
-    explanation: "Деловая переписка",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "Can you send me the contract?",
-    russian: "Можете прислать мне контракт?",
-    explanation: "Документы",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "I need a day off.",
-    russian: "Мне нужен выходной.",
-    explanation: "Отгул",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "I'm sick today.",
-    russian: "Я заболел сегодня.",
-    explanation: "Больничный",
-    category: "Работа",
-    level: "Начальный"
-  },
-  {
-    english: "What are the working hours?",
-    russian: "Какой график работы?",
-    explanation: "Режим работы",
-    category: "Работа",
-    level: "Средний"
-  },
-  {
-    english: "Is overtime paid?",
-    russian: "Сверхурочные оплачиваются?",
-    explanation: "Оплата труда",
-    category: "Работа",
-    level: "Продвинутый"
-  },
-  {
-    english: "I'd like to resign.",
-    russian: "Я хотел бы уволиться.",
-    explanation: "Увольнение",
-    category: "Работа",
-    level: "Продвинутый"
-  },
-  {
-    english: "Can you write a reference?",
-    russian: "Можете написать рекомендацию?",
-    explanation: "Рекомендательное письмо",
-    category: "Работа",
-    level: "Продвинутый"
-  },
-  {
-    english: "I have experience in this field.",
-    russian: "У меня есть опыт в этой сфере.",
-    explanation: "Опыт работы",
-    category: "Работа",
-    level: "Средний"
-  },
-
-  // ОБЩЕНИЕ И ЗНАКОМСТВА
-  {
-    english: "Hi, my name is...",
-    russian: "Привет, меня зовут...",
-    explanation: "Знакомство",
-    category: "Общение",
-    level: "Начальный"
-  },
-  {
-    english: "Nice to meet you.",
-    russian: "Приятно познакомиться.",
-    explanation: "Вежливость",
-    category: "Общение",
-    level: "Начальный"
-  },
-  {
-    english: "Where are you from?",
-    russian: "Откуда вы?",
-    explanation: "Вопрос о происхождении",
-    category: "Общение",
-    level: "Начальный"
-  },
-  {
-    english: "I'm from Russia.",
-    russian: "Я из России.",
-    explanation: "Ответ",
-    category: "Общение",
-    level: "Начальный"
-  },
-  {
-    english: "Do you speak English?",
-    russian: "Вы говорите по-английски?",
-    explanation: "Язык общения",
-    category: "Общение",
-    level: "Начальный"
-  },
-  {
-    english: "I don't understand.",
-    russian: "Я не понимаю.",
-    explanation: "Нет понимания",
-    category: "Общение",
-    level: "Начальный"
-  },
-  {
-    english: "Could you speak slower?",
-    russian: "Не могли бы вы говорить медленнее?",
-    explanation: "Просьба",
-    category: "Общение",
-    level: "Средний"
-  },
-  {
-    english: "Can you repeat that?",
-    russian: "Можете повторить?",
-    explanation: "Уточнение",
-    category: "Общение",
-    level: "Начальный"
-  },
-  {
-    english: "What do you do?",
-    russian: "Чем вы занимаетесь?",
-    explanation: "Профессия",
-    category: "Общение",
-    level: "Средний"
-  },
-  {
-    english: "Do you live here?",
-    russian: "Вы здесь живете?",
-    explanation: "Место жительства",
-    category: "Общение",
-    level: "Средний"
-  },
-  {
-    english: "I'm just visiting.",
-    russian: "Я просто в гостях.",
-    explanation: "Турист",
-    category: "Общение",
-    level: "Средний"
-  },
-  {
-    english: "What are your hobbies?",
-    russian: "Какие у вас хобби?",
-    explanation: "Интересы",
-    category: "Общение",
-    level: "Средний"
-  },
-  {
-    english: "Can I have your number?",
-    russian: "Можно ваш номер?",
-    explanation: "Обмен контактами",
-    category: "Общение",
-    level: "Средний"
-  },
-  {
-    english: "Let's keep in touch.",
-    russian: "Давайте оставаться на связи.",
-    explanation: "Поддержание контакта",
-    category: "Общение",
-    level: "Средний"
-  },
-  {
-    english: "It was great talking to you.",
-    russian: "Было приятно пообщаться.",
-    explanation: "Завершение разговора",
-    category: "Общение",
-    level: "Средний"
-  }
+  { english: "Where is the nearest bus stop?", russian: "Где ближайшая автобусная остановка?", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "I'd like a window seat, please.", russian: "Я хотел бы место у окна, пожалуйста.", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "What time is the last train?", russian: "Во сколько последний поезд?", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "How often do the buses run?", russian: "Как часто ходят автобусы?", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "Is this the right platform for Oxford?", russian: "Это правильная платформа на Оксфорд?", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "Do I need to validate my ticket?", russian: "Мне нужно компостировать билет?", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "Can I pay by card?", russian: "Можно оплатить картой?", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "A return ticket to Brighton, please.", russian: "Билет туда-обратно в Брайтон, пожалуйста.", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "Is there a direct flight?", russian: "Есть прямой рейс?", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "What's the boarding time?", russian: "Во сколько посадка?", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "Which gate do I need?", russian: "Какой выход мне нужен?", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "I missed my connection.", russian: "Я опоздал на стыковку.", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "Can you call me a taxi?", russian: "Вы можете вызвать мне такси?", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "How much to the city center?", russian: "Сколько стоит до центра города?", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "Keep the change.", russian: "Сдачи не надо.", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "I need to rent a car.", russian: "Мне нужно арендовать машину.", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "Is insurance included?", russian: "Страховка включена?", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "I'd like automatic transmission.", russian: "Я хотел бы автоматическую коробку.", explanation: "Транспорт", category: "Транспорт", level: "Продвинутый" },
+  { english: "Where can I park?", russian: "Где можно припарковаться?", explanation: "Транспорт", category: "Транспорт", level: "Начальный" },
+  { english: "My car broke down.", russian: "Моя машина сломалась.", explanation: "Транспорт", category: "Транспорт", level: "Средний" },
+  { english: "Could you recommend a good restaurant?", russian: "Не могли бы вы порекомендовать хороший ресторан?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "A table for two, please.", russian: "Столик на двоих, пожалуйста.", explanation: "Еда", category: "Еда", level: "Начальный" },
+  { english: "Do you have a vegetarian menu?", russian: "У вас есть вегетарианское меню?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "I'm allergic to nuts.", russian: "У меня аллергия на орехи.", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "What's the dish of the day?", russian: "Какое блюдо дня?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "I'd like it medium rare.", russian: "Я хотел бы с кровью.", explanation: "Еда", category: "Еда", level: "Продвинутый" },
+  { english: "Could we see the wine list?", russian: "Можно посмотреть винную карту?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "Is service included?", russian: "Обслуживание включено?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "Can we sit outside?", russian: "Можно сесть на улице?", explanation: "Еда", category: "Еда", level: "Начальный" },
+  { english: "I didn't order this.", russian: "Я это не заказывал.", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "Could we have some more bread?", russian: "Можно еще хлеба?", explanation: "Еда", category: "Еда", level: "Начальный" },
+  { english: "Is this spicy?", russian: "Это острое?", explanation: "Еда", category: "Еда", level: "Начальный" },
+  { english: "I'd like the bill, please.", russian: "Счет, пожалуйста.", explanation: "Еда", category: "Еда", level: "Начальный" },
+  { english: "We'd like to order.", russian: "Мы хотели бы сделать заказ.", explanation: "Еда", category: "Еда", level: "Начальный" },
+  { english: "What do you recommend?", russian: "Что вы порекомендуете?", explanation: "Еда", category: "Еда", level: "Начальный" },
+  { english: "Can I have this to go?", russian: "Можно это с собой?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "Is there a kids' menu?", russian: "Есть детское меню?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "Could we change tables?", russian: "Можно пересесть?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "The food is cold.", russian: "Еда холодная.", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "I'd like to make a reservation.", russian: "Я хотел бы забронировать столик.", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "For 7:30 PM.", russian: "На 19:30.", explanation: "Еда", category: "Еда", level: "Начальный" },
+  { english: "Do you have gluten-free options?", russian: "У вас есть безглютеновые блюда?", explanation: "Еда", category: "Еда", level: "Продвинутый" },
+  { english: "Could we have a high chair?", russian: "Можно детский стульчик?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "Is tap water free?", russian: "Вода из-под крана бесплатная?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "Can I pay separately?", russian: "Можно оплатить отдельно?", explanation: "Еда", category: "Еда", level: "Средний" },
+  { english: "How much does this cost?", russian: "Сколько это стоит?", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "I'm just looking, thanks.", russian: "Я просто смотрю, спасибо.", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "Do you have this in a different color?", russian: "У вас есть это другого цвета?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "Can I try this on?", russian: "Можно это примерить?", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "Where are the fitting rooms?", russian: "Где примерочные?", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "It doesn't fit.", russian: "Не подходит по размеру.", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "Do you have a larger size?", russian: "У вас есть размер побольше?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "Is this on sale?", russian: "Это по акции?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "Can I get a tax refund?", russian: "Можно вернуть налог?", explanation: "Покупки", category: "Покупки", level: "Продвинутый" },
+  { english: "I'd like to return this.", russian: "Я хотел бы вернуть это.", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "Do you offer gift wrapping?", russian: "У вас есть подарочная упаковка?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "Is there a warranty?", russian: "Есть гарантия?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "Can you order it for me?", russian: "Можете заказать для меня?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "I'll take it.", russian: "Я беру это.", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "Where's the nearest supermarket?", russian: "Где ближайший супермаркет?", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "Do you have a loyalty card?", russian: "У вас есть карта лояльности?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "Can I have a receipt, please?", russian: "Можно чек, пожалуйста?", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "Is this real leather?", russian: "Это настоящая кожа?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "Where can I find cosmetics?", russian: "Где найти косметику?", explanation: "Покупки", category: "Покупки", level: "Начальный" },
+  { english: "Do you have this in stock?", russian: "Это есть в наличии?", explanation: "Покупки", category: "Покупки", level: "Средний" },
+  { english: "I need to see a doctor.", russian: "Мне нужно к врачу.", explanation: "Здоровье", category: "Здоровье", level: "Начальный" },
+  { english: "Where's the nearest pharmacy?", russian: "Где ближайшая аптека?", explanation: "Здоровье", category: "Здоровье", level: "Начальный" },
+  { english: "I have a headache.", russian: "У меня болит голова.", explanation: "Здоровье", category: "Здоровье", level: "Начальный" },
+  { english: "I feel dizzy.", russian: "У меня кружится голова.", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I have a fever.", russian: "У меня температура.", explanation: "Здоровье", category: "Здоровье", level: "Начальный" },
+  { english: "I need antibiotics.", russian: "Мне нужны антибиотики.", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I'm allergic to penicillin.", russian: "У меня аллергия на пенициллин.", explanation: "Здоровье", category: "Здоровье", level: "Продвинутый" },
+  { english: "I have asthma.", russian: "У меня астма.", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I need painkillers.", russian: "Мне нужны обезболивающие.", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I think I broke my arm.", russian: "Кажется, я сломал руку.", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "Call an ambulance!", russian: "Вызовите скорую!", explanation: "Здоровье", category: "Здоровье", level: "Начальный" },
+  { english: "I have diabetes.", russian: "У меня диабет.", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I need insulin.", russian: "Мне нужен инсулин.", explanation: "Здоровье", category: "Здоровье", level: "Продвинутый" },
+  { english: "I can't sleep.", russian: "Я не могу спать.", explanation: "Здоровье", category: "Здоровье", level: "Начальный" },
+  { english: "Do I need a prescription?", russian: "Нужен рецепт?", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I have heart problems.", russian: "У меня проблемы с сердцем.", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I'm pregnant.", russian: "Я беременна.", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I need a dentist.", russian: "Мне нужен стоматолог.", explanation: "Здоровье", category: "Здоровье", level: "Начальный" },
+  { english: "I have a sore throat.", russian: "У меня болит горло.", explanation: "Здоровье", category: "Здоровье", level: "Начальный" },
+  { english: "Is it serious?", russian: "Это серьезно?", explanation: "Здоровье", category: "Здоровье", level: "Средний" },
+  { english: "I have a reservation.", russian: "У меня забронировано.", explanation: "Гостиница", category: "Гостиница", level: "Начальный" },
+  { english: "Check-in, please.", russian: "Заселение, пожалуйста.", explanation: "Гостиница", category: "Гостиница", level: "Начальный" },
+  { english: "What time is check-out?", russian: "Во сколько выезд?", explanation: "Гостиница", category: "Гостиница", level: "Начальный" },
+  { english: "Can I have a late check-out?", russian: "Можно поздний выезд?", explanation: "Гостиница", category: "Гостиница", level: "Средний" },
+  { english: "Is breakfast included?", russian: "Завтрак включен?", explanation: "Гостиница", category: "Гостиница", level: "Начальный" },
+  { english: "The air conditioner doesn't work.", russian: "Кондиционер не работает.", explanation: "Гостиница", category: "Гостиница", level: "Средний" },
+  { english: "There's no hot water.", russian: "Нет горячей воды.", explanation: "Гостиница", category: "Гостиница", level: "Средний" },
+  { english: "Could I have extra towels?", russian: "Можно дополнительные полотенца?", explanation: "Гостиница", category: "Гостиница", level: "Средний" },
+  { english: "Is there WiFi in the room?", russian: "В номере есть WiFi?", explanation: "Гостиница", category: "Гостиница", level: "Начальный" },
+  { english: "What's the WiFi password?", russian: "Какой пароль от WiFi?", explanation: "Гостиница", category: "Гостиница", level: "Начальный" },
+  { english: "Can you store my luggage?", russian: "Можете оставить мой багаж?", explanation: "Гостиница", category: "Гостиница", level: "Средний" },
+  { english: "I need a wake-up call at 7 AM.", russian: "Мне нужен звонок-будильник в 7 утра.", explanation: "Гостиница", category: "Гостиница", level: "Средний" },
+  { english: "Can I change rooms?", russian: "Можно поменять номер?", explanation: "Гостиница", category: "Гостиница", level: "Средний" },
+  { english: "Is there a gym?", russian: "У вас есть тренажерный зал?", explanation: "Гостиница", category: "Гостиница", level: "Средний" },
+  { english: "Do you have a swimming pool?", russian: "У вас есть бассейн?", explanation: "Гостиница", category: "Гостиница", level: "Начальный" },
+  { english: "How do I get to the museum?", russian: "Как мне добраться до музея?", explanation: "Город", category: "Город", level: "Начальный" },
+  { english: "Is it far from here?", russian: "Это далеко отсюда?", explanation: "Город", category: "Город", level: "Начальный" },
+  { english: "Can I walk there?", russian: "Туда можно дойти пешком?", explanation: "Город", category: "Город", level: "Средний" },
+  { english: "Which bus goes to the beach?", russian: "Какой автобус идет на пляж?", explanation: "Город", category: "Город", level: "Средний" },
+  { english: "Where's the city center?", russian: "Где центр города?", explanation: "Город", category: "Город", level: "Начальный" },
+  { english: "I'm lost.", russian: "Я заблудился.", explanation: "Город", category: "Город", level: "Начальный" },
+  { english: "Can you show me on the map?", russian: "Можете показать на карте?", explanation: "Город", category: "Город", level: "Средний" },
+  { english: "What's the address?", russian: "Какой адрес?", explanation: "Город", category: "Город", level: "Начальный" },
+  { english: "Turn left at the traffic lights.", russian: "Поверните налево на светофоре.", explanation: "Город", category: "Город", level: "Средний" },
+  { english: "Is this the way to the station?", russian: "Это дорога к вокзалу?", explanation: "Город", category: "Город", level: "Средний" },
+  { english: "Go straight ahead.", russian: "Идите прямо.", explanation: "Город", category: "Город", level: "Начальный" },
+  { english: "It's around the corner.", russian: "Это за углом.", explanation: "Город", category: "Город", level: "Начальный" },
+  { english: "I'm looking for this street.", russian: "Я ищу эту улицу.", explanation: "Город", category: "Город", level: "Средний" },
+  { english: "What's the best route?", russian: "Какой лучший маршрут?", explanation: "Город", category: "Город", level: "Средний" },
+  { english: "Is it safe to walk at night?", russian: "Здесь безопасно гулять ночью?", explanation: "Город", category: "Город", level: "Средний" },
+  { english: "Help!", russian: "Помогите!", explanation: "Экстренное", category: "Экстренное", level: "Начальный" },
+  { english: "Call the police!", russian: "Вызовите полицию!", explanation: "Экстренное", category: "Экстренное", level: "Начальный" },
+  { english: "There's a fire!", russian: "Пожар!", explanation: "Экстренное", category: "Экстренное", level: "Начальный" },
+  { english: "I've been robbed.", russian: "Меня ограбили.", explanation: "Экстренное", category: "Экстренное", level: "Средний" },
+  { english: "I lost my passport.", russian: "Я потерял паспорт.", explanation: "Экстренное", category: "Экстренное", level: "Средний" },
+  { english: "My wallet was stolen.", russian: "У меня украли кошелек.", explanation: "Экстренное", category: "Экстренное", level: "Средний" },
+  { english: "I need to contact the embassy.", russian: "Мне нужно связаться с посольством.", explanation: "Экстренное", category: "Экстренное", level: "Средний" },
+  { english: "There's been an accident.", russian: "Произошла авария.", explanation: "Экстренное", category: "Экстренное", level: "Средний" },
+  { english: "I'm being followed.", russian: "За мной следят.", explanation: "Экстренное", category: "Экстренное", level: "Продвинутый" },
+  { english: "I need a lawyer.", russian: "Мне нужен адвокат.", explanation: "Экстренное", category: "Экстренное", level: "Средний" },
+  { english: "I've been assaulted.", russian: "На меня напали.", explanation: "Экстренное", category: "Экстренное", level: "Продвинутый" },
+  { english: "Where is the police station?", russian: "Где полицейский участок?", explanation: "Экстренное", category: "Экстренное", level: "Начальный" },
+  { english: "I want to report a crime.", russian: "Я хочу заявить о преступлении.", explanation: "Экстренное", category: "Экстренное", level: "Продвинутый" },
+  { english: "My child is missing.", russian: "Мой ребенок пропал.", explanation: "Экстренное", category: "Экстренное", level: "Средний" },
+  { english: "I need a translator.", russian: "Мне нужен переводчик.", explanation: "Экстренное", category: "Экстренное", level: "Средний" },
+  { english: "I have a job interview.", russian: "У меня собеседование.", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "What's the salary?", russian: "Какая зарплата?", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "When can I start?", russian: "Когда я могу приступить?", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "I need a work visa.", russian: "Мне нужна рабочая виза.", explanation: "Работа", category: "Работа", level: "Продвинутый" },
+  { english: "I'm here for a conference.", russian: "Я здесь на конференции.", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "Let's schedule a meeting.", russian: "Давайте назначим встречу.", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "I'll send you an email.", russian: "Я пришлю вам письмо.", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "Can you send me the contract?", russian: "Можете прислать мне контракт?", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "I need a day off.", russian: "Мне нужен выходной.", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "I'm sick today.", russian: "Я заболел сегодня.", explanation: "Работа", category: "Работа", level: "Начальный" },
+  { english: "What are the working hours?", russian: "Какой график работы?", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "Is overtime paid?", russian: "Сверхурочные оплачиваются?", explanation: "Работа", category: "Работа", level: "Продвинутый" },
+  { english: "I'd like to resign.", russian: "Я хотел бы уволиться.", explanation: "Работа", category: "Работа", level: "Продвинутый" },
+  { english: "Can you write a reference?", russian: "Можете написать рекомендацию?", explanation: "Работа", category: "Работа", level: "Продвинутый" },
+  { english: "I have experience in this field.", russian: "У меня есть опыт в этой сфере.", explanation: "Работа", category: "Работа", level: "Средний" },
+  { english: "Hi, my name is...", russian: "Привет, меня зовут...", explanation: "Общение", category: "Общение", level: "Начальный" },
+  { english: "Nice to meet you.", russian: "Приятно познакомиться.", explanation: "Общение", category: "Общение", level: "Начальный" },
+  { english: "Where are you from?", russian: "Откуда вы?", explanation: "Общение", category: "Общение", level: "Начальный" },
+  { english: "I'm from Russia.", russian: "Я из России.", explanation: "Общение", category: "Общение", level: "Начальный" },
+  { english: "Do you speak English?", russian: "Вы говорите по-английски?", explanation: "Общение", category: "Общение", level: "Начальный" },
+  { english: "I don't understand.", russian: "Я не понимаю.", explanation: "Общение", category: "Общение", level: "Начальный" },
+  { english: "Could you speak slower?", russian: "Не могли бы вы говорить медленнее?", explanation: "Общение", category: "Общение", level: "Средний" },
+  { english: "Can you repeat that?", russian: "Можете повторить?", explanation: "Общение", category: "Общение", level: "Начальный" },
+  { english: "What do you do?", russian: "Чем вы занимаетесь?", explanation: "Общение", category: "Общение", level: "Средний" },
+  { english: "Do you live here?", russian: "Вы здесь живете?", explanation: "Общение", category: "Общение", level: "Средний" },
+  { english: "I'm just visiting.", russian: "Я просто в гостях.", explanation: "Общение", category: "Общение", level: "Средний" },
+  { english: "What are your hobbies?", russian: "Какие у вас хобби?", explanation: "Общение", category: "Общение", level: "Средний" },
+  { english: "Can I have your number?", russian: "Можно ваш номер?", explanation: "Общение", category: "Общение", level: "Средний" },
+  { english: "Let's keep in touch.", russian: "Давайте оставаться на связи.", explanation: "Общение", category: "Общение", level: "Средний" },
+  { english: "It was great talking to you.", russian: "Было приятно пообщаться.", explanation: "Общение", category: "Общение", level: "Средний" }
 ];
 
 // ===================== КЛАВИАТУРЫ =====================
@@ -1615,7 +394,7 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
   if (!res.found || res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
   const w = await getWeatherData(res.city);
   if (!w.success) return ctx.reply('❌ Ошибка: ' + w.error);
-  await ctx.reply(`🌤️ *Погода в ${w.city}:*\n🌡️ ${w.temp}°C (ощущается как ${w.feels_like}°C)\n📝 ${w.description}\n💨 Ветер: ${w.wind_speed} м/с (${w.wind_dir})\n📊 Давление: ${w.pressure} мм рт.ст.\n💧 Влажность: ${w.humidity}%`, { parse_mode: 'Markdown' });
+  await ctx.reply(`🌤️ *Погода в ${w.city}:*\n🌡️ ${w.temp}°C (ощущается как ${w.feels_like}°C)\n📝 ${w.description}\n💨 Ветер: ${w.wind_speed} м/с (${w.wind_dir})\n📊 Давление: ${w.pressure} мм рт.ст.\n💧 Влажность: ${w.humidity}%\n🌅 Световой день: ${w.day_length}`, { parse_mode: 'Markdown' });
 });
 
 bot.hears('📅 СЕГОДНЯ', async (ctx) => {
@@ -1698,7 +477,6 @@ bot.on('message:text', async (ctx) => {
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
-      if (!bot.isInited()) await bot.init();
       await bot.handleUpdate(req.body);
     } catch (e) { console.error('Bot Error:', e); }
     return res.status(200).json({ ok: true });
