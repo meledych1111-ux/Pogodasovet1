@@ -199,7 +199,17 @@ const dailyPhrases = [
   { e: "Where is the restroom?", r: "Где туалет?", c: "Город" },
   { e: "How is it going?", r: "Как дела?", c: "Общение" },
   { e: "I don't understand.", r: "Я не понимаю.", c: "Общение" },
-  { e: "Speak slower, please.", r: "Говорите медленнее, пожалуйста.", c: "Общение" }
+  { e: "Speak slower, please.", r: "Говорите медленнее, пожалуйста.", c: "Общение" },
+  { e: "Could you help me?", r: "Вы не могли бы мне помочь?", c: "Общение" },
+  { e: "Thank you for your help.", r: "Спасибо за помощь.", c: "Общение" },
+  { e: "What time is it?", r: "Который час?", c: "Общение" },
+  { e: "Where can I buy a ticket?", r: "Где я могу купить билет?", c: "Транспорт" },
+  { e: "The check, please.", r: "Счет, пожалуйста.", c: "Еда" },
+  { e: "Do you have any vegetarian dishes?", r: "У вас есть вегетарианские блюда?", c: "Еда" },
+  { e: "Is there a pharmacy nearby?", r: "Поблизости есть аптека?", c: "Город" },
+  { e: "Can I pay by card?", r: "Можно оплатить картой?", c: "Покупки" },
+  { e: "I'm just looking, thanks.", r: "Я просто смотрю, спасибо.", c: "Покупки" },
+  { e: "It's too expensive.", r: "Это слишком дорого.", c: "Покупки" }
 ];
 
 const mainMenuKeyboard = new Keyboard()
@@ -225,16 +235,14 @@ bot.command('start', async (ctx) => {
     .webApp('🎮 ИГРАТЬ В ТЕТРИС', url).row()
     .url('📢 Канал проекта', 'https://t.me/pogodasovet_news');
 
-  let welcome = `👋 *Привет! Я твой личный помощник по погоде и английскому!*\n\n`;
-  welcome += `Твой анонимный ник: *${name}*\n`;
+  let info = `👤 Ник: *${name}*\n`;
   if (res.city !== 'Не указан') {
-    welcome += `📍 Твой город: *${res.city}*\n\n`;
-    welcome += `Нажимай кнопку ниже, чтобы начать игру, или используй меню для прогноза! 👇`;
-    await ctx.reply(welcome, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
-    await ctx.reply('🚀 *Готов к рекордам?*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
+    info += `📍 Город: *${res.city}*`;
+    await ctx.reply(info, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+    await ctx.reply('🚀 *Твой Тетрис готов!*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
   } else {
-    welcome += `Чтобы я мог давать точные советы, сначала выбери свой город: 👇`;
-    await ctx.reply(welcome, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
+    info += `\n👇 *Выбери свой город для начала:*`;
+    await ctx.reply(info, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
   }
 });
 
