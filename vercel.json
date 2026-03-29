@@ -5,22 +5,15 @@
   },
   "rewrites": [
     { "source": "/", "destination": "/api/bot" },
-    { "source": "/game", "destination": "/public/index.html" },
+    { "source": "/game", "destination": "/index.html" },
     { "source": "/api/:path*", "destination": "/api/:path*.js" }
   ],
   "headers": [
     {
-      "source": "/game",
+      "source": "/(.*)",
       "headers": [
-        { "key": "Content-Security-Policy", "value": "frame-ancestors 'self' https://t.me https://web.telegram.org https://*.t.me https://*.web.telegram.org;" }
-      ]
-    },
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+        { "key": "Content-Security-Policy", "value": "frame-ancestors 'self' https://t.me https://web.telegram.org https://*.t.me https://*.web.telegram.org;" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
       ]
     }
   ]
