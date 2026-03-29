@@ -75,6 +75,14 @@ export async function getUserProfile(userId) {
     } finally { client.release(); }
 }
 
+export async function getTakenLogins() {
+    const client = await pool.connect();
+    try {
+        const result = await client.query('SELECT login FROM game_auth');
+        return result.rows.map(r => r.login);
+    } finally { client.release(); }
+}
+
 export async function getUserCity(userId) {
     const profile = await getUserProfile(userId);
     return { success: true, city: profile?.city || 'Не указан', found: !!profile };
@@ -101,7 +109,8 @@ export async function getGameStats(userId, gameType = 'tetris') {
     try {
         const query = `
             SELECT COUNT(*) as games_played, MAX(score) as best_score, 
-            MAX(level) as best_level, MAX(lines) as best_lines, SUM(lines) as total_lines
+            MAX(level) as best_level, MAX(lines) as best_lines, SUM(lines) as total_lines,
+            AVG(score) as avg_score
             FROM game_scores WHERE user_id = $1 AND game_type = $2`;
         const result = await client.query(query, [dbUserId, gameType]);
         return result.rows[0];
@@ -112,7 +121,7 @@ export async function getTopPlayers(gameType = 'tetris', limit = 10) {
     const client = await pool.connect();
     try {
         const query = `
-            SELECT username as display_name, city, MAX(score) as best_score
+            SELECT username as display_name, city, MAX(score) as best_score, MAX(level) as best_level
             FROM game_scores WHERE game_type = $1 AND score >= 1000
             GROUP BY user_id, username, city ORDER BY best_score DESC LIMIT $2`;
         const result = await client.query(query, [gameType, limit]);
@@ -153,7 +162,7 @@ const initDb = async () => {
                 created_at TIMESTAMP DEFAULT NOW()
             );
         `);
-        console.log('✅ Таблицы Neon проверены и соответствуют логике');
+        console.log('✅ Таблицы Neon проверены');
     } finally { client.release(); }
 };
 initDb().catch(console.error);
