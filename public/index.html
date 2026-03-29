@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Тетрис 3D — Питомцы</title>
+    <!-- ПОДКЛЮЧЕНИЕ TELEGRAM WEB APP SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
             margin: 0; padding: 0; box-sizing: border-box;
@@ -277,6 +279,14 @@
     <div id="notification" class="notification"></div>
 
     <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand(); // Развернуть на весь экран
+            console.log("Telegram WebApp initialized");
+        }
+
         // --- ДАННЫЕ О ПИТОМЦАХ (50 ШТУК) ---
         const BASE_PETS = [
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', type: 'clear', value: 1 },
@@ -356,7 +366,11 @@
                 regSelect.innerHTML = '<option value="">-- Выберите Имя --</option>';
                 const urlParams = new URLSearchParams(window.location.search);
                 const botUsername = urlParams.get('username');
-                if (botUsername && !taken.includes(botUsername)) {
+                
+                // Если имя из бота уже занято, выбираем его в логине
+                if (botUsername && taken.includes(botUsername)) {
+                    loginSelect.value = botUsername;
+                } else if (botUsername) {
                     const opt = document.createElement('option');
                     opt.value = botUsername; opt.textContent = botUsername + " (из бота)";
                     opt.selected = true; regSelect.appendChild(opt);
