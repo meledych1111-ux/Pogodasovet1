@@ -218,7 +218,7 @@
     <div id="notification" class="notification"></div>
 
     <script>
-        // --- ДАННЫЕ О ПИТОМЦАХ ---
+        // --- ДАННЫЕ О ПИТОМЦАХ (50 ШТУК) ---
         const BASE_PETS = [
             { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, type: 'clear', value: 1 },
             { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1000, type: 'slow', value: 5000 },
@@ -278,10 +278,9 @@
                     loginSelect.appendChild(opt);
                 });
 
-                // Очищаем и заново заполняем список регистрации
                 regSelect.innerHTML = '<option value="">-- Выберите Имя --</option>';
                 
-                // Добавляем имя от бота, если оно есть
+                // ПОДХВАТ ИЗ БОТА
                 const urlParams = new URLSearchParams(window.location.search);
                 const botUsername = urlParams.get('username');
                 if (botUsername && !taken.includes(botUsername)) {
@@ -318,14 +317,13 @@
 
         async function doAuth(login, pin) {
             const urlParams = new URLSearchParams(window.location.search);
-            // Пытаемся взять город из ссылки бота
-            const city = urlParams.get('city');
+            const city = urlParams.get('city'); // ГОРОД ИЗ БОТА
             
             try {
                 const res = await fetch('/api/auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ login, pin, city }) // Город теперь передается
+                    body: JSON.stringify({ login, pin, city })
                 });
                 const data = await res.json();
                 if (data.success) {
