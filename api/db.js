@@ -35,14 +35,14 @@ export function hashPin(pin, salt) {
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    max: 20, // Увеличено для избежания дедлоков при вложенных запросах
+    max: 20,
     connectionTimeoutMillis: 5000,
     idleTimeoutMillis: 30000
 });
 
 export function convertUserIdForDb(userId) {
     if (!userId) return null;
-    return String(userId).trim(); // СОХРАНЯЕМ ИМЯ ЦЕЛИКОМ!
+    return String(userId).trim();
 }
 
 // ===================== ФУНКЦИИ ПОЛЬЗОВАТЕЛЕЙ =====================
@@ -95,8 +95,6 @@ export async function saveGameScore(userId, gameType, score, level, lines, usern
     const dbUserId = convertUserIdForDb(userId);
     const client = await pool.connect();
     try {
-        // Чтобы избежать дедлока при max: 1, здесь лучше использовать тот же client, 
-        // но getUserProfile создает свой. С max: 20 это не проблема.
         const profile = await getUserProfile(dbUserId); 
         const displayName = username || dbUserId;
         await client.query(`
