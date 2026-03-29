@@ -25,7 +25,7 @@ async function query(text, params) {
     return await pool.query(text, params);
 }
 
-// Сохранение или обновление пользователя (по анонимному нику)
+// Сохранение пользователя (только анонимный ник)
 export async function saveOrUpdateUser({ user_id, city }) {
     const sql = `
         INSERT INTO users (user_id, city, last_active) 
@@ -50,7 +50,7 @@ export async function getUserCity(userId) {
     return { success: true, city: profile?.city || 'Не указан', found: !!profile };
 }
 
-// Сохранение счета игры
+// Сохранение счета игры (без возврата статистики)
 export async function saveGameScore(userId, gameType, score, level, lines) {
     const profile = await getUserProfile(userId);
     const sql = `
@@ -59,36 +59,7 @@ export async function saveGameScore(userId, gameType, score, level, lines) {
     return await query(sql, [userId, gameType, score, level, lines, profile?.city || 'Не указан']);
 }
 
-// Получение статистики игрока
-export async function getGameStats(userId, gameType = 'tetris') {
-    const sql = `
-        SELECT COUNT(*) as games_played, MAX(score) as best_score, 
-        MAX(level) as best_level, MAX(lines) as best_lines, AVG(score) as avg_score
-        FROM game_scores WHERE user_id = $1 AND game_type = $2`;
-    const res = await query(sql, [userId, gameType]);
-    const r = res.rows[0];
-    return {
-        games_played: parseInt(r?.games_played || 0),
-        best_score: parseInt(r?.best_score || 0),
-        best_level: parseInt(r?.best_level || 0),
-        best_lines: parseInt(r?.best_lines || 0),
-        avg_score: Math.round(parseFloat(r?.avg_score) || 0)
-    };
-}
-
-// Топ игроков для Тетриса
-export async function getTopPlayers(gameType = 'tetris', limit = 10) {
-    const sql = `
-        SELECT user_id as username, city, MAX(score) as best_score
-        FROM game_scores WHERE game_type = $1 AND score >= 100
-        GROUP BY user_id, city ORDER BY best_score DESC LIMIT $2`;
-    const res = await query(sql, [gameType, limit]);
-    return { success: true, players: res.rows.map((r, i) => ({ 
-        rank: i + 1, username: r.username, city: r.city, score: r.best_score 
-    })) };
-}
-
-// Автоматическая инициализация (на всякий случай)
+// Инициализация таблиц
 export const initDb = async () => {
     await query(`
         CREATE TABLE IF NOT EXISTS users (
