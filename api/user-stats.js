@@ -1,42 +1,30 @@
-import { getGameStats } from './db.js';
+import { getGameStats, generateAnonymousName } from './db.js';
 
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   
-  console.log('📊 /api/user-stats - Request:', req.query);
-
   try {
-    const { userId, gameType = 'tetris' } = req.query;
+    const { session_id, gameType = 'tetris' } = req.query;
     
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing userId parameter'
-      });
+    if (!session_id) {
+      return res.status(400).json({ success: false, error: 'Missing session_id' });
     }
 
-    const stats = await getGameStats(userId, gameType);
+    const cloudName = generateAnonymousName(session_id);
+    const stats = await getGameStats(cloudName, gameType);
     
-    const response = {
+    return res.status(200).json({
       success: true,
-      userId: userId,
+      cloudName: cloudName,
       gameType: gameType,
       games_played: parseInt(stats?.games_played) || 0,
       best_score: parseInt(stats?.best_score) || 0,
       best_level: parseInt(stats?.best_level) || 1,
-      best_lines: parseInt(stats?.best_lines) || 0,
-      avg_score: stats?.avg_score ? parseFloat(parseFloat(stats.avg_score).toFixed(2)) : 0
-    };
-
-    console.log('📊 Response:', response);
-    return res.status(200).json(response);
+      best_lines: parseInt(stats?.best_lines) || 0
+    });
 
   } catch (error) {
     console.error('❌ Error in user-stats:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 }

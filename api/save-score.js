@@ -1,4 +1,4 @@
-import { saveGameScore, getGameStats, generateAnonymousName } from './db.js';
+import { saveGameScore, getGameStats, getOrRegisterPin } from './db.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -9,18 +9,16 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   try {
-    // Принимаем session_id (UUID с фронта) вместо userId или чего-то еще
-    const { session_id, score, level = 1, lines = 0, gameType = 'tetris', city = 'Не указан' } = req.body;
+    const { pin, score, level = 1, lines = 0, gameType = 'tetris', city = 'Не указан' } = req.body;
     
-    if (!session_id || score === undefined) {
-      return res.status(400).json({ success: false, error: 'Missing session_id or score' });
+    if (!pin || score === undefined) {
+      return res.status(400).json({ success: false, error: 'Missing pin or score' });
     }
 
-    // Генерируем публичное "Облачное имя" из анонимного UUID.
-    // Исходный session_id (UUID) НИКОГДА не сохраняется в базу данных.
-    const cloudName = generateAnonymousName(session_id);
+    // Получаем анонимное имя по ПИНу
+    const { cloudName } = await getOrRegisterPin(pin);
 
-    // Сохраняем только анонимное имя и игровые данные
+    // Сохраняем результат
     await saveGameScore(cloudName, gameType, parseInt(score), parseInt(level), parseInt(lines), city);
     
     const stats = await getGameStats(cloudName, gameType);
@@ -29,8 +27,7 @@ export default async function handler(req, res) {
       success: true,
       stats: {
         best_score: stats?.best_score || 0,
-        games_played: stats?.games_played || 0,
-        cloudName: cloudName // Возвращаем имя, чтобы игрок знал, кто он в таблице
+        games_played: stats?.games_played || 0
       }
     });
 

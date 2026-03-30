@@ -1,26 +1,15 @@
-import { Bot, Keyboard, InlineKeyboard } from 'grammy';
+import { Bot, Keyboard, InlineKeyboard, session } from 'grammy';
 import dotenv from 'dotenv';
-import { pool, generateAnonymousName } from './db.js';
+import { pool, getOrRegisterPin, saveUserCity, getUserCity } from './db.js';
 
 dotenv.config();
 const bot = new Bot(process.env.BOT_TOKEN || '');
 
-// Помощники для работы с БД (анонимно)
-async function getBotUserCity(cloudName) {
-    const res = await pool.query('SELECT city FROM users_cloud WHERE cloud_name = $1', [cloudName]);
-    return res.rows[0]?.city || 'Не указан';
-}
+// Используем сессии (в памяти), чтобы бот помнил ПИН текущего пользователя,
+// пока тот с ним общается, без сохранения его Telegram ID в базу данных.
+bot.use(session({ initial: () => ({ pin: null, cloudName: null }) }));
 
-async function saveBotUserCity(cloudName, city) {
-    await pool.query(
-        `INSERT INTO users_cloud (cloud_name, city, last_active) 
-         VALUES ($1, $2, NOW()) 
-         ON CONFLICT (cloud_name) DO UPDATE SET city = $2, last_active = NOW()`,
-        [cloudName, city]
-    );
-}
-
-// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ПОГОДЫ =====================
 function getWindDirection(degrees) {
   if (degrees === undefined || degrees === null) return '—';
   const directions = ['С ⬆️', 'СВ ↗️', 'В ➡️', 'ЮВ ↘️', 'Ю ⬇️', 'ЮЗ ↙️', 'З ⬅️', 'СЗ ↖️'];
@@ -39,8 +28,7 @@ function calculateDayLength(sunrise, sunset) {
   if (!sunrise || !sunset) return '—';
   const [srh, srm] = sunrise.split(':').map(Number);
   const [ssh, ssm] = sunset.split(':').map(Number);
-  let h = ssh - srh;
-  let m = ssm - srm;
+  let h = ssh - srh; let m = ssm - srm;
   if (m < 0) { h--; m += 60; }
   return `${h} ч ${m} мин`;
 }
@@ -73,29 +61,16 @@ async function getDetailedWeatherData(cityName) {
     const sunrise = daily.sunrise[0].substring(11, 16);
     const sunset = daily.sunset[0].substring(11, 16);
 
-    let msg = `📍 *${name}* — сейчас\n`;
-    msg += `───────────────────\n`;
+    let msg = `📍 *${name}* — сейчас\n───────────────────\n`;
     msg += `🌡️ *Температура:* ${Math.round(cur.temperature_2m)}°C\n`;
     msg += `🤔 *Ощущается как:* ${Math.round(cur.apparent_temperature)}°C\n`;
-    msg += `📝 *На улице:* ${getWeatherDescription(cur.weather_code)}\n`;
-    msg += `───────────────────\n`;
+    msg += `📝 *На улице:* ${getWeatherDescription(cur.weather_code)}\n───────────────────\n`;
     msg += `💨 *Ветер:* ${cur.wind_speed_10m.toFixed(1)} м/с (${getWindDirection(cur.wind_direction_10m)})\n`;
     msg += `📊 *Давление:* ${Math.round(cur.pressure_msl * 0.750062)} мм рт. ст.\n`;
-    msg += `☀️ *УФ-индекс:* ${daily.uv_index_max[0]}\n`;
-    msg += `🌅 Восход: ${sunrise} | 🌇 Закат: ${sunset}\n`;
-    msg += `⏱ Длина дня: ${calculateDayLength(sunrise, sunset)}`;
+    msg += `☀️ *УФ-индекс:* ${daily.uv_index_max[0]}\n───────────────────\n`;
+    msg += `🌅 Восход: ${sunrise} | 🌇 Закат: ${sunset}\n⏱ Длина дня: ${calculateDayLength(sunrise, sunset)}`;
     
-    return { 
-      success: true, 
-      city: name, 
-      message: msg, 
-      temp: cur.temperature_2m,
-      feels_like: cur.apparent_temperature,
-      description: getWeatherDescription(cur.weather_code),
-      has_rain: cur.rain > 0,
-      has_snow: cur.snowfall > 0,
-      wind_speed: cur.wind_speed_10m
-    };
+    return { success: true, city: name, message: msg, feels_like: cur.apparent_temperature, description: getWeatherDescription(cur.weather_code), has_rain: cur.rain > 0, wind_speed: cur.wind_speed_10m };
   } catch (e) { return { success: false, error: e.message }; }
 }
 
@@ -114,13 +89,11 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
     const start = dayOffset * 24;
     const periods = [{ n: '🌅 Утро', i: start + 9, e: '🌅' }, { n: '☀️ День', i: start + 15, e: '☀️' }, { n: '🌆 Вечер', i: start + 21, e: '🌆' }];
 
-    const date = new Date();
-    date.setDate(date.getDate() + dayOffset);
-    let msg = `📅 *Прогноз: ${name}* (${date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })})\n`;
-    msg += `───────────────────\n`;
+    const date = new Date(); date.setDate(date.getDate() + dayOffset);
+    let msg = `📅 *Прогноз: ${name}* (${date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })})\n───────────────────\n`;
     periods.forEach(p => {
       const t = Math.round(data.hourly.temperature_2m[p.i]);
-      msg += `${p.e} *${p.n}:* ${t}°C, ${getWeatherDescription(data.hourly.weather_code[p.i])}\n`;
+      msg += `${p.e} *${p.n}:* ${t}°C | ${getWeatherDescription(data.hourly.weather_code[p.i])}\n`;
     });
     return { success: true, message: msg };
   } catch (e) { return { success: false, message: "❌ Ошибка прогноза." }; }
@@ -129,19 +102,23 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
 function getWardrobeAdvice(w) {
   if (!w || !w.success) return '❌ Данные недоступны.';
   const t = w.feels_like;
-  let advice = `👕 *Что надеть в ${w.city}?*\n🌡️ Ощущается как ${Math.round(t)}°C\n\n`;
-  if (t >= 20) advice += "☀️ Легкая одежда, футболка, шорты.";
-  else if (t >= 10) advice += "🌥️ Легкая куртка или ветровка.";
-  else if (t >= 0) advice += "🧥 Пальто или теплая куртка.";
-  else advice += "❄️ Очень холодно! Надевайте пуховик, шапку и шарф.";
+  let advice = `👕 *Что надеть в ${w.city}?*\n🌡️ Ощущается как ${Math.round(t)}°C\n\n📋 *Рекомендации:*\n`;
+  if (t >= 25) advice += "☀️ Легкая одежда, футболка, шорты.";
+  else if (t >= 18) advice += "🌤️ Футболка + кофта на вечер, кроссовки.";
+  else if (t >= 10) advice += "🌥️ Ветровка или демисезонная куртка.";
+  else if (t >= 0) advice += "🧥 Теплое пальто, шапка и шарф.";
+  else advice += "❄️ Зимний пуховик и варежки!";
+  
+  if (w.has_rain) advice += "\n\n☔️ Возьмите зонт!";
   return advice;
 }
 
 const dailyPhrases = [
   { e: "Where is the nearest bus stop?", r: "Где ближайшая остановка?", c: "Транспорт" },
-  { e: "How much does this cost?", r: "Сколько это стоит?", c: "Покупки" },
-  { e: "Everything was delicious, thank you!", r: "Все было очень вкусно, спасибо!", c: "Еда" },
-  { e: "Nice to meet you!", r: "Приятно познакомиться!", c: "Общение" }
+  { e: "How much is the fare?", r: "Сколько стоит проезд?", c: "Транспорт" },
+  { e: "A table for two, please.", r: "Столик на двоих, пожалуйста.", c: "Еда" },
+  { e: "Nice to meet you!", r: "Приятно познакомиться!", c: "Общение" },
+  { e: "Can I pay by card?", r: "Можно оплатить картой?", c: "Покупки" }
 ];
 
 // ===================== КЛАВИАТУРЫ =====================
@@ -161,89 +138,84 @@ const cityKeyboard = new Keyboard()
 // ===================== ОБРАБОТЧИКИ =====================
 
 bot.command('start', async (ctx) => {
-  const cloudName = generateAnonymousName(ctx.from.id);
-  const city = await getBotUserCity(cloudName);
-  const gameUrl = `https://pogodasovet1.vercel.app/game?cloud_name=${encodeURIComponent(cloudName)}&city=${encodeURIComponent(city)}`;
-  
-  const startInlineKeyboard = new InlineKeyboard()
-    .webApp('🎮 ИГРАТЬ В ТЕТРИС', gameUrl).row()
-    .url('📢 Канал проекта', 'https://t.me/pogodasovet_news');
+  // Получаем или регистрируем новый анонимный ПИН
+  const { pin, cloudName } = await getOrRegisterPin(ctx.session.pin);
+  ctx.session.pin = pin;
+  ctx.session.cloudName = cloudName;
 
-  let info = `👤 Ник: *${cloudName}*\n`;
-  if (city !== 'Не указан') {
-    info += `📍 Город: *${city}*`;
-    await ctx.reply(info, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
-    await ctx.reply('🚀 *Твой Тетрис готов!*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
-  } else {
-    info += `\n👇 *Выбери город:*`;
-    await ctx.reply(info, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
-  }
+  const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${pin}`;
+  const startInlineKeyboard = new InlineKeyboard().webApp('🎮 ИГРАТЬ В ТЕТРИС', gameUrl);
+
+  let info = `👤 Твой анонимный ник: *${cloudName}*\n`;
+  info += `🔑 Твой ПИН-код: \`${pin}\` (сохрани его!)\n\n`;
+  info += `👇 Выбери город для прогноза:`;
+  
+  await ctx.reply(info, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
+  await ctx.reply('🕹️ *Тетрис готов!*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
 });
 
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-  const cloudName = generateAnonymousName(ctx.from.id);
-  const city = await getBotUserCity(cloudName);
-  if (city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
-  const w = await getDetailedWeatherData(city);
-  await ctx.reply(w.message, { parse_mode: 'Markdown' });
+  if (!ctx.session.cloudName) return ctx.reply('Нажми /start для начала!');
+  const res = await getUserCity(ctx.session.cloudName);
+  if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
+  const w = await getDetailedWeatherData(res.city);
+  await ctx.reply(w.message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
 });
 
 bot.hears('📅 СЕГОДНЯ', async (ctx) => {
-  const cloudName = generateAnonymousName(ctx.from.id);
-  const city = await getBotUserCity(cloudName);
-  const f = await getDetailedForecast(city, 0);
+  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
+  const res = await getUserCity(ctx.session.cloudName);
+  const f = await getDetailedForecast(res.city, 0);
   await ctx.reply(f.message, { parse_mode: 'Markdown' });
 });
 
 bot.hears('📅 ЗАВТРА', async (ctx) => {
-  const cloudName = generateAnonymousName(ctx.from.id);
-  const city = await getBotUserCity(cloudName);
-  const f = await getDetailedForecast(city, 1);
+  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
+  const res = await getUserCity(ctx.session.cloudName);
+  const f = await getDetailedForecast(res.city, 1);
   await ctx.reply(f.message, { parse_mode: 'Markdown' });
 });
 
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
-  const cloudName = generateAnonymousName(ctx.from.id);
-  const city = await getBotUserCity(cloudName);
-  const w = await getDetailedWeatherData(city);
+  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
+  const res = await getUserCity(ctx.session.cloudName);
+  const w = await getDetailedWeatherData(res.city);
   await ctx.reply(getWardrobeAdvice(w), { parse_mode: 'Markdown' });
 });
 
-bot.hears('💬 ФРАЗА ДНЯ', async (ctx) => {
+bot.hears('💬 ФРАЗА ДНЯ', (ctx) => {
   const p = dailyPhrases[new Date().getDate() % dailyPhrases.length];
-  await ctx.reply(`💬 \`${p.e}\`\n🇷🇺 ${p.r}`, { parse_mode: 'Markdown' });
+  ctx.reply(`💬 *Фраза дня*\n\n🇬🇧 \`${p.e}\`\n🇷🇺 ${p.r}`, { parse_mode: 'Markdown' });
 });
 
-bot.hears('🎲 СЛУЧАЙНАЯ', async (ctx) => {
+bot.hears('🎲 СЛУЧАЙНАЯ', (ctx) => {
   const p = dailyPhrases[Math.floor(Math.random() * dailyPhrases.length)];
-  await ctx.reply(`🎲 \`${p.e}\` — ${p.r}`, { parse_mode: 'Markdown' });
+  ctx.reply(`🎲 \`${p.e}\` — ${p.r}`, { parse_mode: 'Markdown' });
 });
 
 bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
-  const cloudName = generateAnonymousName(ctx.from.id);
-  const city = await getBotUserCity(cloudName);
-  const gameUrl = `https://pogodasovet1.vercel.app/game?cloud_name=${encodeURIComponent(cloudName)}&city=${encodeURIComponent(city)}`;
-  await ctx.reply(`🕹️ *Тетрис*\nНик: *${cloudName}*`, { 
+  if (!ctx.session.pin) return ctx.reply('Нажми /start!');
+  const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${ctx.session.pin}`;
+  await ctx.reply(`🕹️ *Тетрис*\nНик: *${ctx.session.cloudName}*`, { 
     parse_mode: 'Markdown', 
     reply_markup: { inline_keyboard: [[{ text: '🎮 Открыть Игру', web_app: { url: gameUrl } }]] } 
   });
 });
 
-bot.hears('🏙️ СМЕНИТЬ ГОРОД', (ctx) => ctx.reply('Выбери город из списка:', { reply_markup: cityKeyboard }));
+bot.hears('🏙️ СМЕНИТЬ ГОРОД', (ctx) => ctx.reply('Выбери город:', { reply_markup: cityKeyboard }));
 
 bot.hears(/^📍 /, async (ctx) => {
-  const cloudName = generateAnonymousName(ctx.from.id);
+  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
   const city = ctx.message.text.replace('📍 ', '').trim();
-  await saveBotUserCity(cloudName, city);
+  await saveUserCity(ctx.session.cloudName, city);
   await ctx.reply(`✅ Город *${city}* успешно установлен!`, { reply_markup: mainMenuKeyboard, parse_mode: 'Markdown' });
 });
 
 bot.on('message:text', async (ctx) => {
-  if (ctx.message.text.startsWith('/')) return;
-  const cloudName = generateAnonymousName(ctx.from.id);
+  if (ctx.message.text.startsWith('/') || !ctx.session.cloudName) return;
   const check = await getDetailedWeatherData(ctx.message.text.trim());
   if (check.success) {
-    await saveBotUserCity(cloudName, check.city);
+    await saveUserCity(ctx.session.cloudName, check.city);
     await ctx.reply(`✅ Город *${check.city}* выбран!`, { reply_markup: mainMenuKeyboard, parse_mode: 'Markdown' });
   } else { ctx.reply('❌ Город не найден.', { reply_markup: cityKeyboard }); }
 });
