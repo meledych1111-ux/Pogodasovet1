@@ -17,7 +17,7 @@
         .anonymous-name { background: rgba(106,91,255,0.3); border-radius: 20px; padding: 4px 12px; display: inline-block; margin-top: 5px; font-size: 0.8rem; color: #ffd700; }
         .menu-buttons { flex: 1; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
         .menu-btn { background: linear-gradient(145deg, #2a3f5e, #1a2a3a); border: none; border-radius: 20px; padding: 14px; color: white; font-size: 1.1rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 4px 4px 10px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1); }
-        .menu-btn:active { transform: scale(0.95); background: #3a4a6a; }
+        .menu-btn:active { transform: scale(0.95); }
         .game-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: rgba(20,30,80,0.7); border-radius: 18px; margin-bottom: 8px; border: 1px solid rgba(106,91,255,0.3); }
         .back-btn { background: #2a3f5e; border: none; color: white; padding: 6px 14px; border-radius: 25px; font-size: 0.85rem; cursor: pointer; }
         .info-box { background: rgba(10,20,50,0.9); padding: 4px 10px; border-radius: 25px; border: 1px solid #6a5bff; min-width: 60px; text-align: center; }
@@ -32,52 +32,43 @@
         .ready .pet-activate-btn { background: #ffd700; color: #000; animation: pulse 1.5s infinite; }
         .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px; }
         .control-btn { background: #3a4a6a; border: none; border-radius: 22px; padding: 16px 8px; color: white; font-size: 1.8rem; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.6); }
-        .control-btn:active { background: #6a5bff; transform: scale(0.9); }
         .boost-indicator { position: absolute; top: 5px; right: 5px; padding: 3px 6px; border-radius: 16px; font-size: 0.65rem; font-weight: bold; z-index: 1001; display: none; border: 1px solid #fff; }
         .progress-bar { height: 6px; background: rgba(0,0,0,0.5); border-radius: 3px; overflow: hidden; margin-top: 8px; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #6a5bff, #00d2ff); width: 0%; transition: 0.3s; }
         .stats-container, .leaderboard-list { flex: 1; overflow-y: auto; padding: 10px; background: rgba(20,30,80,0.4); border-radius: 20px; }
+        .stat-card { background: rgba(30,40,100,0.7); padding: 15px; border-radius: 20px; margin-bottom: 12px; border-left: 5px solid #6a5bff; }
+        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .leaderboard-item { background: rgba(30,40,100,0.7); border-radius: 20px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
         .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(10,20,60,0.98); color: white; padding: 15px 25px; border-radius: 20px; z-index: 10000; opacity: 0; transition: 0.3s; border: 2px solid #ffd700; pointer-events: none; }
-        .notification.show { opacity: 1; }
-        
-        /* MODAL PIN */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 20000; padding: 20px; }
         .modal-overlay.active { display: flex; }
-        .modal-content { background: #1a1f40; border: 2px solid #ffd700; border-radius: 24px; padding: 25px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 0 30px rgba(255,215,0,0.3); }
+        .modal-content { background: #1a1f40; border: 2px solid #ffd700; border-radius: 24px; padding: 25px; width: 100%; max-width: 320px; text-align: center; }
         .modal-pin-value { font-size: 2.5rem; font-weight: 900; color: #ffd700; margin: 15px 0; letter-spacing: 5px; }
-        @keyframes pulse { 0%, 100% { box-shadow: 0 0 5px #ffd700; } 50% { box-shadow: 0 0 15px #ffd700; } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
     </style>
 </head>
 <body>
     <div class="game-container">
-        <!-- PIN MODAL (FOR SAVING PIN) -->
+        <!-- MODALS -->
         <div class="modal-overlay" id="pin-modal">
             <div class="modal-content">
                 <h2 style="color:#ffd700; margin-bottom:10px;">🔑 ВАШ ПИН-КОД</h2>
-                <p style="font-size:0.9rem; color:#aaa;">Запишите его, чтобы не потерять рекорды и питомцев!</p>
                 <div class="modal-pin-value" id="display-pin">000000</div>
                 <button class="menu-btn" style="width:100%; background:#ffd700; color:#000;" onclick="closePinModal()">Я ЗАПОМНИЛ ПИН</button>
             </div>
         </div>
 
-        <!-- AUTH SCREEN -->
+        <!-- SCREENS -->
         <div class="screen active" id="auth-screen">
-            <div class="header">
-                <h1 class="game-title">ТЕТРИС 3D</h1>
-                <p>ВХОД ПО ПИН-КОДУ</p>
-            </div>
+            <div class="header"><h1 class="game-title">ТЕТРИС 3D</h1><p>ВХОД ПО ПИН-КОДУ</p></div>
             <div style="padding:20px; text-align:center;">
                 <input type="number" id="pin-field" style="width:100%; padding:15px; border-radius:15px; border:2px solid #6a5bff; background:rgba(0,0,0,0.3); color:white; font-size:1.5rem; text-align:center; margin-bottom:15px;" placeholder="123456">
                 <button class="menu-btn" style="width:100%" onclick="handleAuth()">ВОЙТИ</button>
-                <p style="margin-top:20px; font-size:0.8rem; color:#aaa;">Возьмите ПИН-код в нашем Telegram-боте</p>
             </div>
         </div>
 
         <div class="screen" id="menu-screen">
-            <div class="header">
-                <h1 class="game-title">ТЕТРИС 3D</h1>
-                <div class="anonymous-name" id="user-display">☁️ Загрузка...</div>
-            </div>
+            <div class="header"><h1 class="game-title">ТЕТРИС 3D</h1><div class="anonymous-name" id="user-display">Загрузка...</div></div>
             <div class="menu-buttons">
                 <button class="menu-btn" onclick="startNewGame()">🎮 ИГРАТЬ</button>
                 <button class="menu-btn" onclick="showStats()">📊 СТАТИСТИКА</button>
@@ -88,40 +79,14 @@
         </div>
 
         <div class="screen" id="game-screen">
-            <div class="game-header">
-                <button class="back-btn" onclick="showMenu()">МЕНЮ</button>
-                <div style="display:flex; gap:8px;">
-                    <div class="info-box"><span class="info-value" id="score-display">0</span></div>
-                    <div class="info-box"><span class="info-value" id="level-display">0</span></div>
-                </div>
-            </div>
+            <div class="game-header"><button class="back-btn" onclick="showMenu()">МЕНЮ</button><div style="display:flex; gap:8px;"><div class="info-box"><span class="info-value" id="score-display">0</span></div><div class="info-box"><span class="info-value" id="level-display">0</span></div></div></div>
             <div class="game-area">
-                <div id="slow-indicator" class="boost-indicator" style="background:#64c8ff; color:#000;">⏰ 0с</div>
-                <div id="magnet-indicator" class="boost-indicator" style="background:#9370db;">🧲 0с</div>
-                <div id="next-piece-left">
-                    <span style="color:#ffd700; font-size:0.6rem;">🔮 СЛЕД.</span>
-                    <div id="next-piece-left-shape" class="next-piece-shape"></div>
-                    <div class="pet-block" id="pet-ui">
-                        <span id="pet-emoji" style="font-size:1.5rem;">🐣</span>
-                        <div style="font-size:0.7rem; color:#ffd700;"><span id="pet-food-count-display">0/3</span> 🍖</div>
-                        <button class="pet-activate-btn" onclick="usePetAbility()">🔥</button>
-                    </div>
-                </div>
+                <div id="slow-indicator" class="boost-indicator" style="background:#64c8ff; color:#000;">⏰</div>
+                <div id="magnet-indicator" class="boost-indicator" style="background:#9370db;">🧲</div>
+                <div id="next-piece-left"><span style="color:#ffd700; font-size:0.6rem;">🔮 СЛЕД.</span><div id="next-piece-left-shape" class="next-piece-shape"></div><div class="pet-block" id="pet-ui"><span id="pet-emoji" style="font-size:1.5rem;">🐣</span><div style="font-size:0.7rem; color:#ffd700;"><span id="pet-food-count-display">0/3</span> 🍖</div><button class="pet-activate-btn" onclick="usePetAbility()">🔥</button></div></div>
                 <canvas id="tetris-canvas" width="220" height="440"></canvas>
             </div>
-            <div class="controls-panel">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:8px;">
-                    <button class="menu-btn" style="padding:8px; font-size:0.8rem;" id="pause-btn" onclick="togglePause()">⏸ ПАУЗА</button>
-                    <button class="menu-btn" style="padding:8px; font-size:0.8rem;" onclick="saveGameToDB()">💾 СОХРАНИТЬ</button>
-                </div>
-                <div class="controls">
-                    <button class="control-btn" id="btn-left">←</button>
-                    <button class="control-btn" id="btn-right">→</button>
-                    <button class="control-btn" id="btn-down">↓</button>
-                    <button class="control-btn" id="btn-rotate">↻</button>
-                </div>
-                <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
-            </div>
+            <div class="controls-panel"><div class="controls"><button class="control-btn" id="btn-left">←</button><button class="control-btn" id="btn-right">→</button><button class="control-btn" id="btn-down">↓</button><button class="control-btn" id="btn-rotate">↻</button></div><div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div></div>
         </div>
 
         <div class="screen" id="stats-screen">
@@ -143,89 +108,19 @@
         let currentPin = localStorage.getItem('user_pin');
         let anonymousName = 'Гость', score = 0, lines = 0, gameLevel = 0, board = [];
         let gameActive = false, paused = false, curPiece, nextPiece, curX, curY;
-        let dropCounter = 0, dropInterval = 800, lastTime = 0, petFoodData = {};
+        let dropCounter = 0, dropInterval = 800, lastTime = 0, petFoodData = {count:0};
         let slowActive = false, magnetActive = false;
 
         const COLS = 10, ROWS = 20, SIZE = 22;
         const SHAPES = [[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[0,1,1],[1,1,0]],[[1,1,0],[0,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]]];
         const COLORS = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#F7DC6F'];
+        const PETS = ['🐣', '🐱', '🐕', '🐇', '🦊', '🐼', '🐧', '🦁', '🐯', '🦒', '🦓', '🐘', '🦏', '🦍', '🐎', '🐫', '🦒', '🦦', '🦭', '🐋'];
 
-        const BASE_PETS = [
-            { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, food: '🐟', type: 'clear', value: 1, foodCost: 3 },
-            { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1000, food: '🦴', type: 'slow', value: 5000, foodCost: 3 },
-            { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 1500, food: '🥕', type: 'magnet', value: 10, foodCost: 3 },
-            { id: 'fox', name: 'Лисёнок', emoji: '🦊', color: '#FF8C42', score: 2000, food: '🍇', type: 'slow', value: 8000, foodCost: 3 },
-            { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 2500, food: '🎋', type: 'clear', value: 2, foodCost: 3 },
-            { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 3000, food: '🦐', type: 'slow', value: 10000, foodCost: 3 },
-            { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 3500, food: '🌿', type: 'random', value: 1, foodCost: 2 },
-            { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4000, food: '🐭', type: 'magnet', value: 5, foodCost: 3 },
-            { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 4500, food: '🥩', type: 'clear', value: 2, foodCost: 3 },
-            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
-            { id: 'leopard', name: 'Леопард', emoji: '🐆', color: '#FF8C00', score: 5500, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
-            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿', type: 'slow', value: 12000, foodCost: 3 },
-            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🌿', type: 'slow', value: 10000, foodCost: 3 },
-            { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 7000, food: '🍌', type: 'clear', value: 4, foodCost: 3 },
-            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🌿', type: 'random', value: 2, foodCost: 2 },
-            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '🌿', type: 'clear', value: 3, foodCost: 3 },
-            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌', type: 'clear', value: 2, foodCost: 3 },
-            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '🌿', type: 'slow', value: 20000, foodCost: 3 },
-            { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎', type: 'clear', value: 2, foodCost: 3 },
-            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰', type: 'clear', value: 1, foodCost: 3 },
-            { id: 'deer', name: 'Олень', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿', type: 'slow', value: 15000, foodCost: 3 },
-            { id: 'moose', name: 'Лось', emoji: '🦌', color: '#5D3A1A', score: 11000, food: '🌲', type: 'slow', value: 20000, foodCost: 3 },
-            { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 11500, food: '🌿', type: 'slow', value: 15000, foodCost: 3 },
-            { id: 'otter', name: 'Выдра', emoji: '🦦', color: '#8B4513', score: 12000, food: '🐟', type: 'clear', value: 2, foodCost: 3 },
-            { id: 'seal', name: 'Тюлень', emoji: '🦭', color: '#808080', score: 12500, food: '🐟', type: 'slow', value: 12000, foodCost: 3 },
-            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 13000, food: '🦐', type: 'clear', value: 4, foodCost: 3 },
-            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13500, food: '🐟', type: 'magnet', value: 7, foodCost: 3 },
-            { id: 'wolf', name: 'Волчонок', emoji: '🐺', color: '#808080', score: 14000, food: '🥩', type: 'slow', value: 15000, foodCost: 3 },
-            { id: 'raccoon', name: 'Енот', emoji: '🦝', color: '#8B4513', score: 14500, food: '🍇', type: 'antibloc', value: 1, foodCost: 2 },
-            { id: 'llama', name: 'Лама', emoji: '🦙', color: '#F0E68C', score: 15000, food: '🌿', type: 'random', value: 2, foodCost: 2 },
-            { id: 'kangaroo', name: 'Кенгуру', emoji: '🦘', color: '#CD853F', score: 15500, food: '🌿', type: 'antibloc', value: 2, foodCost: 2 },
-            { id: 'badger', name: 'Барсук', emoji: '🦡', color: '#2E2E2E', score: 16000, food: '🌿', type: 'random', value: 2, foodCost: 2 },
-            { id: 'skunk', name: 'Скунс', emoji: '🦨', color: '#2E2E2E', score: 16500, food: '🌿', type: 'slow', value: 12000, foodCost: 3 },
-            { id: 'flamingo', name: 'Фламинго', emoji: '🦩', color: '#FF69B4', score: 17000, food: '🦐', type: 'double', value: 2, foodCost: 2 },
-            { id: 'peacock', name: 'Павлин', emoji: '🦚', color: '#4169E1', score: 17500, food: '🌿', type: 'clear', value: 3, foodCost: 3 },
-            { id: 'parrot', name: 'Попугай', emoji: '🦜', color: '#FF0000', score: 18000, food: '🌰', type: 'reroll', value: 2, foodCost: 2 },
-            { id: 'rooster', name: 'Петух', emoji: '🐓', color: '#FF4500', score: 18500, food: '🌽', type: 'clear', value: 2, foodCost: 3 },
-            { id: 'swan', name: 'Лебедь', emoji: '🦢', color: '#FFFFFF', score: 19000, food: '🐟', type: 'slow', value: 15000, foodCost: 3 },
-            { id: 'crocodile', name: 'Крокодил', emoji: '🐊', color: '#2E8B57', score: 19500, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
-            { id: 'lizard', name: 'Ящерица', emoji: '🦎', color: '#32CD32', score: 20000, food: '🦗', type: 'reroll', value: 2, foodCost: 2 },
-            { id: 'snake', name: 'Змея', emoji: '🐍', color: '#228B22', score: 20500, food: '🐭', type: 'slow', value: 15000, foodCost: 3 },
-            { id: 'turtle2', name: 'Черепаха', emoji: '🐢', color: '#2E8B57', score: 21000, food: '🌿', type: 'random', value: 3, foodCost: 2 },
-            { id: 'frog', name: 'Лягушка', emoji: '🐸', color: '#32CD32', score: 21500, food: '🦗', type: 'clear', value: 2, foodCost: 3 },
-            { id: 'puffer', name: 'Рыба-шар', emoji: '🐡', color: '#FFD700', score: 22000, food: '🦐', type: 'random', value: 2, foodCost: 2 },
-            { id: 'octopus', name: 'Осьминог', emoji: '🐙', color: '#FF69B4', score: 22500, food: '🦐', type: 'reroll', value: 3, foodCost: 2 },
-            { id: 'squid', name: 'Кальмар', emoji: '🦑', color: '#8B4513', score: 23000, food: '🦐', type: 'slow', value: 15000, foodCost: 3 },
-            { id: 'shrimp', name: 'Креветка', emoji: '🦐', color: '#FF69B4', score: 23500, food: '🌿', type: 'clear', value: 1, foodCost: 3 },
-            { id: 'lobster', name: 'Омар', emoji: '🦞', color: '#FF4500', score: 24000, food: '🐟', type: 'random', value: 2, foodCost: 2 },
-            { id: 'shell', name: 'Ракушка', emoji: '🐚', color: '#FFB6C1', score: 24500, food: '🌊', type: 'random', value: 2, foodCost: 2 },
-            { id: 'seahorse', name: 'Морской конёк', emoji: '🦄', color: '#00CED1', score: 25000, food: '🦐', type: 'magnet', value: 7, foodCost: 3 }
-        ];
-
-        const PET_RANKS = [
-            { prefix: '', name: 'Обычный', min: 0, max: 49, color: '#FFFFFF', mult: 1 },
-            { prefix: '✨', name: 'Блестящий', min: 50, max: 99, color: '#FFD700', mult: 1.5 },
-            { prefix: '🌟', name: 'Сияющий', min: 100, max: 149, color: '#FFFACD', mult: 2 },
-            { prefix: '💎', name: 'Драгоценный', min: 150, max: 199, color: '#B9F2FF', mult: 2.5 },
-            { prefix: '👑', name: 'Королевский', min: 200, max: 249, color: '#FFD700', mult: 3 },
-            { prefix: '🔥', name: 'Легендарный', min: 250, max: 299, color: '#FF4500', mult: 4 },
-            { prefix: '🎮', name: 'Мифический', min: 300, max: 349, color: '#9370DB', mult: 5 },
-            { prefix: '♾️', name: 'Бесконечный', min: 350, max: Infinity, color: '#00FFFF', mult: 6 }
-        ];
-
-        function getPetByNumber(num) {
-            if (num < 1) return null;
-            const base = BASE_PETS[(num - 1) % 50];
-            const tier = Math.floor((num - 1) / 50);
-            const rank = PET_RANKS[Math.min(tier, PET_RANKS.length - 1)];
-            return { ...base, rank, emoji: rank.prefix + base.emoji, boostedValue: base.value * rank.mult };
-        }
-
-        async function handleAuth() {
-            const pin = document.getElementById('pin-field').value;
-            if (pin.length < 5) return notify('Введите верный ПИН');
-            await attemptAuth(pin);
+        async function initApp() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const pinFromUrl = urlParams.get('pin');
+            if (pinFromUrl) { currentPin = pinFromUrl; localStorage.setItem('user_pin', currentPin); }
+            if (currentPin) { await attemptAuth(currentPin); } else { showScreen('auth'); }
         }
 
         async function attemptAuth(pin) {
@@ -236,36 +131,28 @@
                     currentPin = pin; localStorage.setItem('user_pin', pin);
                     anonymousName = d.login; document.getElementById('user-display').textContent = anonymousName;
                     document.getElementById('display-pin').textContent = pin;
-                    showScreen('menu'); 
-                    if (!localStorage.getItem('pin_confirmed')) { openPinModal(); }
-                } else { notify('Неверный ПИН'); }
-            } catch(e) { notify('Ошибка связи'); }
+                    showScreen('menu'); if (!localStorage.getItem('pin_confirmed')) openPinModal();
+                } else { showScreen('auth'); }
+            } catch(e) { console.error(e); }
         }
 
-        async function initApp() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const pinFromUrl = urlParams.get('pin');
-            if (pinFromUrl) { currentPin = pinFromUrl; localStorage.setItem('user_pin', currentPin); }
-            if (currentPin) { await attemptAuth(currentPin); } else { showScreen('auth'); }
-        }
-
+        function handleAuth() { const pin = document.getElementById('pin-field').value; if(pin) attemptAuth(pin); }
         function openPinModal() { document.getElementById('display-pin').textContent = currentPin; document.getElementById('pin-modal').classList.add('active'); }
         function closePinModal() { localStorage.setItem('pin_confirmed', 'true'); document.getElementById('pin-modal').classList.remove('active'); }
-        function logout() { localStorage.removeItem('user_pin'); localStorage.removeItem('pin_confirmed'); location.reload(); }
+        function logout() { localStorage.clear(); location.reload(); }
         function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id+'-screen').classList.add('active'); }
         function notify(m) { const n = document.getElementById('notification'); n.textContent = m; n.classList.add('show'); setTimeout(()=>n.classList.remove('show'), 3000); }
 
         function startNewGame() {
             board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-            score = 0; lines = 0; gameLevel = 0; petFoodData = {};
+            score = 0; lines = 0; gameLevel = 0; petFoodData = {count:0};
             gameActive = true; paused = false; dropInterval = 800;
-            slowActive = false; magnetActive = false;
             nextPiece = createPiece(); spawn(); updateUI(); showScreen('game');
             lastTime = performance.now(); requestAnimationFrame(loop);
         }
 
         function createPiece() { const i = Math.floor(Math.random()*SHAPES.length); return {shape:SHAPES[i], color:COLORS[i]}; }
-        function spawn() { curPiece = nextPiece; nextPiece = createPiece(); curX = 3; curY = 0; if(collide(0,0)) { gameActive = false; saveGameToDB(true); notify('🎯 ГЕЙМ ОВЕР!'); setTimeout(showMenu, 2000); } drawNext(); }
+        function spawn() { curPiece = nextPiece; nextPiece = createPiece(); curX = 3; curY = 0; if(collide(0,0)) { gameActive = false; saveGameToDB(); notify('🎯 ГЕЙМ ОВЕР!'); setTimeout(showMenu, 2000); } drawNext(); }
         function collide(dx, dy, s = curPiece.shape) { for(let y=0; y<s.length; y++) for(let x=0; x<s[y].length; x++) if(s[y][x]) { let nx=curX+x+dx, ny=curY+y+dy; if(nx<0||nx>=COLS||ny>=ROWS||(ny>=0&&board[ny][nx])) return true; } return false; }
         
         function checkLines() {
@@ -273,10 +160,8 @@
             for(let y=ROWS-1; y>=0; y--) if(board[y].every(c => c)) { board.splice(y,1); board.unshift(Array(COLS).fill(0)); cleared++; y++; }
             if(cleared) {
                 score += [0, 40, 100, 300, 1200][cleared] * (gameLevel + 1); lines += cleared;
-                const pet = getPetByNumber(gameLevel + 1);
-                if(pet) petFoodData[pet.id] = (petFoodData[pet.id] || 0) + cleared;
-                gameLevel = Math.floor(score/500);
-                dropInterval = Math.max(100, Math.round(800 / (1 + gameLevel * 0.12)));
+                petFoodData.count += cleared; gameLevel = Math.floor(score/500);
+                dropInterval = Math.max(100, Math.round(800 / (1 + gameLevel * 0.1)));
                 updateUI();
             }
         }
@@ -292,9 +177,6 @@
         const ctx = document.getElementById('tetris-canvas').getContext('2d');
         function draw() {
             ctx.fillStyle = '#000'; ctx.fillRect(0,0,220,440);
-            ctx.strokeStyle = 'rgba(106,91,255,0.1)'; 
-            for(let x=0;x<=COLS;x++){ ctx.beginPath(); ctx.moveTo(x*SIZE,0); ctx.lineTo(x*SIZE,440); ctx.stroke(); }
-            for(let y=0;y<=ROWS;y++){ ctx.beginPath(); ctx.moveTo(0,y*SIZE); ctx.lineTo(220,y*SIZE); ctx.stroke(); }
             board.forEach((r,y)=>r.forEach((c,x)=>{if(c){ctx.fillStyle=c; ctx.fillRect(x*SIZE,y*SIZE,SIZE-1,SIZE-1);}}));
             if(curPiece) curPiece.shape.forEach((r,y)=>r.forEach((v,x)=>{if(v){ctx.fillStyle=curPiece.color; ctx.fillRect((curX+x)*SIZE,(curY+y)*SIZE,SIZE-1,SIZE-1);}}));
         }
@@ -310,37 +192,35 @@
             document.getElementById('score-display').textContent = score;
             document.getElementById('level-display').textContent = gameLevel;
             document.getElementById('progress-fill').style.width = (score % 500 / 5) + '%';
-            const pet = getPetByNumber(gameLevel + 1);
-            if(pet) { 
-                const food = petFoodData[pet.id] || 0;
-                document.getElementById('pet-emoji').textContent = pet.emoji; 
-                document.getElementById('pet-food-count-display').textContent = food + '/' + pet.foodCost; 
-                document.getElementById('pet-ui').className = food >= pet.foodCost ? 'pet-block ready' : 'pet-block'; 
-            }
+            document.getElementById('pet-emoji').textContent = PETS[gameLevel % PETS.length];
+            document.getElementById('pet-food-count-display').textContent = petFoodData.count + '/3';
+            document.getElementById('pet-ui').className = petFoodData.count >= 3 ? 'pet-block ready' : 'pet-block';
         }
 
         function usePetAbility() {
-            const pet = getPetByNumber(gameLevel + 1);
-            if(!pet || (petFoodData[pet.id] || 0) < pet.foodCost) return; petFoodData[pet.id] -= pet.foodCost;
-            if(pet.type === 'clear') { for(let i=0;i<pet.boostedValue;i++){board.pop(); board.unshift(Array(COLS).fill(0));} notify('🧹 Очистка!'); }
-            else if(pet.type === 'slow') { slowActive = true; document.getElementById('slow-indicator').style.display='flex'; setTimeout(()=>{slowActive=false; document.getElementById('slow-indicator').style.display='none';}, pet.boostedValue); notify('⏰ Замедление!'); }
-            else if(pet.type === 'magnet') { magnetActive = true; document.getElementById('magnet-indicator').style.display='flex'; setTimeout(()=>{magnetActive=false; document.getElementById('magnet-indicator').style.display='none';}, 10000); notify('🧲 Магнит!'); }
-            updateUI(); draw();
+            if(petFoodData.count < 3) return; petFoodData.count -= 3;
+            const type = gameLevel % 3;
+            if(type === 0) { for(let i=0;i<2;i++){board.pop(); board.unshift(Array(COLS).fill(0));} notify('🧹 Очистка!'); }
+            else if(type === 1) { slowActive = true; document.getElementById('slow-indicator').style.display='block'; setTimeout(()=>{slowActive=false; document.getElementById('slow-indicator').style.display='none';}, 10000); notify('⏰ Замедление!'); }
+            else { magnetActive = true; document.getElementById('magnet-indicator').style.display='block'; setTimeout(()=>{magnetActive=false; document.getElementById('magnet-indicator').style.display='none';}, 10000); notify('🧲 Магнит!'); }
+            updateUI();
         }
 
-        function togglePause() { paused = !paused; document.getElementById('pause-btn').textContent = paused ? '▶ ПУСК' : '⏸ ПАУЗА'; }
+        function togglePause() { paused = !paused; }
         function showMenu() { gameActive = false; showScreen('menu'); }
 
-        async function saveGameToDB(gameOver = false) {
-            try { await fetch('/api/save-score', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pin: currentPin, score, level: gameLevel, lines, gameType:'tetris'}) }); } catch(e){}
+        async function saveGameToDB() {
+            await fetch('/api/save-score', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pin: currentPin, score, level: gameLevel, lines, gameType:'tetris'}) });
+            notify('✅ Сохранено');
         }
 
         async function showStats() {
             const cont = document.getElementById('stats-container'); cont.innerHTML = 'Загрузка...'; showScreen('stats');
             try {
-                const r = await fetch(`/api/user-stats?pin=${currentPin}`);
-                const d = await r.json(); const best = d.best_score || 0; const petCount = Math.floor(best / 500);
-                cont.innerHTML = `<div class="stat-card"><div class="stat-row"><span>🏆 Рекорд:</span><b>${best}</b></div><div class="stat-row"><span>🎮 Игр:</span><b>${d.games_played}</b></div></div><h3 style="color:#ffd700;">🐾 КОЛЛЕКЦИЯ (${Math.min(50, petCount)}/50)</h3><div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:10px;">${Array.from({length: Math.min(50, petCount)}).map((_,i)=>{const p=getPetByNumber(i+1); return `<div style="font-size:1.5rem; background:rgba(0,0,0,0.3); border-radius:10px; text-align:center; padding:5px;">${p.emoji}</div>`;}).join('')}</div>`;
+                const r = await fetch(`/api/user-stats?pin=${currentPin}`); const d = await r.json();
+                const best = d.best_score || 0; const petCount = Math.floor(best / 500) + 1;
+                let petsHtml = ''; for(let i=0; i<Math.min(20, petCount); i++) petsHtml += `<div style="font-size:1.5rem; background:rgba(0,0,0,0.3); border-radius:10px; text-align:center; padding:5px;">${PETS[i]}</div>`;
+                cont.innerHTML = `<div class="stat-card"><div class="stat-row"><span>🏆 Рекорд:</span><b>${best}</b></div><div class="stat-row"><span>🎮 Игр:</span><b>${d.games_played}</b></div></div><h3 style="color:#ffd700; margin:10px 0;">🐾 КОЛЛЕКЦИЯ</h3><div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px;">${petsHtml}</div>`;
             } catch(e){ cont.innerHTML = 'Ошибка'; }
         }
 
@@ -348,25 +228,20 @@
             const list = document.getElementById('leaderboard-list'); list.innerHTML = 'Загрузка...'; showScreen('leaderboard');
             try {
                 const r = await fetch('/api/top-players?gameType=tetris'); const d = await r.json();
-                list.innerHTML = d.players.map(p => {
-                    const maxPets = Math.floor(p.score / 500); let petsHtml = '';
-                    for (let j=0; j<Math.min(5, maxPets); j++){ const pt=getPetByNumber(j+1); petsHtml += `<span>${pt.emoji}</span>`; }
-                    return `<div class="leaderboard-item"><div style="width:25px; font-weight:bold; color:#ffd700;">#${p.rank}</div><div style="flex:1;"><div>${p.username}</div><div style="display:flex; gap:2px; font-size:0.8rem;">${petsHtml}${maxPets>5?'+'+(maxPets-5):''}</div></div><div style="text-align:right;"><b>${p.score}</b></div></div>`;
-                }).join('');
-            } catch(e){ list.innerHTML = 'Ошибка загрузки'; }
+                list.innerHTML = d.players.map(p => `<div class="leaderboard-item"><div style="width:25px; font-weight:bold; color:#ffd700;">#${p.rank}</div><div style="flex:1;">${p.username}</div><div style="text-align:right;"><b>${p.score}</b></div></div>`).join('');
+            } catch(e){ list.innerHTML = 'Ошибка'; }
         }
 
         let mInt, mWait;
         function startMove(dir) { if(paused || !gameActive) return; const f = () => { if(dir==='left'&&!collide(-1,0)) curX--; if(dir==='right'&&!collide(1,0)) curX++; if(dir==='down'&&!collide(0,1)) curY++; draw(); }; f(); mWait = setTimeout(() => { mInt = setInterval(f, 50); }, 120); }
         function stopMove() { clearTimeout(mWait); clearInterval(mInt); }
-        
         document.getElementById('btn-left').ontouchstart = (e) => { e.preventDefault(); startMove('left'); };
         document.getElementById('btn-right').ontouchstart = (e) => { e.preventDefault(); startMove('right'); };
         document.getElementById('btn-down').ontouchstart = (e) => { e.preventDefault(); startMove('down'); };
-        document.getElementById('btn-rotate').ontouchstart = (e) => { e.preventDefault(); if(paused || !gameActive) return; const r = curPiece.shape[0].map((_,i) => curPiece.shape.map(row => row[i]).reverse()); if(!collide(0,0,r)) curPiece.shape = r; draw(); };
         document.getElementById('btn-left').ontouchend = stopMove;
         document.getElementById('btn-right').ontouchend = stopMove;
         document.getElementById('btn-down').ontouchend = stopMove;
+        document.getElementById('btn-rotate').ontouchstart = (e) => { e.preventDefault(); if(paused || !gameActive) return; const r = curPiece.shape[0].map((_,i) => curPiece.shape.map(row => row[i]).reverse()); if(!collide(0,0,r)) curPiece.shape = r; draw(); };
 
         initApp();
     </script>
