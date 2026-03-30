@@ -102,10 +102,12 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
       { n: '🌆 Вечер', i: start + 21, e: '🌆' }
     ];
 
-    const date = new Date(); date.setDate(date.getDate() + dayOffset);
+    const date = new Date();
+    date.setDate(date.getDate() + dayOffset);
     let msg = `📅 *Прогноз: ${name}* (${date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })})\n───────────────────\n`;
     msg += `📊 Обзор: от ${Math.round(data.daily.temperature_2m_min[dayOffset])}° до ${Math.round(data.daily.temperature_2m_max[dayOffset])}°C\n`;
-    if (data.daily.precipitation_sum[dayOffset] > 0) msg += `🌧️ Осадки: ${data.daily.precipitation_sum[dayOffset]} мм\n\n`;
+    if (data.daily.precipitation_sum[dayOffset] > 0) msg += `🌧️ Осадки: ${data.daily.precipitation_sum[dayOffset]} мм\n`;
+    if (data.daily.uv_index_max[dayOffset] > 0) msg += `☀️ Макс. УФ-индекс: ${data.daily.uv_index_max[dayOffset]}\n\n`;
 
     periods.forEach(p => {
       const t = Math.round(data.hourly.temperature_2m[p.i]);
@@ -128,8 +130,7 @@ function getWardrobeAdvice(w) {
   
   let advice = `👕 *Что надеть в ${city} сейчас?*\n`;
   advice += `🌡️ Сейчас: ${Math.round(temp)}°C (ощущается как ${Math.round(t)}°C)\n`;
-  advice += `📝 ${description}\n\n`;
-  advice += `📋 *Рекомендации по слоям:*\n`;
+  advice += `📝 ${description}\n\n📋 *Рекомендации по слоям:*\n`;
   
   if (t >= 25) {
     advice += "☀️ *Верх:* легкая футболка, майка из хлопка\n🩳 *Низ:* шорты, легкие брюки, юбка\n👟 *Обувь:* сандалии, открытые кеды\n🕶️ *Аксессуары:* кепка, солнцезащитные очки";
@@ -194,9 +195,9 @@ bot.command('start', async (ctx) => {
   ctx.session.cloudName = cloudName;
   const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${pin}`;
   const startInlineKeyboard = new InlineKeyboard().webApp('🎮 ИГРАТЬ В ТЕТРИС', gameUrl);
-  let info = `👋 Привет! Твой анонимный ник: *${cloudName}*\n🔑 Твой ПИН-код: \`${pin}\` (сохрани его!)\n\n👇 Выбери город для точных советов:`;
+  let info = `👋 Привет! Твой анонимный ник: *${cloudName}*\n🔑 Твой ПИН-код: \`${pin}\` (сохрани его!)\n\n👇 Выбери город для прогноза:`;
   await ctx.reply(info, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
-  await ctx.reply('🕹️ *Твой Тетрис готов!*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
+  await ctx.reply('🕹️ *Тетрис готов!*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
 });
 
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
