@@ -144,65 +144,31 @@
         const COLS = 10, ROWS = 20, SIZE = 22;
         const SHAPES = [[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[0,1,1],[1,1,0]],[[1,1,0],[0,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]]];
         const COLORS = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#F7DC6F'];
-        const PETS = ['🐣', '🐱', '🐕', '🐇', '🦊', '🐼', '🐧', '🦁', '🐯', '🦒', '🦓', '🐘', '🦏', '🦍', '🐎', '🐫', '🦒', '🦦', '🦭', '🐋'];
+        const PETS = ['🐣', '🐱', '🐕', '🐇', '🦊', '🐼', '🐧', '🦁', '🐯', '🦒', '🦓', '🐘', '🦏', '🦍', '🐎', '🐫', '🦒', '🦦', '🦭', '🐋', '🦈', '🐊', '🦑', '🐝', '🦋', '🦢', '🦩', '🦚', '🦜', '🦉', '🦖', '🐉', '🐲', '🦄', '🐆', '🐅', '🦌', '🐏', '🐗', '🐿️', '🐁', '🦔', '🐾', '🐚', '🌊', '🌈', '☁️', '🌤️', '⛈️', '✨'];
 
         async function initApp() {
             const urlParams = new URLSearchParams(window.location.search);
             const pinFromUrl = urlParams.get('pin');
-            
-            if (pinFromUrl) {
-                currentPin = pinFromUrl;
-                localStorage.setItem('user_pin', currentPin);
-                await attemptAuth(currentPin);
-            } else if (currentPin) {
-                await attemptAuth(currentPin);
-            } else {
-                showScreen('auth');
-            }
+            if (pinFromUrl) { currentPin = pinFromUrl; localStorage.setItem('user_pin', currentPin); await attemptAuth(currentPin); }
+            else if (currentPin) { await attemptAuth(currentPin); }
+            else { showScreen('auth'); }
         }
 
         async function attemptAuth(pin) {
             try {
-                const r = await fetch('/api/auth', { 
-                    method: 'POST', 
-                    headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({pin}) 
-                });
+                const r = await fetch('/api/auth', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({pin}) });
                 const d = await r.json();
                 if (d.success) {
-                    currentPin = pin;
-                    localStorage.setItem('user_pin', pin);
-                    anonymousName = d.login;
-                    document.getElementById('user-display').textContent = anonymousName;
+                    currentPin = pin; localStorage.setItem('user_pin', pin);
+                    anonymousName = d.login; document.getElementById('user-display').textContent = anonymousName;
                     document.getElementById('display-pin').textContent = pin;
-                    showScreen('menu');
-                    if (!localStorage.getItem('pin_confirmed_' + pin)) {
-                        openPinModal();
-                    }
-                } else {
-                    notify('❌ Неверный ПИН-код');
-                    localStorage.removeItem('user_pin');
-                    showScreen('auth');
-                }
-            } catch(e) { 
-                notify('📡 Ошибка сервера');
-                showScreen('auth');
-            }
+                    showScreen('menu'); if (!localStorage.getItem('pin_confirmed_' + pin)) openPinModal();
+                } else { notify('❌ Неверный ПИН'); localStorage.removeItem('user_pin'); showScreen('auth'); }
+            } catch(e) { notify('📡 Ошибка сервера'); showScreen('auth'); }
         }
 
-        function handleAuth() {
-            const val = document.getElementById('pin-field').value;
-            if (val) attemptAuth(val);
-            else notify('Введите ПИН');
-        }
-
-        function logout() {
-            if (confirm('Выйти из текущего аккаунта?')) {
-                localStorage.removeItem('user_pin');
-                location.href = window.location.pathname; // Чистим URL от параметров
-            }
-        }
-
+        function handleAuth() { const val = document.getElementById('pin-field').value; if (val) attemptAuth(val); else notify('Введите ПИН'); }
+        function logout() { if (confirm('Выйти и сменить ПИН?')) { localStorage.removeItem('user_pin'); location.href = window.location.pathname; } }
         function openPinModal() { document.getElementById('display-pin').textContent = currentPin; document.getElementById('pin-modal').classList.add('active'); }
         function closePinModal() { localStorage.setItem('pin_confirmed_' + currentPin, 'true'); document.getElementById('pin-modal').classList.remove('active'); }
         function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id+'-screen').classList.add('active'); }
@@ -260,9 +226,8 @@
             document.getElementById('level-display').textContent = gameLevel;
             document.getElementById('progress-fill').style.width = (score % 500 / 5) + '%';
             document.getElementById('pet-emoji').textContent = PETS[gameLevel % PETS.length];
-            const food = petFoodData.count || 0;
-            document.getElementById('pet-food-count-display').textContent = food + '/3';
-            document.getElementById('pet-ui').className = food >= 3 ? 'pet-block ready' : 'pet-block';
+            document.getElementById('pet-food-count-display').textContent = petFoodData.count + '/3';
+            document.getElementById('pet-ui').className = petFoodData.count >= 3 ? 'pet-block ready' : 'pet-block';
         }
 
         function usePetAbility() {
@@ -278,82 +243,38 @@
         function showMenu() { gameActive = false; showScreen('menu'); }
 
         async function saveGameToDB() {
-            try {
-                await fetch('/api/save-score', { 
-                    method:'POST', 
-                    headers:{'Content-Type':'application/json'}, 
-                    body:JSON.stringify({pin: currentPin, score, level: gameLevel, lines, gameType:'tetris'}) 
-                });
-                notify('✅ Сохранено');
-            } catch(e){}
+            try { await fetch('/api/save-score', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pin: currentPin, score, level: gameLevel, lines, gameType:'tetris'}) }); notify('✅ Сохранено'); } catch(e){}
         }
 
         async function showStats() {
-            const cont = document.getElementById('stats-container'); 
-            cont.innerHTML = '<p style="text-align:center; padding:20px;">⌛ Загрузка...</p>'; 
-            showScreen('stats');
+            const cont = document.getElementById('stats-container'); cont.innerHTML = 'Загрузка...'; showScreen('stats');
             try {
-                const r = await fetch(`/api/user-stats?pin=${currentPin}`); 
-                const d = await r.json();
-                const best = d.best_score || 0; 
-                const petCount = Math.floor(best / 500) + 1;
-                let petsHtml = ''; 
-                for(let i=0; i<Math.min(20, petCount); i++) {
-                    petsHtml += `<div style="font-size:1.5rem; background:rgba(0,0,0,0.3); border-radius:10px; text-align:center; padding:5px;">${PETS[i]}</div>`;
-                }
-                cont.innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-row"><span>🏆 Рекорд:</span><b>${best}</b></div>
-                        <div class="stat-row"><span>🎮 Игр:</span><b>${d.games_played}</b></div>
-                    </div>
-                    <h3 style="color:#ffd700; margin:15px 0 10px 0; text-align:center;">🐾 КОЛЛЕКЦИЯ</h3>
-                    <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px;">${petsHtml}</div>
-                `;
-            } catch(e){ cont.innerHTML = '<p style="text-align:center; color:#ff6b6b;">Ошибка загрузки</p>'; }
+                const r = await fetch(`/api/user-stats?pin=${currentPin}`); const d = await r.json();
+                const best = d.best_score || 0; const petCount = Math.floor(best / 500) + 1;
+                let petsHtml = ''; for(let i=0; i<Math.min(50, petCount); i++) petsHtml += `<div style="font-size:1.5rem; background:rgba(0,0,0,0.3); border-radius:10px; text-align:center; padding:5px;">${PETS[i % PETS.length]}</div>`;
+                cont.innerHTML = `<div class="stat-card"><div class="stat-row"><span>🏆 Рекорд:</span><b>${best}</b></div><div class="stat-row"><span>🎮 Игр:</span><b>${d.games_played}</b></div></div><h3 style="color:#ffd700; margin:15px 0;">🐾 КОЛЛЕКЦИЯ</h3><div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px;">${petsHtml}</div>`;
+            } catch(e){ cont.innerHTML = 'Ошибка'; }
         }
 
         async function showLeaderboard() {
-            const list = document.getElementById('leaderboard-list'); 
-            list.innerHTML = '<p style="text-align:center; padding:20px;">⌛ Загрузка...</p>'; 
-            showScreen('leaderboard');
+            const list = document.getElementById('leaderboard-list'); list.innerHTML = 'Загрузка...'; showScreen('leaderboard');
             try {
-                const r = await fetch('/api/top-players?gameType=tetris'); 
-                const d = await r.json();
-                list.innerHTML = d.players.map(p => `
-                    <div class="leaderboard-item">
-                        <div style="width:25px; font-weight:bold; color:#ffd700;">#${p.rank}</div>
-                        <div style="flex:1;">${p.username}</div>
-                        <div style="text-align:right;"><b>${p.score}</b></div>
-                    </div>
-                `).join('');
-            } catch(e){ list.innerHTML = '<p style="text-align:center; color:#ff6b6b;">Ошибка загрузки</p>'; }
+                const r = await fetch('/api/top-players?gameType=tetris'); const d = await r.json();
+                list.innerHTML = d.players.map(p => {
+                    const pCount = Math.floor(p.score / 500); let pHtml = '';
+                    for (let i=0; i<Math.min(5, pCount); i++) pHtml += `<span>${PETS[i % PETS.length]}</span>`;
+                    return `<div class="leaderboard-item"><div style="width:25px; font-weight:bold; color:#ffd700;">#${p.rank}</div><div style="flex:1;"><div>${p.username}</div><div style="display:flex; gap:2px; font-size:0.8rem;">${pHtml}${pCount>5?'+'+(pCount-5):''}</div></div><div style="text-align:right;"><b>${p.score}</b></div></div>`;
+                }).join('');
+            } catch(e){ list.innerHTML = 'Ошибка'; }
         }
 
-        // CONTROLS
         let mInt, mWait;
-        function startMove(dir) { 
-            if(paused || !gameActive) return; 
-            const f = () => { 
-                if(dir==='left'&&!collide(-1,0)) curX--; 
-                if(dir==='right'&&!collide(1,0)) curX++; 
-                if(dir==='down'&&!collide(0,1)) curY++; 
-                draw(); 
-            }; 
-            f(); 
-            mWait = setTimeout(() => { mInt = setInterval(f, 50); }, 120); 
-        }
+        function startMove(dir) { if(paused || !gameActive) return; const f = () => { if(dir==='left'&&!collide(-1,0)) curX--; if(dir==='right'&&!collide(1,0)) curX++; if(dir==='down'&&!collide(0,1)) curY++; draw(); }; f(); mWait = setTimeout(() => { mInt = setInterval(f, 50); }, 120); }
         function stopMove() { clearTimeout(mWait); clearInterval(mInt); }
-        
         document.getElementById('btn-left').addEventListener('touchstart', (e) => { e.preventDefault(); startMove('left'); });
         document.getElementById('btn-right').addEventListener('touchstart', (e) => { e.preventDefault(); startMove('right'); });
         document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); startMove('down'); });
-        document.getElementById('btn-rotate').addEventListener('touchstart', (e) => { 
-            e.preventDefault(); 
-            if(paused || !gameActive) return; 
-            const r = curPiece.shape[0].map((_,i) => curPiece.shape.map(row => row[i]).reverse()); 
-            if(!collide(0,0,r)) curPiece.shape = r; 
-            draw(); 
-        });
+        document.getElementById('btn-rotate').addEventListener('touchstart', (e) => { e.preventDefault(); if(paused || !gameActive) return; const r = curPiece.shape[0].map((_,i) => curPiece.shape.map(row => row[i]).reverse()); if(!collide(0,0,r)) curPiece.shape = r; draw(); });
         document.addEventListener('touchend', stopMove);
 
         initApp();
