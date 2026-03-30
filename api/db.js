@@ -26,11 +26,8 @@ async function query(text, params) {
 // ОЧИСТКА СТАРЫХ АККАУНТОВ (старше 1 года)
 async function cleanupOldAccounts() {
     try {
-        // 1. Удаляем ПИНы, которыми не пользовались больше года
         await query("DELETE FROM users_pins WHERE last_active < NOW() - INTERVAL '1 year'");
-        // 2. Удаляем города анонимных пользователей без активности больше года
         await query("DELETE FROM users_cloud WHERE last_active < NOW() - INTERVAL '1 year'");
-        // 3. Удаляем зависший игровой прогресс старше года
         await query("DELETE FROM game_progress WHERE updated_at < NOW() - INTERVAL '1 year'");
         console.log('🧹 База данных очищена от аккаунтов старше 1 года');
     } catch (e) {
@@ -45,6 +42,7 @@ export async function getOrRegisterPin(pinInput) {
         pin = Math.floor(100000 + Math.random() * 900000).toString();
     }
     
+    // Сначала пробуем обновить существующий ПИН
     const res = await query(
         'UPDATE users_pins SET last_active = NOW() WHERE pin = $1 RETURNING cloud_name', 
         [pin]
@@ -54,6 +52,7 @@ export async function getOrRegisterPin(pinInput) {
         return { pin, cloudName: res.rows[0].cloud_name };
     } else {
         const newName = generateRandomCloudName();
+        // Если ПИН не найден, вставляем новый
         await query(
             'INSERT INTO users_pins (pin, cloud_name, last_active) VALUES ($1, $2, NOW()) ON CONFLICT (pin) DO NOTHING', 
             [pin, newName]
@@ -117,6 +116,7 @@ export async function getTopPlayers(gameType, limit = 10) {
 }
 
 export const initDb = async () => {
+    // 1. Создаем таблицы, если их нет
     await query(`
         CREATE TABLE IF NOT EXISTS users_pins (pin VARCHAR(10) PRIMARY KEY, cloud_name VARCHAR(100) NOT NULL, last_active TIMESTAMP DEFAULT NOW(), created_at TIMESTAMP DEFAULT NOW());
         CREATE TABLE IF NOT EXISTS users_cloud (cloud_name VARCHAR(100) PRIMARY KEY, city VARCHAR(100) DEFAULT 'Не указан', last_active TIMESTAMP DEFAULT NOW());
@@ -124,7 +124,10 @@ export const initDb = async () => {
         CREATE TABLE IF NOT EXISTS game_progress (cloud_name VARCHAR(100), game_type VARCHAR(50), score INTEGER, level INTEGER, lines INTEGER, updated_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (cloud_name, game_type));
     `);
     
-    // Запускаем очистку при инициализации (не нагружает основную работу)
+    // 2. ПРИНУДИТЕЛЬНО добавляем колонку last_active, если таблица была создана ранее без неё
+    await query(`ALTER TABLE users_pins ADD COLUMN IF NOT EXISTS last_active TIMESTAMP DEFAULT NOW()`);
+    
+    // Запускаем очистку при инициализации
     cleanupOldAccounts().catch(console.error);
 };
 
