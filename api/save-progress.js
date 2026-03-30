@@ -1,4 +1,4 @@
-import { saveGameProgress, deleteGameProgress, getGameProgress, generateAnonymousName } from './db.js';
+import { saveGameProgress, deleteGameProgress, getOrRegisterPin } from './db.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -9,14 +9,12 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   try {
-    const { action, session_id, gameType = 'tetris', score, level, lines } = req.body;
+    const { action, pin, gameType = 'tetris', score, level, lines } = req.body;
     
-    if (!session_id) {
-      return res.status(400).json({ success: false, error: 'Missing session_id' });
-    }
+    if (!pin) return res.status(400).json({ success: false, error: 'Missing pin' });
 
-    // Превращаем анонимный ID сессии в публичное Облачное Имя
-    const cloudName = generateAnonymousName(session_id);
+    // Получаем анонимное имя по ПИНу
+    const { cloudName } = await getOrRegisterPin(pin);
     
     if (action === 'save') {
       await saveGameProgress(cloudName, gameType, parseInt(score || 0), parseInt(level || 1), parseInt(lines || 0));
