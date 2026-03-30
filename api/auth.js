@@ -1,4 +1,4 @@
-import { getOrRegisterPin, saveUserCity } from './db.js';
+import { getOrRegisterPin, pool } from './db.js';
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -9,17 +9,33 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
     
     try {
-        const { pin, city = 'Не указан' } = req.body;
+        const { pin, city } = req.body;
 
         if (!pin) {
             return res.status(400).json({ success: false, error: 'Введите ПИН-код' });
         }
 
-        // Проверяем ПИН в базе и получаем анонимное имя
+        // Получаем имя по ПИНу
         const { cloudName } = await getOrRegisterPin(pin);
 
-        // Обновляем активность и город
-        await saveUserCity(cloudName, city);
+        // Если город передан (например, из бота), сохраняем его. 
+        // Если НЕТ (просто вход по ПИНу), ничего не трогаем в таблице городов.
+        if (city && city !== 'Не указан') {
+            await pool.query(
+                `INSERT INTO users_cloud (cloud_name, city, last_active) 
+                 VALUES ($1, $2, NOW()) 
+                 ON CONFLICT (cloud_name) DO UPDATE SET city = $2, last_active = NOW()`,
+                [cloudName, city]
+            );
+        } else {
+            // Просто обновляем время активности
+            await pool.query(
+                `INSERT INTO users_cloud (cloud_name, city, last_active) 
+                 VALUES ($1, 'Не указан', NOW()) 
+                 ON CONFLICT (cloud_name) DO UPDATE SET last_active = NOW()`,
+                [cloudName]
+            );
+        }
 
         return res.json({ 
             success: true, 
@@ -29,6 +45,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('❌ Auth Error:', error);
-        return res.status(500).json({ success: false, error: 'Ошибка ПИН-кода' });
+        return res.status(500).json({ success: false, error: 'Ошибка сервера при входе' });
     }
 }

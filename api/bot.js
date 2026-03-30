@@ -7,7 +7,7 @@ const bot = new Bot(process.env.BOT_TOKEN || '');
 
 bot.use(session({ initial: () => ({ pin: null, cloudName: null }) }));
 
-// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ПОГОДЫ =====================
 function getWindDirection(degrees) {
   if (degrees === undefined || degrees === null) return '—';
   const directions = ['С ⬆️', 'СВ ↗️', 'В ➡️', 'ЮВ ↘️', 'Ю ⬇️', 'ЮЗ ↙️', 'З ⬅️', 'СЗ ↖️'];
@@ -69,12 +69,9 @@ async function getDetailedWeatherData(cityName) {
     msg += `💧 *Влажность:* ${cur.relative_humidity_2m}%\n`;
     msg += `☁️ *Облачность:* ${getCloudDescription(cur.cloud_cover)} (${cur.cloud_cover}%)\n`;
     msg += `👁️ *Видимость:* ${(cur.visibility / 1000).toFixed(1)} км\n`;
-    msg += `☀️ *УФ-индекс:* ${daily.uv_index_max[0]}\n`;
-    
+    msg += `☀️ *УФ-индекс:* ${daily.uv_index_max[0]}\n───────────────────\n`;
     if (cur.rain > 0) msg += `🌧️ *Дождь:* ${cur.rain} мм\n`;
     if (cur.snowfall > 0) msg += `❄️ *Снег:* ${cur.snowfall} см\n`;
-    
-    msg += `───────────────────\n`;
     msg += `🌅 Восход: ${sunrise} | 🌇 Закат: ${sunset}\n`;
     msg += `⏱ Длина дня: ${calculateDayLength(sunrise, sunset)}`;
     
@@ -195,13 +192,16 @@ bot.command('start', async (ctx) => {
   ctx.session.cloudName = cloudName;
   const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${pin}`;
   const startInlineKeyboard = new InlineKeyboard().webApp('🎮 ИГРАТЬ В ТЕТРИС', gameUrl);
-  let info = `👋 Привет! Твой анонимный ник: *${cloudName}*\n🔑 Твой ПИН-код: \`${pin}\` (сохрани его!)\n\n👇 Выбери город для прогноза:`;
+  let info = `👋 Привет! Твой анонимный ник: *${cloudName}*\n🔑 Твой ПИН-код: \`${pin}\` (сохрани его!)\n\n👇 Выбери город для точных советов:`;
   await ctx.reply(info, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
   await ctx.reply('🕹️ *Тетрис готов!*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
 });
 
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
+  if (!ctx.session.cloudName) {
+    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
+    ctx.session.cloudName = cloudName;
+  }
   const res = await getUserCity(ctx.session.cloudName);
   if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
   const w = await getDetailedWeatherData(res.city);
@@ -209,25 +209,34 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
 });
 
 bot.hears('📅 СЕГОДНЯ', async (ctx) => {
-  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
+  if (!ctx.session.cloudName) {
+    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
+    ctx.session.cloudName = cloudName;
+  }
   const res = await getUserCity(ctx.session.cloudName);
-  if (res.city === 'Не указан') return ctx.reply('Выбери город!', { reply_markup: cityKeyboard });
+  if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
   const f = await getDetailedForecast(res.city, 0);
   await ctx.reply(f.message, { parse_mode: 'Markdown' });
 });
 
 bot.hears('📅 ЗАВТРА', async (ctx) => {
-  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
+  if (!ctx.session.cloudName) {
+    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
+    ctx.session.cloudName = cloudName;
+  }
   const res = await getUserCity(ctx.session.cloudName);
-  if (res.city === 'Не указан') return ctx.reply('Выбери город!', { reply_markup: cityKeyboard });
+  if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
   const f = await getDetailedForecast(res.city, 1);
   await ctx.reply(f.message, { parse_mode: 'Markdown' });
 });
 
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
-  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
+  if (!ctx.session.cloudName) {
+    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
+    ctx.session.cloudName = cloudName;
+  }
   const res = await getUserCity(ctx.session.cloudName);
-  if (res.city === 'Не указан') return ctx.reply('Выбери город!', { reply_markup: cityKeyboard });
+  if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
   const w = await getDetailedWeatherData(res.city);
   await ctx.reply(getWardrobeAdvice(w), { parse_mode: 'Markdown' });
 });
@@ -243,7 +252,10 @@ bot.hears('🎲 СЛУЧАЙНАЯ', (ctx) => {
 });
 
 bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
-  if (!ctx.session.pin) return ctx.reply('Нажми /start!');
+  if (!ctx.session.pin) {
+    const { pin, cloudName } = await getOrRegisterPin();
+    ctx.session.pin = pin; ctx.session.cloudName = cloudName;
+  }
   const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${ctx.session.pin}`;
   await ctx.reply(`🕹️ *Тетрис*\nНик: *${ctx.session.cloudName}*`, { 
     parse_mode: 'Markdown', 
@@ -254,14 +266,21 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
 bot.hears('🏙️ СМЕНИТЬ ГОРОД', (ctx) => ctx.reply('Выбери город из списка:', { reply_markup: cityKeyboard }));
 
 bot.hears(/^📍 /, async (ctx) => {
-  if (!ctx.session.cloudName) return ctx.reply('Нажми /start!');
+  if (!ctx.session.cloudName) {
+    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
+    ctx.session.cloudName = cloudName;
+  }
   const city = ctx.message.text.replace('📍 ', '').trim();
   await saveUserCity(ctx.session.cloudName, city);
   await ctx.reply(`✅ Город *${city}* успешно установлен!`, { reply_markup: mainMenuKeyboard, parse_mode: 'Markdown' });
 });
 
 bot.on('message:text', async (ctx) => {
-  if (ctx.message.text.startsWith('/') || !ctx.session.cloudName) return;
+  if (ctx.message.text.startsWith('/')) return;
+  if (!ctx.session.cloudName) {
+    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
+    ctx.session.cloudName = cloudName;
+  }
   const check = await getDetailedWeatherData(ctx.message.text.trim());
   if (check.success) {
     await saveUserCity(ctx.session.cloudName, check.city);
