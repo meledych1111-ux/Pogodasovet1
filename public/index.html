@@ -33,6 +33,7 @@
         .pet-food-count { font-weight: bold; color: #ffd700; font-size: 0.7rem; }
         .pet-activate-btn { width: 100%; text-align: center; font-size: 1.2rem; cursor: pointer; padding: 4px 0; margin-top: 2px; border-radius: 8px; background: rgba(255,215,0,0.1); opacity: 0.5; }
         .ready .pet-activate-btn { opacity: 1; background: rgba(255,215,0,0.3); animation: pulse 1.5s infinite; }
+        .boost-indicator { position: absolute; top: 5px; right: 5px; padding: 3px 6px; border-radius: 16px; font-size: 0.65rem; font-weight: bold; z-index: 1001; display: none; border: 1px solid #fff; }
         .game-area { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; padding-left: 80px; }
         #tetris-canvas { background: rgba(0,0,0,0.3); border-radius: 16px; border: 2px solid rgba(106,91,255,0.5); width: 220px; height: 440px; }
         .game-controls-panel { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
@@ -43,7 +44,7 @@
         .progress-bar { width: 100%; height: 6px; background: rgba(0,0,0,0.7); border-radius: 3px; overflow: hidden; margin-top: 5px; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #6a5bff, #00d2ff); width: 0%; transition: width 0.2s; }
         .stat-card { background: rgba(30,40,100,0.7); padding: 15px; border-radius: 20px; margin-bottom: 12px; border-left: 5px solid #6a5bff; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .stat-row { display: flex; justify-content: space-between; padding: 6px 0; }
+        .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: none; }
         .pets-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 10px; }
         .pet-slot { font-size: 1.5rem; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 5px; text-align: center; border: 1px solid transparent; }
         .leaderboard-item { background: rgba(30,40,100,0.7); border-radius: 20px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
@@ -56,7 +57,6 @@
 </head>
 <body>
     <div class="game-container">
-        <!-- MENU -->
         <div class="screen active" id="menu-screen">
             <div class="header">
                 <h1 class="game-title">ТЕТРИС 3D</h1>
@@ -71,7 +71,6 @@
             </div>
         </div>
 
-        <!-- GAME -->
         <div class="screen" id="game-screen">
             <div class="game-header">
                 <button class="back-btn" id="btn-back">МЕНЮ</button>
@@ -81,6 +80,7 @@
                 </div>
             </div>
             <div class="game-area">
+                <div id="slow-indicator" class="boost-indicator" style="background:#64c8ff; color:#000;">⏰ 0с</div>
                 <div id="next-piece-left">
                     <span class="section-title">🔮 СЛЕД.</span>
                     <div id="next-preview" style="height:45px; display:flex; align-items:center; justify-content:center;"></div>
@@ -139,14 +139,8 @@
         const COLORS = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#F7DC6F'];
         const PETS = ['🐱','🐶','🦊','🐰','🐼','🦁','🐯','🐨','🐧','🦉','🐸','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐆','🐅','🐘','🐫','🐪','🐎','🐗','🐖','🐏','🐑','🐐','🦌','🦘','🦒','🦓','🦏','🦥','🦦','🦫','🦩','🦜','🦢','🦚','🦃','🦆','🦉','🐿️','🦔','🦇'];
 
-        const BASE_PETS = [
-            { name: 'Котёнок', emoji: '🐱', type: 'clear', val: 1, cost: 3, desc: 'Убирает 1 нижний ряд' },
-            { name: 'Щенок', emoji: '🐕', type: 'slow', val: 10000, cost: 3, desc: 'Замедляет время на 10с' },
-            { name: 'Зайка', emoji: '🐇', type: 'clear', val: 2, cost: 3, desc: 'Убирает 2 нижних ряда' },
-            { name: 'Лисёнок', emoji: '🦊', type: 'magnet', val: 10000, cost: 3, desc: 'Магнит на 10с' },
-            { name: 'Панда', emoji: '🐼', type: 'double', val: 5, cost: 3, desc: 'Бонусные очки' }
-        ];
-        for(let i=5; i<50; i++) BASE_PETS.push({ name: 'Питомец '+i, emoji: PETS[i], type: (i%2==0?'clear':'slow'), val: 2, cost: 3, desc: 'Улучшенная способность' });
+        const BASE_PETS = [{ name: 'Котёнок', emoji: '🐱', type: 'clear', val: 1, cost: 3, desc: 'Убирает 1 нижний ряд' }];
+        for(let i=1; i<50; i++) BASE_PETS.push({ name: 'Питомец '+i, emoji: PETS[i], type: (i%2==0?'clear':'slow'), val: (i%2==0?2:10000), cost: 3, desc: 'Улучшенная способность' });
 
         async function initApp() {
             const p = new URLSearchParams(location.search);
@@ -186,8 +180,7 @@
                 }, 200);
                 score += [0, 100, 300, 700, 1500][cleared] * (level + 1); 
                 lines += cleared; petFood += cleared;
-                level = Math.floor(score/500); 
-                dropInterval = Math.max(100, 800 / (1 + level * 0.12)); 
+                level = Math.floor(score/500); dropInterval = Math.max(100, 800 / (1 + level * 0.12)); 
                 updateUI(); 
             } 
         }
@@ -195,8 +188,7 @@
         function loop(t) { 
             if(!gameActive || paused) { lastTime = t; if(gameActive) requestAnimationFrame(loop); return; } 
             const dt = t - lastTime; lastTime = t; dropCounter += dt; 
-            const currentSpeed = slow ? 1500 : dropInterval;
-            if(dropCounter > currentSpeed) { if(!collide(0,1)) curY++; else { merge(); spawn(); } dropCounter = 0; } 
+            if(dropCounter > (slow ? 1500 : dropInterval)) { if(!collide(0,1)) curY++; else { merge(); spawn(); } dropCounter = 0; } 
             draw(); requestAnimationFrame(loop); 
         }
 
@@ -204,7 +196,6 @@
         function draw() {
             ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0,0,220,440);
             ctx.strokeStyle = 'rgba(106,91,255,0.1)'; 
-            ctx.lineWidth = 1;
             for(let x=0;x<=COLS;x++){ ctx.beginPath(); ctx.moveTo(x*SIZE,0); ctx.lineTo(x*SIZE,440); ctx.stroke(); }
             for(let y=0;y<=ROWS;y++){ ctx.beginPath(); ctx.moveTo(0,y*SIZE); ctx.lineTo(220,y*SIZE); ctx.stroke(); }
             board.forEach((r,y) => r.forEach((c,x) => { if(c) { ctx.fillStyle=c; ctx.fillRect(x*SIZE, y*SIZE, SIZE-1, SIZE-1); } }));
@@ -214,7 +205,6 @@
 
         function drawNext() { const p = document.getElementById('next-preview'); p.innerHTML = ''; const g = document.createElement('div'); g.style.display='grid'; g.style.gridTemplateColumns=`repeat(${nextPiece.shape[0].length}, 10px)`; g.style.gap='2px'; nextPiece.shape.forEach(r => r.forEach(v => { const d=document.createElement('div'); d.style.width='10px'; d.style.height='10px'; if(v) d.style.background=nextPiece.color; g.appendChild(d); })); p.appendChild(g); }
         function updateUI() { document.getElementById('score-display').textContent = score; document.getElementById('level-display').textContent = level; document.getElementById('progress-fill').style.width = (score % 500 / 5) + '%'; document.getElementById('pet-emoji-display').textContent = PETS[level % PETS.length]; document.getElementById('pet-food-display').textContent = petFood + '/3 🍖'; if(petFood >= 3) document.getElementById('pet-ui').classList.add('ready'); else document.getElementById('pet-ui').classList.remove('ready'); }
-        
         function usePetAbility() {
             if(petFood < 3) return; petFood -= 3;
             const pet = BASE_PETS[level % 50];
@@ -224,11 +214,11 @@
             document.getElementById('ba-desc').textContent = pet.desc;
             anim.style.display = 'block'; setTimeout(() => anim.style.display = 'none', 1500);
             if(pet.type === 'clear') { for(let i=0; i<pet.val; i++) { board.pop(); board.unshift(Array(COLS).fill(0)); } showNotify('🧹 Очистка!'); }
-            else if(pet.type === 'slow') { slow = true; setTimeout(()=>slow=false, pet.val); showNotify('⏰ Замедление!'); }
+            else if(pet.type === 'slow') { slow = true; document.getElementById('slow-indicator').style.display='block'; setTimeout(()=>{slow=false; document.getElementById('slow-indicator').style.display='none';}, pet.val); showNotify('⏰ Замедление!'); }
             updateUI();
         }
 
-        function togglePause() { paused = !paused; document.getElementById('pause-btn').textContent = paused ? '▶ ПУСК' : '⏸ ПАУЗА'; }
+        function togglePause() { paused = !paused; document.getElementById('btn-pause').textContent = paused ? '▶ ПУСК' : '⏸ ПАУЗА'; }
         async function save() { try { await fetch('/api/save-score', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({userId, score, level, lines, city, gameType:'tetris'}) }); } catch(e){} }
         function manualSave() { save(); showNotify('💾 Сохранено!'); }
 
@@ -246,7 +236,6 @@
         document.getElementById('btn-rotate').addEventListener('touchstart', (e) => { e.preventDefault(); if(paused || !curPiece) return; const r = curPiece.shape[0].map((_,i) => curPiece.shape.map(row => row[i]).reverse()); if(!collide(0,0,r)) curPiece.shape = r; draw(); });
         document.getElementById('btn-ability').addEventListener('touchstart', (e) => { e.preventDefault(); usePetAbility(); });
 
-        // МЕНЮ ОБРАБОТЧИКИ
         document.getElementById('btn-new-game').onclick = startNewGame;
         document.getElementById('btn-stats').onclick = showStats;
         document.getElementById('btn-leaderboard').onclick = showLeaderboard;
@@ -265,7 +254,7 @@
         }
 
         async function showLeaderboard() {
-            const list = document.getElementById('leader-content'); list.innerHTML = '<p>⏳ Загрузка...</p>'; showScreen('leaderboard');
+            const list = document.getElementById('leaderboard-list'); list.innerHTML = '<p>⏳ Загрузка...</p>'; showScreen('leaderboard');
             const r = await fetch('/api/top-players?gameType=tetris');
             const d = await r.json();
             list.innerHTML = d.players.map(p => {
@@ -276,6 +265,7 @@
 
         function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id+'-screen').classList.add('active'); if(id!=='game') paused = true; }
         function showMenu() { if(score>100) save(); showScreen('menu'); }
+        function logout() { localStorage.removeItem('tetris_userId'); location.reload(); }
         function showNotify(m) { const n = document.getElementById('notify'); n.classList.add('show'); n.textContent = m; setTimeout(()=>n.classList.remove('show'), 3000); }
         window.onload = initApp;
     </script>
