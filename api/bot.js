@@ -5,18 +5,7 @@ import { pool, getOrRegisterPin, saveUserCity, getUserCity } from './db.js';
 dotenv.config();
 const bot = new Bot(process.env.BOT_TOKEN || '');
 
-// ===================== ПОМОЩНИКИ =====================
-// Эта функция позволяет боту "узнать" ПИН пользователя по его Telegram ID,
-// но при этом МЫ НЕ ХРАНИМ ТЕЛЕГРАМ ID В БАЗЕ ДАННЫХ.
-// Мы используем его только как временный ключ для поиска ПИНа в памяти сессии.
-const sessionPinMap = new Map();
-
-async function getPinForUser(ctx) {
-    if (sessionPinMap.has(ctx.from.id)) {
-        return sessionPinMap.get(ctx.from.id);
-    }
-    return null;
-}
+const userPinCache = new Map();
 
 // ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ПОГОДЫ =====================
 function getWindDirection(degrees) {
@@ -61,8 +50,36 @@ async function getDetailedWeatherData(cityName) {
   } catch (e) { return { success: false, error: e.message }; }
 }
 
+async function getDetailedForecast(cityName, dayOffset = 0) {
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+    const geoRes = await fetch(geoUrl);
+    const geoData = await geoRes.json();
+    if (!geoData.results?.length) throw new Error('Город не найден');
+    const { latitude, longitude, name } = geoData.results[0];
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,precipitation_sum,uv_index_max&wind_speed_unit=ms&timezone=auto&forecast_days=${dayOffset + 1}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const start = dayOffset * 24;
+    const periods = [{ n: '🌅 Утро', i: start + 9, e: '🌅' }, { n: '☀️ День', i: start + 15, e: '☀️' }, { n: '🌆 Вечер', i: start + 21, e: '🌆' }];
+
+    const date = new Date(); date.setDate(date.getDate() + dayOffset);
+    let msg = `📅 *Прогноз: ${name}* (${date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })})\n───────────────────\n`;
+    periods.forEach(p => {
+      const t = Math.round(data.hourly.temperature_2m[p.i]);
+      const f = Math.round(data.hourly.apparent_temperature[p.i]);
+      const pr = data.hourly.precipitation_probability[p.i];
+      msg += `${p.e} *${p.n}:* ${t}°C (ощ. ${f}°C) | ${getWeatherDescription(data.hourly.weather_code[p.i])}${pr > 5 ? ` | ☔️ ${pr}%` : ''}\n`;
+    });
+    return { success: true, message: msg };
+  } catch (e) { return { success: false, message: "❌ Ошибка прогноза." }; }
+}
+
 const mainMenuKeyboard = new Keyboard()
     .text('🌤️ ПОГОДА СЕЙЧАС').row()
+    .text('📅 СЕГОДНЯ').text('📅 ЗАВТРА').row()
     .text('🎮 ИГРАТЬ В ТЕТРИС').row()
     .text('🏙️ СМЕНИТЬ ГОРОД').text('🔑 МОЙ ПИН').resized();
 
@@ -71,78 +88,82 @@ const cityKeyboard = new Keyboard()
     .text('📍 СЕВАСТОПОЛЬ').row()
     .text('✏️ ДРУГОЙ ГОРОД').resized();
 
-const welcomeKeyboard = new InlineKeyboard()
-    .text('🆕 Новый профиль', 'new_profile').row()
-    .text('🔑 Войти по ПИНу', 'login_pin');
-
 // ===================== ОБРАБОТЧИКИ =====================
 
 bot.command('start', async (ctx) => {
-  await ctx.reply(`👋 Привет! Я твой анонимный помощник.\n\nЧтобы я тебя запомнил, создай новый профиль или введи свой ПИН:`, { reply_markup: welcomeKeyboard });
+  let pinData = userPinCache.get(ctx.from.id);
+  if (!pinData) { pinData = await getOrRegisterPin(); userPinCache.set(ctx.from.id, pinData); }
+  const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${pinData.pin}`;
+  const inline = new InlineKeyboard().webApp('🎮 ИГРАТЬ В ТЕТРИС', gameUrl);
+  let msg = `👋 Привет, *${pinData.cloudName}*!\n🔑 Твой ПИН: \`${pinData.pin}\` (сохрани его)\n\n👇 Выбери город для прогноза:`;
+  await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
+  await ctx.reply('🕹️ *Тетрис готов:*', { reply_markup: inline, parse_mode: 'Markdown' });
 });
 
-bot.callbackQuery('new_profile', async (ctx) => {
-  const { pin, cloudName } = await getOrRegisterPin();
-  sessionPinMap.set(ctx.from.id, { pin, cloudName });
-  await ctx.answerCallbackQuery();
-  await ctx.reply(`✅ Создан профиль: *${cloudName}*\n🔑 Твой ПИН-код: \`${pin}\` (сохрани его!)\n\nТеперь выбери свой город:`, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
+bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
+  const pinData = userPinCache.get(ctx.from.id);
+  if (!pinData) return ctx.reply('Бот перезагрузился. Отправь свой ПИН-код (6 цифр) для входа.');
+  const res = await getUserCity(pinData.cloudName);
+  if (res.city === 'Не указан') return ctx.reply('Выбери город!', { reply_markup: cityKeyboard });
+  const w = await getDetailedWeatherData(res.city);
+  await ctx.reply(w.message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
 });
 
-bot.callbackQuery('login_pin', async (ctx) => {
-  await ctx.answerCallbackQuery();
-  await ctx.reply('Отправь мне свой ПИН-код (6 цифр) для входа:');
+bot.hears('📅 СЕГОДНЯ', async (ctx) => {
+  const pinData = userPinCache.get(ctx.from.id);
+  if (!pinData) return ctx.reply('Отправь свой ПИН-код для входа.');
+  const res = await getUserCity(pinData.cloudName);
+  const f = await getDetailedForecast(res.city, 0);
+  await ctx.reply(f.message, { parse_mode: 'Markdown' });
+});
+
+bot.hears('📅 ЗАВТРА', async (ctx) => {
+  const pinData = userPinCache.get(ctx.from.id);
+  if (!pinData) return ctx.reply('Отправь свой ПИН-код для входа.');
+  const res = await getUserCity(pinData.cloudName);
+  const f = await getDetailedForecast(res.city, 1);
+  await ctx.reply(f.message, { parse_mode: 'Markdown' });
 });
 
 bot.hears(/^\d{6}$/, async (ctx) => {
   const pin = ctx.message.text;
-  try {
-    const { cloudName } = await getOrRegisterPin(pin);
-    sessionPinMap.set(ctx.from.id, { pin, cloudName });
-    await ctx.reply(`✅ Вход выполнен! Добро пожаловать, *${cloudName}*`, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
-  } catch (e) { await ctx.reply('❌ Ошибка. Проверь ПИН.'); }
-});
-
-bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-  const user = sessionPinMap.get(ctx.from.id);
-  if (!user) return ctx.reply('Сначала войди! Нажми /start или введи ПИН.');
-  const res = await getUserCity(user.cloudName);
-  if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
-  const w = await getDetailedWeatherData(res.city);
-  await ctx.reply(w.message, { parse_mode: 'Markdown' });
+  const { cloudName } = await getOrRegisterPin(pin);
+  userPinCache.set(ctx.from.id, { pin, cloudName });
+  await ctx.reply(`✅ Вход выполнен! Добро пожаловать, *${cloudName}*`, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
 });
 
 bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
-  const user = sessionPinMap.get(ctx.from.id);
-  if (!user) return ctx.reply('Сначала войди! Нажми /start или введи ПИН.');
-  const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${user.pin}`;
-  await ctx.reply(`🕹️ *Тетрис*\nНик: *${user.cloudName}*`, { 
+  const pinData = userPinCache.get(ctx.from.id);
+  if (!pinData) return ctx.reply('Нажми /start или введи ПИН.');
+  const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${pinData.pin}`;
+  await ctx.reply(`🕹️ *Тетрис*\nНик: *${pinData.cloudName}*`, { 
     parse_mode: 'Markdown', 
     reply_markup: { inline_keyboard: [[{ text: '🎮 Открыть Игру', web_app: { url: gameUrl } }]] } 
   });
 });
 
 bot.hears(/^📍 /, async (ctx) => {
-  const user = sessionPinMap.get(ctx.from.id);
-  if (!user) return ctx.reply('Нажми /start!');
+  const pinData = userPinCache.get(ctx.from.id);
+  if (!pinData) return ctx.reply('Сначала введи свой ПИН-код.');
   const city = ctx.message.text.replace('📍 ', '').trim();
-  await saveUserCity(user.cloudName, city);
+  await saveUserCity(pinData.cloudName, city);
   await ctx.reply(`✅ Город *${city}* установлен!`, { reply_markup: mainMenuKeyboard, parse_mode: 'Markdown' });
 });
 
-bot.hears('🔑 МОЙ ПИН', async (ctx) => {
-  const user = sessionPinMap.get(ctx.from.id);
-  if (!user) return ctx.reply('Нажми /start!');
-  await ctx.reply(`Твой ПИН-код: \`${user.pin}\``, { parse_mode: 'Markdown' });
+bot.on('message:text', async (ctx) => {
+  if (ctx.message.text.startsWith('/') || /^\d{6}$/.test(ctx.message.text)) return;
+  const pinData = userPinCache.get(ctx.from.id);
+  if (!pinData) return;
+  const check = await getDetailedWeatherData(ctx.message.text.trim());
+  if (check.success) {
+    await saveUserCity(pinData.cloudName, check.city);
+    await ctx.reply(`✅ Город *${check.city}* выбран!`, { reply_markup: mainMenuKeyboard, parse_mode: 'Markdown' });
+  } else { ctx.reply('❌ Город не найден.', { reply_markup: cityKeyboard }); }
 });
-
-bot.hears('🏙️ СМЕНИТЬ ГОРОД', (ctx) => ctx.reply('Выбери город:', { reply_markup: cityKeyboard }));
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    try { 
-      if (!bot.isInited()) await bot.init(); 
-      await bot.handleUpdate(req.body); 
-    } catch (e) { console.error('Bot Error:', e); }
+    try { if (!bot.isInited()) await bot.init(); await bot.handleUpdate(req.body); } catch (e) { console.error(e); }
     return res.status(200).json({ ok: true });
   }
   return res.status(200).json({ status: 'active' });
