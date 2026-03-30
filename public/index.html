@@ -50,6 +50,7 @@
             justify-content: center; gap: 8px; box-shadow: 4px 4px 10px rgba(0,0,0,0.8);
             border: 1px solid rgba(255,255,255,0.1); transition: 0.1s;
         }
+        .menu-btn:active { transform: scale(0.97); }
         .game-header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 6px 10px; background: rgba(20,30,80,0.7); border-radius: 18px;
@@ -91,7 +92,7 @@
             <div class="header">
                 <h1 class="game-title">ТЕТРИС 3D</h1>
                 <p class="subtitle">50 питомцев • 8 рангов • 7 бустеров</p>
-                <div class="anonymous-name" id="anonymous-name-display">☁️ Загрузка...</div>
+                <div class="anonymous-name" id="user-display">☁️ Загрузка...</div>
             </div>
             <div class="menu-buttons">
                 <button class="menu-btn" onclick="startNewGame()">🎮 НОВАЯ ИГРА</button>
@@ -114,10 +115,10 @@
                 <div id="double-indicator" class="boost-indicator" style="background:#ffd700; color:#000;">✨ 0</div>
                 <div id="next-piece-left">
                     <span style="color:#ffd700; font-size:0.6rem;">🔮 СЛЕД.</span>
-                    <div id="next-piece-shape" class="next-piece-shape"></div>
+                    <div id="next-piece-left-shape" class="next-piece-shape"></div>
                     <div class="pet-block" id="pet-ui">
                         <span id="pet-emoji" style="font-size:1.5rem;">🐣</span>
-                        <div id="pet-food" style="font-size:0.7rem; color:#ffd700;">0/3 🍖</div>
+                        <div id="pet-food" style="font-size:0.7rem; color:#ffd700;"><span id="pet-food-count-display">0/3</span> 🍖</div>
                         <button class="pet-activate-btn" onclick="usePetAbility()">🔥</button>
                     </div>
                 </div>
@@ -165,17 +166,69 @@
         const SHAPES = [[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[0,1,1],[1,1,0]],[[1,1,0],[0,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]]];
         const COLORS = ['#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#FFEAA7','#DDA0DD','#F7DC6F'];
 
-        const BASE_PETS = [];
-        const EMOJIS = ['🐱','🐶','🦊','🐰','🐼','🦁','🐯','🐨','🐧','🦉','🐸','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐆','🐅','🐘','🐫','🐪','🐎','🐗','🐖','🐏','🐑','🐐','🦌','🦘','🦒','🦓','🦏','🦥','🦦','🦫','🦩','🦜','🦢','🦚','🦃','🦆','🐿️'];
-        for(let i=0; i<50; i++) {
-            BASE_PETS.push({
-                id: 'p'+i, name: 'Питомец ' + (i+1), emoji: EMOJIS[i % EMOJIS.length], color: COLORS[i % 7], score: (i+1)*500,
-                type: i % 3 === 0 ? 'clear' : (i % 3 === 1 ? 'slow' : 'magnet'),
-                value: i % 3 === 0 ? 1 : (i % 3 === 1 ? 5000 : 5), foodCost: 3
-            });
-        }
+        const BASE_PETS = [
+            { id: 'cat', name: 'Котёнок', emoji: '🐱', color: '#FFB6C1', score: 500, food: '🐟', type: 'clear', value: 1, foodCost: 3 },
+            { id: 'dog', name: 'Щенок', emoji: '🐕', color: '#D2B48C', score: 1000, food: '🦴', type: 'slow', value: 5000, foodCost: 3 },
+            { id: 'rabbit', name: 'Зайка', emoji: '🐇', color: '#F0F0F0', score: 1500, food: '🥕', type: 'magnet', value: 10, foodCost: 3 },
+            { id: 'fox', name: 'Лисёнок', emoji: '🦊', color: '#FF8C42', score: 2000, food: '🍇', type: 'slow', value: 8000, foodCost: 3 },
+            { id: 'panda', name: 'Панда', emoji: '🐼', color: '#2E2E2E', score: 2500, food: '🎋', type: 'clear', value: 2, foodCost: 3 },
+            { id: 'penguin', name: 'Пингвин', emoji: '🐧', color: '#1E3F66', score: 3000, food: '🦐', type: 'slow', value: 10000, foodCost: 3 },
+            { id: 'koala', name: 'Коала', emoji: '🐨', color: '#A9A9A9', score: 3500, food: '🌿', type: 'random', value: 1, foodCost: 2 },
+            { id: 'owl', name: 'Совёнок', emoji: '🦉', color: '#8B4513', score: 4000, food: '🐭', type: 'magnet', value: 5, foodCost: 3 },
+            { id: 'tiger', name: 'Тигрёнок', emoji: '🐯', color: '#FFA500', score: 4500, food: '🥩', type: 'clear', value: 2, foodCost: 3 },
+            { id: 'lion', name: 'Львёнок', emoji: '🦁', color: '#FFD700', score: 5000, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
+            { id: 'leopard', name: 'Леопард', emoji: '🐆', color: '#FF8C00', score: 5500, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
+            { id: 'giraffe', name: 'Жирафик', emoji: '🦒', color: '#FFCC33', score: 6000, food: '🌿', type: 'slow', value: 12000, foodCost: 3 },
+            { id: 'zebra', name: 'Зебра', emoji: '🦓', color: '#000000', score: 6500, food: '🌿', type: 'slow', value: 10000, foodCost: 3 },
+            { id: 'elephant', name: 'Слонёнок', emoji: '🐘', color: '#808080', score: 7000, food: '🍌', type: 'clear', value: 4, foodCost: 3 },
+            { id: 'rhino', name: 'Носорог', emoji: '🦏', color: '#696969', score: 7500, food: '🌿', type: 'random', value: 2, foodCost: 2 },
+            { id: 'hippo', name: 'Бегемот', emoji: '🦛', color: '#8A6E4B', score: 8000, food: '🌿', type: 'clear', value: 3, foodCost: 3 },
+            { id: 'monkey', name: 'Обезьянка', emoji: '🐒', color: '#8B4513', score: 8500, food: '🍌', type: 'clear', value: 2, foodCost: 3 },
+            { id: 'sloth', name: 'Ленивец', emoji: '🦥', color: '#6B8E23', score: 9000, food: '🌿', type: 'slow', value: 20000, foodCost: 3 },
+            { id: 'hedgehog', name: 'Ёжик', emoji: '🦔', color: '#8B4513', score: 9500, food: '🍎', type: 'clear', value: 2, foodCost: 3 },
+            { id: 'squirrel', name: 'Белочка', emoji: '🐿️', color: '#CD853F', score: 10000, food: '🌰', type: 'clear', value: 1, foodCost: 3 },
+            { id: 'deer', name: 'Олень', emoji: '🦌', color: '#8B5A2B', score: 10500, food: '🌿', type: 'slow', value: 15000, foodCost: 3 },
+            { id: 'moose', name: 'Лось', emoji: '🦌', color: '#5D3A1A', score: 11000, food: '🌲', type: 'slow', value: 20000, foodCost: 3 },
+            { id: 'beaver', name: 'Бобрёнок', emoji: '🦫', color: '#8B4513', score: 11500, food: '🌿', type: 'slow', value: 15000, foodCost: 3 },
+            { id: 'otter', name: 'Выдра', emoji: '🦦', color: '#8B4513', score: 12000, food: '🐟', type: 'clear', value: 2, foodCost: 3 },
+            { id: 'seal', name: 'Тюлень', emoji: '🦭', color: '#808080', score: 12500, food: '🐟', type: 'slow', value: 12000, foodCost: 3 },
+            { id: 'whale', name: 'Кит', emoji: '🐋', color: '#4169E1', score: 13000, food: '🦐', type: 'clear', value: 4, foodCost: 3 },
+            { id: 'dolphin', name: 'Дельфин', emoji: '🐬', color: '#4682B4', score: 13500, food: '🐟', type: 'magnet', value: 7, foodCost: 3 },
+            { id: 'wolf', name: 'Волчонок', emoji: '🐺', color: '#808080', score: 14000, food: '🥩', type: 'slow', value: 15000, foodCost: 3 },
+            { id: 'raccoon', name: 'Енот', emoji: '🦝', color: '#8B4513', score: 14500, food: '🍇', type: 'antibloc', value: 1, foodCost: 2 },
+            { id: 'llama', name: 'Лама', emoji: '🦙', color: '#F0E68C', score: 15000, food: '🌿', type: 'random', value: 2, foodCost: 2 },
+            { id: 'kangaroo', name: 'Кенгуру', emoji: '🦘', color: '#CD853F', score: 15500, food: '🌿', type: 'antibloc', value: 2, foodCost: 2 },
+            { id: 'badger', name: 'Барсук', emoji: '🦡', color: '#2E2E2E', score: 16000, food: '🌿', type: 'random', value: 2, foodCost: 2 },
+            { id: 'skunk', name: 'Скунс', emoji: '🦨', color: '#2E2E2E', score: 16500, food: '🌿', type: 'slow', value: 12000, foodCost: 3 },
+            { id: 'flamingo', name: 'Фламинго', emoji: '🦩', color: '#FF69B4', score: 17000, food: '🦐', type: 'double', value: 2, foodCost: 2 },
+            { id: 'peacock', name: 'Павлин', emoji: '🦚', color: '#4169E1', score: 17500, food: '🌿', type: 'clear', value: 3, foodCost: 3 },
+            { id: 'parrot', name: 'Попугай', emoji: '🦜', color: '#FF0000', score: 18000, food: '🌰', type: 'reroll', value: 2, foodCost: 2 },
+            { id: 'rooster', name: 'Петух', emoji: '🐓', color: '#FF4500', score: 18500, food: '🌽', type: 'clear', value: 2, foodCost: 3 },
+            { id: 'swan', name: 'Лебедь', emoji: '🦢', color: '#FFFFFF', score: 19000, food: '🐟', type: 'slow', value: 15000, foodCost: 3 },
+            { id: 'crocodile', name: 'Крокодил', emoji: '🐊', color: '#2E8B57', score: 19500, food: '🥩', type: 'clear', value: 3, foodCost: 3 },
+            { id: 'lizard', name: 'Ящерица', emoji: '🦎', color: '#32CD32', score: 20000, food: '🦗', type: 'reroll', value: 2, foodCost: 2 },
+            { id: 'snake', name: 'Змея', emoji: '🐍', color: '#228B22', score: 20500, food: '🐭', type: 'slow', value: 15000, foodCost: 3 },
+            { id: 'turtle2', name: 'Черепаха', emoji: '🐢', color: '#2E8B57', score: 21000, food: '🌿', type: 'random', value: 3, foodCost: 2 },
+            { id: 'frog', name: 'Лягушка', emoji: '🐸', color: '#32CD32', score: 21500, food: '🦗', type: 'clear', value: 2, foodCost: 3 },
+            { id: 'puffer', name: 'Рыба-шар', emoji: '🐡', color: '#FFD700', score: 22000, food: '🦐', type: 'random', value: 2, foodCost: 2 },
+            { id: 'octopus', name: 'Осьминог', emoji: '🐙', color: '#FF69B4', score: 22500, food: '🦐', type: 'reroll', value: 3, foodCost: 2 },
+            { id: 'squid', name: 'Кальмар', emoji: '🦑', color: '#8B4513', score: 23000, food: '🦐', type: 'slow', value: 15000, foodCost: 3 },
+            { id: 'shrimp', name: 'Креветка', emoji: '🦐', color: '#FF69B4', score: 23500, food: '🌿', type: 'clear', value: 1, foodCost: 3 },
+            { id: 'lobster', name: 'Омар', emoji: '🦞', color: '#FF4500', score: 24000, food: '🐟', type: 'random', value: 2, foodCost: 2 },
+            { id: 'shell', name: 'Ракушка', emoji: '🐚', color: '#FFB6C1', score: 24500, food: '🌊', type: 'random', value: 2, foodCost: 2 },
+            { id: 'seahorse', name: 'Морской конёк', emoji: '🦄', color: '#00CED1', score: 25000, food: '🦐', type: 'magnet', value: 7, foodCost: 3 }
+        ];
 
-        const PET_RANKS = [{ prefix: '', mult: 1 }, { prefix: '✨', mult: 1.5 }, { prefix: '🌟', mult: 2 }, { prefix: '💎', mult: 2.5 }, { prefix: '👑', mult: 3 }];
+        const PET_RANKS = [
+            { prefix: '', name: 'Обычный', min: 0, max: 49, color: '#FFFFFF', mult: 1 },
+            { prefix: '✨', name: 'Блестящий', min: 50, max: 99, color: '#FFD700', mult: 1.5 },
+            { prefix: '🌟', name: 'Сияющий', min: 100, max: 149, color: '#FFFACD', mult: 2 },
+            { prefix: '💎', name: 'Драгоценный', min: 150, max: 199, color: '#B9F2FF', mult: 2.5 },
+            { prefix: '👑', name: 'Королевский', min: 200, max: 249, color: '#FFD700', mult: 3 },
+            { prefix: '🔥', name: 'Легендарный', min: 250, max: 299, color: '#FF4500', mult: 4 },
+            { prefix: '🎮', name: 'Мифический', min: 300, max: 349, color: '#9370DB', mult: 5 },
+            { prefix: '♾️', name: 'Бесконечный', min: 350, max: Infinity, color: '#00FFFF', mult: 6 }
+        ];
 
         function getPetByNumber(num) {
             if (num < 1) return null;
@@ -187,9 +240,9 @@
 
         async function initApp() {
             const urlParams = new URLSearchParams(window.location.search);
-            let tgId = tg?.initDataUnsafe?.user?.id || urlParams.get('telegramId') || urlParams.get('tg_id');
-            let login = urlParams.get('login') || urlParams.get('username') || tg?.initDataUnsafe?.user?.username;
-            let hash = urlParams.get('hash');
+            const login = urlParams.get('login') || urlParams.get('username') || tg?.initDataUnsafe?.user?.username;
+            const hash = urlParams.get('hash');
+            const tgId = tg?.initDataUnsafe?.user?.id || urlParams.get('telegramId') || urlParams.get('tg_id');
             if (tgId && hash) {
                 try {
                     const r = await fetch('/api/auth', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({login, hash, city: urlParams.get('city'), tg_id: tgId}) });
@@ -197,7 +250,7 @@
                 } catch(e) {}
             }
             if (!anonymousName || anonymousName === 'Облачко') anonymousName = '☁️ Облачко ' + (tgId ? String(tgId).substr(-3) : Math.floor(Math.random()*100));
-            document.getElementById('anonymous-name-display').textContent = anonymousName;
+            document.getElementById('user-display').textContent = anonymousName;
         }
 
         function startNewGame() {
@@ -218,7 +271,7 @@
             for(let y=ROWS-1; y>=0; y--) if(board[y].every(c => c)) { board.splice(y,1); board.unshift(Array(COLS).fill(0)); cleared++; y++; }
             if(cleared) {
                 let add = [0, 40, 100, 300, 1200][cleared] * (gameLevel + 1);
-                if(doubleActive) add *= 2;
+                if(doubleActive) { add *= 2; doubleRemaining--; if(doubleRemaining<=0) { doubleActive=false; document.getElementById('double-indicator').style.display='none'; } }
                 score += add; lines += cleared;
                 const pet = getPetByNumber(gameLevel + 1);
                 if(pet) petFoodData[pet.id] = (petFoodData[pet.id] || 0) + cleared;
@@ -247,7 +300,7 @@
         }
 
         function drawNext() {
-            const p = document.getElementById('next-piece-shape'); p.innerHTML = '';
+            const p = document.getElementById('next-piece-left-shape'); p.innerHTML = '';
             const g = document.createElement('div'); g.className = 'piece-grid'; g.style.gridTemplateColumns=`repeat(${nextPiece.shape[0].length}, 10px)`;
             nextPiece.shape.forEach(r => r.forEach(v => { const d = document.createElement('div'); d.className = 'piece-cell'; if(v) d.style.background = nextPiece.color; else d.style.border = 'none'; g.appendChild(d); }));
             p.appendChild(g);
@@ -261,7 +314,7 @@
             if(pet) { 
                 const food = petFoodData[pet.id] || 0;
                 document.getElementById('pet-emoji').textContent = pet.emoji; 
-                document.getElementById('pet-food').textContent = food + '/' + pet.foodCost + ' 🍖'; 
+                document.getElementById('pet-food-count-display').textContent = food + '/' + pet.foodCost; 
                 document.getElementById('pet-ui').className = food >= pet.foodCost ? 'pet-block ready' : 'pet-block'; 
             }
         }
@@ -270,8 +323,8 @@
             const pet = getPetByNumber(gameLevel + 1);
             if(!pet || (petFoodData[pet.id] || 0) < pet.foodCost) return; petFoodData[pet.id] -= pet.foodCost;
             if(pet.type === 'clear') { for(let i=0;i<pet.boostedValue;i++){board.pop(); board.unshift(Array(COLS).fill(0));} notify('🧹 Очистка!'); }
-            else if(pet.type === 'slow') { slowActive = true; setTimeout(()=>{slowActive=false;}, pet.boostedValue); notify('⏰ Замедление!'); }
-            else if(pet.type === 'magnet') { magnetActive = true; setTimeout(()=>{magnetActive=false;}, 10000); notify('🧲 Магнит!'); }
+            else if(pet.type === 'slow') { slowActive = true; document.getElementById('slow-indicator').style.display='flex'; setTimeout(()=>{slowActive=false; document.getElementById('slow-indicator').style.display='none';}, pet.boostedValue); notify('⏰ Замедление!'); }
+            else if(pet.type === 'magnet') { magnetActive = true; document.getElementById('magnet-indicator').style.display='flex'; setTimeout(()=>{magnetActive=false; document.getElementById('magnet-indicator').style.display='none';}, 10000); notify('🧲 Магнит!'); }
             updateUI(); draw();
         }
 
@@ -289,7 +342,7 @@
             try {
                 const r = await fetch(`/api/user-stats?userId=${encodeURIComponent(anonymousName)}&gameType=tetris`);
                 const d = await r.json(); const best = d.best_score || 0; const petCount = Math.floor(best / 500);
-                cont.innerHTML = `<div class="stat-card"><div class="stat-row"><span>🏆 Рекорд:</span><b>${best}</b></div><div class="stat-row"><span>🎮 Игр:</span><b>${d.games_played}</b></div></div><h3 style="color:#ffd700;">🐾 МОИ ПИТОМЦЫ (${Math.min(50, petCount)}/50)</h3><div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:10px;">${Array.from({length: Math.min(50, petCount)}).map((_,i)=>{const p=getPetByNumber(i+1); return `<div style="font-size:1.5rem; background:rgba(0,0,0,0.3); border-radius:10px; text-align:center; padding:5px;">${p.emoji}</div>`;}).join('')}</div>`;
+                cont.innerHTML = `<div class="stat-card"><div class="stat-row"><span>🏆 Рекорд:</span><b>${best}</b></div><div class="stat-row"><span>🎮 Игр:</span><b>${d.games_played}</b></div></div><h3 style="color:#ffd700;">🐾 КОЛЛЕКЦИЯ (${Math.min(50, petCount)}/50)</h3><div style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:10px;">${Array.from({length: Math.min(50, petCount)}).map((_,i)=>{const p=getPetByNumber(i+1); return `<div style="font-size:1.5rem; background:rgba(0,0,0,0.3); border-radius:10px; text-align:center; padding:5px;">${p.emoji}</div>`;}).join('')}</div>`;
             } catch(e){ cont.innerHTML = 'Ошибка'; }
         }
 
@@ -313,7 +366,9 @@
         document.getElementById('btn-left').ontouchstart = (e) => { e.preventDefault(); startMove('left'); };
         document.getElementById('btn-right').ontouchstart = (e) => { e.preventDefault(); startMove('right'); };
         document.getElementById('btn-down').ontouchstart = (e) => { e.preventDefault(); startMove('down'); };
-        [document.getElementById('btn-left'), document.getElementById('btn-right'), document.getElementById('btn-down')].forEach(b => b.ontouchend = stopMove);
+        document.getElementById('btn-left').ontouchend = stopMove;
+        document.getElementById('btn-right').ontouchend = stopMove;
+        document.getElementById('btn-down').ontouchend = stopMove;
         document.getElementById('btn-rotate').onclick = () => { if(paused || !gameActive) return; const r = curPiece.shape[0].map((_,i) => curPiece.shape.map(row => row[i]).reverse()); if(!collide(0,0,r)) curPiece.shape = r; draw(); };
 
         initApp();
