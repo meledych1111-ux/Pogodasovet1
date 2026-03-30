@@ -7,7 +7,7 @@ const bot = new Bot(process.env.BOT_TOKEN || '');
 
 const userPinCache = new Map();
 
-// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ПОГОДЫ =====================
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
 function getWindDirection(degrees) {
   if (degrees === undefined || degrees === null) return '—';
   const directions = ['С ⬆️', 'СВ ↗️', 'В ➡️', 'ЮВ ↘️', 'Ю ⬇️', 'ЮЗ ↙️', 'З ⬅️', 'СЗ ↖️'];
@@ -75,7 +75,7 @@ async function getDetailedWeatherData(cityName) {
     msg += `🌅 Восход: ${sunrise} | 🌇 Закат: ${sunset}\n`;
     msg += `⏱ Длина дня: ${calculateDayLength(sunrise, sunset)}`;
     
-    return { success: true, city: name, message: msg, feels_like: cur.apparent_temperature, description: getWeatherDescription(cur.weather_code), has_rain: cur.rain > 0, has_snow: cur.snowfall > 0, wind_speed: cur.wind_speed_10m };
+    return { success: true, city: name, message: msg, temp: cur.temperature_2m, feels_like: cur.apparent_temperature, description: getWeatherDescription(cur.weather_code), has_rain: cur.rain > 0, has_snow: cur.snowfall > 0, wind_speed: cur.wind_speed_10m };
   } catch (e) { return { success: false, error: e.message }; }
 }
 
@@ -87,7 +87,7 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
     if (!geoData.results?.length) throw new Error('Город не найден');
     const { latitude, longitude, name } = geoData.results[0];
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,precipitation_sum,uv_index_max&wind_speed_unit=ms&timezone=auto&forecast_days=${dayOffset + 1}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m,wind_gusts_10m,relative_humidity_2m,pressure_msl,cloud_cover,visibility&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min,precipitation_sum,uv_index_max&wind_speed_unit=ms&timezone=auto&forecast_days=${dayOffset + 1}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -100,12 +100,16 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
     ];
 
     const date = new Date(); date.setDate(date.getDate() + dayOffset);
+    const sunrise = data.daily.sunrise[dayOffset].substring(11, 16);
+    const sunset = data.daily.sunset[dayOffset].substring(11, 16);
+
     let msg = `📅 *Прогноз: ${name}*\n(${date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })})\n`;
     msg += `───────────────────\n`;
     msg += `📊 *ОБЗОР ДНЯ:*\n`;
-    msg += `🌡️ От ${Math.round(data.daily.temperature_2m_min[dayOffset])}° до ${Math.round(data.daily.temperature_2m_max[dayOffset])}°C\n`;
+    msg += `🌡️ ${Math.round(data.daily.temperature_2m_min[dayOffset])}° / ${Math.round(data.daily.temperature_2m_max[dayOffset])}°C\n`;
     if (data.daily.precipitation_sum[dayOffset] > 0) msg += `🌧️ Осадки: ${data.daily.precipitation_sum[dayOffset]} мм\n`;
-    if (data.daily.uv_index_max[dayOffset] > 0) msg += `☀️ Макс. УФ-индекс: ${data.daily.uv_index_max[dayOffset]}\n`;
+    msg += `☀️ УФ-индекс: ${data.daily.uv_index_max[dayOffset]}\n`;
+    msg += `🌅 ${sunrise} 🌇 ${sunset} (${calculateDayLength(sunrise, sunset)})\n`;
     msg += `───────────────────\n\n`;
 
     periods.forEach(p => {
@@ -113,14 +117,21 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
       const f = Math.round(data.hourly.apparent_temperature[p.i]);
       const pr = data.hourly.precipitation_probability[p.i];
       const ws = data.hourly.wind_speed_10m[p.i].toFixed(1);
+      const wg = data.hourly.wind_gusts_10m[p.i].toFixed(1);
+      const rh = data.hourly.relative_humidity_2m[p.i];
+      const ps = Math.round(data.hourly.pressure_msl[p.i] * 0.750062);
+      const cl = data.hourly.cloud_cover[p.i];
+      const vs = (data.hourly.visibility[p.i] / 1000).toFixed(1);
+
       msg += `${p.e} *${p.n}:*\n`;
       msg += `   🌡️ ${t}°C (ощ. ${f}°C)\n`;
-      msg += `   📝 ${getWeatherDescription(data.hourly.weather_code[p.i])}\n`;
-      msg += `   💨 Ветер: ${ws} м/с${pr > 5 ? ` | ☔️ ${pr}%` : ''}\n\n`;
+      msg += `   📝 ${getWeatherDescription(data.hourly.weather_code[p.i])} (${cl}%)\n`;
+      msg += `   💨 Ветер: ${ws} (пор. ${wg}) м/с\n`;
+      msg += `   📊 ${ps} мм / 💧 ${rh}% / 👁️ ${vs} км\n`;
+      if (pr > 5) msg += `   ☔️ Вероятность осадков: ${pr}%\n`;
+      msg += `\n`;
     });
 
-    msg += `───────────────────\n`;
-    msg += `🌅 Восход: ${data.daily.sunrise[dayOffset].substring(11, 16)} | 🌇 Закат: ${data.daily.sunset[dayOffset].substring(11, 16)}`;
     return { success: true, message: msg };
   } catch (e) { return { success: false, message: "❌ Ошибка получения прогноза." }; }
 }
@@ -129,29 +140,15 @@ function getWardrobeAdvice(w) {
   if (!w || !w.success) return '❌ Данные о погоде недоступны.';
   const { temp, feels_like, city, description, has_rain, has_snow, wind_speed } = w;
   const t = feels_like;
-  
-  let advice = `👕 *Что надеть в ${city} сейчас?*\n`;
-  advice += `🌡️ Сейчас: ${Math.round(temp)}°C (ощущается как ${Math.round(t)}°C)\n`;
-  advice += `📝 ${description}\n\n📋 *Рекомендации по слоям:*\n`;
-  
-  if (t >= 25) {
-    advice += "☀️ *Верх:* легкая футболка, майка из хлопка\n🩳 *Низ:* шорты, легкие брюки, юбка\n👟 *Обувь:* сандалии, открытые кеды\n🕶️ *Аксессуары:* кепка, солнцезащитные очки";
-  } else if (t >= 18) {
-    advice += "🌤️ *Верх:* футболка, рубашка с коротким рукавом\n👖 *Низ:* джинсы, легкие брюки\n👟 *Обувь:* кеды, кроссовки\n🧥 *Запас:* легкая кофта на вечер";
-  } else if (t >= 12) {
-    advice += "🌥️ *Верх:* лонгслив, рубашка + легкая ветровка\n👖 *Низ:* джинсы, чиносы\n👟 *Обувь:* кроссовки, закрытые туфли\n🧣 *Аксессуары:* тонкий шарф";
-  } else if (t >= 5) {
-    advice += "🧥 *Верх:* теплый свитер + демисезонная куртка\n👖 *Низ:* плотные джинсы или брюки\n🥾 *Обувь:* ботинки, утепленные кроссовки\n🧣 *Аксессуары:* шапка, шарф, перчатки";
-  } else if (t >= -5) {
-    advice += "🧣 *Верх:* термобелье + свитер + зимняя куртка\n👖 *Низ:* утепленные штаны\n🥾 *Обувь:* зимние ботинки\n🧤 *Аксессуары:* теплая шапка, шарф, варежки";
-  } else {
-    advice += "❄️ *Верх:* плотное термобелье + флис + теплый пуховик\n👖 *Низ:* термоштаны + утепленные брюки\n🥾 *Обувь:* зимние ботинки на меху\n🧤 *Аксессуары:* шапка-ушанка, плотный шарф, варежки";
-  }
-
+  let advice = `👕 *Что надеть в ${city} сейчас?*\n🌡️ Ощущается как ${Math.round(t)}°C\n📝 ${description}\n\n📋 *Рекомендации по слоям:*\n`;
+  if (t >= 25) advice += "☀️ *Верх:* легкая футболка, майка из хлопка\n🩳 *Низ:* шорты, легкие брюки, юбка\n👟 *Обувь:* сандалии, открытые кеды\n🕶️ *Аксессуары:* кепка, солнцезащитные очки";
+  else if (t >= 18) advice += "🌤️ *Верх:* футболка, рубашка с коротким рукавом\n👖 *Низ:* джинсы, легкие брюки\n👟 *Обувь:* кеды, кроссовки\n🧥 *Запас:* легкая кофта на вечер";
+  else if (t >= 12) advice += "🌥️ *Верх:* лонгслив, рубашка + легкая ветровка\n👖 *Низ:* джинсы, чиносы\n👟 *Обувь:* кроссовки, закрытые туфли\n🧣 *Аксессуары:* тонкий шарф";
+  else if (t >= 5) advice += "🧥 *Верх:* теплый свитер + демисезонная куртка\n👖 *Низ:* плотные джинсы или брюки\n🥾 *Обувь:* ботинки, утепленные кроссовки\n🧣 *Аксессуары:* шапка, шарф, перчатки";
+  else if (t >= -5) advice += "🧣 *Верх:* термобелье + свитер + зимняя куртка\n👖 *Низ:* утепленные штаны\n🥾 *Обувь:* зимние ботинки\n🧤 *Аксессуары:* теплая шапка, шарф, варежки";
+  else advice += "❄️ *Верх:* плотное термобелье + флис + теплый пуховик\n👖 *Низ:* термоштаны + утепленные брюки\n🥾 *Обувь:* зимние ботинки на меху\n🧤 *Аксессуары:* шапка-ушанка, плотный шарф, варежки";
   if (has_rain) advice += "\n\n☔️ *Внимание:* Идет дождь, возьмите зонт!";
-  if (has_snow) advice += "\n\n☃️ *Внимание:* На улице снег, выбирайте обувь с протектором.";
   if (wind_speed > 8) advice += "\n\n💨 *Ветрено:* Наденьте что-то непродуваемое.";
-
   return advice;
 }
 
