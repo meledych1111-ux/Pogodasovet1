@@ -1,19 +1,37 @@
 {
+  "version": 2,
   "functions": {
-    "api/bot.js": { "maxDuration": 30, "memory": 1024 },
-    "api/*.js": { "maxDuration": 10, "memory": 512 }
+    "api/bot.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/*.js": {
+      "maxDuration": 10
+    }
   },
   "rewrites": [
-    { "source": "/", "destination": "/api/bot" },
-    { "source": "/game", "destination": "/index.html" },
-    { "source": "/api/:path*", "destination": "/api/:path*.js" }
+    { "source": "/game", "destination": "/index.html" }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Content-Security-Policy", "value": "frame-ancestors 'self' https://t.me https://web.telegram.org https://*.t.me https://*.web.telegram.org;" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://t.me https://web.telegram.org https://*.t.me https://*.web.telegram.org;"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+        }
       ]
     }
   ]

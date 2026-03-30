@@ -1,4 +1,4 @@
-import { getGameProgress, generateAnonymousName } from './db.js';
+import { getGameProgress, getOrRegisterPin } from './db.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -9,14 +9,14 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   try {
-    const { session_id, gameType = 'tetris' } = req.query;
+    const { pin, gameType = 'tetris' } = req.query;
     
-    if (!session_id) {
-      return res.status(400).json({ success: false, error: 'Missing session_id' });
+    if (!pin) {
+      return res.status(400).json({ success: false, error: 'Missing pin' });
     }
 
-    // Генерируем анонимное имя из сессии
-    const cloudName = generateAnonymousName(session_id);
+    // Получаем анонимное имя из базы по ПИНу
+    const { cloudName } = await getOrRegisterPin(pin);
     
     // Получаем прогресс из базы данных по анонимному имени
     const progress = await getGameProgress(cloudName, gameType);
