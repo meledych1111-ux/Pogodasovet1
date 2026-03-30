@@ -5,8 +5,8 @@ import { pool, getOrRegisterPin, saveUserCity, getUserCity } from './db.js';
 dotenv.config();
 const bot = new Bot(process.env.BOT_TOKEN || '');
 
-// Память только для текущего диалога (сбросится при перезагрузке)
-const activeUsers = new Map();
+// Память только для текущей сессии сервера (анонимно)
+const botMemory = new Map();
 
 // ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ПОГОДЫ =====================
 function getWindDirection(degrees) {
@@ -73,9 +73,10 @@ async function getDetailedWeatherData(cityName) {
     msg += `☀️ *УФ-индекс:* ${daily.uv_index_max[0]}\n───────────────────\n`;
     if (cur.rain > 0) msg += `🌧️ *Дождь:* ${cur.rain} мм\n`;
     if (cur.snowfall > 0) msg += `❄️ *Снег:* ${cur.snowfall} см\n`;
-    msg += `🌅 Восход: ${sunrise} | 🌇 Закат: ${sunset}\n⏱ Длина дня: ${calculateDayLength(sunrise, sunset)}`;
+    msg += `🌅 Восход: ${sunrise} | 🌇 Закат: ${sunset}\n`;
+    msg += `⏱ Длина дня: ${calculateDayLength(sunrise, sunset)}`;
     
-    return { success: true, city: name, message: msg, feels_like: cur.apparent_temperature, description: getWeatherDescription(cur.weather_code), has_rain: cur.rain > 0, has_snow: cur.snowfall > 0, wind_speed: cur.wind_speed_10m };
+    return { success: true, city: name, message: msg, feels_like: cur.apparent_temperature, description: getWeatherDescription(cur.weather_code), has_rain: cur.rain > 0, wind_speed: cur.wind_speed_10m };
   } catch (e) { return { success: false, error: e.message }; }
 }
 
@@ -100,89 +101,61 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
       const t = Math.round(data.hourly.temperature_2m[p.i]);
       const f = Math.round(data.hourly.apparent_temperature[p.i]);
       const pr = data.hourly.precipitation_probability[p.i];
-      const ws = data.hourly.wind_speed_10m[p.i].toFixed(1);
-      msg += `${p.e} *${p.n}:*\n   🌡️ ${t}°C (ощ. ${f}°C)\n   📝 ${getWeatherDescription(data.hourly.weather_code[p.i])}\n   💨 Ветер: ${ws} м/с${pr > 5 ? ` | ☔️ ${pr}%` : ''}\n\n`;
+      msg += `${p.e} *${p.n}:* ${t}°C (ощ. ${f}°C) | ${getWeatherDescription(data.hourly.weather_code[p.i])}${pr > 5 ? ` | ☔️ ${pr}%` : ''}\n`;
     });
-    msg += `───────────────────\n🌅 Восход: ${data.daily.sunrise[dayOffset].substring(11, 16)} | 🌇 Закат: ${data.daily.sunset[dayOffset].substring(11, 16)}`;
     return { success: true, message: msg };
   } catch (e) { return { success: false, message: "❌ Ошибка прогноза." }; }
 }
 
 function getWardrobeAdvice(w) {
-  if (!w || !w.success) return '❌ Данные о погоде недоступны.';
+  if (!w || !w.success) return '❌ Данные недоступны.';
   const t = w.feels_like;
-  let advice = `👕 *Что надеть в ${w.city} сейчас?*\n🌡️ Сейчас: ${Math.round(t)}°C (ощущается как ${Math.round(t)}°C)\n📝 ${w.description}\n\n📋 *Рекомендации по слоям:*\n`;
-  if (t >= 25) advice += "☀️ *Верх:* легкая футболка, майка из хлопка\n🩳 *Низ:* шорты, юбка\n👟 *Обувь:* сандалии, открытые кеды\n🕶️ *Аксессуары:* кепка, очки";
-  else if (t >= 18) advice += "🌤️ *Верх:* футболка, рубашка\n👖 *Низ:* джинсы, легкие брюки\n👟 *Обувь:* кеды, кроссовки\n🧥 *Запас:* кофта на вечер";
-  else if (t >= 12) advice += "🌥️ *Верх:* лонгслив + легкая ветровка\n👖 *Низ:* джинсы, чиносы\n👟 *Обувь:* кроссовки, туфли\n🧣 *Аксессуары:* тонкий шарф";
-  else if (t >= 5) advice += "🧥 *Верх:* теплый свитер + демисезонная куртка\n👖 *Низ:* плотные джинсы\n🥾 *Обувь:* ботинки, кроссовки\n🧣 *Аксессуары:* шапка, шарф, перчатки";
-  else if (t >= -5) advice += "🧣 *Верх:* термобелье + свитер + зимняя куртка\n👖 *Низ:* утепленные штаны\n🥾 *Обувь:* зимние ботинки\n🧤 *Аксессуары:* теплая шапка, шарф, варежки";
-  else advice += "❄️ *Верх:* плотное термобелье + флис + теплый пуховик\n👖 *Низ:* термоштаны + утепленные брюки\n🥾 *Обувь:* зимние ботинки на меху\n🧤 *Аксессуары:* шапка-ушанка, плотный шарф, варежки";
-  if (w.has_rain) advice += "\n\n☔️ *Внимание:* Идет дождь, возьмите зонт!";
+  let advice = `👕 *Что надеть в ${w.city}?*\n🌡️ Ощущается как ${Math.round(t)}°C\n📝 ${w.description}\n\n📋 *Рекомендации по слоям:*\n`;
+  if (t >= 25) advice += "☀️ Футболка, шорты, сандалии.";
+  else if (t >= 12) advice += "🌥️ Лонгслив + легкая ветровка, джинсы.";
+  else if (t >= 5) advice += "🧥 Свитер + демисезонная куртка, ботинки.";
+  else advice += "❄️ Плотное термобелье + пуховик, шапка, шарф.";
   return advice;
 }
 
 const dailyPhrases = [
   { e: "Where is the nearest bus stop?", r: "Где ближайшая остановка?", c: "Транспорт" },
   { e: "How much is the fare?", r: "Сколько стоит проезд?", c: "Транспорт" },
-  { e: "Does this bus go to the city center?", r: "Этот автобус едет в центр города?", c: "Транспорт" },
-  { e: "I'd like a window seat, please.", r: "Я хотел бы место у окна.", c: "Транспорт" },
-  { e: "Keep the change.", r: "Сдачи не надо.", c: "Транспорт" },
   { e: "A table for two, please.", r: "Столик на двоих, пожалуйста.", c: "Еда" },
-  { e: "What's the dish of the day?", r: "Какое сегодня блюдо дня?", c: "Еда" },
-  { e: "Everything was delicious, thank you!", r: "Все было очень вкусно, спасибо!", c: "Еда" },
-  { e: "Can I try this on?", r: "Можно это примерить?", c: "Покупки" },
-  { e: "How much does this cost?", r: "Сколько это стоит?", c: "Покупки" },
-  { e: "I'll take it.", r: "Я это возьму.", c: "Покупки" },
   { e: "Nice to meet you!", r: "Приятно познакомиться!", c: "Общение" },
-  { e: "Could you repeat that, please?", r: "Не могли бы вы повторить?", c: "Общение" },
-  { e: "I need a doctor.", r: "Мне нужен врач.", c: "Здоровье" },
-  { e: "Call an ambulance!", r: "Вызовите скорую!", c: "Здоровье" },
-  { e: "I'm lost, help me please.", r: "Я заблудился, помогите пожалуйста.", c: "Город" },
-  { e: "Where is the restroom?", r: "Где туалет?", c: "Город" },
-  { e: "How is it going?", r: "Как дела?", c: "Общение" },
-  { e: "I don't understand.", r: "Я не понимаю.", c: "Общение" },
-  { e: "Speak slower, please.", r: "Говорите медленнее, пожалуйста.", c: "Общение" },
-  { e: "Could you help me?", r: "Вы не могли бы мне помочь?", c: "Общение" },
-  { e: "Thank you for your help.", r: "Спасибо за помощь.", c: "Общение" },
-  { e: "What time is it?", r: "Который час?", c: "Общение" },
-  { e: "Where can I buy a ticket?", r: "Где я могу купить билет?", c: "Транспорт" },
-  { e: "The check, please.", r: "Счет, пожалуйста.", c: "Еда" },
-  { e: "Do you have any vegetarian dishes?", r: "У вас есть вегетарианские блюда?", c: "Еда" },
-  { e: "Is there a pharmacy nearby?", r: "Поблизости есть аптека?", c: "Город" },
+  { e: "Everything was delicious, thank you!", r: "Все было очень вкусно, спасибо!", c: "Еда" },
   { e: "Can I pay by card?", r: "Можно оплатить картой?", c: "Покупки" },
-  { e: "I'm just looking, thanks.", r: "Я просто смотрю, спасибо.", c: "Покупки" },
-  { e: "It's too expensive.", r: "Это слишком дорого.", c: "Покупки" }
+  { e: "It's too expensive.", r: "Это слишком дорого.", c: "Покупки" },
+  { e: "I'm lost, help me please.", r: "Я заблудился, помогите пожалуйста.", c: "Город" }
 ];
 
+// ===================== КЛАВИАТУРЫ =====================
 const mainMenuKeyboard = new Keyboard().text('🌤️ ПОГОДА СЕЙЧАС').row().text('📅 СЕГОДНЯ').text('📅 ЗАВТРА').row().text('👕 ЧТО НАДЕТЬ?').row().text('💬 ФРАЗА ДНЯ').text('🎲 СЛУЧАЙНАЯ').row().text('🎮 ИГРАТЬ В ТЕТРИС').row().text('🏙️ СМЕНИТЬ ГОРОД').text('🔑 МОЙ ПИН').resized();
 const cityKeyboard = new Keyboard().text('📍 МОСКВА').text('📍 САНКТ-ПЕТЕРБУРГ').row().text('📍 СЕВАСТОПОЛЬ').row().text('✏️ ДРУГОЙ ГОРОД').resized();
-const authKeyboard = new InlineKeyboard().text('🆕 СОЗДАТЬ ПРОФИЛЬ', 'new').text('🔑 ВОЙТИ ПО ПИНУ', 'login');
+const startKeyboard = new InlineKeyboard().text('🆕 НОВЫЙ ПРОФИЛЬ', 'new').text('🔑 ВОЙТИ ПО ПИНУ', 'login');
 
 // ===================== ОБРАБОТЧИКИ =====================
 
 bot.command('start', async (ctx) => {
-  await ctx.reply(`👋 Привет! Я твой анонимный помощник.\n\nВыбери действие:`, { reply_markup: authKeyboard });
+  await ctx.reply(`👋 Привет! Я твой анонимный помощник.\n\nВыбери действие:`, { reply_markup: startKeyboard });
 });
 
 bot.callbackQuery('new', async (ctx) => {
-  const { pin, cloudName } = await getOrRegisterPin();
-  activeUsers.set(ctx.from.id, { pin, cloudName });
+  const { pin, cloudName } = await getOrRegisterPin(); // Генерирует случайный ПИН в db.js
+  botMemory.set(ctx.from.id, { pin, cloudName });
   await ctx.reply(`✅ Создан профиль: *${cloudName}*\n🔑 Твой ПИН: \`${pin}\` (сохрани его!)\n\nТеперь выбери город:`, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
 });
 
-bot.callbackQuery('login', async (ctx) => {
-  await ctx.reply('Отправь мне свой ПИН-код (6 цифр):');
-});
+bot.callbackQuery('login', (ctx) => ctx.reply('Отправь мне свой ПИН-код (6 цифр):'));
 
 bot.hears(/^\d{6}$/, async (ctx) => {
   const { pin, cloudName } = await getOrRegisterPin(ctx.message.text);
-  activeUsers.set(ctx.from.id, { pin, cloudName });
+  botMemory.set(ctx.from.id, { pin, cloudName });
   await ctx.reply(`✅ Вход выполнен: *${cloudName}*`, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
 });
 
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-  const user = activeUsers.get(ctx.from.id);
+  const user = botMemory.get(ctx.from.id);
   if (!user) return ctx.reply('Сначала войди или создай профиль /start');
   const res = await getUserCity(user.cloudName);
   if (res.city === 'Не указан') return ctx.reply('Выбери город!', { reply_markup: cityKeyboard });
@@ -191,7 +164,7 @@ bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
 });
 
 bot.hears('📅 СЕГОДНЯ', async (ctx) => {
-  const user = activeUsers.get(ctx.from.id);
+  const user = botMemory.get(ctx.from.id);
   if (!user) return ctx.reply('Нажми /start');
   const res = await getUserCity(user.cloudName);
   const f = await getDetailedForecast(res.city, 0);
@@ -199,7 +172,7 @@ bot.hears('📅 СЕГОДНЯ', async (ctx) => {
 });
 
 bot.hears('📅 ЗАВТРА', async (ctx) => {
-  const user = activeUsers.get(ctx.from.id);
+  const user = botMemory.get(ctx.from.id);
   if (!user) return ctx.reply('Нажми /start');
   const res = await getUserCity(user.cloudName);
   const f = await getDetailedForecast(res.city, 1);
@@ -207,7 +180,7 @@ bot.hears('📅 ЗАВТРА', async (ctx) => {
 });
 
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
-  const user = activeUsers.get(ctx.from.id);
+  const user = botMemory.get(ctx.from.id);
   if (!user) return ctx.reply('Нажми /start');
   const res = await getUserCity(user.cloudName);
   const w = await getDetailedWeatherData(res.city);
@@ -216,7 +189,7 @@ bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
 
 bot.hears('💬 ФРАЗА ДНЯ', (ctx) => {
   const p = dailyPhrases[new Date().getDate() % dailyPhrases.length];
-  ctx.reply(`💬 *Фраза дня*\n\n🇬🇧 \`${p.e}\`\n🇷🇺 ${p.r}\n\n📂 Категория: ${p.c}`, { parse_mode: 'Markdown' });
+  ctx.reply(`💬 *Фраза дня*\n\n🇬🇧 \`${p.e}\`\n🇷🇺 ${p.r}`, { parse_mode: 'Markdown' });
 });
 
 bot.hears('🎲 СЛУЧАЙНАЯ', (ctx) => {
@@ -225,7 +198,7 @@ bot.hears('🎲 СЛУЧАЙНАЯ', (ctx) => {
 });
 
 bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
-  const user = activeUsers.get(ctx.from.id);
+  const user = botMemory.get(ctx.from.id);
   if (!user) return ctx.reply('Нажми /start');
   const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${user.pin}`;
   await ctx.reply(`🕹️ *Тетрис*\nНик: *${user.cloudName}*`, { 
@@ -235,7 +208,7 @@ bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
 });
 
 bot.hears(/^📍 /, async (ctx) => {
-  const user = activeUsers.get(ctx.from.id);
+  const user = botMemory.get(ctx.from.id);
   if (!user) return ctx.reply('Нажми /start');
   const city = ctx.message.text.replace('📍 ', '').trim();
   await saveUserCity(user.cloudName, city);
@@ -245,14 +218,14 @@ bot.hears(/^📍 /, async (ctx) => {
 bot.hears('🏙️ СМЕНИТЬ ГОРОД', (ctx) => ctx.reply('Выбери город:', { reply_markup: cityKeyboard }));
 
 bot.hears('🔑 МОЙ ПИН', async (ctx) => {
-  const user = activeUsers.get(ctx.from.id);
+  const user = botMemory.get(ctx.from.id);
   if (!user) return ctx.reply('Нажми /start');
   await ctx.reply(`Твой ПИН: \`${user.pin}\``);
 });
 
 bot.on('message:text', async (ctx) => {
-  if (ctx.message.text.startsWith('/')) return;
-  const user = activeUsers.get(ctx.from.id);
+  if (ctx.message.text.startsWith('/') || /^\d{6}$/.test(ctx.message.text)) return;
+  const user = botMemory.get(ctx.from.id);
   if (!user) return;
   const check = await getDetailedWeatherData(ctx.message.text.trim());
   if (check.success) {
