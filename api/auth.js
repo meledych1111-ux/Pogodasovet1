@@ -1,10 +1,4 @@
 import { pool, generateAnonymousName } from './db.js';
-import crypto from 'crypto';
-
-function generateAuthHash(id) {
-    const secret = process.env.BOT_TOKEN || 'fallback_secret';
-    return crypto.createHash('sha256').update(String(id) + secret).digest('hex').substring(0, 16);
-}
 
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,33 +6,36 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
     
-    // tg_id приходит только из бота для проверки
-    const { login, hash, city, tg_id } = req.body;
+    try {
+        const { session_id, city = 'Не указан' } = req.body;
 
-    // Если мы заходим из бота, у нас есть tg_id и hash
-    if (tg_id && hash) {
-        const expected = generateAuthHash(tg_id);
-        if (hash === expected) {
-            const cloudName = generateAnonymousName(tg_id);
-            try {
-                await pool.query(
-                    `INSERT INTO users_cloud (cloud_name, city, last_active) 
-                     VALUES ($1, $2, NOW()) 
-                     ON CONFLICT (cloud_name) 
-                     DO UPDATE SET last_active = NOW(), 
-                     city = CASE WHEN $2 != 'Не указан' THEN $2 ELSE users_cloud.city END`,
-                    [cloudName, city || 'Не указан']
-                );
-                return res.json({ success: true, login: cloudName });
-            } catch (e) { console.error(e); }
+        if (!session_id) {
+            return res.status(400).json({ success: false, error: 'Missing session_id' });
         }
-    }
 
-    // Если автоматический вход не сработал, пробуем по логину (для ручного входа)
-    if (login) {
-        return res.json({ success: true, login });
-    }
+        // Генерируем публичное имя из анонимного ID
+        const cloudName = generateAnonymousName(session_id);
 
-    return res.status(401).json({ success: false, error: 'Авторизация не удалась' });
+        // Фиксируем активность анонимного пользователя
+        await pool.query(
+            `INSERT INTO users_cloud (cloud_name, city, last_active) 
+             VALUES ($1, $2, NOW()) 
+             ON CONFLICT (cloud_name) 
+             DO UPDATE SET last_active = NOW(), 
+             city = CASE WHEN $2 != 'Не указан' THEN $2 ELSE users_cloud.city END`,
+            [cloudName, city]
+        );
+
+        return res.json({ 
+            success: true, 
+            login: cloudName,
+            isAnonymous: true 
+        });
+
+    } catch (error) {
+        console.error('❌ Auth Error:', error);
+        return res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
 }

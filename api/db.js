@@ -25,21 +25,25 @@ async function query(text, params) {
     return await pool.query(text, params);
 }
 
-export async function saveUserCity(cloudName, city) {
-    const sql = `INSERT INTO users_cloud (cloud_name, city, last_active) VALUES ($1, $2, NOW()) ON CONFLICT (cloud_name) DO UPDATE SET city = $2, last_active = NOW()`;
-    return await query(sql, [cloudName, city]);
+// РАБОТА С ПРОГРЕССОМ (АНОНИМНО)
+export async function saveGameProgress(cloudName, gameType, score, level, lines) {
+    const sql = `INSERT INTO game_progress (cloud_name, game_type, score, level, lines, updated_at) 
+                 VALUES ($1, $2, $3, $4, $5, NOW()) 
+                 ON CONFLICT (cloud_name, game_type) DO UPDATE 
+                 SET score = $3, level = $4, lines = $5, updated_at = NOW()`;
+    return await query(sql, [cloudName, gameType, score, level, lines]);
 }
 
-export async function getUserCity(cloudName) {
-    const res = await query('SELECT city FROM users_cloud WHERE cloud_name = $1', [cloudName]);
-    return { success: true, city: res.rows[0]?.city || 'Не указан' };
+export async function getGameProgress(cloudName, gameType) {
+    const res = await query('SELECT * FROM game_progress WHERE cloud_name = $1 AND game_type = $2', [cloudName, gameType]);
+    return res.rows[0];
 }
 
-export async function saveOrUpdateUser({ user_id, city }) {
-    const sql = `INSERT INTO users_cloud (cloud_name, city, last_active) VALUES ($1, $2, NOW()) ON CONFLICT (cloud_name) DO UPDATE SET city = CASE WHEN $2 != 'Не указан' THEN $2 ELSE users_cloud.city END, last_active = NOW()`;
-    return await query(sql, [user_id, city || 'Не указан']);
+export async function deleteGameProgress(cloudName, gameType) {
+    return await query('DELETE FROM game_progress WHERE cloud_name = $1 AND game_type = $2', [cloudName, gameType]);
 }
 
+// РАБОТА СО СЧЕТОМ
 export async function saveGameScore(cloudName, gameType, score, level, lines, city) {
     const sql = `INSERT INTO game_scores (cloud_name, game_type, score, level, lines, city, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())`;
     return await query(sql, [cloudName, gameType, score, level, lines, city || 'Не указан']);
@@ -66,15 +70,11 @@ export async function getTopPlayers(gameType, limit = 10) {
     };
 }
 
-export async function getTakenNames() {
-    const res = await query('SELECT cloud_name FROM users_cloud ORDER BY last_active DESC LIMIT 100');
-    return res.rows.map(r => r.cloud_name);
-}
-
 export const initDb = async () => {
     await query(`
         CREATE TABLE IF NOT EXISTS users_cloud (cloud_name VARCHAR(100) PRIMARY KEY, city VARCHAR(100) DEFAULT 'Не указан', last_active TIMESTAMP DEFAULT NOW());
         CREATE TABLE IF NOT EXISTS game_scores (id SERIAL PRIMARY KEY, cloud_name VARCHAR(100), game_type VARCHAR(50), score INTEGER, level INTEGER, lines INTEGER, city VARCHAR(100), created_at TIMESTAMP DEFAULT NOW());
+        CREATE TABLE IF NOT EXISTS game_progress (cloud_name VARCHAR(100), game_type VARCHAR(50), score INTEGER, level INTEGER, lines INTEGER, updated_at TIMESTAMP DEFAULT NOW(), PRIMARY KEY (cloud_name, game_type));
     `);
 };
 

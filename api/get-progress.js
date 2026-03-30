@@ -1,141 +1,52 @@
-import { saveGameProgress, deleteGameProgress, getGameProgress } from './db.js';
+import { getGameProgress, generateAnonymousName } from './db.js';
 
 export default async function handler(req, res) {
-  console.log('📋 API: /api/get-progress - запрос прогресса игры');
-  console.log('📋 Метод:', req.method);
-  console.log('📋 Query параметры:', req.query);
-  console.log('📋 Body параметры:', req.body);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
-  if (req.method !== 'GET') {
-    console.log('❌ Метод не разрешен:', req.method);
-    return res.status(405).json({ 
-      success: false,
-      error: 'Method not allowed. Use GET.' 
-    });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   try {
-    const { userId, gameType = 'tetris' } = req.query;
+    const { session_id, gameType = 'tetris' } = req.query;
     
-    console.log('📋 Получение прогресса для:', { userId, gameType });
-    
-    // Валидация параметров
-    if (!userId) {
-      console.log('❌ Отсутствует userId');
-      return res.status(400).json({ 
-        success: false,
-        error: 'Missing required parameter: userId',
-        code: 'MISSING_USER_ID'
-      });
+    if (!session_id) {
+      return res.status(400).json({ success: false, error: 'Missing session_id' });
     }
+
+    // Генерируем анонимное имя из сессии
+    const cloudName = generateAnonymousName(session_id);
     
-    const numericUserId = parseInt(userId);
-    
-    if (isNaN(numericUserId)) {
-      console.log('❌ Неверный формат userId:', userId);
-      return res.status(400).json({ 
-        success: false,
-        error: 'Invalid userId format. Must be a number.',
-        code: 'INVALID_USER_ID'
-      });
-    }
-    
-    console.log(`📋 Получение прогресса пользователя ${numericUserId}, игра: ${gameType}`);
-    
-    // Получаем прогресс из базы данных
-    const progress = await getGameProgress(numericUserId, gameType);
-    
-    console.log('📋 Прогресс из БД:', progress);
+    // Получаем прогресс из базы данных по анонимному имени
+    const progress = await getGameProgress(cloudName, gameType);
     
     if (progress) {
-      // Форматируем данные прогресса
-      const formattedProgress = {
-        score: parseInt(progress.score) || 0,
-        level: parseInt(progress.level) || 1,
-        lines: parseInt(progress.lines) || 0,
-        last_saved: progress.last_saved,
-        has_progress: true,
-        timestamp: progress.last_saved || new Date().toISOString()
-      };
-      
-      console.log('✅ Прогресс найден:', formattedProgress);
-      
       return res.status(200).json({ 
         success: true,
-        userId: numericUserId,
-        gameType: gameType,
-        progress: formattedProgress,
-        message: 'Прогресс игры найден',
-        timestamp: new Date().toISOString()
+        cloudName: cloudName,
+        progress: {
+          score: parseInt(progress.score) || 0,
+          level: parseInt(progress.level) || 1,
+          lines: parseInt(progress.lines) || 0,
+          has_progress: true
+        }
       });
     } else {
-      // Нет сохраненного прогресса
-      console.log('📋 Прогресс не найден, возвращаем пустые данные');
-      
-      const emptyProgress = {
-        score: 0,
-        level: 1,
-        lines: 0,
-        last_saved: null,
-        has_progress: false,
-        timestamp: new Date().toISOString()
-      };
-      
       return res.status(200).json({ 
         success: true,
-        userId: numericUserId,
-        gameType: gameType,
-        progress: emptyProgress,
-        message: 'Сохраненного прогресса не найдено',
-        timestamp: new Date().toISOString()
+        cloudName: cloudName,
+        progress: {
+          score: 0,
+          level: 1,
+          lines: 0,
+          has_progress: false
+        }
       });
     }
     
   } catch (error) {
-    console.error('🔥 Критическая ошибка получения прогресса:', error);
-    console.error('🔥 Stack trace:', error.stack);
-    
-    // Более информативный ответ об ошибке
-    const errorResponse = {
-      success: false,
-      error: {
-        message: error.message,
-        code: 'PROGRESS_FETCH_ERROR',
-        timestamp: new Date().toISOString(),
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
-      fallback_progress: {
-        score: 0,
-        level: 1,
-        lines: 0,
-        last_saved: null,
-        has_progress: false,
-        message: 'Используются данные по умолчанию из-за ошибки БД'
-      }
-    };
-    
-    return res.status(500).json(errorResponse);
+    console.error('❌ Error in get-progress:', error);
+    return res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
-}
-
-// Вспомогательная функция для тестирования API
-export const testGetProgress = async (testUserId = 123456789) => {
-  try {
-    console.log(`🧪 Тест получения прогресса для user ${testUserId}`);
-    const progress = await getGameProgress(testUserId, 'tetris');
-    console.log(`🧪 Прогресс:`, progress);
-    return progress;
-  } catch (error) {
-    console.error('🧪 Ошибка теста:', error);
-    return null;
-  }
-};
-
-// Если файл запущен напрямую, выполнить тест
-if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('🧪 Запуск теста get-progress.js');
-  testGetProgress().then(() => {
-    console.log('🧪 Тест завершен');
-    process.exit(0);
-  });
 }
