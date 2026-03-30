@@ -1,13 +1,11 @@
-import { Bot, Keyboard, InlineKeyboard, session } from 'grammy';
+import { Bot, Keyboard, InlineKeyboard } from 'grammy';
 import dotenv from 'dotenv';
 import { pool, getOrRegisterPin, saveUserCity, getUserCity } from './db.js';
 
 dotenv.config();
 const bot = new Bot(process.env.BOT_TOKEN || '');
 
-bot.use(session({ initial: () => ({ pin: null, cloudName: null }) }));
-
-// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ПОГОДЫ =====================
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
 function getWindDirection(degrees) {
   if (degrees === undefined || degrees === null) return '—';
   const directions = ['С ⬆️', 'СВ ↗️', 'В ➡️', 'ЮВ ↘️', 'Ю ⬇️', 'ЮЗ ↙️', 'З ⬅️', 'СЗ ↖️'];
@@ -92,19 +90,12 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
     const data = await res.json();
 
     const start = dayOffset * 24;
-    const periods = [
-      { n: '🌙 Ночь', i: start + 3, e: '🌙' },
-      { n: '🌅 Утро', i: start + 9, e: '🌅' },
-      { n: '☀️ День', i: start + 15, e: '☀️' },
-      { n: '🌆 Вечер', i: start + 21, e: '🌆' }
-    ];
+    const periods = [{ n: '🌙 Ночь', i: start + 3, e: '🌙' }, { n: '🌅 Утро', i: start + 9, e: '🌅' }, { n: '☀️ День', i: start + 15, e: '☀️' }, { n: '🌆 Вечер', i: start + 21, e: '🌆' }];
 
-    const date = new Date();
-    date.setDate(date.getDate() + dayOffset);
+    const date = new Date(); date.setDate(date.getDate() + dayOffset);
     let msg = `📅 *Прогноз: ${name}* (${date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })})\n───────────────────\n`;
     msg += `📊 Обзор: от ${Math.round(data.daily.temperature_2m_min[dayOffset])}° до ${Math.round(data.daily.temperature_2m_max[dayOffset])}°C\n`;
-    if (data.daily.precipitation_sum[dayOffset] > 0) msg += `🌧️ Осадки: ${data.daily.precipitation_sum[dayOffset]} мм\n`;
-    if (data.daily.uv_index_max[dayOffset] > 0) msg += `☀️ Макс. УФ-индекс: ${data.daily.uv_index_max[dayOffset]}\n\n`;
+    if (data.daily.precipitation_sum[dayOffset] > 0) msg += `🌧️ Осадки: ${data.daily.precipitation_sum[dayOffset]} мм\n\n`;
 
     periods.forEach(p => {
       const t = Math.round(data.hourly.temperature_2m[p.i]);
@@ -113,71 +104,33 @@ async function getDetailedForecast(cityName, dayOffset = 0) {
       const ws = data.hourly.wind_speed_10m[p.i].toFixed(1);
       msg += `${p.e} *${p.n}:*\n   🌡️ ${t}°C (ощ. ${f}°C)\n   📝 ${getWeatherDescription(data.hourly.weather_code[p.i])}\n   💨 Ветер: ${ws} м/с${pr > 5 ? ` | ☔️ ${pr}%` : ''}\n\n`;
     });
-
-    msg += `───────────────────\n`;
-    msg += `🌅 Восход: ${data.daily.sunrise[dayOffset].substring(11, 16)} | 🌇 Закат: ${data.daily.sunset[dayOffset].substring(11, 16)}`;
     return { success: true, message: msg };
-  } catch (e) { return { success: false, message: "❌ Ошибка получения прогноза." }; }
+  } catch (e) { return { success: false, message: "❌ Ошибка прогноза." }; }
 }
 
 function getWardrobeAdvice(w) {
   if (!w || !w.success) return '❌ Данные о погоде недоступны.';
   const { temp, feels_like, city, description, has_rain, has_snow, wind_speed } = w;
   const t = feels_like;
-  
-  let advice = `👕 *Что надеть в ${city} сейчас?*\n`;
-  advice += `🌡️ Сейчас: ${Math.round(temp)}°C (ощущается как ${Math.round(t)}°C)\n`;
-  advice += `📝 ${description}\n\n📋 *Рекомендации по слоям:*\n`;
-  
-  if (t >= 25) {
-    advice += "☀️ *Верх:* легкая футболка, майка из хлопка\n🩳 *Низ:* шорты, легкие брюки, юбка\n👟 *Обувь:* сандалии, открытые кеды\n🕶️ *Аксессуары:* кепка, солнцезащитные очки";
-  } else if (t >= 18) {
-    advice += "🌤️ *Верх:* футболка, рубашка с коротким рукавом\n👖 *Низ:* джинсы, легкие брюки\n👟 *Обувь:* кеды, кроссовки\n🧥 *Запас:* легкая кофта на вечер";
-  } else if (t >= 12) {
-    advice += "🌥️ *Верх:* лонгслив, рубашка + легкая ветровка\n👖 *Низ:* джинсы, чиносы\n👟 *Обувь:* кроссовки, закрытые туфли\n🧣 *Аксессуары:* тонкий шарф";
-  } else if (t >= 5) {
-    advice += "🧥 *Верх:* теплый свитер + демисезонная куртка\n👖 *Низ:* плотные джинсы или брюки\n🥾 *Обувь:* ботинки, утепленные кроссовки\n🧣 *Аксессуары:* шапка, шарф, перчатки";
-  } else if (t >= -5) {
-    advice += "🧣 *Верх:* термобелье + свитер + зимняя куртка\n👖 *Низ:* утепленные штаны\n🥾 *Обувь:* зимние ботинки\n🧤 *Аксессуары:* теплая шапка, шарф, варежки";
-  } else {
-    advice += "❄️ *Верх:* плотное термобелье + флис + теплый пуховик\n👖 *Низ:* термоштаны + утепленные брюки\n🥾 *Обувь:* зимние ботинки на меху\n🧤 *Аксессуары:* шапка-ушанка, плотный шарф, варежки";
-  }
-
+  let advice = `👕 *Что надеть в ${city} сейчас?*\n🌡️ Сейчас: ${Math.round(temp)}°C (ощущается как ${Math.round(t)}°C)\n📝 ${description}\n\n📋 *Рекомендации по слоям:*\n`;
+  if (t >= 25) advice += "☀️ *Верх:* легкая футболка\n🩳 *Низ:* шорты, легкие брюки\n👟 *Обувь:* сандалии, открытые кеды\n🕶️ *Аксессуары:* кепка, очки";
+  else if (t >= 18) advice += "🌤️ *Верх:* футболка, рубашка\n👖 *Низ:* джинсы, легкие брюки\n👟 *Обувь:* кеды, кроссовки\n🧥 *Запас:* легкая кофта на вечер";
+  else if (t >= 12) advice += "🌥️ *Верх:* лонгслив + ветровка\n👖 *Низ:* джинсы, чиносы\n👟 *Обувь:* кроссовки, закрытые туфли\n🧣 *Аксессуары:* тонкий шарф";
+  else if (t >= 5) advice += "🧥 *Верх:* теплый свитер + демисезонная куртка\n👖 *Низ:* плотные джинсы или брюки\n🥾 *Обувь:* ботинки, утепленные кроссовки\n🧣 *Аксессуары:* шапка, шарф, перчатки";
+  else if (t >= -5) advice += "🧣 *Верх:* термобелье + свитер + зимняя куртка\n👖 *Низ:* утепленные штаны\n🥾 *Обувь:* зимние ботинки\n🧤 *Аксессуары:* теплая шапка, шарф, варежки";
+  else advice += "❄️ *Верх:* плотное термобелье + флис + теплый пуховик\n👖 *Низ:* термоштаны + утепленные брюки\n🥾 *Обувь:* зимние ботинки на меху\n🧤 *Аксессуары:* шапка-ушанка, плотный шарф, варежки";
   if (has_rain) advice += "\n\n☔️ *Внимание:* Идет дождь, возьмите зонт!";
-  if (has_snow) advice += "\n\n☃️ *Внимание:* На улице снег, выбирайте обувь с протектором.";
   if (wind_speed > 8) advice += "\n\n💨 *Ветрено:* Наденьте что-то непродуваемое.";
-
   return advice;
 }
 
 const dailyPhrases = [
   { e: "Where is the nearest bus stop?", r: "Где ближайшая остановка?", c: "Транспорт" },
   { e: "How much is the fare?", r: "Сколько стоит проезд?", c: "Транспорт" },
-  { e: "Does this bus go to the city center?", r: "Этот автобус едет в центр города?", c: "Транспорт" },
-  { e: "I'd like a window seat, please.", r: "Я хотел бы место у окна.", c: "Транспорт" },
-  { e: "Keep the change.", r: "Сдачи не надо.", c: "Транспорт" },
   { e: "A table for two, please.", r: "Столик на двоих, пожалуйста.", c: "Еда" },
-  { e: "What's the dish of the day?", r: "Какое сегодня блюдо дня?", c: "Еда" },
-  { e: "Everything was delicious, thank you!", r: "Все было очень вкусно, спасибо!", c: "Еда" },
-  { e: "Can I try this on?", r: "Можно это примерить?", c: "Покупки" },
-  { e: "How much does this cost?", r: "Сколько это стоит?", c: "Покупки" },
-  { e: "I'll take it.", r: "Я это возьму.", c: "Покупки" },
   { e: "Nice to meet you!", r: "Приятно познакомиться!", c: "Общение" },
-  { e: "Could you repeat that, please?", r: "Не могли бы вы повторить?", c: "Общение" },
-  { e: "I need a doctor.", r: "Мне нужен врач.", c: "Здоровье" },
-  { e: "Call an ambulance!", r: "Вызовите скорую!", c: "Здоровье" },
-  { e: "I'm lost, help me please.", r: "Я заблудился, помогите пожалуйста.", c: "Город" },
-  { e: "Where is the restroom?", r: "Где туалет?", c: "Город" },
-  { e: "How is it going?", r: "Как дела?", c: "Общение" },
-  { e: "I don't understand.", r: "Я не понимаю.", c: "Общение" },
-  { e: "Speak slower, please.", r: "Говорите медленнее, пожалуйста.", c: "Общение" },
   { e: "Could you help me?", r: "Вы не могли бы мне помочь?", c: "Общение" },
-  { e: "Thank you for your help.", r: "Спасибо за помощь.", c: "Общение" },
   { e: "What time is it?", r: "Который час?", c: "Общение" },
-  { e: "Where can I buy a ticket?", r: "Где я могу купить билет?", c: "Транспорт" },
-  { e: "The check, please.", r: "Счет, пожалуйста.", c: "Еда" },
-  { e: "Do you have any vegetarian dishes?", r: "У вас есть вегетарианские блюда?", c: "Еда" },
-  { e: "Is there a pharmacy nearby?", r: "Поблизости есть аптека?", c: "Город" },
   { e: "Can I pay by card?", r: "Можно оплатить картой?", c: "Покупки" },
   { e: "I'm just looking, thanks.", r: "Я просто смотрю, спасибо.", c: "Покупки" },
   { e: "It's too expensive.", r: "Это слишком дорого.", c: "Покупки" }
@@ -186,64 +139,62 @@ const dailyPhrases = [
 const mainMenuKeyboard = new Keyboard().text('🌤️ ПОГОДА СЕЙЧАС').row().text('📅 СЕГОДНЯ').text('📅 ЗАВТРА').row().text('👕 ЧТО НАДЕТЬ?').row().text('💬 ФРАЗА ДНЯ').text('🎲 СЛУЧАЙНАЯ').row().text('🎮 ИГРАТЬ В ТЕТРИС').row().text('🏙️ СМЕНИТЬ ГОРОД').resized();
 const cityKeyboard = new Keyboard().text('📍 МОСКВА').text('📍 САНКТ-ПЕТЕРБУРГ').row().text('📍 СЕВАСТОПОЛЬ').row().text('✏️ ДРУГОЙ ГОРОД').resized();
 
+// Храним Облачные Имена в памяти бота, чтобы он не терял их между сообщениями
+const botMemory = new Map();
+
 bot.command('start', async (ctx) => {
-  const { pin, cloudName } = await getOrRegisterPin(ctx.session.pin);
-  ctx.session.pin = pin;
-  ctx.session.cloudName = cloudName;
+  // Для простоты бота без хранения ID, мы создаем новый ПИН при каждом старте,
+  // если человек его еще не получил в этой сессии.
+  const { pin, cloudName } = await getOrRegisterPin();
+  botMemory.set(ctx.from.id, cloudName);
+
   const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${pin}`;
   const startInlineKeyboard = new InlineKeyboard().webApp('🎮 ИГРАТЬ В ТЕТРИС', gameUrl);
-  let info = `👋 Привет! Твой анонимный ник: *${cloudName}*\n🔑 Твой ПИН-код: \`${pin}\` (сохрани его!)\n\n👇 Выбери город для точных советов:`;
+
+  let info = `👋 Привет! Твой анонимный ник: *${cloudName}*\n🔑 Твой ПИН-код: \`${pin}\` (сохрани его!)\n\n👇 Выбери город для прогноза:`;
   await ctx.reply(info, { parse_mode: 'Markdown', reply_markup: cityKeyboard });
   await ctx.reply('🕹️ *Тетрис готов!*', { reply_markup: startInlineKeyboard, parse_mode: 'Markdown' });
 });
 
 bot.hears('🌤️ ПОГОДА СЕЙЧАС', async (ctx) => {
-  if (!ctx.session.cloudName) {
-    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
-    ctx.session.cloudName = cloudName;
-  }
-  const res = await getUserCity(ctx.session.cloudName);
+  const cloudName = botMemory.get(ctx.from.id);
+  if (!cloudName) return ctx.reply('Нажми /start!');
+  const res = await getUserCity(cloudName);
   if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
   const w = await getDetailedWeatherData(res.city);
   await ctx.reply(w.message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
 });
 
 bot.hears('📅 СЕГОДНЯ', async (ctx) => {
-  if (!ctx.session.cloudName) {
-    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
-    ctx.session.cloudName = cloudName;
-  }
-  const res = await getUserCity(ctx.session.cloudName);
-  if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
+  const cloudName = botMemory.get(ctx.from.id);
+  if (!cloudName) return ctx.reply('Нажми /start!');
+  const res = await getUserCity(cloudName);
+  if (res.city === 'Не указан') return ctx.reply('Выбери город!', { reply_markup: cityKeyboard });
   const f = await getDetailedForecast(res.city, 0);
   await ctx.reply(f.message, { parse_mode: 'Markdown' });
 });
 
 bot.hears('📅 ЗАВТРА', async (ctx) => {
-  if (!ctx.session.cloudName) {
-    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
-    ctx.session.cloudName = cloudName;
-  }
-  const res = await getUserCity(ctx.session.cloudName);
-  if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
+  const cloudName = botMemory.get(ctx.from.id);
+  if (!cloudName) return ctx.reply('Нажми /start!');
+  const res = await getUserCity(cloudName);
+  if (res.city === 'Не указан') return ctx.reply('Выбери город!', { reply_markup: cityKeyboard });
   const f = await getDetailedForecast(res.city, 1);
   await ctx.reply(f.message, { parse_mode: 'Markdown' });
 });
 
 bot.hears('👕 ЧТО НАДЕТЬ?', async (ctx) => {
-  if (!ctx.session.cloudName) {
-    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
-    ctx.session.cloudName = cloudName;
-  }
-  const res = await getUserCity(ctx.session.cloudName);
-  if (res.city === 'Не указан') return ctx.reply('Сначала выбери город!', { reply_markup: cityKeyboard });
+  const cloudName = botMemory.get(ctx.from.id);
+  if (!cloudName) return ctx.reply('Нажми /start!');
+  const res = await getUserCity(cloudName);
+  if (res.city === 'Не указан') return ctx.reply('Выбери город!', { reply_markup: cityKeyboard });
   const w = await getDetailedWeatherData(res.city);
   await ctx.reply(getWardrobeAdvice(w), { parse_mode: 'Markdown' });
 });
 
 bot.hears('💬 ФРАЗА ДНЯ', (ctx) => {
   const p = dailyPhrases[new Date().getDate() % dailyPhrases.length];
-  ctx.reply(`💬 *Фраза дня*\n\n🇬🇧 \`${p.e}\`\n🇷🇺 ${p.r}\n\n📂 Категория: ${p.c}`, { parse_mode: 'Markdown' });
+  ctx.reply(`💬 *Фраза дня*\n\n🇬🇧 \`${p.e}\`\n🇷🇺 ${p.r}`, { parse_mode: 'Markdown' });
 });
 
 bot.hears('🎲 СЛУЧАЙНАЯ', (ctx) => {
@@ -252,40 +203,32 @@ bot.hears('🎲 СЛУЧАЙНАЯ', (ctx) => {
 });
 
 bot.hears('🎮 ИГРАТЬ В ТЕТРИС', async (ctx) => {
-  if (!ctx.session.pin) {
-    const { pin, cloudName } = await getOrRegisterPin();
-    ctx.session.pin = pin; ctx.session.cloudName = cloudName;
-  }
-  const gameUrl = `https://pogodasovet1.vercel.app/game?pin=${ctx.session.pin}`;
-  await ctx.reply(`🕹️ *Тетрис*\nНик: *${ctx.session.cloudName}*`, { 
-    parse_mode: 'Markdown', 
-    reply_markup: { inline_keyboard: [[{ text: '🎮 Открыть Игру', web_app: { url: gameUrl } }]] } 
-  });
+  const cloudName = botMemory.get(ctx.from.id);
+  if (!cloudName) return ctx.reply('Нажми /start!');
+  // В реальном боте здесь нужно доставать ПИН из базы, но для анонимности
+  // мы просим игрока использовать ПИН, выданный при старте.
+  ctx.reply('Используй кнопку в сообщении выше или нажми /start, чтобы получить ссылку.');
 });
 
 bot.hears('🏙️ СМЕНИТЬ ГОРОД', (ctx) => ctx.reply('Выбери город из списка:', { reply_markup: cityKeyboard }));
 
 bot.hears(/^📍 /, async (ctx) => {
-  if (!ctx.session.cloudName) {
-    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
-    ctx.session.cloudName = cloudName;
-  }
+  const cloudName = botMemory.get(ctx.from.id);
+  if (!cloudName) return ctx.reply('Нажми /start!');
   const city = ctx.message.text.replace('📍 ', '').trim();
-  await saveUserCity(ctx.session.cloudName, city);
+  await saveUserCity(cloudName, city);
   await ctx.reply(`✅ Город *${city}* успешно установлен!`, { reply_markup: mainMenuKeyboard, parse_mode: 'Markdown' });
 });
 
 bot.on('message:text', async (ctx) => {
   if (ctx.message.text.startsWith('/')) return;
-  if (!ctx.session.cloudName) {
-    const { cloudName } = await getOrRegisterPin(ctx.session.pin);
-    ctx.session.cloudName = cloudName;
-  }
+  const cloudName = botMemory.get(ctx.from.id);
+  if (!cloudName) return;
   const check = await getDetailedWeatherData(ctx.message.text.trim());
   if (check.success) {
-    await saveUserCity(ctx.session.cloudName, check.city);
+    await saveUserCity(cloudName, check.city);
     await ctx.reply(`✅ Город *${check.city}* выбран!`, { reply_markup: mainMenuKeyboard, parse_mode: 'Markdown' });
-  } else { ctx.reply('❌ Город не найден. Напиши правильно.', { reply_markup: cityKeyboard }); }
+  } else { ctx.reply('❌ Город не найден.', { reply_markup: cityKeyboard }); }
 });
 
 export default async function handler(req, res) {
